@@ -1,2 +1,2 @@
 # Zero-Dawn
-we can't stop life from ending
+we can stop life from ending
