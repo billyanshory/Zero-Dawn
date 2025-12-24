@@ -480,8 +480,8 @@ def get_planet_info(name: str):
 # MARS BIOSIGNATURE CONTENT & CLASSES (UPDATED FOR ALL 6 POINTS)
 # ==============================================================================
 
-# Data struktur untuk konten Mars (Point 1 - 6)
-MARS_DETAILS_CONFIG = {
+# Data struktur untuk konten Mars (Point 1 - 6) - INDONESIA
+MARS_DETAILS_CONFIG_ID = {
     1: {
         "title": "PLANET MERAH MARS",
         "img_file": "permukaanmerahMars.png",
@@ -562,7 +562,8 @@ Kita berdiri di ambang jawaban atas pertanyaan terbesar sepanjang masa: "Apakah 
     }
 }
 
-EARTH_DETAILS_CONFIG = {
+# Data struktur untuk konten Bumi (Point 1 - 6) - INDONESIA
+EARTH_DETAILS_CONFIG_ID = {
     1: {
         "title": "PLANET BIRU EARTH",
         "img_file": "PlanetBiru.png",
@@ -643,9 +644,173 @@ Mars mungkin adalah masa depan, tapi Bumi adalah tempat kita berasal. Memahami b
     }
 }
 
+# Data struktur untuk konten Mars (Point 1 - 6) - ENGLISH
+MARS_DETAILS_CONFIG_EN = {
+    1: {
+        "title": "RED PLANET MARS",
+        "img_file": "permukaanmerahMars.png",
+        "img_caption": "Red Color is caused by iron oxide (rust) dust covering its surface. Source: Data NASA",
+        "link_text": "Red Color caused by rust. Source: Data NASA",
+        "link_url": "https://science.nasa.gov/mars/facts/",
+        "facts": ["Mars is red", "Covered by iron oxide dust (rust)", "Distinctive color clearly visible from Earth"],
+        "text": """Imagine a world where rusting iron is not a sign of decay, but the primer paint for an entire planet. Mars is red not because of heat, but because of oxidation—a giant chemical process occurring over billions of years, turning iron rocks into fine blood-red dust that coats everything.
+
+The wind on Mars never stops working. It lifts these rust dust particles into the atmosphere, creating pink skies during the day and haunting blue twilights. This is the universe's chemical laboratory showcasing the beauty of a simple reaction between iron and ancient oxygen remains.
+
+Gazing at Mars in the night sky is gazing at frozen geological history. Its red color is both a warning and an invitation; it tells the story of a planet that might have once been blue like Earth, before slowly drying out and rusting, leaving an eternal monument to time and change."""
+    },
+    2: {
+        "title": "GIANT CANYON \"VALLES MARINERIS\"",
+        "img_file": "NgaraiRaksasaVallesMarineris.png",
+        "img_caption": "Valles Marineris: Grand Canyon of Mars. Source: Data NASA",
+        "link_text": "Valles Marineris: Grand Canyon of Mars. Source: Data NASA",
+        "link_url": "https://www.nasa.gov/image-article/valles-marineris-grand-canyon-of-mars/",
+        "facts": ["Length of Valles Marineris: ~3,000-4,000 km", "Could span a quarter of Mars' circumference", "Next tourist destination for humanity"],
+        "text": """If you think the Grand Canyon is big, Valles Marineris will leave you speechless. This is not just a canyon; it is a giant scar on the face of Mars, a tectonic crack stretching the length of the continental United States. Standing on its edge, you wouldn't see the other side, only the horizon falling into immeasurable depths.
+
+Formed not by river water like on Earth, but by the planet itself stretching and tearing as the Martian crust cooled. Its walls rise 7 kilometers high, holding layers of geological history older than any life we know. It is a stone archive waiting to be read.
+
+One day, humans will stand here, watching the morning mist fill this giant valley. Valles Marineris is not just a geological feature; it is a monument to the rough and unforgiving grandeur of the universe, a natural cathedral where we can reflect on how small we are in the face of the cosmos."""
+    },
+    3: {
+        "title": "GIANT GEOLOGICAL FEATURE \"OLYMPUS MONS\"",
+        "img_file": "GunungTertinggiOlympusMons.png",
+        "img_caption": "Tallest Volcano in the Solar System Olympus Mons. Source: Data National Geographics",
+        "link_text": "Mengenal Olympus Mons. Source: Data National Geographics",
+        "link_url": "https://nationalgeographic.grid.id/read/133139693/mengenal-olympus-mons-gunung-berapi-tertinggi-di-tata-surya?page=all",
+        "facts": ["Three times higher than Mount Everest", "Formed due to lack of tectonic plates on Mars", "Next mountain to conquer"],
+        "text": """Olympus Mons stands as the king of mountains in the Solar System, a titan rising through the thin Martian atmosphere. With a height three times that of Everest, its peak touches the vacuum of space. This is not just a mountain; it is proof of unparalleled volcanic power, growing endlessly because the Martian crust stands still.
+
+Climbing Olympus Mons means walking out of the planet's atmosphere. Its base is as large as the country of France, a giant shield built from lava flows billions of years ago. At its summit, a giant caldera stares into the black starry sky, a silent witness to Mars' fiery and turbulent past.
+
+For future explorers, conquering Olympus Mons is the holy grail of adventure. Standing at its peak is not just about breaking altitude records, but about touching the edge of the sky itself, gazing at the curvature of the red planet beneath one's feet, and realizing we have stepped further than our ancestors' wildest dreams."""
+    },
+    4: {
+        "title": "MARS ATMOSPHERE \"100X THINNER THAN EARTH\"",
+        "img_file": "AtmosferTipislebihtipisdariBumi.png",
+        "img_caption": "Difference between Mars & Earth Atmosphere. Source: Data National Geographics",
+        "link_text": "Dulu Mars memiliki atmosfer. Source: Data National Geographics",
+        "link_url": "https://nationalgeographic.grid.id/read/13302142/dulu-planet-mars-memiliki-atmosfer-yang-sama-dengan-bumi",
+        "facts": ["Extreme temperatures and does not allow liquid water to persist", "Makes Mars uninhabitable today", "Mars' past was warmer and wetter"],
+        "text": """The atmosphere of Mars is a thin and fragile blanket, a ghostly remnant of a thicker past. One hundred times thinner than Earth's and dominated by carbon dioxide, it provides no protection from the cold of space or fierce solar radiation. Without sufficient air pressure, human blood would boil instantly if exposed without protection.
+
+However, the thinness of this atmosphere tells a tragic story of loss. Billions of years ago, Mars had blue skies and thick clouds shading flowing rivers. The loss of its magnetic field let the solar wind erode this atmosphere slowly, turning a wet paradise into the frozen desert we see today.
+
+Understanding Mars' atmosphere is key to understanding the fate of planets. It teaches us how precious the invisible shield we have on Earth is. On Mars, every gust of dusty wind is a reminder of a world's fragility, and the greatest challenge we must overcome if we want to make this red planet a second home."""
+    },
+    5: {
+        "title": "TRACES OF LIFE \"SALTY WATER & HISTORY\"",
+        "img_file": "AirMemilikitudungeskutub.png",
+        "img_caption": "Water Fossils on the Rusty Red Planet. Source: Data CNBC",
+        "link_text": "Ditemukan danau air asin di Mars. Source: Data CNBC",
+        "link_url": "https://www.cnbcindonesia.com/tech/20200929121403-37-190232/ditemukan-danau-air-asin-di-mars-planet-merah-layak-huni",
+        "facts": ["Traces of past or present life", "Makes Mars potentially habitable today", "Main prerequisite for life like on Earth"],
+        "text": """Water is the signature of life, and Mars hides it neatly. In its frozen poles and perhaps in salty lakes deep beneath the surface, water still persists. This is not just ice; it is a molecular time capsule that might hold ancient dormant microbes, waiting to be found.
+
+The discovery of salty water on Mars changed everything. The planet is not dead, only sleeping. The existence of liquid water, however salty and hidden, gives hope that life might have once—or still—exists there. Where there is water on Earth, there is life; this principle drives us to keep digging into that red sand.
+
+For humanity, this water is liquid gold. It is a source of oxygen to breathe and rocket fuel to return home. Finding and harvesting water on Mars is not just about science; it is about survival. It is the first step to turning a cold alien planet into a place where our descendants might one day be born."""
+    },
+    6: {
+        "title": "ROCK MYSTERY \"CHEYAVA FALLS\"",
+        "img_file": "biosignatureonMars.png",
+        "img_caption": "Microbial Biosignature on Mars (signs of life). Source: Data NASA",
+        "link_text": "Biosignature Mikrobial on Mars. Source: Data NASA",
+        "link_url": "https://www.nasa.gov/news-release/nasa-says-mars-rover-discovered-potential-biosignature-last-year/",
+        "facts": ["Discovery of signs of life", "Presence of microbial traces in Martian rocks", "We are not alone in this universe"],
+        "text": """In the ancient river valley of Neretva Vallis, the Perseverance rover found something amazing: an arrowhead-shaped rock named 'Cheyava Falls'. This rock has white spots with black edges, exactly like leopard spots. This unique structure is not just nature's decoration, but the strongest clue we have ever found about Mars' past that might have hosted life.
+
+Why is this so important? On Earth, similar patterns form when ancient microbes convert rusty red rock into energy. Rover instruments detected organic compounds and evidence of water flow within this rock. It's like finding a chemical 'fingerprint' left by microscopic life billions of years ago, locked neatly inside that red stone.
+
+We stand on the brink of the answer to the greatest question of all time: 'Are we alone?' Although not yet confirmed 100% as alien, this rock is a promising time capsule. We are staring at a trace that might prove this universe is not silent, and life, however small, always finds a way to exist."""
+    }
+}
+
+# Data struktur untuk konten Bumi (Point 1 - 6) - ENGLISH
+EARTH_DETAILS_CONFIG_EN = {
+    1: {
+        "title": "BLUE PLANET EARTH",
+        "img_file": "PlanetBiru.png",
+        "img_caption": "Earth: 71% surface covered by liquid water. Source: Data NASA",
+        "link_text": "Kenapa Bumi Disebut Planet Biru? Source: Data NASA",
+        "link_url": "https://rri.co.id/semarang/iptek/841328/kenapa-bumi-disebut-planet-biru",
+        "facts": ["71% Covered in Water", "97% is salty seawater that cannot be drunk directly", "No water = no life"],
+        "text": """Imagine a speck of blue dust floating alone in the pitch-black cosmic expanse. That is Earth, the only home we know. Its blue color is not just decoration, but a signal of life—liquid water covering most of its surface. As Carl Sagan said, from a distance, Earth shows no national borders or ideological conflicts, only a fragile and beautiful blue marble.
+
+The ocean on Earth is the heart of the planet's climate system. It stores solar heat, distributes it around the world, and is home to millions of species we haven't even fully identified. Water is the universal solvent of life, the medium where complex chemical reactions first sparked the spark of evolution billions of years ago. Without this vast ocean, Earth would be just a dry and dead rock like its neighbors.
+
+However, this abundance is deceptive. Most of that water is salty and undrinkable. We live on the edge of a fragile oasis, depending entirely on the hydrological cycle that keeps fresh water flowing. Preserving Earth's blue color is not just about planetary aesthetics; it is about ensuring the survival of the only biosphere capable of sustaining us in this vast universe."""
+    },
+    2: {
+        "title": "EARTH REGULATOR \"TECTONIC PLATES\"",
+        "img_file": "LempengTektonikBumi.png",
+        "img_caption": "The only planet with active tectonics. Source: Data UMSU",
+        "link_text": "Mengenal Lebih Dekat Planet Bumi. Source: Data UMSU",
+        "link_url": "https://oif.umsu.ac.id/mengenal-lebih-dekat-planet-bumi/",
+        "facts": ["Cause of Earthquakes and Volcanoes", "Moves about 3 to 5 cm per year", "Without tectonic plates, there is no climate"],
+        "text": """Earth is a living planet, not just on its surface, but also deep within its belly. Tectonic plates are giant engines that keep moving, recycling the planet's crust in a cycle of millions of years. This movement might seem terrifying because of the earthquakes and volcanoes it causes, but without this geological chaos, life might not survive.
+
+Plate tectonics plays a crucial role in the planet's thermostat. Through the carbonate-silicate cycle, this process regulates the amount of carbon dioxide in the atmosphere, preventing Earth from becoming too hot like Venus or too cold like Mars. It is a planetary recycling system that ensures essential elements remain available to the biosphere, maintaining the chemical balance of the atmosphere and oceans.
+
+So, when we feel the ground shake, it is the pulse of the planet at work. An erupting volcano is not just a disaster, but also a carrier of nutrients from the depths that fertilize the soil. We owe the existence of this stable climate to the giant dance floor beneath our feet that never stops moving."""
+    },
+    3: {
+        "title": "BREATH OF EARTH \"ATMOSPHERE OF LIFE\"",
+        "img_file": "AtmosferBumi.png",
+        "img_caption": "Earth's Atmosphere perfect for life. Source: Data Wikipedia",
+        "link_text": "Atmosfer Bumi. Source: Data Wikipedia",
+        "link_url": "https://id.wikipedia.org/wiki/Atmosfer_Bumi",
+        "facts": ["Prevents extreme temperatures between day and night", "Protective Shield from UV radiation", "Ratio 78:21 created by God in balance"],
+        "text": """Earth's atmosphere is a thin veil separating us from the deadly void of space. It is not just air to breathe; it is a shield, a blanket, and a chemical laboratory all at once. With a composition of 78% nitrogen and 21% oxygen, this atmosphere is the masterpiece of life itself—ancient plants and microbes that turned a toxic sky into lungs we can inhale.
+
+This layer works tirelessly to protect us. During the day, it blocks burning ultraviolet radiation; at night, it traps heat so we don't freeze. Without this natural greenhouse effect, Earth's average temperature would be far below freezing. The atmosphere is also the stage for weather, the dance of clouds and rain distributing the water of life across continents.
+
+However, this balance is extremely delicate. We are learning that altering the atmosphere's composition, even slightly, can trigger drastic climate change. Gazing at a clear blue sky should remind us that we live inside a fragile protective bubble. Keeping it clean and stable is the only way to ensure this 'breath' of Earth continues to sustain future generations."""
+    },
+    4: {
+        "title": "EARTH'S GUARDIAN \"THE GREY PLANET\"",
+        "img_file": "BulanBumi.png",
+        "img_caption": "Earth's Moon. Source: Data Kompas",
+        "link_text": "Manfaat Bulan sebagai Satelit Bumi. Source: Data Kompas",
+        "link_url": "https://www.kompas.com/skola/read/2020/07/18/170000869/manfaat-bulan-sebagai-satelit-bumi#:~:text=Tanpa%20Bulan%2C%20Bumi%20mungkin%20memiliki,saat%20ini%20mungkin%20akan%20punah.",
+        "facts": ["Moon's gravity prevents Earth's axis from swinging too wildly", "Stable axial tilt creates relatively stable climate", "Without the Moon, sea water would be lifted into the air"],
+        "text": """The Moon is more than just a lantern in the night; it is a gravitational anchor for Earth. Without this giant satellite, Earth's rotational axis would swing wildly like a wobbling top, causing extreme and chaotic climate changes that might prevent complex life from developing. The Moon holds Earth gently, keeping our axial tilt stable to create regular seasons.
+
+The gravitational dance between Earth and Moon also creates ocean tides. This intertidal zone is believed by many scientists to be the place where ancient life first learned to transition from the ocean to land. The Moon has been a midwife to evolution, pulling life out of the water and encouraging it to conquer the continents.
+
+Gazing at the full Moon is gazing at our silent guardian. It is full of craters, bearing the brunt of asteroid impacts that might have otherwise hit Earth. Our relationship with the Moon is a deep cosmic bond; it is Earth's faithful dance partner, keeping the rhythm of life on this planet stable for billions of years."""
+    },
+    5: {
+        "title": "INVISIBLE PROTECTOR \"MAGNETOSPHERE\"",
+        "img_file": "MedanMagnetBumi.png",
+        "img_caption": "Magnetic field protects from dangerous solar wind. Source: Data GreenLab",
+        "link_text": "Dampak Medan Magnet pada Lingkungan. Source: Data GreenLab",
+        "link_url": "https://greenlab.co.id/news/dampak-medan-magnet-pada-lingkungan",
+        "facts": ["Prevents atmosphere from being stripped away", "Keeps harmful radiation out of reach", "Creator of aurora phenomena at the poles"],
+        "text": """Deep within Earth's core, swirling molten metal creates an invisible shield stretching thousands of kilometers into space: the Magnetosphere. This is a protective force field that deflects the solar wind—a stream of deadly charged particles constantly fired by our star. Without this shield, Earth's atmosphere would be stripped away into space, a tragic fate suffered by Mars.
+
+We rarely notice its existence, except when it reveals itself in the mesmerizing Aurora lights at the poles. Those dancing lights are visual proof of the fierce battle happening up there, where our magnetic field slams dangerous particles away from the biosphere. It is a planetary defense system active 24 hours a day, protecting the DNA of every living thing from radiation damage.
+
+The magnetosphere teaches us that the most important protection is often invisible to the eye. This dynamo core is the reason we still have water and air. Life on this calm surface is made possible by the turbulent inferno of molten metal at the planet's center. We live safely inside a magical magnetic cocoon."""
+    },
+    6: {
+        "title": "LIFE IN COSMIC DUST \"EARTH\"",
+        "img_file": "KehidupanBumi.png",
+        "img_caption": "One of Earth's residents \"Fauna\". Source: Data National Geographics",
+        "link_text": "Bumi Satu-Satunya Planet Pendukung Kehidupan. Source: Data National Geographic",
+        "link_url": "https://nationalgeographic.grid.id/read/13304122/bumi-satu-satunya-planet-pendukung-kehidupan",
+        "facts": ["Right distance from the Sun", "NASA on a mission to find a 2nd Earth", "Mars could become a 2nd Earth by terraforming"],
+        "text": """Of all the wonders in the Solar System, none is more baffling and beautiful than life on Earth. Here, the matter of the universe became aware of itself. Earth is not just a wet rock; it is a complex super-organism, where geology, atmosphere, and biology are intertwined in an intricate symphony. We are in the 'Goldilocks' zone, not too hot, not too cold, just right for liquid water and the chemistry of life.
+
+Our existence is the result of a series of almost impossible coincidences. From position in the galaxy, solar stability, to the protection of Jupiter and the Moon, everything conspired to allow us to be here. NASA and scientists continue to search for a 'second Earth' out there, but so far, silence is the only answer. This makes our planet even more precious.
+
+Mars might be the future, but Earth is where we come from. Understanding how special life is here should trigger a deep sense of responsibility. We are the guardians of the only flame of consciousness we know of in this vast and cold universe. Protecting Earth is not a choice; it is an existential imperative for the continuation of our story among the stars."""
+    }
+}
+
 PLANET_DETAILS_DATA = {
-    "Mars": MARS_DETAILS_CONFIG,
-    "Earth": EARTH_DETAILS_CONFIG
+    # Nanti di-load dinamis berdasarkan CURRENT_LANG,
+    # tapi agar code lama aman, kita map defaultnya ke ID dulu atau logic di Modal
 }
 
 def load_planet_detail_image(filename):
@@ -668,9 +833,20 @@ def load_planet_detail_image(filename):
 class PlanetUniversalModal:
     def __init__(self, font, planet_name="Mars", config_id=6):
         self.font = font
-        planet_data = PLANET_DETAILS_DATA.get(planet_name, {})
-        self.config = planet_data.get(config_id, planet_data.get(6, {}))
-        if not self.config: self.config = MARS_DETAILS_CONFIG[6]
+
+        # Select dictionary based on planet name and language
+        config_map = {}
+        if planet_name == "Mars":
+            config_map = MARS_DETAILS_CONFIG_ID if CURRENT_LANG == "id" else MARS_DETAILS_CONFIG_EN
+        elif planet_name == "Earth":
+            config_map = EARTH_DETAILS_CONFIG_ID if CURRENT_LANG == "id" else EARTH_DETAILS_CONFIG_EN
+
+        self.config = config_map.get(config_id, config_map.get(6, {}))
+
+        # Fallback safety
+        if not self.config:
+            self.config = MARS_DETAILS_CONFIG_ID[6]
+
         self.title_font = pygame.font.SysFont("arial", 28, bold=True)
         self.body_font = pygame.font.SysFont("georgia", 18)
         self.bold_font = pygame.font.SysFont("georgia", 18, bold=True)
@@ -1379,8 +1555,8 @@ class PlanetOverlay:
             y_pos = 10 + i * lh
             summary_box.blit(txt, (10, y_pos))
 
-            # Logic untuk mendeteksi poin 1-6 di Mars
-            if self.planet.name in PLANET_DETAILS_DATA:
+            # Logic untuk mendeteksi poin 1-6 di Mars & Earth
+            if self.planet.name in ["Mars", "Earth"]:
                 stripped = line.strip()
                 point_idx = None
                 if stripped.startswith("1."): point_idx = 1
@@ -1418,7 +1594,7 @@ class PlanetOverlay:
 
         self.hover_point_index = None
         # Gunakan pengecekan generic agar Earth juga bisa
-        if self.planet.name in PLANET_DETAILS_DATA and self.detail_point_rects:
+        if self.planet.name in ["Mars", "Earth"] and self.detail_point_rects:
             mouse_pos = pygame.mouse.get_pos()
             rel_mx = mouse_pos[0] - self.overlay_rect.x
             rel_my = mouse_pos[1] - self.overlay_rect.y
@@ -1941,7 +2117,27 @@ def get_clipboard_text():
     except:
         return ""
 
-def license_screen(screen, target_key=None):
+def check_trial_history_used(hwid):
+    """Cek apakah HWID ini sudah pernah menggunakan trial."""
+    if os.path.exists("trial_history.dat"):
+        try:
+            with open("trial_history.dat", "r") as f:
+                content = f.read()
+                if hwid in content:
+                    return True
+        except:
+            pass
+    return False
+
+def mark_trial_used(hwid):
+    """Tandai HWID ini sudah menggunakan trial."""
+    try:
+        with open("trial_history.dat", "a") as f:
+            f.write(f"{hwid}|USED\n")
+    except:
+        pass
+
+def license_screen(screen, target_key=None, startup_message=None):
     """
     Loop khusus untuk input serial number sebelum masuk ke main game.
     target_key: Jika diisi, user WAJIB memasukkan key yang sama dengan ini.
@@ -1953,6 +2149,8 @@ def license_screen(screen, target_key=None):
     font_msg = pygame.font.SysFont("arial", 20)
     font_quote = pygame.font.SysFont("georgia", 18, italic=True)
     font_small = pygame.font.SysFont("arial", 14)
+    # Font khusus tombol trial (italic, bold)
+    font_trial_btn = pygame.font.SysFont("arial", 16, bold=True, italic=True)
 
     input_box = pygame.Rect(WIDTH // 2 - 200, HEIGHT // 2 - 25, 400, 50)
     btn_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 50, 200, 50)
@@ -1962,21 +2160,33 @@ def license_screen(screen, target_key=None):
     color = color_inactive
     active = False
     text = ''
-    message = "ENTER SERIAL NUMBER"
-    msg_color = (255, 255, 255)
+
+    # Pesan default atau pesan startup (misal: trial expired)
+    message = startup_message if startup_message else "ENTER SERIAL NUMBER"
+    msg_color = (255, 50, 50) if startup_message else (255, 255, 255)
 
     state = LicenseState.INPUT_KEY
     hwid = get_hwid()
 
+    # Mode License: LIFETIME vs TRIAL
+    license_mode = "LIFETIME" # Default
+
     # Timer untuk backspace
     last_backspace_time = 0
-    backspace_interval = 50 # ms - LEBIH CEPAT
-    backspace_delay = 400 # ms sebelum repeat dimulai
-    backspace_held_since = 0
+    backspace_interval = 50 # ms
+    backspace_delay = 400 # ms
 
     running = True
     while running:
         current_time = pygame.time.get_ticks()
+
+        # Hitung posisi tombol trial (di bawah kiri input box)
+        trial_btn_txt_str = "coba free trial for 3 day" if license_mode == "LIFETIME" else "pergi ke lifetime"
+        trial_btn_surf = font_trial_btn.render(trial_btn_txt_str, True, (200, 200, 255))
+        # Garis bawah manual
+        pygame.draw.line(trial_btn_surf, (200, 200, 255), (0, trial_btn_surf.get_height()-2), (trial_btn_surf.get_width(), trial_btn_surf.get_height()-2), 1)
+
+        trial_btn_rect = trial_btn_surf.get_rect(topleft=(input_box.left, input_box.bottom + 10))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -1989,11 +2199,23 @@ def license_screen(screen, target_key=None):
                     active = False
                 color = color_active if active else color_inactive
 
+                # Cek Tombol Trial/Lifetime Toggle
+                if trial_btn_rect.collidepoint(event.pos):
+                    if license_mode == "LIFETIME":
+                        license_mode = "TRIAL"
+                        message = "ENTER 3-DAY TRIAL KEY"
+                        msg_color = (255, 255, 255)
+                    else:
+                        license_mode = "LIFETIME"
+                        message = "ENTER SERIAL NUMBER"
+                        msg_color = (255, 255, 255)
+                    text = "" # Reset input saat ganti mode
+
+                # Cek Tombol Activate
                 if state == LicenseState.INPUT_KEY and btn_rect.collidepoint(event.pos):
-                    if len(text) > 5: # Basic validasi
-                        # CEK LOKAL DULU
-                        if target_key and text.strip() != target_key.strip():
-                             # Jika key tidak sama dengan yang sudah terdaftar
+                    if len(text) > 5:
+                        # Jika mode Lifetime, cek validasi lokal
+                        if license_mode == "LIFETIME" and target_key and text.strip() != target_key.strip():
                              import tkinter
                              from tkinter import messagebox
                              try:
@@ -2012,7 +2234,8 @@ def license_screen(screen, target_key=None):
                 if active:
                     if event.key == pygame.K_RETURN:
                         if len(text) > 5:
-                            if target_key and text.strip() != target_key.strip():
+                            # Logic Enter sama dengan Klik Activate
+                            if license_mode == "LIFETIME" and target_key and text.strip() != target_key.strip():
                                  import tkinter
                                  from tkinter import messagebox
                                  try:
@@ -2026,17 +2249,29 @@ def license_screen(screen, target_key=None):
                                  msg_color = (255, 50, 50)
                             else:
                                 state = LicenseState.ACTIVATING
+
                     elif event.key == pygame.K_BACKSPACE:
                         text = text[:-1]
-                        backspace_held_since = current_time
-                        last_backspace_time = current_time + backspace_delay # delay awal
+                        last_backspace_time = current_time + backspace_delay
+                    elif event.key == pygame.K_DELETE: # Fitur delete
+                        text = ""
+                    elif event.key == pygame.K_a and (event.mod & pygame.KMOD_CTRL):
+                        # Ctrl+A Select All (Simulasi visual dengan print atau flash?)
+                        # Di Pygame input simple string, Ctrl+A biasanya untuk replace.
+                        # Kita buat agar user bisa langsung delete semua setelah Ctrl+A -> Backspace/Del
+                        # Tapi di sini kita simpelkan: Ctrl+A -> Print 'Selected' di console debug atau sekadar flag.
+                        # Instruksi bilang: "aktifkan pula fungsi fitur mendelete seluruh teks serial number yang dimasukkan jika teks di ctrl-A"
+                        # Ini ambigu: apakah Ctrl+A langsung delete? Atau Ctrl+A select lalu delete?
+                        # Biasanya Ctrl+A select all. Lalu user tekan Backspace.
+                        # Untuk mempermudah sesuai prompt: "aktifkan fungsi fitur mendelete seluruh teks... jika teks di ctrl-A"
+                        # Saya akan buat Ctrl+A langsung menghapus teks atau "Select All" effect lalu next char replaces.
+                        # Tapi paling aman: Ctrl+A = Select All logic is complex in simple UI.
+                        # Saya akan implementasi Ctrl+A -> Kosongkan text (Clear). Simpel dan efektif.
+                        text = ""
                     elif event.key == pygame.K_v and (event.mod & pygame.KMOD_CTRL):
-                        # Paste
                         clip = get_clipboard_text()
-                        if clip:
-                            text += clip.upper().strip()
+                        if clip: text += clip.upper().strip()
                     elif event.key == pygame.K_c and (event.mod & pygame.KMOD_CTRL):
-                        # Copy (Simpel: copy semua text di box)
                         try:
                             import tkinter
                             tk = tkinter.Tk()
@@ -2047,7 +2282,6 @@ def license_screen(screen, target_key=None):
                             tk.destroy()
                         except: pass
                     elif event.key == pygame.K_x and (event.mod & pygame.KMOD_CTRL):
-                        # Cut
                         try:
                             import tkinter
                             tk = tkinter.Tk()
@@ -2059,7 +2293,6 @@ def license_screen(screen, target_key=None):
                             text = ""
                         except: pass
                     else:
-                        # Filter karakter yang valid saja (Alfanumerik + dash)
                         if event.unicode.isprintable() and len(text) < 50:
                             text += event.unicode.upper()
 
@@ -2075,26 +2308,44 @@ def license_screen(screen, target_key=None):
 
         # Logic Aktivasi
         if state == LicenseState.ACTIVATING:
-            # Draw overlay loading
-            msg_surf = font_msg.render("CONTACTING SERVER...", True, (255, 255, 0))
-            screen.blit(msg_surf, msg_surf.get_rect(center=(WIDTH//2, HEIGHT//2 + 120)))
-            pygame.display.flip()
+            # Jika Trial Mode, Cek History Dulu
+            blocked_trial = False
+            if license_mode == "TRIAL":
+                # Cek apakah sudah pernah pakai trial
+                if check_trial_history_used(hwid):
+                    message = "masa free trial teruss ehe.. ayokk gasss lifetime.."
+                    msg_color = (255, 50, 50)
+                    state = LicenseState.INPUT_KEY
+                    blocked_trial = True
 
-            success, server_msg = activate_license_online(text, hwid)
-            if success:
-                message = "ACTIVATION SUCCESSFUL!"
-                msg_color = (0, 255, 0)
-                state = LicenseState.SUCCESS
-                # Simpan file lisensi
-                with open(LICENSE_FILE, "w") as f:
-                    f.write(f"ACTIVATED|{hwid}|{text}")
-            else:
-                message = f"FAILED: {server_msg}"
-                msg_color = (255, 50, 50)
-                state = LicenseState.INPUT_KEY
+            if not blocked_trial:
+                # Draw overlay loading
+                msg_surf = font_msg.render("CONTACTING SERVER...", True, (255, 255, 0))
+                screen.blit(msg_surf, msg_surf.get_rect(center=(WIDTH//2, HEIGHT//2 + 120)))
+                pygame.display.flip()
+
+                success, server_msg = activate_license_online(text, hwid)
+                if success:
+                    message = "ACTIVATION SUCCESSFUL!"
+                    msg_color = (0, 255, 0)
+                    state = LicenseState.SUCCESS
+
+                    # Simpan data lisensi
+                    with open(LICENSE_FILE, "w") as f:
+                        if license_mode == "TRIAL":
+                            # Format: TRIAL|HWID|KEY|START_TIMESTAMP
+                            start_time = time.time()
+                            f.write(f"TRIAL|{hwid}|{text}|{start_time}")
+                            mark_trial_used(hwid)
+                        else:
+                            # Format: ACTIVATED|HWID|KEY
+                            f.write(f"ACTIVATED|{hwid}|{text}")
+                else:
+                    message = f"FAILED: {server_msg}"
+                    msg_color = (255, 50, 50)
+                    state = LicenseState.INPUT_KEY
 
         elif state == LicenseState.SUCCESS:
-            # Render sukses sebentar
             txt_surface = font_input.render(text, True, color)
             width = max(400, txt_surface.get_width()+10)
             input_box.w = width
@@ -2102,7 +2353,9 @@ def license_screen(screen, target_key=None):
             pygame.draw.rect(screen, color, input_box, 2)
             screen.blit(txt_surface, (input_box.x+5, input_box.y+5))
 
-            title_surf = font_title.render("PRODUCT ACTIVATION", True, (255, 255, 255))
+            # Judul berubah sesuai mode
+            title_str = "FREE TRIAL FOR 3 DAY" if license_mode == "TRIAL" else "PRODUCT ACTIVATION"
+            title_surf = font_title.render(title_str, True, (255, 255, 255))
             screen.blit(title_surf, title_surf.get_rect(center=(WIDTH//2, HEIGHT//2 - 100)))
 
             msg_surf = font_msg.render(message, True, msg_color)
@@ -2118,13 +2371,14 @@ def license_screen(screen, target_key=None):
         main_title = font_main_title.render("SIMULASI SISTEM TATA SURYA", True, (255, 255, 255))
         screen.blit(main_title, main_title.get_rect(center=(WIDTH//2, HEIGHT//2 - 160)))
 
-        # Sub Title
-        title_surf = font_title.render("PRODUCT ACTIVATION", True, (200, 200, 200))
+        # Sub Title (Dynamic)
+        title_str = "FREE TRIAL FOR 3 DAY" if license_mode == "TRIAL" else "PRODUCT ACTIVATION"
+        title_surf = font_title.render(title_str, True, (200, 200, 200))
         screen.blit(title_surf, title_surf.get_rect(center=(WIDTH//2, HEIGHT//2 - 100)))
 
         # Quote Elon Musk
         quote_text = "\"If The Universe is The Answer, then what is The Question ?\" - Elon Musk"
-        quote_surf = font_quote.render(quote_text, True, (200, 200, 255)) # Agak biru muda
+        quote_surf = font_quote.render(quote_text, True, (200, 200, 255))
         screen.blit(quote_surf, quote_surf.get_rect(center=(WIDTH//2, input_box.y - 30)))
 
         # Input Box
@@ -2133,7 +2387,6 @@ def license_screen(screen, target_key=None):
         input_box.w = width
         input_box.centerx = WIDTH // 2
 
-        # Fill input box agak gelap transparan (simulasi)
         s = pygame.Surface((input_box.w, input_box.h))
         s.set_alpha(100)
         s.fill((0, 0, 0))
@@ -2141,6 +2394,9 @@ def license_screen(screen, target_key=None):
 
         screen.blit(txt_surface, (input_box.x+5, input_box.y+5))
         pygame.draw.rect(screen, color, input_box, 2)
+
+        # Render Tombol Trial
+        screen.blit(trial_btn_surf, trial_btn_rect)
 
         # Message Area
         msg_surf = font_msg.render(message, True, msg_color)
@@ -2190,8 +2446,34 @@ def main():
     # kecuali user menekan "Back"
     first_run = True
 
+    # Pesan startup (misal untuk expired trial)
+    startup_msg = None
+
     # --- SESSION LOOP ---
     while True:
+        # Cek Expiration Trial (Brute Force Check)
+        is_trial_expired = False
+        if os.path.exists(LICENSE_FILE):
+            try:
+                with open(LICENSE_FILE, "r") as f:
+                    content = f.read().split("|")
+                    # Format TRIAL: TRIAL|HWID|KEY|START_TIMESTAMP
+                    if content[0] == "TRIAL" and len(content) >= 4:
+                        start_time = float(content[3])
+                        elapsed = time.time() - start_time
+                        # 3 hari = 3 * 24 * 3600 seconds
+                        if elapsed > (3 * 24 * 3600):
+                            is_trial_expired = True
+            except: pass
+
+        if is_trial_expired:
+            # Hapus lisensi, reset key
+            try: os.remove(LICENSE_FILE)
+            except: pass
+            active_key = None
+            first_run = True # Force agar logic check_license_locally gagal (sebenarnya file sdh dihapus jd aman)
+            startup_msg = "masa 3 day free trial anda sudah habis, ayok ke versi lifetime"
+
         # Jika Back ditekan (first_run False) ATAU File lisensi tidak ada: Tampilkan License Screen
         # Jika Start Up (first_run True) DAN File Lisensi Ada: Skip
 
@@ -2201,11 +2483,13 @@ def main():
 
         if should_show_license:
              # Pass active_key jika ada (untuk validasi ulang)
-             authorized, new_key = license_screen(screen, target_key=active_key)
+             # Pass startup_msg jika ada
+             authorized, new_key = license_screen(screen, target_key=active_key, startup_message=startup_msg)
              if not authorized:
                  pygame.quit()
                  return
              active_key = new_key
+             startup_msg = None # Reset pesan setelah berhasil masuk
         else:
              # File ada. Baca keynya jika belum dibaca.
              if not active_key:
