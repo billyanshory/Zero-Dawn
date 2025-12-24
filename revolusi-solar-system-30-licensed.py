@@ -186,7 +186,7 @@ class UIState(Enum):
     LANG_MODAL = auto()
     DATA_SOURCES = auto()
     TIME_INFO = auto()
-    MARS_BIO = auto() # Kini digunakan untuk semua poin Mars Detail
+    MARS_BIO = auto() # Kini digunakan untuk semua poin Planet Detail (Mars & Earth)
 
 class AngleMode(Enum):
     SIDE_0 = auto()
@@ -562,8 +562,94 @@ Kita berdiri di ambang jawaban atas pertanyaan terbesar sepanjang masa: "Apakah 
     }
 }
 
-def load_mars_image_generic(filename):
-    """Load gambar untuk modal Mars berdasarkan nama file"""
+EARTH_DETAILS_CONFIG = {
+    1: {
+        "title": "PLANET BIRU EARTH",
+        "img_file": "PlanetBiru.png",
+        "img_caption": "Bumi: 71% permukaan tertutup air cair. Source: Data NASA",
+        "link_text": "Kenapa Bumi Disebut Planet Biru? Source: Data NASA",
+        "link_url": "https://rri.co.id/semarang/iptek/841328/kenapa-bumi-disebut-planet-biru",
+        "facts": ["71% Tertutup Air", "97% adalah air laut asin yang tidak bisa langsung diminum", "tidak ada air = tidak ada kehidupan"],
+        "text": """Bayangkan setitik debu biru yang melayang sendirian di hamparan kosmik yang gelap gulita. Itulah Bumi, satu-satunya rumah yang kita kenal. Warna birunya bukan sekadar hiasan, melainkan sinyal kehidupan—air cair yang menutupi sebagian besar permukaannya. Seperti kata Carl Sagan, dari kejauhan, Bumi tidak menunjukkan batas negara atau konflik ideologi, hanya sebuah kelereng biru yang rapuh dan indah.
+
+Samudra di Bumi adalah jantung dari sistem iklim planet ini. Ia menyimpan panas matahari, mendistribusikannya ke seluruh dunia, dan menjadi rumah bagi jutaan spesies yang bahkan belum semuanya kita kenal. Air adalah pelarut universal kehidupan, medium di mana reaksi kimia kompleks pertama kali memicu percikan evolusi miliaran tahun yang lalu. Tanpa samudra yang luas ini, Bumi hanyalah batu kering dan mati seperti tetangganya.
+
+Namun, kelimpahan ini menipu. Sebagian besar air itu asin dan tak bisa diminum. Kita hidup di tepi oasis yang rapuh, bergantung sepenuhnya pada siklus hidrologi yang menjaga air tawar tetap mengalir. Menjaga warna biru Bumi bukan hanya tentang estetika planet; ini adalah tentang memastikan kelangsungan satu-satunya biosfer yang mampu menopang kita di alam semesta yang luas ini."""
+    },
+    2: {
+        "title": "PENGATUR BUMI \"LEMPENG TEKTONIK\"",
+        "img_file": "LempengTektonikBumi.png",
+        "img_caption": "Satu-satunya planet dengan tektonik aktif. Source: Data UMSU",
+        "link_text": "Mengenal Lebih Dekat Planet Bumi. Source: Data UMSU",
+        "link_url": "https://oif.umsu.ac.id/mengenal-lebih-dekat-planet-bumi/",
+        "facts": ["Penyebab Gempa dan Gunung Berapi", "Bergerak sekitar 3 hingga 5 cm per tahun", "tanpa lempeng tektonik maka tidak ada iklim"],
+        "text": """Bumi adalah planet yang hidup, bukan hanya di permukaannya, tetapi juga jauh di dalam perutnya. Lempeng tektonik adalah mesin raksasa yang terus bergerak, mendaur ulang kerak planet ini dalam siklus jutaan tahun. Pergerakan ini mungkin tampak menakutkan karena gempa dan gunung berapi yang ditimbulkannya, tetapi tanpa kekacauan geologis ini, kehidupan mungkin tidak akan bertahan.
+
+Tektonik lempeng memainkan peran krusial dalam termostat planet. Melalui siklus karbon silikat, proses ini mengatur jumlah karbon dioksida di atmosfer, mencegah Bumi menjadi terlalu panas seperti Venus atau terlalu dingin seperti Mars. Ini adalah sistem daur ulang planet yang memastikan elemen-elemen penting terus tersedia bagi biosfer, menjaga keseimbangan kimiawi atmosfer dan lautan.
+
+Jadi, ketika kita merasakan tanah berguncang, itu adalah denyut nadi planet yang sedang bekerja. Gunung berapi yang meletus bukan hanya bencana, tetapi juga pembawa nutrisi dari kedalaman yang menyuburkan tanah. Kita berutang keberadaan iklim yang stabil ini pada lantai dansa raksasa di bawah kaki kita yang tidak pernah berhenti bergerak."""
+    },
+    3: {
+        "title": "NAFAS BUMI \"ATMOSFER KEHIDUPAN\"",
+        "img_file": "AtmosferBumi.png",
+        "img_caption": "Atmosfer Bumi yang sempurna untuk kehidupan. Source: Data Wikipedia",
+        "link_text": "Atmosfer Bumi. Source: Data Wikipedia",
+        "link_url": "https://id.wikipedia.org/wiki/Atmosfer_Bumi",
+        "facts": ["mencegah suhu ekstrem antara siang dan malam", "Perisai Pelindung dari radiasi UV", "Rasio 78:21 diciptakan Tuhan secara seimbang"],
+        "text": """Atmosfer Bumi adalah selubung tipis yang memisahkan kita dari kehampaan ruang angkasa yang mematikan. Ini bukan sekadar udara untuk bernapas; ini adalah perisai, selimut, dan laboratorium kimia sekaligus. Dengan komposisi 78% nitrogen dan 21% oksigen, atmosfer ini adalah hasil karya kehidupan itu sendiri—tanaman dan mikroba purba yang mengubah langit beracun menjadi paru-paru yang bisa kita hirup.
+
+Lapisan ini bekerja tanpa henti melindungi kita. Di siang hari, ia menghalau radiasi ultraviolet yang membakar; di malam hari, ia memerangkap panas agar kita tidak membeku. Tanpa efek rumah kaca alami ini, suhu rata-rata Bumi akan berada jauh di bawah titik beku. Atmosfer juga adalah panggung bagi cuaca, tarian awan dan hujan yang mendistribusikan air kehidupan ke seluruh benua.
+
+Namun, keseimbangan ini sangatlah halus. Kita sedang belajar bahwa mengubah komposisi atmosfer, meski sedikit, dapat memicu perubahan iklim yang drastis. Menatap langit biru yang cerah seharusnya mengingatkan kita bahwa kita hidup di dalam gelembung pelindung yang rapuh. Menjaganya tetap bersih dan stabil adalah satu-satunya cara memastikan 'nafas' Bumi ini terus menghidupi generasi mendatang."""
+    },
+    4: {
+        "title": "PENJAGA BUMI \"PLANET ABU-ABU\"",
+        "img_file": "BulanBumi.png",
+        "img_caption": "Bulannya Bumi. Source: Data Kompas",
+        "link_text": "Manfaat Bulan sebagai Satelit Bumi. Source: Data Kompas",
+        "link_url": "https://www.kompas.com/skola/read/2020/07/18/170000869/manfaat-bulan-sebagai-satelit-bumi#:~:text=Tanpa%20Bulan%2C%20Bumi%20mungkin%20memiliki,saat%20ini%20mungkin%20akan%20punah.",
+        "facts": ["gaya gravitasi Bulan mencegah poros Bumi berayun terlalu ekstrem", "kemiringan poros yang stabil menciptakan iklim yang relatif stabil", "tanpa Bulan maka air laut akan terangkat ke udara"],
+        "text": """Bulan lebih dari sekadar lentera di malam hari; ia adalah jangkar gravitasi bagi Bumi. Tanpa satelit raksasa ini, poros rotasi Bumi akan berayun liar seperti gasing yang mau berhenti, menyebabkan perubahan iklim yang ekstrem dan kacau yang mungkin mencegah kehidupan kompleks berkembang. Bulan memegang Bumi dengan lembut, menjaga kemiringan poros kita stabil untuk menciptakan musim-musim yang teratur.
+
+Tarian gravitasi antara Bumi dan Bulan juga menciptakan pasang surut lautan. Zona pasang surut ini diyakini oleh banyak ilmuwan sebagai tempat di mana kehidupan purba pertama kali belajar untuk beralih dari lautan ke daratan. Bulan telah menjadi bidan bagi evolusi, menarik kehidupan keluar dari air dan mendorongnya untuk menaklukkan benua.
+
+Menatap Bulan purnama adalah menatap pelindung diam kita. Ia penuh dengan kawah, menanggung hantaman asteroid yang mungkin seharusnya mengenai Bumi. Hubungan kita dengan Bulan adalah ikatan kosmik yang mendalam; ia adalah pasangan dansa Bumi yang setia, menjaga irama kehidupan di planet ini tetap stabil selama miliaran tahun."""
+    },
+    5: {
+        "title": "PELINDUNG TAK TERLIHAT \"MAGNETOSFER\"",
+        "img_file": "MedanMagnetBumi.png",
+        "img_caption": "Medan magnet melindungi dari angin matahari berbahaya. Source: Data GreenLab",
+        "link_text": "Dampak Medan Magnet pada Lingkungan. Source: Data GreenLab",
+        "link_url": "https://greenlab.co.id/news/dampak-medan-magnet-pada-lingkungan",
+        "facts": ["mencegah atmosfer terkikis", "menjaga radiasi berbahaya tetap di luar jangkauan", "pembuat fenomena aurora di kutub"],
+        "text": """Jauh di dalam inti Bumi, logam cair yang berputar menciptakan perisai tak terlihat yang membentang ribuan kilometer ke angkasa: Magnetosfer. Ini adalah medan gaya pelindung yang menangkis angin matahari—aliran partikel bermuatan mematikan yang terus-menerus ditembakkan oleh bintang kita. Tanpa perisai ini, atmosfer Bumi akan terkikis habis ke angkasa, nasib tragis yang dialami Mars.
+
+Kita jarang menyadari keberadaannya, kecuali saat ia menampilkan dirinya dalam cahaya Aurora yang memukau di kutub. Cahaya menari itu adalah bukti visual dari pertempuran sengit yang terjadi di atas sana, di mana medan magnet kita membanting partikel berbahaya menjauh dari biosfer. Ini adalah sistem pertahanan planet yang aktif 24 jam sehari, melindungi DNA setiap makhluk hidup dari kerusakan radiasi.
+
+Magnetosfer mengajarkan kita bahwa perlindungan terpenting seringkali tak terlihat oleh mata. Inti bumi yang dinamo ini adalah alasan mengapa kita masih memiliki air dan udara. Kehidupan di permukaan yang tenang ini dimungkinkan oleh gejolak inferno logam cair di pusat planet. Kita hidup aman di dalam kepompong magnetik yang ajaib."""
+    },
+    6: {
+        "title": "KEHIDUPAN DI DALAM DEBU KOSMIK \"BUMI\"",
+        "img_file": "KehidupanBumi.png",
+        "img_caption": "Salah satu penduduk Bumi \"Fauna\". Source: Data National Geographics",
+        "link_text": "Bumi Satu-Satunya Planet Pendukung Kehidupan. Source: Data National Geographic",
+        "link_url": "https://nationalgeographic.grid.id/read/13304122/bumi-satu-satunya-planet-pendukung-kehidupan",
+        "facts": ["Jarak yang tepat dari Matahari", "NASA dalam misi pencarian mencari Bumi ke-2", "Mars bisa menjadi Bumi ke-2 dengan cara mengterraforming Planet Merah itu"],
+        "text": """Dari semua keajaiban di Tata Surya, tidak ada yang lebih membingungkan dan indah daripada kehidupan di Bumi. Di sinilah materi alam semesta menjadi sadar akan dirinya sendiri. Bumi bukan hanya batu basah; ia adalah super-organisme yang kompleks, di mana geologi, atmosfer, dan biologi saling terkait dalam simfoni yang rumit. Kita berada di zona 'Goldilocks', tidak terlalu panas, tidak terlalu dingin, tepat untuk air cair dan kimia kehidupan.
+
+Keberadaan kita adalah hasil dari serangkaian kebetulan yang nyaris mustahil. Dari posisi di galaksi, kestabilan matahari, hingga perlindungan Jupiter dan Bulan, semuanya berkonspirasi untuk memungkinkan kita ada di sini. NASA dan ilmuwan terus mencari 'Bumi kedua' di luar sana, tetapi sejauh ini, kesunyian adalah satu-satunya jawaban. Ini membuat planet kita semakin berharga.
+
+Mars mungkin adalah masa depan, tapi Bumi adalah tempat kita berasal. Memahami betapa istimewanya kehidupan di sini seharusnya memicu rasa tanggung jawab yang mendalam. Kita adalah penjaga satu-satunya nyala api kesadaran yang kita ketahui di alam semesta yang luas dan dingin ini. Menjaga Bumi bukan pilihan; itu adalah imperatif eksistensial bagi kelangsungan kisah kita di antara bintang-bintang."""
+    }
+}
+
+PLANET_DETAILS_DATA = {
+    "Mars": MARS_DETAILS_CONFIG,
+    "Earth": EARTH_DETAILS_CONFIG
+}
+
+def load_planet_detail_image(filename):
+    """Load gambar untuk modal Planet Detail berdasarkan nama file"""
     path = os.path.join(os.path.dirname(__file__), filename)
     try:
         img = pygame.image.load(path).convert_alpha()
@@ -579,38 +665,39 @@ def load_mars_image_generic(filename):
         return s
 
 # Mengganti MarsBiosignatureModal dengan MarsUniversalModal yang fleksibel
-class MarsUniversalModal:
-    def __init__(self, font, config_id=6):
+class PlanetUniversalModal:
+    def __init__(self, font, planet_name="Mars", config_id=6):
         self.font = font
-        self.config = MARS_DETAILS_CONFIG.get(config_id, MARS_DETAILS_CONFIG[6])
-        
+        planet_data = PLANET_DETAILS_DATA.get(planet_name, {})
+        self.config = planet_data.get(config_id, planet_data.get(6, {}))
+        if not self.config: self.config = MARS_DETAILS_CONFIG[6]
         self.title_font = pygame.font.SysFont("arial", 28, bold=True)
-        self.body_font = pygame.font.SysFont("georgia", 18) 
+        self.body_font = pygame.font.SysFont("georgia", 18)
         self.bold_font = pygame.font.SysFont("georgia", 18, bold=True)
         self.fact_font = pygame.font.SysFont("arial", 14, bold=True)
         self.link_font = pygame.font.SysFont("arial", 12)
         self.caption_font = pygame.font.SysFont("arial", 14, italic=True)
         self.blur = BlurLayer()
-        
-        self.image = load_mars_image_generic(self.config["img_file"])
+
+        self.image = load_planet_detail_image(self.config["img_file"])
         self.panel = None
         self.panel_rect = None
         self.close_rect = None
-        
+
         self.scroll_y = 0
         self.scroll_x = 0
         self.max_scroll_y = 0
         self.max_scroll_x = 0
-        
+
         self.view_rect = None # Area viewport
         self.content_surf = None # Surface konten keseluruhan
-        
+
         self.link_rect_rel = None # Rect untuk link (relatif thd content_surf)
         self.link_hover = False
-        
+
         self.pad = 30
         self.mars_red = (188, 39, 50)
-        
+
     def open(self, background):
         self.blur.from_surface(background)
         self.build()
@@ -618,45 +705,45 @@ class MarsUniversalModal:
     def build(self):
         w = min(1000, WIDTH - 60)
         h = min(800, HEIGHT - 60)
-        
+
         self.panel = pygame.Surface((w, h), pygame.SRCALPHA)
         self.panel.fill((20, 20, 25, 245)) # Gelap elegan
         pygame.draw.rect(self.panel, self.mars_red, self.panel.get_rect(), 2, border_radius=12)
-        
+
         # 1. Judul (Statis di panel)
         title_str = self.config["title"]
         title = self.title_font.render(title_str, True, (255, 200, 200))
         self.panel.blit(title, title.get_rect(midtop=(w/2, self.pad)))
-        
+
         view_start_y = self.pad + title.get_height() + 20
         view_h = h - view_start_y - self.pad
         self.view_rect = pygame.Rect(self.pad, view_start_y, w - self.pad*2, view_h)
-        
+
         # --- MENYUSUN KONTEN ---
         # Gambar
         img_w, img_h = self.image.get_size()
-        
+
         # Scaling gambar agar "sedang"
         target_img_h = 280
         scale = target_img_h / img_h
         img_w = int(img_w * scale)
         img_h = int(target_img_h)
         scaled_img = pygame.transform.smoothscale(self.image, (img_w, img_h))
-        
+
         # Area Panah & Fakta (Kanan Gambar)
-        fact_area_w = 300 
-        
+        fact_area_w = 300
+
         # Total lebar bagian atas
         top_section_w = img_w + 20 + fact_area_w
-        
+
         # Text Content Wrapper
         text_wrap_w = max(self.view_rect.width, 600)
-        
+
         # Total Surface Width
         total_content_w = max(top_section_w, text_wrap_w)
-        
+
         # Render Text Lines
-        wrapper = textwrap.TextWrapper(width=int(text_wrap_w / 9)) 
+        wrapper = textwrap.TextWrapper(width=int(text_wrap_w / 9))
         paragraphs = self.config["text"].split('\n\n')
         text_surfaces = []
         for para in paragraphs:
@@ -665,35 +752,35 @@ class MarsUniversalModal:
                 s = self.body_font.render(line, True, (230, 230, 230))
                 text_surfaces.append(s)
             text_surfaces.append(None) # Spacer
-            
+
         # Hitung Tinggi Total
         text_h = 0
         for s in text_surfaces:
             if s: text_h += s.get_height() + 5
             else: text_h += 15
-            
+
         # Judul keterangan gambar / Link
         caption_str = self.config["img_caption"] # Using caption as the link text usually
         link_surf = self.link_font.render(caption_str, True, (200, 200, 255))
-        
+
         total_h = img_h + 30 + link_surf.get_height() + 20 + text_h + 20
-        
+
         self.content_surf = pygame.Surface((total_content_w, total_h), pygame.SRCALPHA)
-        
+
         # --- GAMBAR KE SURFACE ---
         curr_y = 0
-        
+
         # 1. Gambar
         self.content_surf.blit(scaled_img, (0, curr_y))
-        
+
         # 2. Panah & Fakta
         arrow_start_x = img_w + 10
         arrow_center_y = curr_y + img_h // 2
         facts = self.config["facts"]
-        
+
         # Adjust vertical spread of facts
         fact_y_start = arrow_center_y - 60
-        
+
         for i, fact in enumerate(facts):
             fy = fact_y_start + i * 60
             p_end = (arrow_start_x - 5, fy)
@@ -707,19 +794,19 @@ class MarsUniversalModal:
             line_h_fact = self.fact_font.get_linesize()
             total_fact_h = len(f_lines) * line_h_fact
             fact_curr_y = fy - total_fact_h // 2
-            
+
             for f_line in f_lines:
                 f_surf = self.fact_font.render(f_line, True, (255, 255, 255))
                 self.content_surf.blit(f_surf, (arrow_start_x + 40, fact_curr_y))
                 fact_curr_y += line_h_fact
 
         curr_y += img_h + 10
-        
+
         # 3. Link / Caption
         self.link_rect_rel = link_surf.get_rect(topleft=(0, curr_y))
         self.content_surf.blit(link_surf, self.link_rect_rel)
         curr_y += link_surf.get_height() + 20
-        
+
         # 4. Text
         for s in text_surfaces:
             if s:
@@ -727,39 +814,39 @@ class MarsUniversalModal:
                 curr_y += s.get_height() + 5
             else:
                 curr_y += 15
-                
+
         # Scroll logic
         self.max_scroll_y = max(0, total_h - view_h)
         self.max_scroll_x = max(0, total_content_w - self.view_rect.width)
-        
+
         # Close button
         self.close_rect = pygame.Rect(w - 40, 10, 30, 30)
         pygame.draw.rect(self.panel, (200, 50, 50), self.close_rect, border_radius=5)
         x_char = self.title_font.render("X", True, (255, 255, 255))
         self.panel.blit(x_char, x_char.get_rect(center=self.close_rect.center))
-        
+
         self.panel_rect = self.panel.get_rect(center=(WIDTH/2, HEIGHT/2))
 
     def draw(self, surface):
         self.blur.draw(surface) # Draw blurred background
-        
+
         # Blit Panel Base
         surface.blit(self.panel, self.panel_rect)
-        
+
         # Clipping & Content Rendering
         screen_view_rect = self.view_rect.move(self.panel_rect.topleft)
         surface.set_clip(screen_view_rect)
-        
+
         # Posisi konten berdasarkan scroll
         content_pos = (screen_view_rect.x - self.scroll_x, screen_view_rect.y - self.scroll_y)
         surface.blit(self.content_surf, content_pos)
-        
+
         # Animasi Hover Link (Digambar ulang jika hover agar terlihat 'aktif')
         if self.link_hover:
             # Hitung posisi absolut link di layar
             link_abs_x = content_pos[0] + self.link_rect_rel.x
             link_abs_y = content_pos[1] + self.link_rect_rel.y
-            
+
             # Cek apakah link terlihat di viewport
             link_rect_screen = pygame.Rect(link_abs_x, link_abs_y, self.link_rect_rel.width, self.link_rect_rel.height)
             if screen_view_rect.colliderect(link_rect_screen):
@@ -767,7 +854,7 @@ class MarsUniversalModal:
                 pygame.draw.line(surface, (255, 255, 255), link_rect_screen.bottomleft, link_rect_screen.bottomright, 1)
 
         surface.set_clip(None)
-        
+
         # Scrollbars
         if self.max_scroll_y > 0:
             sb_w = 6
@@ -778,7 +865,7 @@ class MarsUniversalModal:
             thumb_y = screen_view_rect.top + scroll_ratio * (sb_h - thumb_h)
             pygame.draw.rect(surface, (50, 50, 50), (sb_x, screen_view_rect.top, sb_w, sb_h), border_radius=3)
             pygame.draw.rect(surface, (150, 150, 150), (sb_x, thumb_y, sb_w, thumb_h), border_radius=3)
-            
+
         if self.max_scroll_x > 0:
             sb_h = 6
             sb_w = screen_view_rect.width
@@ -813,7 +900,7 @@ class MarsUniversalModal:
             screen_view_rect = self.view_rect.move(self.panel_rect.topleft)
             content_pos = (screen_view_rect.x - self.scroll_x, screen_view_rect.y - self.scroll_y)
             link_abs_rect = self.link_rect_rel.move(content_pos)
-            
+
             # Hanya deteksi jika di dalam viewport
             if screen_view_rect.collidepoint(event.pos) and link_abs_rect.collidepoint(event.pos):
                 self.link_hover = True
@@ -822,7 +909,7 @@ class MarsUniversalModal:
                 if self.link_hover:
                     pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
                 self.link_hover = False
-                
+
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
                 # Cek Link Click
@@ -933,7 +1020,7 @@ def draw_orbits(surface, planets, camera, sketch_mode=False):
             x = p.orbit_radius * math.cos(rad)
             y = p.orbit_radius * math.sin(rad)
             points.append(camera.world_to_screen((x, y)))
-        
+
         orbit_color = color if sketch_mode else p.color
         pygame.draw.aalines(surface, orbit_color, True, points, 1)
 
@@ -951,7 +1038,7 @@ def draw_curvature(surface, camera, sketch_mode=False):
         _well_cache = params
     mesh_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     line_color = (20, 20, 20, 80) if sketch_mode else (80, 80, 120, 120)
-    
+
     for x in range(-extent, extent + 1, step):
         prev = None
         for y in range(-extent, extent + 1, step):
@@ -1032,10 +1119,10 @@ def apply_approx_orbits(planets, scale=ORBIT_SCALE_DEFAULT):
 def draw_distance_reference(surface, camera, font, sketch_mode=False):
     start = camera.world_to_screen((SUN_DRAW_RADIUS, 0))
     end = camera.world_to_screen((DISTANCE_DATA[-1][1], 0))
-    
+
     line_color = (50, 50, 50) if sketch_mode else (200, 200, 200)
     text_color = (0, 0, 0) if sketch_mode else (255, 255, 255)
-    
+
     pygame.draw.aaline(surface, line_color, start, end)
 
     t = max(0.0, min(1.0, (camera.zoom - 0.5) / 0.5))
@@ -1089,10 +1176,10 @@ def draw_play_pause_buttons(surface, font, paused, play_rect, pause_rect):
 def draw_sketch_button(surface, font, rect, sketch_mode):
     color = (0, 0, 0) if sketch_mode else (200, 200, 200)
     text_color = (255, 255, 255) if sketch_mode else (0, 0, 0)
-    
+
     pygame.draw.rect(surface, color, rect, border_radius=5)
     pygame.draw.rect(surface, (0, 0, 0), rect, 2, border_radius=5)
-    
+
     text = font.render(t("sketch_btn"), True, text_color)
     surface.blit(text, text.get_rect(center=rect.center))
 
@@ -1230,7 +1317,7 @@ class PlanetOverlay:
         self.close_rect = None
         self.right_rect = None
         self.summary_rect = None
-        self.mars_point_rects = [] # (rect_rel_to_overlay, text_string, point_index)
+        self.detail_point_rects = [] # (rect_rel_to_overlay, text_string, point_index)
         self.hover_point_index = None
 
     def open(self, planet):
@@ -1239,7 +1326,7 @@ class PlanetOverlay:
         self._rebuild()
 
     def _rebuild(self):
-        self.mars_point_rects = []
+        self.detail_point_rects = []
         info = get_planet_info(self.planet.name)
         left_w = 260
         left_h = 260
@@ -1259,7 +1346,7 @@ class PlanetOverlay:
         summary_w = max(right.get_width(), min(max(50, WIDTH - (left_w + gap + 40)), 500))
         wrap_w = summary_w - 20
         lines = []
-        
+
         raw_paragraphs = summary_text.split('\n')
         for para in raw_paragraphs:
             words = para.split(' ')
@@ -1273,27 +1360,27 @@ class PlanetOverlay:
                     line_buf = word
             if line_buf:
                 lines.append(line_buf)
-                    
+
         summary_h = len(lines) * self.italic.get_linesize()
         summary_box = pygame.Surface((summary_w, summary_h + 20), pygame.SRCALPHA)
         pygame.draw.rect(summary_box, (240, 240, 240, 230), summary_box.get_rect(), border_radius=6)
-        
+
         lh = self.italic.get_linesize()
-        
+
         top_h = max(left_h, right.get_height())
         w = left_w + gap + max(right.get_width(), summary_w) + 20
         h = top_h + summary_box.get_height() + 80
-        
+
         summary_offset_x = left_w + gap
         summary_offset_y = 40 + right.get_height() + 10
-        
+
         for i, line in enumerate(lines):
             txt = self.italic.render(line, True, (0, 0, 0))
             y_pos = 10 + i * lh
             summary_box.blit(txt, (10, y_pos))
-            
+
             # Logic untuk mendeteksi poin 1-6 di Mars
-            if self.planet.name == "Mars":
+            if self.planet.name in PLANET_DETAILS_DATA:
                 stripped = line.strip()
                 point_idx = None
                 if stripped.startswith("1."): point_idx = 1
@@ -1302,20 +1389,20 @@ class PlanetOverlay:
                 elif stripped.startswith("4."): point_idx = 4
                 elif stripped.startswith("5."): point_idx = 5
                 elif stripped.startswith("6."): point_idx = 6
-                
+
                 # Jika baris ini adalah awal poin atau kelanjutan (sederhana: anggap hanya baris yg ada angka depannya bisa diklik agar rapi, atau bisa semua baris)
                 # Agar UX bagus, kita deteksi baris yang ada angkanya saja sebagai trigger 'button'
                 if point_idx is not None:
                     r = pygame.Rect(10, y_pos, txt.get_width(), lh)
                     r.move_ip(summary_offset_x, summary_offset_y)
-                    self.mars_point_rects.append((r, line, point_idx))
+                    self.detail_point_rects.append((r, line, point_idx))
 
         overlay = pygame.Surface((w, h), pygame.SRCALPHA)
         pygame.draw.rect(overlay, (30, 30, 30, 180), overlay.get_rect(), border_radius=10)
         overlay.blit(left, (10, 40))
         self.right_rect = overlay.blit(right, (left_w + gap, 40))
         self.summary_rect = overlay.blit(summary_box, (summary_offset_x, summary_offset_y))
-        
+
         hint = self.font.render(t("hint_close"), True, (255, 255, 255))
         overlay.blit(hint, hint.get_rect(midbottom=(w / 2, h - 10)))
         close_size = 36
@@ -1328,14 +1415,15 @@ class PlanetOverlay:
 
     def draw(self, surface):
         self.overlay_rect = self.overlay.get_rect(center=(WIDTH / 2, HEIGHT / 2))
-        
+
         self.hover_point_index = None
-        if self.planet.name == "Mars" and self.mars_point_rects:
+        # Gunakan pengecekan generic agar Earth juga bisa
+        if self.planet.name in PLANET_DETAILS_DATA and self.detail_point_rects:
             mouse_pos = pygame.mouse.get_pos()
             rel_mx = mouse_pos[0] - self.overlay_rect.x
             rel_my = mouse_pos[1] - self.overlay_rect.y
-            
-            for r, text, idx in self.mars_point_rects:
+
+            for r, text, idx in self.detail_point_rects:
                 # Perbesar area hit sedikit agar mudah diklik
                 hit_r = r.inflate(0, 4)
                 if hit_r.collidepoint(rel_mx, rel_my):
@@ -1345,36 +1433,36 @@ class PlanetOverlay:
                     lift_y = -4
                     padding_x = 4
                     highlight_rect = pygame.Rect(
-                        abs_r.x - padding_x, 
-                        abs_r.y + lift_y, 
-                        abs_r.width + padding_x * 2, 
+                        abs_r.x - padding_x,
+                        abs_r.y + lift_y,
+                        abs_r.width + padding_x * 2,
                         abs_r.height
                     )
                     pygame.draw.rect(surface, (255, 255, 255), highlight_rect, border_radius=4)
                     txt_surf = self.italic_bold.render(text, True, (0, 0, 0))
                     surface.blit(txt_surf, (abs_r.x, abs_r.y + lift_y))
                     break # Hanya satu yang bisa dihover
-        
+
         surface.blit(self.overlay, self.overlay_rect.topleft)
-        
-        # Redraw highlight on top of overlay if needed (sudah dilakukan di atas sebelum blit overlay agar di bawah text? Tidak, overlay ada transparansinya, urutan: 
+
+        # Redraw highlight on top of overlay if needed (sudah dilakukan di atas sebelum blit overlay agar di bawah text? Tidak, overlay ada transparansinya, urutan:
         # 1. Background (sudah)
         # 2. Highlight Box (Putih)
         # 3. Text Bold Hitam (Agar jelas terbaca di atas putih)
-        # 4. Overlay Panel (Transparan) -> ini akan menimpa highlight. 
+        # 4. Overlay Panel (Transparan) -> ini akan menimpa highlight.
         # Jadi urutan yang benar: Draw Overlay dulu, lalu Draw Highlight di ATAS overlay.
-        
+
         # Koreksi urutan draw agar highlight muncul di atas panel summary box yg semi transparan
         if self.hover_point_index is not None:
-             for r, text, idx in self.mars_point_rects:
+             for r, text, idx in self.detail_point_rects:
                  if idx == self.hover_point_index:
                     abs_r = r.move(self.overlay_rect.topleft)
                     lift_y = -4
                     padding_x = 4
                     highlight_rect = pygame.Rect(
-                        abs_r.x - padding_x, 
-                        abs_r.y + lift_y, 
-                        abs_r.width + padding_x * 2, 
+                        abs_r.x - padding_x,
+                        abs_r.y + lift_y,
+                        abs_r.width + padding_x * 2,
                         abs_r.height
                     )
                     pygame.draw.rect(surface, (255, 255, 255), highlight_rect, border_radius=4)
@@ -1821,10 +1909,10 @@ def draw_blueprint_grid(surface):
     # Sesuaikan dengan warna saat aplikasi simulasi di mulai: (10, 10, 30)
     bg_color = (10, 10, 30)
     surface.fill(bg_color)
-    
+
     # Warna garis grid (biru/abu-abu halus transparan)
-    line_color_solid = (40, 40, 70) 
-    
+    line_color_solid = (40, 40, 70)
+
     step = 40
     for x in range(0, w, step):
         pygame.draw.line(surface, line_color_solid, (x, 0), (x, h))
@@ -1841,7 +1929,7 @@ def get_clipboard_text():
                 return content.decode("utf-8").strip()
             except:
                 pass
-    
+
     # Cara 2: Fallback ke Tkinter (biasanya ada di instalasi python standar)
     try:
         import tkinter
@@ -1865,10 +1953,10 @@ def license_screen(screen, target_key=None):
     font_msg = pygame.font.SysFont("arial", 20)
     font_quote = pygame.font.SysFont("georgia", 18, italic=True)
     font_small = pygame.font.SysFont("arial", 14)
-    
+
     input_box = pygame.Rect(WIDTH // 2 - 200, HEIGHT // 2 - 25, 400, 50)
     btn_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 50, 200, 50)
-    
+
     color_inactive = (100, 100, 100)
     color_active = (100, 200, 255) # Biru muda blueprint
     color = color_inactive
@@ -1876,20 +1964,20 @@ def license_screen(screen, target_key=None):
     text = ''
     message = "ENTER SERIAL NUMBER"
     msg_color = (255, 255, 255)
-    
+
     state = LicenseState.INPUT_KEY
     hwid = get_hwid()
-    
+
     # Timer untuk backspace
     last_backspace_time = 0
     backspace_interval = 50 # ms - LEBIH CEPAT
     backspace_delay = 400 # ms sebelum repeat dimulai
     backspace_held_since = 0
-    
+
     running = True
     while running:
         current_time = pygame.time.get_ticks()
-        
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -1900,7 +1988,7 @@ def license_screen(screen, target_key=None):
                 else:
                     active = False
                 color = color_active if active else color_inactive
-                
+
                 if state == LicenseState.INPUT_KEY and btn_rect.collidepoint(event.pos):
                     if len(text) > 5: # Basic validasi
                         # CEK LOKAL DULU
@@ -1919,7 +2007,7 @@ def license_screen(screen, target_key=None):
                              msg_color = (255, 50, 50)
                         else:
                             state = LicenseState.ACTIVATING
-            
+
             if event.type == pygame.KEYDOWN:
                 if active:
                     if event.key == pygame.K_RETURN:
@@ -1984,14 +2072,14 @@ def license_screen(screen, target_key=None):
 
         # Background Blueprint
         draw_blueprint_grid(screen)
-        
+
         # Logic Aktivasi
         if state == LicenseState.ACTIVATING:
             # Draw overlay loading
             msg_surf = font_msg.render("CONTACTING SERVER...", True, (255, 255, 0))
             screen.blit(msg_surf, msg_surf.get_rect(center=(WIDTH//2, HEIGHT//2 + 120)))
             pygame.display.flip()
-            
+
             success, server_msg = activate_license_online(text, hwid)
             if success:
                 message = "ACTIVATION SUCCESSFUL!"
@@ -2004,7 +2092,7 @@ def license_screen(screen, target_key=None):
                 message = f"FAILED: {server_msg}"
                 msg_color = (255, 50, 50)
                 state = LicenseState.INPUT_KEY
-        
+
         elif state == LicenseState.SUCCESS:
             # Render sukses sebentar
             txt_surface = font_input.render(text, True, color)
@@ -2013,19 +2101,19 @@ def license_screen(screen, target_key=None):
             input_box.centerx = WIDTH // 2
             pygame.draw.rect(screen, color, input_box, 2)
             screen.blit(txt_surface, (input_box.x+5, input_box.y+5))
-            
+
             title_surf = font_title.render("PRODUCT ACTIVATION", True, (255, 255, 255))
             screen.blit(title_surf, title_surf.get_rect(center=(WIDTH//2, HEIGHT//2 - 100)))
-            
+
             msg_surf = font_msg.render(message, True, msg_color)
             screen.blit(msg_surf, msg_surf.get_rect(center=(WIDTH//2, HEIGHT//2 + 130)))
-            
+
             pygame.display.flip()
             pygame.time.delay(1500)
             return True, text # Return True dan key yang baru saja aktif
 
         # === RENDER UI ===
-        
+
         # Main Title
         main_title = font_main_title.render("SIMULASI SISTEM TATA SURYA", True, (255, 255, 255))
         screen.blit(main_title, main_title.get_rect(center=(WIDTH//2, HEIGHT//2 - 160)))
@@ -2038,37 +2126,37 @@ def license_screen(screen, target_key=None):
         quote_text = "\"If The Universe is The Answer, then what is The Question ?\" - Elon Musk"
         quote_surf = font_quote.render(quote_text, True, (200, 200, 255)) # Agak biru muda
         screen.blit(quote_surf, quote_surf.get_rect(center=(WIDTH//2, input_box.y - 30)))
-        
+
         # Input Box
         txt_surface = font_input.render(text, True, color)
         width = max(400, txt_surface.get_width()+10)
         input_box.w = width
         input_box.centerx = WIDTH // 2
-        
+
         # Fill input box agak gelap transparan (simulasi)
         s = pygame.Surface((input_box.w, input_box.h))
         s.set_alpha(100)
         s.fill((0, 0, 0))
         screen.blit(s, (input_box.x, input_box.y))
-        
+
         screen.blit(txt_surface, (input_box.x+5, input_box.y+5))
         pygame.draw.rect(screen, color, input_box, 2)
-        
+
         # Message Area
         msg_surf = font_msg.render(message, True, msg_color)
         screen.blit(msg_surf, msg_surf.get_rect(center=(WIDTH//2, HEIGHT//2 + 130)))
-        
+
         # Online Warning
         online_msg = "Anda harus terhubung ke internet untuk mengaktivasi serial number product keynya, harap online."
         online_surf = font_small.render(online_msg, True, (200, 200, 200))
         screen.blit(online_surf, online_surf.get_rect(center=(WIDTH//2, HEIGHT - 30)))
-        
+
         # Activate Button
         pygame.draw.rect(screen, (0, 150, 0) if state != LicenseState.ACTIVATING else (100, 100, 100), btn_rect, border_radius=5)
         pygame.draw.rect(screen, (255, 255, 255), btn_rect, 2, border_radius=5)
         btn_txt = font_msg.render("ACTIVATE", True, (255, 255, 255))
         screen.blit(btn_txt, btn_txt.get_rect(center=btn_rect.center))
-        
+
         pygame.display.flip()
         clock.tick(30)
     return False, None
@@ -2106,11 +2194,11 @@ def main():
     while True:
         # Jika Back ditekan (first_run False) ATAU File lisensi tidak ada: Tampilkan License Screen
         # Jika Start Up (first_run True) DAN File Lisensi Ada: Skip
-        
+
         should_show_license = True
         if first_run and check_license_locally():
             should_show_license = False
-        
+
         if should_show_license:
              # Pass active_key jika ada (untuk validasi ulang)
              authorized, new_key = license_screen(screen, target_key=active_key)
@@ -2127,23 +2215,23 @@ def main():
                           if len(content) >= 3:
                               active_key = content[2].strip()
                   except: pass
-        
+
         first_run = False # Setelah sesi pertama, flag ini mati
 
         # Masuk Game Loop
-        
+
         font = pygame.font.SysFont("arial", 16)
         small_font = pygame.font.SysFont("arial", 14)
         tooltip = Tooltip(pygame.font.SysFont("arial", 14))
         watermark_font = pygame.font.SysFont("arial", 12, italic=True)
         watermark_text = watermark_font.render("@emansipation", True, (255, 255, 255))
         watermark_shadow = watermark_font.render("@emansipation", True, (0, 0, 0))
-        
+
         # Tombol Kembali / Reset License
         back_btn_font = pygame.font.SysFont("arial", 12, bold=True)
         back_btn_text = back_btn_font.render("<< RESET / LOGIN", True, (255, 100, 100))
         back_btn_rect = pygame.Rect(0, 0, 0, 0) # Akan dihitung saat draw
-        
+
         overlay = PlanetOverlay(font)
         language_modal = None
         data_modal = None
@@ -2184,7 +2272,7 @@ def main():
         keyboard_button_color = list(KEYBOARD_BTN_INACTIVE)
         paused = False
         rotating = False
-        sketch_mode = False 
+        sketch_mode = False
         last_mouse_x = 0
         show_debug = False
         input_vec = Vector2()
@@ -2202,10 +2290,10 @@ def main():
         time_info_button_rect = pygame.Rect(0, 0, 0, 0)
         play_rect = pygame.Rect(0, 0, 0, 0)
         pause_rect = pygame.Rect(0, 0, 0, 0)
-        sketch_button_rect = pygame.Rect(0, 0, 0, 0) 
+        sketch_button_rect = pygame.Rect(0, 0, 0, 0)
         start_x = button_y = 0
         lod_active = camera.zoom < LOD_ZOOM
-        
+
         user_requested_back = False
 
         def recalc_ui():
@@ -2231,7 +2319,7 @@ def main():
             button_y = HEIGHT - button_h - 10
             play_rect = pygame.Rect(start_x, button_y, button_w, button_h)
             pause_rect = pygame.Rect(start_x + button_w + gap, button_y, button_w, button_h)
-            
+
             sketch_w = 120
             sketch_x = WIDTH // 2 - sketch_w // 2
             sketch_y = button_y - 40
@@ -2260,7 +2348,7 @@ def main():
         def draw_watermark_and_back(surface):
             x = 10
             y = HEIGHT - watermark_text.get_height() - 10
-            
+
             # Watermark
             if sketch_mode:
                 black_wm = watermark_font.render("@emansipation", True, (0, 0, 0))
@@ -2268,19 +2356,19 @@ def main():
             else:
                 surface.blit(watermark_shadow, (x + 1, y + 1))
                 surface.blit(watermark_text, (x, y))
-            
+
             # Tombol Back
             wm_w = watermark_text.get_width()
             nonlocal back_btn_rect
             btn_x = x + wm_w + 15
             back_btn_rect = pygame.Rect(btn_x, y - 2, back_btn_text.get_width() + 10, back_btn_text.get_height() + 4)
-            
+
             # Draw button background (agak transparan merah)
             s = pygame.Surface((back_btn_rect.width, back_btn_rect.height), pygame.SRCALPHA)
             s.fill((100, 0, 0, 150))
             surface.blit(s, back_btn_rect.topleft)
             pygame.draw.rect(surface, (150, 50, 50), back_btn_rect, 1)
-            
+
             surface.blit(back_btn_text, (btn_x + 5, y))
 
         def reset_view():
@@ -2308,16 +2396,16 @@ def main():
             nonlocal input_vec, angle_button_rects, angle_focus, lod_active
             nonlocal language_button_rect, time_info_button_rect
             nonlocal sketch_button_rect
-            
+
             bg_color = (255, 255, 255) if sketch_mode else (10, 10, 30)
             surface.fill(bg_color)
-            
+
             draw_curvature(surface, camera, sketch_mode=sketch_mode)
             draw_orbits(surface, planets, camera, sketch_mode=sketch_mode)
             draw_distance_reference(surface, camera, small_font, sketch_mode=sketch_mode)
-            
+
             sx, sy = camera.world_to_screen((0, 0))
-            
+
             if sketch_mode:
                 pygame.draw.circle(surface, (0, 0, 0), (sx, sy), int(SUN_DRAW_RADIUS * camera.zoom), 2)
             else:
@@ -2331,10 +2419,10 @@ def main():
                 else:
                     x, y = pl.body.position
                 px, py = camera.world_to_screen((x, y))
-                
+
                 p_color = (0, 0, 0) if sketch_mode else pl.color
                 text_color = (0, 0, 0) if sketch_mode else (255, 255, 255)
-                
+
                 if lod_active:
                     surface.fill(p_color, (px, py, 1, 1))
                     radius = 1
@@ -2344,7 +2432,7 @@ def main():
                         pygame.draw.circle(surface, (0,0,0), (px, py), radius, 1)
                     else:
                         pygame.draw.circle(surface, pl.color, (px, py), radius)
-                    
+
                     label = font.render(pl.name, True, text_color)
                     label_rect = label.get_rect(center=(px, py - 15 * camera.zoom))
                     surface.blit(label, label_rect)
@@ -2354,21 +2442,21 @@ def main():
             panel_width = 260
             panel_height = len(info_lines) * 18 + 10
             panel = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
-            
+
             panel_bg = (200, 200, 200, 150) if sketch_mode else (0, 0, 0, 150)
             panel_text_col = (0, 0, 0) if sketch_mode else (255, 255, 255)
-            
+
             panel.fill(panel_bg)
             for i, text in enumerate(info_lines):
                 txt = font.render(text, True, panel_text_col)
                 panel.blit(txt, (5, 5 + i * 18))
             panel_pos = (WIDTH - panel_width - 10, 10)
             surface.blit(panel, panel_pos)
-            
+
             info_d = 18
             info_rect = pygame.Rect(panel_pos[0] + panel_width - info_d - 5, panel_pos[1] + 5, info_d, info_d)
             hover_info = info_rect.collidepoint(pygame.mouse.get_pos())
-            
+
             btn_bg = (180, 180, 180) if hover_info else (255, 255, 255)
             pygame.draw.circle(surface, btn_bg, info_rect.center, info_d // 2)
             pygame.draw.circle(surface, (0, 0, 0), info_rect.center, info_d // 2, 2)
@@ -2387,27 +2475,27 @@ def main():
 
             speed_rects = draw_speed_panel(surface, font, speed_index)
             draw_angle_buttons(surface, font, angle_button_rects, angle_focus, camera.angle_mode)
-            
+
             target = KEYBOARD_BTN_ACTIVE if show_keyboard_info else KEYBOARD_BTN_INACTIVE
             for i in range(3):
                 keyboard_button_color[i] += (target[i] - keyboard_button_color[i]) * 0.1
             button_color = tuple(int(c) for c in keyboard_button_color)
             draw_keyboard_button(surface, font, keyboard_button_rect, button_color)
-            
+
             if show_keyboard_info:
                 overlay_pos = (10, keyboard_button_rect.bottom + 5)
                 keyboard_info_rect = draw_keyboard_overlay(surface, font, overlay_pos)
             else:
                 keyboard_info_rect = None
-                
+
             draw_play_pause_buttons(surface, font, paused, play_rect, pause_rect)
-            
+
             draw_sketch_button(surface, font, sketch_button_rect, sketch_mode)
-            
+
             surface.blit(book_icon, data_button_rect.topleft)
             if data_button_rect.collidepoint(pygame.mouse.get_pos()):
                 tooltip.draw(surface, t("sources_tooltip"), (data_button_rect.right, data_button_rect.centery), "right")
-            
+
             draw_watermark_and_back(surface)
             if show_debug:
                 draw_debug_overlay(surface, camera, font, input_vec)
@@ -2457,7 +2545,7 @@ def main():
                         try:
                             detail_idx = int(res.split("_")[-1])
                             bg_capture = screen.copy()
-                            mars_modal = MarsUniversalModal(font, config_id=detail_idx)
+                            mars_modal = PlanetUniversalModal(font, planet_name=overlay.planet.name, config_id=detail_idx)
                             mars_modal.open(bg_capture)
                             ui_state = UIState.MARS_BIO
                         except ValueError:
@@ -2592,7 +2680,7 @@ def main():
                     camera.adjust_zoom(math.log(1.01))
                 if keys[pygame.K_DOWN]:
                     camera.adjust_zoom(-math.log(1.01))
-                
+
                 # FIX W-S-A-D (Screen-Relative Movement)
                 move = Vector2(0, 0)
                 if keys[pygame.K_w]: move.y += 1
@@ -2603,14 +2691,14 @@ def main():
                 if move.length_squared() > 0:
                     if DIAGONAL_NORMALIZE:
                         move = move.normalize()
-                    
+
                     angle = -camera.rot
                     rot_move = move.rotate_rad(angle)
-                    
+
                     speed_dt = PAN_SPEED_WORLD * dt
                     if PAN_SPEED_MODE == "screen":
                         speed_dt /= camera.zoom
-                    
+
                     camera.pos += rot_move * speed_dt
                     input_vec = rot_move # For debug display
 
