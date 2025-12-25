@@ -33,6 +33,7 @@ import webbrowser
 # GANTI URL INI DENGAN URL FLASK APP KAMU DI PYTHONANYWHERE
 LICENSE_SERVER_URL = "http://b1l14n50r1.pythonanywhere.com"
 LICENSE_FILE = "license.dat"
+BINDING_FILE = "license_binding.dat"
 
 def show_splash_screen():
     """
@@ -2669,6 +2670,26 @@ def mark_trial_used(hwid):
     except:
         pass
 
+def check_device_binding():
+    """Cek apakah device ini sudah terikat dengan key tertentu."""
+    if os.path.exists(BINDING_FILE):
+        try:
+            with open(BINDING_FILE, "r") as f:
+                content = f.read().strip().split("|")
+                if len(content) >= 2:
+                    return content[1] # Return the bound key
+        except:
+            pass
+    return None
+
+def bind_device(hwid, key):
+    """Ikat device ID dengan key ini secara permanen."""
+    try:
+        with open(BINDING_FILE, "w") as f:
+            f.write(f"{hwid}|{key}")
+    except:
+        pass
+
 def license_screen(screen, target_key=None, startup_message=None):
     """
     Loop khusus untuk input serial number sebelum masuk ke main game.
@@ -2683,8 +2704,8 @@ def license_screen(screen, target_key=None, startup_message=None):
     font_small = pygame.font.SysFont("arial", 14)
     
     input_box = pygame.Rect(WIDTH // 2 - 200, HEIGHT // 2 - 25, 400, 50)
-    # Geser tombol ACTIVATE ke bawah agar tidak menimpa link trial
-    btn_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 100, 200, 50)
+    # Posisi tombol ACTIVATE dinaikkan agar lebih dekat dengan input box
+    btn_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 40, 200, 50)
     
     color_inactive = (100, 100, 100)
     color_active = (100, 200, 255) # Biru muda blueprint
@@ -2731,8 +2752,26 @@ def license_screen(screen, target_key=None, startup_message=None):
                     else:
                         # Lifetime: Cek panjang key
                         if len(text) > 5:
-                            # Jika mode Lifetime, cek validasi lokal
-                            if license_mode == "LIFETIME" and target_key and text.strip() != target_key.strip():
+                            # Cek Binding Lock Hardware ID
+                            bound_key = check_device_binding()
+                            current_input = text.strip()
+
+                            # 1. Cek binding file (Lock Mati HWID)
+                            if bound_key and current_input != bound_key:
+                                 import tkinter
+                                 from tkinter import messagebox
+                                 try:
+                                     root = tkinter.Tk()
+                                     root.withdraw()
+                                     messagebox.showerror("Error", "Hardware ID Laptop/PC ini sudah terkunci pada Serial Number lain. Anda tidak bisa menggunakan Serial Number berbeda.")
+                                     root.destroy()
+                                 except:
+                                     pass
+                                 message = "PERANGKAT TERKUNCI PADA SERIAL NUMBER LAIN"
+                                 msg_color = (255, 50, 50)
+
+                            # 2. Cek target_key session (jika ada reset session)
+                            elif license_mode == "LIFETIME" and target_key and current_input != target_key.strip():
                                  import tkinter
                                  from tkinter import messagebox
                                  try:
@@ -2755,8 +2794,23 @@ def license_screen(screen, target_key=None, startup_message=None):
                             license_mode = "TRIAL"
                             state = LicenseState.ACTIVATING
                         elif len(text) > 5:
-                            # Logic Enter sama dengan Klik Activate
-                            if license_mode == "LIFETIME" and target_key and text.strip() != target_key.strip():
+                            # Cek Binding Lock Hardware ID
+                            bound_key = check_device_binding()
+                            current_input = text.strip()
+
+                            if bound_key and current_input != bound_key:
+                                 import tkinter
+                                 from tkinter import messagebox
+                                 try:
+                                     root = tkinter.Tk()
+                                     root.withdraw()
+                                     messagebox.showerror("Error", "Hardware ID Laptop/PC ini sudah terkunci pada Serial Number lain.")
+                                     root.destroy()
+                                 except:
+                                     pass
+                                 message = "PERANGKAT TERKUNCI PADA SERIAL NUMBER LAIN"
+                                 msg_color = (255, 50, 50)
+                            elif license_mode == "LIFETIME" and target_key and current_input != target_key.strip():
                                  import tkinter
                                  from tkinter import messagebox
                                  try:
@@ -2877,6 +2931,9 @@ def license_screen(screen, target_key=None, startup_message=None):
                     with open(LICENSE_FILE, "w") as f:
                         # Format: ACTIVATED|HWID|KEY
                         f.write(f"ACTIVATED|{hwid}|{text}")
+
+                    # Lock Hardware ID secara permanen ke key ini
+                    bind_device(hwid, text)
                 else:
                     message = f"FAILED: {server_msg}"
                     msg_color = (255, 50, 50)
@@ -2928,7 +2985,7 @@ def license_screen(screen, target_key=None, startup_message=None):
         s.set_alpha(100)
         s.fill((0, 0, 0))
         screen.blit(s, (input_box.x, input_box.y))
-        
+
         screen.blit(txt_surface, (input_box.x+5, input_box.y+5))
         pygame.draw.rect(screen, color, input_box, 2)
         
