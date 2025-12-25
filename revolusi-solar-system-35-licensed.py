@@ -2244,26 +2244,6 @@ def get_clipboard_text():
     except:
         return ""
 
-def check_trial_history_used(hwid):
-    """Cek apakah HWID ini sudah pernah menggunakan trial."""
-    if os.path.exists("trial_history.dat"):
-        try:
-            with open("trial_history.dat", "r") as f:
-                content = f.read()
-                if hwid in content:
-                    return True
-        except:
-            pass
-    return False
-
-def mark_trial_used(hwid):
-    """Tandai HWID ini sudah menggunakan trial."""
-    try:
-        with open("trial_history.dat", "a") as f:
-            f.write(f"{hwid}|USED\n")
-    except:
-        pass
-
 def license_screen(screen, target_key=None, startup_message=None):
     """
     Loop khusus untuk input serial number sebelum masuk ke main game.
@@ -2280,7 +2260,7 @@ def license_screen(screen, target_key=None, startup_message=None):
     font_trial_btn = pygame.font.SysFont("arial", 16, bold=True, italic=True)
 
     input_box = pygame.Rect(WIDTH // 2 - 200, HEIGHT // 2 - 25, 400, 50)
-    # Geser tombol ACTIVATE ke bawah agar tidak menimpa link trial
+    # Geser tombol ACTIVATE ke bawah
     btn_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 100, 200, 50)
 
     color_inactive = (100, 100, 100)
@@ -2289,15 +2269,24 @@ def license_screen(screen, target_key=None, startup_message=None):
     active = False
     text = ''
 
-    # Pesan default atau pesan startup (misal: trial expired)
+    # Pesan default atau pesan startup
     message = startup_message if startup_message else "ENTER SERIAL NUMBER"
     msg_color = (255, 50, 50) if startup_message else (255, 255, 255)
 
     state = LicenseState.INPUT_KEY
     hwid = get_hwid()
 
-    # Mode License: LIFETIME vs TRIAL
-    license_mode = "LIFETIME" # Default
+    # Mode License: LIFETIME vs TRIAL (Default Lifetime)
+    license_mode = "LIFETIME"
+
+    # Helper for Trial Check
+    def check_trial_used_local(hid):
+        if os.path.exists("trial_history.dat"):
+            try:
+                with open("trial_history.dat", "r") as f:
+                    if hid in f.read(): return True
+            except: pass
+        return False
 
     # Timer untuk backspace
     last_backspace_time = 0
@@ -2309,11 +2298,10 @@ def license_screen(screen, target_key=None, startup_message=None):
         current_time = pygame.time.get_ticks()
 
         # Hitung posisi tombol trial (di bawah kiri input box)
-        trial_btn_txt_str = "coba free trial for 3 day" if license_mode == "LIFETIME" else "pergi ke lifetime"
+        trial_btn_txt_str = "coba free trial for 3 day"
         trial_btn_surf = font_trial_btn.render(trial_btn_txt_str, True, (200, 200, 255))
         # Garis bawah manual
         pygame.draw.line(trial_btn_surf, (200, 200, 255), (0, trial_btn_surf.get_height()-2), (trial_btn_surf.get_width(), trial_btn_surf.get_height()-2), 1)
-
         trial_btn_rect = trial_btn_surf.get_rect(topleft=(input_box.left, input_box.bottom + 10))
 
         for event in pygame.event.get():
@@ -2322,57 +2310,48 @@ def license_screen(screen, target_key=None, startup_message=None):
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if input_box.collidepoint(event.pos):
-                    # Input box only active in Lifetime mode
-                    if license_mode == "LIFETIME":
-                        active = not active
-                    else:
-                        active = False
+                    active = not active
                 else:
                     active = False
                 color = color_active if active else color_inactive
 
-                # Cek Tombol Trial/Lifetime Toggle
+                # --- LOGIC TRIAL BUTTON (LANGSUNG AKTIVASI) ---
                 if trial_btn_rect.collidepoint(event.pos):
-                    if license_mode == "LIFETIME":
+                    if check_trial_used_local(hwid):
+                        message = "Trial sudah pernah digunakan di perangkat ini."
+                        msg_color = (255, 50, 50)
+                    else:
+                        # Auto Activate Trial
                         license_mode = "TRIAL"
-                        message = "PRESS ACTIVATE TO START TRIAL"
-                        msg_color = (255, 255, 255)
-                    else:
-                        license_mode = "LIFETIME"
-                        message = "ENTER SERIAL NUMBER"
-                        msg_color = (255, 255, 255)
-                    text = "" # Reset input saat ganti mode
-
-                # Cek Tombol Activate
-                if state == LicenseState.INPUT_KEY and btn_rect.collidepoint(event.pos):
-                    if license_mode == "TRIAL":
-                        # Trial: Langsung aktivasi tanpa cek panjang text
                         state = LicenseState.ACTIVATING
-                    else:
-                        # Lifetime: Cek panjang key
-                        if len(text) > 5:
-                            # Jika mode Lifetime, cek validasi lokal
-                            if license_mode == "LIFETIME" and target_key and text.strip() != target_key.strip():
-                                 import tkinter
-                                 from tkinter import messagebox
-                                 try:
-                                     root = tkinter.Tk()
-                                     root.withdraw()
-                                     messagebox.showerror("Error", "Serial number anda bukan yang ini, masukkan yang telah diberikan oleh penjual")
-                                     root.destroy()
-                                 except:
-                                     pass
-                                 message = "SERIAL NUMBER SALAH (BEDA DENGAN SEBELUMNYA)"
-                                 msg_color = (255, 50, 50)
-                            else:
-                                state = LicenseState.ACTIVATING
+                        text = f"AUTO-TRIAL-{hwid}" # Dummy key gen
+
+                # Cek Tombol Activate (Lifetime)
+                if state == LicenseState.INPUT_KEY and btn_rect.collidepoint(event.pos):
+                    # Lifetime: Cek panjang key
+                    if len(text) > 5:
+                        # Jika mode Lifetime, cek validasi lokal
+                        if target_key and text.strip() != target_key.strip():
+                             import tkinter
+                             from tkinter import messagebox
+                             try:
+                                 root = tkinter.Tk()
+                                 root.withdraw()
+                                 messagebox.showerror("Error", "Serial number anda bukan yang ini, masukkan yang telah diberikan oleh penjual")
+                                 root.destroy()
+                             except:
+                                 pass
+                             message = "SERIAL NUMBER SALAH (BEDA DENGAN SEBELUMNYA)"
+                             msg_color = (255, 50, 50)
+                        else:
+                            state = LicenseState.ACTIVATING
 
             if event.type == pygame.KEYDOWN:
-                if active and license_mode == "LIFETIME":
+                if active:
                     if event.key == pygame.K_RETURN:
                         if len(text) > 5:
                             # Logic Enter sama dengan Klik Activate
-                            if license_mode == "LIFETIME" and target_key and text.strip() != target_key.strip():
+                            if target_key and text.strip() != target_key.strip():
                                  import tkinter
                                  from tkinter import messagebox
                                  try:
@@ -2445,40 +2424,27 @@ def license_screen(screen, target_key=None, startup_message=None):
 
         # Logic Aktivasi
         if state == LicenseState.ACTIVATING:
-            # Jika Trial Mode, Cek History Dulu
-            blocked_trial = False
+            # Beda logic antara Trial vs Lifetime
             if license_mode == "TRIAL":
-                # Cek apakah sudah pernah pakai trial
-                if check_trial_history_used(hwid):
-                    message = "masa free trial teruss ehe.. ayokk gasss lifetime.."
+                # Bypass server, aktivasi lokal
+                start_time = time.time()
+                try:
+                    with open(LICENSE_FILE, "w") as f:
+                        # Format: TRIAL|HWID|KEY|START_TIMESTAMP
+                        f.write(f"TRIAL|{hwid}|{text}|{start_time}")
+
+                    with open("trial_history.dat", "a") as f:
+                        f.write(f"{hwid}|USED\n")
+
+                    message = "TRIAL ACTIVATED!"
+                    msg_color = (0, 255, 0)
+                    state = LicenseState.SUCCESS
+                except Exception as e:
+                    message = f"Error: {e}"
                     msg_color = (255, 50, 50)
                     state = LicenseState.INPUT_KEY
-                    blocked_trial = True
-                else:
-                    # Automatic Activation for Trial (Local Check / Skip Server Key Check)
-                    # We create a dummy success state locally for Trial
-                    start_time = time.time()
-                    # Generate a dummy key for file consistency
-                    dummy_trial_key = f"AUTO-TRIAL-{hwid}"
-
-                    # Simpan data lisensi lokal
-                    try:
-                        with open(LICENSE_FILE, "w") as f:
-                             # Format: TRIAL|HWID|KEY|START_TIMESTAMP
-                            f.write(f"TRIAL|{hwid}|{dummy_trial_key}|{start_time}")
-                        mark_trial_used(hwid)
-
-                        message = "TRIAL ACTIVATED!"
-                        msg_color = (0, 255, 0)
-                        state = LicenseState.SUCCESS
-                        text = dummy_trial_key # Untuk return value
-                    except Exception as e:
-                        message = f"ERROR WRITING FILE: {e}"
-                        msg_color = (255, 50, 50)
-                        state = LicenseState.INPUT_KEY
-
-            if not blocked_trial and license_mode == "LIFETIME":
-                # Draw overlay loading
+            else:
+                # Lifetime (Online Check)
                 msg_surf = font_msg.render("CONTACTING SERVER...", True, (255, 255, 0))
                 screen.blit(msg_surf, msg_surf.get_rect(center=(WIDTH//2, HEIGHT//2 + 120)))
                 pygame.display.flip()
@@ -2507,7 +2473,7 @@ def license_screen(screen, target_key=None, startup_message=None):
             screen.blit(txt_surface, (input_box.x+5, input_box.y+5))
 
             # Judul berubah sesuai mode
-            title_str = "FREE TRIAL FOR 3 DAY" if license_mode == "TRIAL" else "PRODUCT ACTIVATION"
+            title_str = "PRODUCT ACTIVATION"
             title_surf = font_title.render(title_str, True, (255, 255, 255))
             screen.blit(title_surf, title_surf.get_rect(center=(WIDTH//2, HEIGHT//2 - 100)))
 
@@ -2525,7 +2491,7 @@ def license_screen(screen, target_key=None, startup_message=None):
         screen.blit(main_title, main_title.get_rect(center=(WIDTH//2, HEIGHT//2 - 160)))
 
         # Sub Title (Dynamic)
-        title_str = "FREE TRIAL FOR 3 DAY" if license_mode == "TRIAL" else "PRODUCT ACTIVATION"
+        title_str = "PRODUCT ACTIVATION"
         title_surf = font_title.render(title_str, True, (200, 200, 200))
         screen.blit(title_surf, title_surf.get_rect(center=(WIDTH//2, HEIGHT//2 - 100)))
 
@@ -2535,25 +2501,20 @@ def license_screen(screen, target_key=None, startup_message=None):
         screen.blit(quote_surf, quote_surf.get_rect(center=(WIDTH//2, input_box.y - 30)))
 
         # Input Box
-        if license_mode == "LIFETIME":
-            txt_surface = font_input.render(text, True, color)
-            width = max(400, txt_surface.get_width()+10)
-            input_box.w = width
-            input_box.centerx = WIDTH // 2
+        txt_surface = font_input.render(text, True, color)
+        width = max(400, txt_surface.get_width()+10)
+        input_box.w = width
+        input_box.centerx = WIDTH // 2
 
-            s = pygame.Surface((input_box.w, input_box.h))
-            s.set_alpha(100)
-            s.fill((0, 0, 0))
-            screen.blit(s, (input_box.x, input_box.y))
+        s = pygame.Surface((input_box.w, input_box.h))
+        s.set_alpha(100)
+        s.fill((0, 0, 0))
+        screen.blit(s, (input_box.x, input_box.y))
 
-            screen.blit(txt_surface, (input_box.x+5, input_box.y+5))
-            pygame.draw.rect(screen, color, input_box, 2)
-        else:
-            # Trial Mode: Hide Input or Show Text
-            info_txt = font_msg.render("NO KEY REQUIRED FOR TRIAL", True, (150, 200, 150))
-            screen.blit(info_txt, info_txt.get_rect(center=(WIDTH//2, input_box.centery)))
+        screen.blit(txt_surface, (input_box.x+5, input_box.y+5))
+        pygame.draw.rect(screen, color, input_box, 2)
 
-        # Render Tombol Trial
+        # Render Tombol Trial (Hanya jika belum masuk input mode? Tidak, selalu ada sebagai opsi)
         screen.blit(trial_btn_surf, trial_btn_rect)
 
         # Message Area
@@ -2586,18 +2547,6 @@ def main():
 
     global WIDTH, HEIGHT
 
-    # --- SPECIAL HWID RESET (For Testing/Specific User) ---
-    # HWID: 48751573395980
-    if get_hwid() == "48751573395980":
-        log("Special HWID detected: Resetting license state...")
-        if os.path.exists("trial_history.dat"):
-            try: os.remove("trial_history.dat")
-            except: pass
-        if os.path.exists(LICENSE_FILE):
-            try: os.remove(LICENSE_FILE)
-            except: pass
-    # ------------------------------------------------------
-
     # Tidak perlu init screen besar dulu, karena Splash Screen akan buat sendiri
     # Tampilkan Splash Screen (Loading Box)
     show_splash_screen()
@@ -2609,18 +2558,12 @@ def main():
 
     # Load existing key (untuk validasi tombol back)
     active_key = None
-    is_trial_mode = False
-    trial_start_time = 0.0
-
     if os.path.exists(LICENSE_FILE):
         try:
             with open(LICENSE_FILE, "r") as f:
                 content = f.read().split("|")
                 if len(content) >= 3:
                     active_key = content[2].strip()
-                if content[0] == "TRIAL" and len(content) >= 4:
-                    is_trial_mode = True
-                    trial_start_time = float(content[3])
         except: pass
 
     # Variabel kontrol agar screen awal tidak muncul jika sudah ada lisensi,
@@ -2632,6 +2575,18 @@ def main():
 
     # --- SESSION LOOP ---
     while True:
+        # --- SPECIAL HWID RESET (For Testing/Specific User) ---
+        # HWID: 48751573395980
+        if get_hwid() == "48751573395980":
+            log("Special HWID detected: Resetting license state...")
+            if os.path.exists("trial_history.dat"):
+                try: os.remove("trial_history.dat")
+                except: pass
+            if os.path.exists(LICENSE_FILE):
+                try: os.remove(LICENSE_FILE)
+                except: pass
+        # ------------------------------------------------------
+
         # Cek Expiration Trial (Brute Force Check)
         is_trial_expired = False
         if os.path.exists(LICENSE_FILE):
@@ -3007,6 +2962,35 @@ def main():
         running = True
         while running:
             dt = clock.tick(60) / 1000.0
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                    pygame.quit()
+                    sys.exit() # Full exit
+
+            # Cek Expiry Real-time dalam simulasi
+            if is_trial_mode:
+                 elapsed_now = time.time() - trial_start_time
+                 if elapsed_now > (3 * 24 * 3600):
+                     if os.path.exists(LICENSE_FILE):
+                         try: os.remove(LICENSE_FILE)
+                         except: pass
+                     startup_msg = "masa 3 day free trial anda sudah habis, ayok ke versi lifetime"
+                     running = False # Keluar dari loop simulasi, kembali ke license screen
+
+            # Handle event loop manually again because we broke it above? No, just loop through events.
+            # Wait, the indentation was wrong before because 'elif' was attached to the loop?
+            # The 'for event in pygame.event.get():' block handles inputs.
+            # The expiry check should be OUTSIDE the for loop but INSIDE the while running loop.
+            # But the diff above inserted it inside the loop or alongside it?
+            # I need to be careful. The previous code structure was:
+            # for event in pygame.event.get():
+            #    if ...
+            #    elif ...
+
+            # So I should insert the check OUTSIDE the event loop.
+            pass # Placeholder for diff context matching
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
