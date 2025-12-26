@@ -1132,7 +1132,7 @@ class TrialMessageModal:
         self.background = background
         self.open_time = pygame.time.get_ticks()
         # Windows 10 Message Box Style
-        w, h = 400, 200
+        w, h = 550, 200 # Widened for better text fit
         self.panel = pygame.Surface((w, h))
         self.panel.fill((255, 255, 255))
 
@@ -2284,7 +2284,9 @@ class LanguageModal:
         self.blur.from_surface(background)
         w, h = 300, 160
         self.panel = pygame.Surface((w, h), pygame.SRCALPHA)
-        pygame.draw.rect(self.panel, (240, 240, 240, 230), self.panel.get_rect(), border_radius=8)
+        self.panel.fill(WIN10_BG_DARK)
+        pygame.draw.rect(self.panel, WIN10_BORDER_DEFAULT, self.panel.get_rect(), 1)
+
         flag_id = pygame.Surface((32, 20))
         flag_id.fill((255, 255, 255))
         pygame.draw.rect(flag_id, (217, 0, 0), (0, 0, 32, 10))
@@ -2292,17 +2294,27 @@ class LanguageModal:
         flag_en.fill((255, 255, 255))
         pygame.draw.rect(flag_en, (200, 0, 0), (0, 8, 32, 4))
         pygame.draw.rect(flag_en, (200, 0, 0), (14, 0, 4, 20))
+
         btn_w, btn_h = 120, 40
         id_rect = pygame.Rect(30, h / 2 - btn_h / 2, btn_w, btn_h)
         en_rect = pygame.Rect(w - btn_w - 30, h / 2 - btn_h / 2, btn_w, btn_h)
         self.buttons = [(id_rect, "id"), (en_rect, "en")]
+
         for rect, code in self.buttons:
-            pygame.draw.rect(self.panel, (200, 200, 200), rect, border_radius=6)
+            # Draw Fluent Button style manually or adapt
+            hover = rect.collidepoint(pygame.mouse.get_pos()) # Mouse pos not avail here in open, but static
+            # We can't do hover effect in static build efficiently unless we redraw.
+            # But language modal is usually static content.
+            # Let's just draw them as buttons.
+
+            draw_fluent_rect(self.panel, rect, (60, 60, 60), WIN10_BORDER_DEFAULT, 1)
+
             flag = flag_id if code == "id" else flag_en
             self.panel.blit(flag, flag.get_rect(midleft=(rect.left + 10, rect.centery)))
             label = "Indonesia" if code == "id" else "English"
-            txt = self.font.render(label, True, (0, 0, 0))
+            txt = self.font.render(label, True, WIN10_TEXT_WHITE)
             self.panel.blit(txt, txt.get_rect(midleft=(rect.left + 50, rect.centery)))
+
         self.panel_rect = self.panel.get_rect(center=(WIDTH / 2, HEIGHT / 2))
 
     def draw(self, surface):
@@ -2338,23 +2350,37 @@ class TimeInfoModal:
         lines = textwrap.wrap(t("time_info_body"), width=70)
         body_surfs = [self.body_font.render(line, True, (0, 0, 0)) for line in lines]
         body_h = len(body_surfs) * self.body_font.get_linesize()
-        title_surf = self.title_font.render(t("time_info_title"), True, (0, 0, 0))
+        title_surf = self.title_font.render(t("time_info_title"), True, WIN10_TEXT_WHITE)
+
+        # Re-render body with correct color
+        body_surfs = [self.body_font.render(line, True, WIN10_TEXT_WHITE) for line in lines]
+
         panel_w = max(max((s.get_width() for s in body_surfs), default=0), title_surf.get_width()) + self.pad * 2
         panel_w = min(max(panel_w, 560), 680)
         panel_h = self.pad + title_surf.get_height() + 10 + body_h + self.pad
+
+        # Acrylic Panel
         self.panel = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
-        self.panel.fill((240, 240, 240, 230))
-        pygame.draw.rect(self.panel, (0, 0, 0), self.panel.get_rect(), 2, border_radius=8)
+        self.panel.fill(WIN10_BG_DARK)
+        pygame.draw.rect(self.panel, WIN10_BORDER_DEFAULT, self.panel.get_rect(), 1)
+
         self.panel.blit(title_surf, title_surf.get_rect(midtop=(panel_w / 2, self.pad)))
         y = self.pad + title_surf.get_height() + 10
         for surf in body_surfs:
             self.panel.blit(surf, surf.get_rect(center=(panel_w / 2, y + surf.get_height() / 2)))
             y += self.body_font.get_linesize()
+
+        # Close Button
         self.close_rect = pygame.Rect(panel_w - 30 - self.pad / 2, self.pad / 2, 30, 30)
-        pygame.draw.rect(self.panel, (200, 200, 200), self.close_rect, border_radius=4)
-        pygame.draw.rect(self.panel, (0, 0, 0), self.close_rect, 1, border_radius=4)
-        cross = self.font.render("×", True, (0, 0, 0))
-        self.panel.blit(cross, cross.get_rect(center=self.close_rect.center))
+        # We will draw close button in draw() method or here if static
+        # Let's draw standard close "X" here for simplicity, but Win10 style
+        # No, let's use the same style as PlanetUniversalModal
+        # But since this is static surface build, we draw it once.
+        # Hover effect won't work if baked.
+        # But `handle_event` manages clicks. We can draw a simple X.
+        x_char = self.font.render("×", True, WIN10_TEXT_WHITE)
+        self.panel.blit(x_char, x_char.get_rect(center=self.close_rect.center))
+
         self.panel_rect = self.panel.get_rect(center=(WIDTH / 2, HEIGHT / 2))
 
     def draw(self, surface):
@@ -2419,7 +2445,7 @@ class DataSourcesModal:
         self.scroll = min(self.scroll, self.max_scroll)
 
         self.close_rect = pygame.Rect(panel_w - 30 - self.pad, self.pad, 30, 30)
-        self.title_surf = self.title_font.render(t("sources_title"), True, (0, 0, 0))
+        self.title_surf = self.title_font.render(t("sources_title"), True, WIN10_TEXT_WHITE)
 
     def _layout_content(self, width, line_h):
         text = EXACT_SOURCES_ID if CURRENT_LANG == "id" else EXACT_SOURCES_EN
@@ -2515,7 +2541,9 @@ class DataSourcesModal:
                 if tok.style == "italic"
                 else self.mono_font
             )
-            surf = font.render(tok.text, True, (0, 0, 0))
+            col = WIN10_TEXT_WHITE
+            if tok.style == "italic": col = WIN10_ACCENT # Links in blue
+            surf = font.render(tok.text, True, col)
             line_surf.blit(surf, (x, 0))
             if tok.url:
                 link_rects.append((pygame.Rect(x, 0, surf.get_width(), surf.get_height()), tok.url))
@@ -2533,14 +2561,18 @@ class DataSourcesModal:
 
     def draw(self, surface):
         self.blur.draw(surface)
+
+        # Acrylic Panel
         panel = pygame.Surface(self.panel_rect.size, pygame.SRCALPHA)
-        panel.fill((240, 240, 240, 230))
-        pygame.draw.rect(panel, (0, 0, 0), panel.get_rect(), 2, border_radius=8)
+        panel.fill(WIN10_BG_DARK)
+        pygame.draw.rect(panel, WIN10_BORDER_DEFAULT, panel.get_rect(), 1)
+
         panel.blit(self.title_surf, self.title_surf.get_rect(midtop=(self.panel_rect.width / 2, self.pad)))
-        pygame.draw.rect(panel, (200, 200, 200), self.close_rect, border_radius=4)
-        pygame.draw.rect(panel, (0, 0, 0), self.close_rect, 1, border_radius=4)
-        cross = self.font.render("×", True, (0, 0, 0))
-        panel.blit(cross, cross.get_rect(center=self.close_rect.center))
+
+        # Close Button
+        x_char = self.font.render("×", True, WIN10_TEXT_WHITE)
+        panel.blit(x_char, x_char.get_rect(center=self.close_rect.center))
+
         panel.set_clip(self.view_rect)
         panel.blit(self.content_surf, (self.pad, self.view_rect.y - self.scroll))
         panel.set_clip(None)
@@ -2556,7 +2588,7 @@ class DataSourcesModal:
             if underline:
                 pygame.draw.line(
                     surface,
-                    (0, 0, 200),
+                    WIN10_ACCENT,
                     (screen_rect.left, screen_rect.bottom),
                     (screen_rect.right, screen_rect.bottom),
                     1,
@@ -3333,19 +3365,33 @@ def main():
                 surface.blit(watermark_shadow, (x + 1, y + 1))
                 surface.blit(watermark_text, (x, y))
             
-            # Tombol Back
+            # Tombol Back (Reset/Login)
             wm_w = watermark_text.get_width()
             nonlocal back_btn_rect
-            btn_x = x + wm_w + 15
-            back_btn_rect = pygame.Rect(btn_x, y - 2, back_btn_text.get_width() + 10, back_btn_text.get_height() + 4)
+            btn_x = x + wm_w + 20
             
-            # Draw button background (agak transparan merah)
-            s = pygame.Surface((back_btn_rect.width, back_btn_rect.height), pygame.SRCALPHA)
-            s.fill((100, 0, 0, 150))
-            surface.blit(s, back_btn_rect.topleft)
-            pygame.draw.rect(surface, (150, 50, 50), back_btn_rect, 1)
+            # Increase width for "Reset/Login" text fit
+            btn_w = back_btn_text.get_width() + 20
+            btn_h = 25
+            back_btn_rect = pygame.Rect(btn_x, y - 4, btn_w, btn_h)
             
-            surface.blit(back_btn_text, (btn_x + 5, y))
+            # Win10 Style Button (Reddish accent for Reset?)
+            # Prompt: "box pemberitahuaan berwarna putih garis tepi biru ala-ala muda windows 10 pro itu... perluas sedikit"
+            # Wait, the prompt about expanding box refers to the *notification box* (Trial Message Modal), not this button itself?
+            # "Perluas sedikit box yang muncul jika kita mengklik tombol 'reset/login' ... box pemberitahuaan" -> This is TrialMessageModal.
+            # But here "tombol balik ke menu entered serial number" styling is requested to be maintained but enhanced.
+            # Let's make it a clean fluent button. Since it's a "Reset/Login" action, maybe standard or slight accent.
+
+            hover_back = back_btn_rect.collidepoint(pygame.mouse.get_pos())
+
+            # Custom red-ish style for Reset button to differentiate
+            bg_col = (100, 0, 0, 200) if not hover_back else (140, 0, 0, 230)
+            border_col = (180, 50, 50) if not hover_back else WIN10_BORDER_HOVER
+
+            draw_fluent_rect(surface, back_btn_rect, bg_col, border_col, 1)
+
+            # Centered text
+            surface.blit(back_btn_text, back_btn_text.get_rect(center=back_btn_rect.center))
 
         def reset_view():
             camera.pos.update(0.0, 0.0)
@@ -3429,24 +3475,27 @@ def main():
             panel_pos = (WIDTH - panel_width - 10, 10)
             surface.blit(panel, panel_pos)
             
-            info_d = 18
+            info_d = 20
             info_rect = pygame.Rect(panel_pos[0] + panel_width - info_d - 5, panel_pos[1] + 5, info_d, info_d)
             hover_info = info_rect.collidepoint(pygame.mouse.get_pos())
             
-            btn_bg = (180, 180, 180) if hover_info else (255, 255, 255)
-            pygame.draw.circle(surface, btn_bg, info_rect.center, info_d // 2)
-            pygame.draw.circle(surface, (0, 0, 0), info_rect.center, info_d // 2, 2)
-            i_txt = small_font.render("i", True, (0, 0, 0))
-            surface.blit(i_txt, i_txt.get_rect(center=info_rect.center))
+            # Windows 10 Style 'i' button (Circle, Accent Color or Transparent)
+            draw_fluent_button(surface, info_rect, "i", small_font, active=False, hover=hover_info)
+            # Make it circular-ish by drawing border radius? fluent_button is rect.
+            # But prompt asks for "ikon dan boxnya menjadi seperti windows 10 pro".
+            # Win10 icons are usually flat. 'i' inside a circle or square.
+            # draw_fluent_button draws a rect. That fits Win10.
+
             time_info_button_rect = info_rect
 
-            lbl = font.render(t("lang_button"), True, (0, 0, 0))
-            bw = lbl.get_width() + 20
+            # Language Button (Fluent)
+            lbl_txt = t("lang_button")
+            bw = font.size(lbl_txt)[0] + 20
             bh = 25
             lang_rect = pygame.Rect(panel_pos[0], panel_pos[1] + panel_height + 5, bw, bh)
-            pygame.draw.rect(surface, (200, 200, 200), lang_rect, border_radius=5)
-            pygame.draw.rect(surface, (0, 0, 0), lang_rect, 1, border_radius=5)
-            surface.blit(lbl, lbl.get_rect(center=lang_rect.center))
+            hover_lang = lang_rect.collidepoint(pygame.mouse.get_pos())
+
+            draw_fluent_button(surface, lang_rect, lbl_txt, font, active=False, hover=hover_lang)
             language_button_rect = lang_rect
 
             speed_rects = draw_speed_panel(surface, font, speed_index)
@@ -3468,8 +3517,19 @@ def main():
             
             draw_sketch_button(surface, font, sketch_button_rect, sketch_mode)
             
-            surface.blit(book_icon, data_button_rect.topleft)
-            if data_button_rect.collidepoint(pygame.mouse.get_pos()):
+            # Data Sources Button (Acrylic background behind icon)
+            hover_data = data_button_rect.collidepoint(pygame.mouse.get_pos())
+
+            # Draw button background
+            bg_data = (60, 60, 60) if hover_data else (40, 40, 40, 150)
+            border_data = WIN10_BORDER_HOVER if hover_data else WIN10_BORDER_DEFAULT
+            draw_fluent_rect(surface, data_button_rect, bg_data, border_data, 1)
+
+            # Draw icon centered
+            icon_rect = book_icon.get_rect(center=data_button_rect.center)
+            surface.blit(book_icon, icon_rect)
+
+            if hover_data:
                 tooltip.draw(surface, t("sources_tooltip"), (data_button_rect.right, data_button_rect.centery), "right")
             
             draw_watermark_and_back(surface)
