@@ -292,6 +292,7 @@ TEXTS = {
     "angle_0": {"id": "Sudut 0°", "en": "Angle 0°"},
     "angle_90": {"id": "Sudut 90°", "en": "Angle 90°"},
     "angle_45": {"id": "Sudut 45° (Default)", "en": "Angle 45° (Default)"},
+    "angle_custom": {"id": "Custom", "en": "Custom"},
     "diameter_lbl": {"id": "DIAMETER", "en": "DIAMETER"},
     "distance_lbl": {"id": "JARAK RATA-RATA DARI MATAHARI", "en": "AVERAGE DISTANCE FROM SUN"},
     "distance_lbl_sun": {"id": "JARAK RATA-RATA DARI INTI GALAKSI BIMA SAKTI", "en": "AVERAGE DISTANCE FROM THE CORE OF THE MILKY WAY"},
@@ -357,6 +358,7 @@ class UIState(Enum):
     MARS_BIO = auto() # Kini digunakan untuk semua poin Planet Detail (Mars & Earth)
     IMAGE_VIEW = auto()
     TRIAL_MSG = auto()
+    CUSTOM_ANGLE = auto()
 
 class ImageViewer:
     def __init__(self):
@@ -477,14 +479,121 @@ class ImageViewer:
         
         return None
 
+class CustomAngleModal:
+    def __init__(self, font, camera):
+        self.font = font
+        self.camera = camera
+        self.blur = BlurLayer()
+        self.panel = None
+        self.panel_rect = None
+        self.slider_rect = None
+        self.thumb_rect = None
+        self.dragging = False
+        self.angle_val = 0.0 # 0 - 360
+
+    def open(self, background):
+        self.blur.from_surface(background)
+        # Convert current y_scale back to angle (approx)
+        # y_scale = sin(rad). asin gives -90..90.
+        self.angle_val = math.degrees(math.asin(max(-1.0, min(1.0, self.camera.y_scale))))
+        if self.angle_val < 0: self.angle_val += 360
+        self._build()
+
+    def _build(self):
+        w, h = 400, 200
+        self.panel = pygame.Surface((w, h), pygame.SRCALPHA)
+        self.panel.fill(WIN10_BG_SOLID)
+        pygame.draw.rect(self.panel, WIN10_ACCENT, self.panel.get_rect(), 2)
+
+        # Title
+        title = self.font.render("Custom Camera Angle (0-360°)", True, WIN10_TEXT_WHITE)
+        self.panel.blit(title, title.get_rect(midtop=(w/2, 20)))
+
+        # Slider Track
+        track_w = 300
+        track_h = 4
+        self.track_rect_rel = pygame.Rect((w - track_w)//2, 80, track_w, track_h)
+        # Update thumb based on angle_val
+        pass
+
+        self.panel_rect = self.panel.get_rect(center=(WIDTH/2, HEIGHT/2))
+
+    def draw(self, surface):
+        self.blur.draw(surface)
+
+        # Refresh Panel Content
+        self.panel.fill(WIN10_BG_SOLID)
+        pygame.draw.rect(self.panel, WIN10_ACCENT, self.panel.get_rect(), 2)
+
+        title = self.font.render("Custom Camera Angle (Tilt)", True, WIN10_TEXT_WHITE)
+        self.panel.blit(title, title.get_rect(midtop=(self.panel.get_width()/2, 20)))
+
+        pygame.draw.rect(self.panel, (100, 100, 100), self.track_rect_rel, border_radius=2)
+
+        # Calculate thumb pos
+        ratio = self.angle_val / 360.0
+        thumb_x = self.track_rect_rel.x + ratio * self.track_rect_rel.width
+        thumb_pos = (int(thumb_x), self.track_rect_rel.centery)
+
+        self.thumb_rect = pygame.Rect(0, 0, 20, 20)
+        self.thumb_rect.center = thumb_pos
+
+        col = WIN10_ACCENT if self.dragging else (200, 200, 200)
+        pygame.draw.circle(self.panel, col, thumb_pos, 10)
+
+        # Value
+        val_txt = self.font.render(f"{int(self.angle_val)}°", True, WIN10_TEXT_WHITE)
+        self.panel.blit(val_txt, val_txt.get_rect(midtop=(self.panel.get_width()/2, 110)))
+
+        hint = load_segoe_font(12).render("Drag Slider • Esc / Enter to Apply & Close", True, WIN10_TEXT_GRAY)
+        self.panel.blit(hint, hint.get_rect(midbottom=(self.panel.get_width()/2, self.panel.get_height() - 20)))
+
+        surface.blit(self.panel, self.panel_rect)
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key in (pygame.K_ESCAPE, pygame.K_RETURN):
+                return "close"
+
+        mouse_pos = pygame.mouse.get_pos()
+        rel_x = mouse_pos[0] - self.panel_rect.x
+        rel_y = mouse_pos[1] - self.panel_rect.y
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:
+                thumb_hit = self.thumb_rect.inflate(10, 10).collidepoint(rel_x, rel_y)
+                track_hit = self.track_rect_rel.inflate(0, 20).collidepoint(rel_x, rel_y)
+                if thumb_hit or track_hit:
+                    self.dragging = True
+                    self.update_val(rel_x)
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1:
+                self.dragging = False
+        elif event.type == pygame.MOUSEMOTION:
+            if self.dragging:
+                self.update_val(rel_x)
+
+        return None
+
+    def update_val(self, rel_x):
+        ratio = (rel_x - self.track_rect_rel.x) / self.track_rect_rel.width
+        ratio = max(0.0, min(1.0, ratio))
+        self.angle_val = ratio * 360.0
+
+        # Apply immediately
+        rad = math.radians(self.angle_val)
+        self.camera.y_scale = math.sin(rad)
+        self.camera.set_angle_mode(AngleMode.CUSTOM)
+
 class AngleMode(Enum):
     SIDE_0 = auto()
     TOP_90 = auto()
     OBLIQUE_45 = auto()
+    CUSTOM = auto()
 
-ANGLE_LABEL_KEYS = ["angle_0", "angle_90", "angle_45"]
+ANGLE_LABEL_KEYS = ["angle_0", "angle_90", "angle_45", "angle_custom"]
 ANGLE_LABELS = [t(k) for k in ANGLE_LABEL_KEYS]
-ANGLE_MODES = [AngleMode.SIDE_0, AngleMode.TOP_90, AngleMode.OBLIQUE_45]
+ANGLE_MODES = [AngleMode.SIDE_0, AngleMode.TOP_90, AngleMode.OBLIQUE_45, AngleMode.CUSTOM]
 
 PLANET_INFO = {
     "Sun": {
@@ -1712,8 +1821,9 @@ class Camera2D:
             self.y_scale = 0.0
         elif mode is AngleMode.TOP_90:
             self.y_scale = 1.0
-        else:
+        elif mode is AngleMode.OBLIQUE_45:
             self.y_scale = 0.5
+        # Custom mode does not reset y_scale here, it is set by slider
         log(f"angle preset {mode.name}")
 
     def _update_cache(self):
@@ -2760,23 +2870,39 @@ def mark_trial_used(hwid):
     except:
         pass
 
-def check_device_binding():
-    """Cek apakah device ini sudah terikat dengan key tertentu."""
+def get_device_binding_data():
+    """Mengambil data binding lengkap (HWID, Key, Trial Timestamp)."""
     if os.path.exists(BINDING_FILE):
         try:
             with open(BINDING_FILE, "r") as f:
-                content = f.read().strip().split("|")
-                if len(content) >= 2:
-                    return content[1] # Return the bound key
+                # Coba parse JSON
+                try:
+                    return json.load(f)
+                except:
+                    # Fallback ke format lama pipe
+                    f.seek(0)
+                    content = f.read().strip().split("|")
+                    if len(content) >= 2:
+                        return {"hwid": content[0], "key": content[1]}
         except:
             pass
     return None
 
-def bind_device(hwid, key):
-    """Ikat device ID dengan key ini secara permanen."""
+def check_device_binding():
+    """Kompatibilitas: return key string atau None."""
+    data = get_device_binding_data()
+    if data:
+        return data.get("key")
+    return None
+
+def bind_device(hwid, key, trial_start=None):
+    """Ikat device ID dengan key secara permanen menggunakan JSON."""
+    data = {"hwid": hwid, "key": key}
+    if trial_start:
+        data["trial_start"] = trial_start
     try:
         with open(BINDING_FILE, "w") as f:
-            f.write(f"{hwid}|{key}")
+            json.dump(data, f)
     except:
         pass
 
@@ -2838,8 +2964,46 @@ def license_screen(screen, target_key=None, startup_message=None):
                 if state == LicenseState.INPUT_KEY and btn_rect.collidepoint(event.pos):
                     # Check for special trial code
                     if text.strip() == "FREE-TRIAL-FOR-3-DAY":
-                        license_mode = "TRIAL"
-                        state = LicenseState.ACTIVATING
+                        # Cek apakah device ini sudah pernah trial sebelumnya dan masih aktif atau expired
+                        binding = get_device_binding_data()
+
+                        # Kasus 1: Sudah ada binding trial di device ini
+                        if binding and binding.get("key") == "FREE-TRIAL-FOR-3-DAY":
+                             ts = binding.get("trial_start")
+                             if ts:
+                                 elapsed = time.time() - ts
+                                 if elapsed > (3 * 24 * 3600):
+                                      # Expired
+                                      message = "MASA TRIAL SUDAH HABIS (3 HARI). KUOTA HABIS."
+                                      msg_color = (255, 50, 50)
+                                 else:
+                                      # Valid Resume
+                                      license_mode = "TRIAL"
+                                      state = LicenseState.ACTIVATING
+                             else:
+                                 # Data rusak, anggap baru tapi cek history
+                                 if check_trial_history_used(hwid):
+                                      message = "QUOTA FREE TRIAL SUDAH DIGUNAKAN."
+                                      msg_color = (255, 50, 50)
+                                 else:
+                                      license_mode = "TRIAL"
+                                      state = LicenseState.ACTIVATING
+
+                        # Kasus 2: Binding lain (Lifetime) tapi coba trial?
+                        elif binding and binding.get("key") != "FREE-TRIAL-FOR-3-DAY":
+                             message = "PERANGKAT SUDAH TERKUNCI KE SERIAL NUMBER LAIN."
+                             msg_color = (255, 50, 50)
+
+                        # Kasus 3: Belum ada binding, cek history lama
+                        elif check_trial_history_used(hwid):
+                             message = "QUOTA FREE TRIAL SUDAH DIGUNAKAN DI PERANGKAT INI."
+                             msg_color = (255, 50, 50)
+
+                        # Kasus 4: Bersih
+                        else:
+                             license_mode = "TRIAL"
+                             state = LicenseState.ACTIVATING
+
                     else:
                         # Lifetime: Cek panjang key
                         if len(text) > 5:
@@ -2882,8 +3046,22 @@ def license_screen(screen, target_key=None, startup_message=None):
                     if event.key == pygame.K_RETURN:
                         # Check special trial code on Enter too
                         if text.strip() == "FREE-TRIAL-FOR-3-DAY":
-                            license_mode = "TRIAL"
-                            state = LicenseState.ACTIVATING
+                            # Copy logic from Activate Button click
+                            binding = get_device_binding_data()
+                            if binding and binding.get("key") == "FREE-TRIAL-FOR-3-DAY":
+                                 ts = binding.get("trial_start")
+                                 if ts and (time.time() - ts > (3 * 24 * 3600)):
+                                      message = "MASA TRIAL SUDAH HABIS (3 HARI). KUOTA HABIS."
+                                      msg_color = (255, 50, 50)
+                                 else:
+                                      license_mode = "TRIAL"
+                                      state = LicenseState.ACTIVATING
+                            elif binding or check_trial_history_used(hwid):
+                                 message = "QUOTA FREE TRIAL SUDAH DIGUNAKAN/TERKUNCI."
+                                 msg_color = (255, 50, 50)
+                            else:
+                                license_mode = "TRIAL"
+                                state = LicenseState.ACTIVATING
                         elif len(text) > 5:
                             # Cek Binding Lock Hardware ID
                             bound_key = check_device_binding()
@@ -2974,35 +3152,49 @@ def license_screen(screen, target_key=None, startup_message=None):
         
         # Logic Aktivasi
         if state == LicenseState.ACTIVATING:
-            # Jika Trial Mode, Cek History Dulu
+            # Jika Trial Mode
             blocked_trial = False
             if license_mode == "TRIAL":
-                # Cek apakah sudah pernah pakai trial
-                if check_trial_history_used(hwid):
-                    message = "masa free trial teruss ehe.. ayokk gasss lifetime.."
-                    msg_color = (255, 50, 50)
-                    state = LicenseState.INPUT_KEY
-                    blocked_trial = True
-                else:
-                    # Automatic Activation for Trial (Local Check / Skip Server Key Check)
-                    # We create a dummy success state locally for Trial
-                    start_time = time.time()
-                    # Generate a dummy key for file consistency
+                binding = get_device_binding_data()
+                # Tentukan start time: Baru (now) atau Lama (dari binding)
+                start_time = time.time()
+                is_resume = False
+
+                if binding and binding.get("key") == "FREE-TRIAL-FOR-3-DAY":
+                    if binding.get("trial_start"):
+                        start_time = binding.get("trial_start")
+                        is_resume = True
+
+                # Double check expiry just in case
+                if is_resume:
+                    if time.time() - start_time > (3 * 24 * 3600):
+                        message = "TRIAL EXPIRED."
+                        msg_color = (255, 50, 50)
+                        state = LicenseState.INPUT_KEY
+                        blocked_trial = True
+
+                if not blocked_trial:
+                    # Generate dummy key
                     dummy_trial_key = f"AUTO-TRIAL-{hwid}"
                     
-                    # Simpan data lisensi lokal
                     try:
+                        # 1. Simpan Binding Permanen (HWID + KEY + TIMESTAMP)
+                        bind_device(hwid, "FREE-TRIAL-FOR-3-DAY", start_time)
+
+                        # 2. Simpan File Lisensi Session
                         with open(LICENSE_FILE, "w") as f:
                              # Format: TRIAL|HWID|KEY|START_TIMESTAMP
                             f.write(f"TRIAL|{hwid}|{dummy_trial_key}|{start_time}")
+
+                        # 3. Mark history (backup)
                         mark_trial_used(hwid)
                         
-                        message = "TRIAL ACTIVATED!"
+                        message = "TRIAL ACTIVATED!" if not is_resume else "TRIAL RESUMED!"
                         msg_color = (0, 255, 0)
                         state = LicenseState.SUCCESS
-                        text = dummy_trial_key # Untuk return value
+                        text = dummy_trial_key
                     except Exception as e:
-                        message = f"ERROR WRITING FILE: {e}"
+                        message = f"ERROR: {e}"
                         msg_color = (255, 50, 50)
                         state = LicenseState.INPUT_KEY
             
@@ -3248,6 +3440,7 @@ def main():
         data_modal = None
         time_modal = None
         mars_modal = None
+        custom_angle_modal = CustomAngleModal(font, camera)
         trial_msg_modal = TrialMessageModal(font)
         blur = BlurLayer()
         clock = pygame.time.Clock()
@@ -3655,6 +3848,11 @@ def main():
                     if res == "close":
                         ui_state = UIState.RUNNING
                     continue
+                elif ui_state == UIState.CUSTOM_ANGLE:
+                    res = custom_angle_modal.handle_event(event)
+                    if res == "close":
+                         ui_state = UIState.RUNNING
+                    continue
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     # Escape hanya menutup game loop ini, balik ke OS
                     running = False
@@ -3716,9 +3914,16 @@ def main():
                         if not clicked:
                             for i, rect in enumerate(angle_button_rects):
                                 if rect.collidepoint(event.pos):
-                                    apply_angle(ANGLE_MODES[i])
-                                    angle_focus = -1
-                                    clicked = True
+                                    if ANGLE_MODES[i] == AngleMode.CUSTOM:
+                                         # Open Custom Modal
+                                         custom_angle_modal.open(screen.copy())
+                                         ui_state = UIState.CUSTOM_ANGLE
+                                         angle_focus = -1
+                                         clicked = True
+                                    else:
+                                         apply_angle(ANGLE_MODES[i])
+                                         angle_focus = -1
+                                         clicked = True
                                     break
                         if keyboard_button_rect.collidepoint(event.pos):
                             show_keyboard_info = not show_keyboard_info
@@ -3839,6 +4044,9 @@ def main():
                 pygame.display.flip()
             elif ui_state == UIState.TRIAL_MSG:
                 trial_msg_modal.draw(screen)
+                pygame.display.flip()
+            elif ui_state == UIState.CUSTOM_ANGLE:
+                custom_angle_modal.draw(screen)
                 pygame.display.flip()
 
         if user_requested_back:
