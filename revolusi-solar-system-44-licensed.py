@@ -1189,8 +1189,9 @@ class TrialMessageModal:
 
 # Mengganti MarsBiosignatureModal dengan MarsUniversalModal yang fleksibel
 class PlanetUniversalModal:
-    def __init__(self, font, planet_name="Mars", config_id=6):
+    def __init__(self, font, planet_name="Mars", config_id=6, theme_color=None):
         self.font = font
+        self.theme_color = theme_color if theme_color else WIN10_ACCENT
         
         # Select dictionary based on planet name and language
         config_map = {}
@@ -1258,7 +1259,8 @@ class PlanetUniversalModal:
         
         self.panel = pygame.Surface((w, h), pygame.SRCALPHA)
         self.panel.fill(WIN10_BG_SOLID) # Solid dark for modal
-        pygame.draw.rect(self.panel, WIN10_ACCENT, self.panel.get_rect(), 2) # Win10 blue border
+        # Use theme_color for border
+        pygame.draw.rect(self.panel, self.theme_color, self.panel.get_rect(), 2)
         
         # 1. Judul (Statis di panel)
         title_str = self.config["title"]
@@ -1328,7 +1330,8 @@ class PlanetUniversalModal:
             
         # Judul keterangan gambar / Link
         caption_str = self.config["img_caption"] 
-        link_surf = self.link_font.render(caption_str, True, WIN10_ACCENT)
+        # Use theme_color for caption link
+        link_surf = self.link_font.render(caption_str, True, self.theme_color)
         
         # Layout Y
         curr_y = 0
@@ -1368,8 +1371,9 @@ class PlanetUniversalModal:
             fy = fact_y_start + i * 60
             p_end = (arrow_start_x - 5, fy)
             p_start = (arrow_start_x + 30, fy)
-            pygame.draw.line(self.content_surf, WIN10_ACCENT, p_start, p_end, 3)
-            pygame.draw.polygon(self.content_surf, WIN10_ACCENT, [
+            # Use theme_color for arrows
+            pygame.draw.line(self.content_surf, self.theme_color, p_start, p_end, 3)
+            pygame.draw.polygon(self.content_surf, self.theme_color, [
                 p_end, (p_end[0] + 10, p_end[1] - 5), (p_end[0] + 10, p_end[1] + 5)
             ])
             
@@ -2100,8 +2104,12 @@ class PlanetOverlay:
         left_w = 260
         left_h = 260
         left = pygame.Surface((left_w, left_h), pygame.SRCALPHA)
-        pygame.draw.rect(left, (240, 240, 240, 230), left.get_rect(), border_radius=6)
-        title = self.title_font.render(self.planet.name, True, (0, 0, 0))
+        # Apply Mica Style (Dark + Border)
+        left.fill(WIN10_BG_DARK)
+        pygame.draw.rect(left, WIN10_BORDER_DEFAULT, left.get_rect(), 1)
+
+        # Title White
+        title = self.title_font.render(self.planet.name, True, WIN10_TEXT_WHITE)
         left.blit(title, title.get_rect(midtop=(left_w / 2, 10)))
         cx, cy = left_w / 2, left_h / 2 + 10
         radius = 60
@@ -2132,7 +2140,9 @@ class PlanetOverlay:
                     
         summary_h = len(lines) * self.italic.get_linesize()
         summary_box = pygame.Surface((summary_w, summary_h + 20), pygame.SRCALPHA)
-        pygame.draw.rect(summary_box, (240, 240, 240, 230), summary_box.get_rect(), border_radius=6)
+        # Apply Mica Style (Dark + Border)
+        summary_box.fill(WIN10_BG_DARK)
+        pygame.draw.rect(summary_box, WIN10_BORDER_DEFAULT, summary_box.get_rect(), 1)
         
         lh = self.italic.get_linesize()
         
@@ -2144,7 +2154,8 @@ class PlanetOverlay:
         summary_offset_y = 40 + right.get_height() + 10
         
         for i, line in enumerate(lines):
-            txt = self.italic.render(line, True, (0, 0, 0))
+            # Text White
+            txt = self.italic.render(line, True, WIN10_TEXT_WHITE)
             y_pos = 10 + i * lh
             summary_box.blit(txt, (10, y_pos))
             
@@ -2207,7 +2218,19 @@ class PlanetOverlay:
                         abs_r.width + padding_x * 2, 
                         abs_r.height
                     )
+                    # Highlight Text Line yg sedang dihover
+                    abs_r = r.move(self.overlay_rect.topleft)
+                    lift_y = -4
+                    padding_x = 4
+                    highlight_rect = pygame.Rect(
+                        abs_r.x - padding_x,
+                        abs_r.y + lift_y,
+                        abs_r.width + padding_x * 2,
+                        abs_r.height
+                    )
+                    # White box highlight
                     pygame.draw.rect(surface, (255, 255, 255), highlight_rect, border_radius=4)
+                    # Text becomes Black for contrast against white highlight
                     txt_surf = self.italic_bold.render(text, True, (0, 0, 0))
                     surface.blit(txt_surf, (abs_r.x, abs_r.y + lift_y))
                     break # Hanya satu yang bisa dihover
@@ -3690,7 +3713,14 @@ def main():
                         try:
                             detail_idx = int(res.split("_")[-1])
                             bg_capture = screen.copy()
-                            mars_modal = PlanetUniversalModal(font, planet_name=overlay.planet.name, config_id=detail_idx)
+                            # Pass planet color as theme_color
+                            theme_col = overlay.planet.color if overlay.planet else None
+                            mars_modal = PlanetUniversalModal(
+                                font,
+                                planet_name=overlay.planet.name,
+                                config_id=detail_idx,
+                                theme_color=theme_col
+                            )
                             mars_modal.open(bg_capture)
                             ui_state = UIState.MARS_BIO
                         except ValueError:
