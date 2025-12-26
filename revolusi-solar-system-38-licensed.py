@@ -36,8 +36,8 @@ LICENSE_FILE = "license.dat"
 BINDING_FILE = "license_binding.dat"
 
 # --- WINDOWS 10 UI CONSTANTS & HELPERS ---
-WIN10_BG_DARK = (31, 31, 31, 230) # Acrylic-like dark
-WIN10_BG_SOLID = (31, 31, 31)
+WIN10_BG_DARK = (0, 0, 0, 120) # Mica Transparent
+WIN10_BG_SOLID = (0, 0, 0, 120)
 WIN10_ACCENT = (0, 120, 215)
 WIN10_TEXT_WHITE = (255, 255, 255)
 WIN10_TEXT_GRAY = (204, 204, 204)
@@ -70,7 +70,7 @@ def draw_fluent_rect(surface, rect, color, border_color=None, border_width=1):
 
 def draw_fluent_button(surface, rect, text, font, active=False, hover=False, accent=False):
     """Draws a button with Windows 10 Reveal-like styling."""
-    bg_color = (60, 60, 60) if hover else (51, 51, 51)
+    bg_color = (60, 60, 60, 150) if hover else (51, 51, 51, 150)
     if active:
         bg_color = WIN10_ACCENT
     elif accent and hover:
@@ -1440,12 +1440,17 @@ class PlanetUniversalModal:
             local_x = rel_x - r.x
             if local_x <= 0: return (best_block_idx, 0)
 
-            cum_w = 0
-            for char_i, char in enumerate(txt):
-                w = font.size(char)[0]
-                if local_x < cum_w + w / 2:
+            # Better metric using substring measurement
+            for char_i in range(len(txt)):
+                # Width of string up to this char
+                w_prev = font.size(txt[:char_i])[0]
+                w_curr = font.size(txt[:char_i+1])[0]
+                char_w = w_curr - w_prev
+
+                center = w_prev + char_w / 2
+                if local_x < center:
                     return (best_block_idx, char_i)
-                cum_w += w
+
             return (best_block_idx, len(txt))
 
         return None
@@ -3068,7 +3073,7 @@ def license_screen(screen, target_key=None, startup_message=None):
         input_box.centerx = WIDTH // 2
 
         # Background Acrylic Style for Input
-        draw_fluent_rect(screen, input_box, (30, 30, 30, 200), color, 2)
+        draw_fluent_rect(screen, input_box, (0, 0, 0, 120), color, 2)
         screen.blit(txt_surface, (input_box.x+10, input_box.y+10)) # Adjusted padding
         
         # Message Area
@@ -3369,12 +3374,12 @@ def main():
             wm_w = watermark_text.get_width()
             nonlocal back_btn_rect
             btn_x = x + wm_w + 20
-            
+
             # Increase width for "Reset/Login" text fit
             btn_w = back_btn_text.get_width() + 20
             btn_h = 25
             back_btn_rect = pygame.Rect(btn_x, y - 4, btn_w, btn_h)
-            
+
             # Win10 Style Button (Reddish accent for Reset?)
             # Prompt: "box pemberitahuaan berwarna putih garis tepi biru ala-ala muda windows 10 pro itu... perluas sedikit"
             # Wait, the prompt about expanding box refers to the *notification box* (Trial Message Modal), not this button itself?
