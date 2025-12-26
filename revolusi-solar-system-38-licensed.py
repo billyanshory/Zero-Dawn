@@ -35,6 +35,55 @@ LICENSE_SERVER_URL = "http://b1l14n50r1.pythonanywhere.com"
 LICENSE_FILE = "license.dat"
 BINDING_FILE = "license_binding.dat"
 
+# --- WINDOWS 10 UI CONSTANTS & HELPERS ---
+WIN10_BG_DARK = (31, 31, 31, 230) # Acrylic-like dark
+WIN10_BG_SOLID = (31, 31, 31)
+WIN10_ACCENT = (0, 120, 215)
+WIN10_TEXT_WHITE = (255, 255, 255)
+WIN10_TEXT_GRAY = (204, 204, 204)
+WIN10_BORDER_DEFAULT = (100, 100, 100)
+WIN10_BORDER_HOVER = (255, 255, 255) # High contrast for reveal
+WIN10_TITLE_BAR = (45, 45, 45)
+
+def load_segoe_font(size, bold=False, italic=False):
+    """Load Segoe UI if available, else Arial."""
+    try:
+        # Try finding system font
+        f = pygame.font.SysFont("segoe ui", size, bold, italic)
+        return f
+    except:
+        return pygame.font.SysFont("arial", size, bold, italic)
+
+def draw_fluent_rect(surface, rect, color, border_color=None, border_width=1):
+    """Draws a sharp-cornered rectangle typical of Win10."""
+    # Fill
+    if len(color) == 4:
+        s = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
+        s.fill(color)
+        surface.blit(s, rect.topleft)
+    else:
+        pygame.draw.rect(surface, color, rect)
+
+    # Border
+    if border_color:
+        pygame.draw.rect(surface, border_color, rect, border_width)
+
+def draw_fluent_button(surface, rect, text, font, active=False, hover=False, accent=False):
+    """Draws a button with Windows 10 Reveal-like styling."""
+    bg_color = (60, 60, 60) if hover else (51, 51, 51)
+    if active:
+        bg_color = WIN10_ACCENT
+    elif accent and hover:
+        bg_color = (0, 140, 255) # Lighter accent on hover
+
+    border_col = WIN10_BORDER_HOVER if hover else WIN10_BORDER_DEFAULT
+    if active: border_col = (255, 255, 255)
+
+    draw_fluent_rect(surface, rect, bg_color, border_col, 1)
+
+    txt_surf = font.render(text, True, WIN10_TEXT_WHITE)
+    surface.blit(txt_surf, txt_surf.get_rect(center=rect.center))
+
 def show_splash_screen():
     """
     Menampilkan Box Loading putih ala Microsoft Word LTSC.
@@ -58,18 +107,9 @@ def show_splash_screen():
     blue_text = (0, 50, 150)
     gray_text = (100, 100, 100)
     
-    # Font
-    try:
-        font_header_path = os.path.join("Plus_Jakarta_Sans", "PlusJakartaSans-Regular.ttf")
-        font_powered_path = os.path.join("Plus_Jakarta_Sans", "PlusJakartaSans-Bold.ttf")
-        if os.path.exists(font_header_path) and os.path.exists(font_powered_path):
-            font_header = pygame.font.Font(font_header_path, 20)
-            font_powered = pygame.font.Font(font_powered_path, 12)
-        else:
-            raise Exception("Font not found")
-    except:
-        font_header = pygame.font.SysFont("arial", 20)
-        font_powered = pygame.font.SysFont("arial", 12, bold=True)
+    # Font (Segoe UI)
+    font_header = load_segoe_font(20)
+    font_powered = load_segoe_font(12, bold=True)
     
     # Load Logo
     logo_img = None
@@ -1081,8 +1121,8 @@ def load_planet_detail_image(filename):
 class TrialMessageModal:
     def __init__(self, font):
         self.font = font
-        self.title_font = pygame.font.SysFont("arial", 20, bold=True) # Windows style title
-        self.msg_font = pygame.font.SysFont("arial", 16)
+        self.title_font = load_segoe_font(20, bold=True) # Windows style title
+        self.msg_font = load_segoe_font(16)
         self.panel = None
         self.panel_rect = None
         self.ok_rect = None
@@ -1215,12 +1255,12 @@ class PlanetUniversalModal:
         h = min(800, HEIGHT - 60)
         
         self.panel = pygame.Surface((w, h), pygame.SRCALPHA)
-        self.panel.fill((20, 20, 25, 245)) # Gelap elegan
-        pygame.draw.rect(self.panel, self.mars_red, self.panel.get_rect(), 2, border_radius=12)
+        self.panel.fill(WIN10_BG_SOLID) # Solid dark for modal
+        pygame.draw.rect(self.panel, WIN10_ACCENT, self.panel.get_rect(), 2) # Win10 blue border
         
         # 1. Judul (Statis di panel)
         title_str = self.config["title"]
-        title = self.title_font.render(title_str, True, (255, 200, 200))
+        title = self.title_font.render(title_str, True, WIN10_TEXT_WHITE)
         # Store title in text_blocks for selection? It's on panel, not content_surf.
         # But user wants "block teks apapun itu (judul...)".
         # We need to map panel coords to selection too or render title in content_surf?
@@ -1286,8 +1326,8 @@ class PlanetUniversalModal:
             
         # Judul keterangan gambar / Link
         caption_str = self.config["img_caption"]
-        link_surf = self.link_font.render(caption_str, True, (200, 200, 255))
-        
+        link_surf = self.link_font.render(caption_str, True, WIN10_ACCENT)
+
         # Layout Y
         curr_y = 0
 
@@ -1306,7 +1346,7 @@ class PlanetUniversalModal:
         self.content_surf.blit(title, (title_x, curr_y))
         self.text_blocks.append((pygame.Rect(title_x, curr_y, title_w, title_h), title_str, self.title_font))
         curr_y += title_h + 20
-        
+
         # Centering Top Section
         top_margin_x = (total_content_w - top_section_w) // 2
         if top_margin_x < 0: top_margin_x = 0
@@ -1326,8 +1366,8 @@ class PlanetUniversalModal:
             fy = fact_y_start + i * 60
             p_end = (arrow_start_x - 5, fy)
             p_start = (arrow_start_x + 30, fy)
-            pygame.draw.line(self.content_surf, (255, 50, 50), p_start, p_end, 3)
-            pygame.draw.polygon(self.content_surf, (255, 50, 50), [
+            pygame.draw.line(self.content_surf, WIN10_ACCENT, p_start, p_end, 3)
+            pygame.draw.polygon(self.content_surf, WIN10_ACCENT, [
                 p_end, (p_end[0] + 10, p_end[1] - 5), (p_end[0] + 10, p_end[1] + 5)
             ])
 
@@ -1337,7 +1377,7 @@ class PlanetUniversalModal:
             fact_curr_y = fy - total_fact_h // 2
             
             for f_line in f_lines:
-                f_surf = self.fact_font.render(f_line, True, (255, 255, 255))
+                f_surf = self.fact_font.render(f_line, True, WIN10_TEXT_WHITE)
                 pos = (arrow_start_x + 40, fact_curr_y)
                 self.content_surf.blit(f_surf, pos)
                 r = pygame.Rect(pos, f_surf.get_size())
@@ -1373,7 +1413,7 @@ class PlanetUniversalModal:
         
         # Close button
         self.close_rect = pygame.Rect(w - 40, 10, 30, 30)
-        self.panel.blit(self.title_font.render("X", True, (255, 255, 255)), (w - 30, 10)) # Just a marker, we draw red rect later
+        # Marker not needed if drawn later
         
         self.panel_rect = self.panel.get_rect(center=(WIDTH/2, HEIGHT/2))
 
@@ -1456,9 +1496,12 @@ class PlanetUniversalModal:
         surface.blit(self.panel, self.panel_rect)
         
         # Draw close button red rect
-        pygame.draw.rect(surface, (200, 50, 50), self.close_rect.move(self.panel_rect.topleft), border_radius=5)
-        x_char = self.title_font.render("X", True, (255, 255, 255))
-        surface.blit(x_char, x_char.get_rect(center=self.close_rect.move(self.panel_rect.topleft).center))
+        close_abs = self.close_rect.move(self.panel_rect.topleft)
+        hover_close = close_abs.collidepoint(pygame.mouse.get_pos())
+        col_close = (232, 17, 35) if hover_close else (200, 50, 50)
+        pygame.draw.rect(surface, col_close, close_abs)
+        x_char = self.title_font.render("X", True, WIN10_TEXT_WHITE)
+        surface.blit(x_char, x_char.get_rect(center=close_abs.center))
 
         # Clipping & Content Rendering
         screen_view_rect = self.view_rect.move(self.panel_rect.topleft)
@@ -1495,11 +1538,11 @@ class PlanetUniversalModal:
 
         surface.set_clip(None)
         
-        # Scrollbars
+        # Scrollbars (Windows 10 Style: Thin, Square thumb)
         if self.max_scroll_y > 0:
-            sb_w = 12
+            sb_w = 10
             sb_h = screen_view_rect.height
-            sb_x = screen_view_rect.right + 5
+            sb_x = screen_view_rect.right + 2
             thumb_h = max(20, sb_h * (sb_h / self.content_surf.get_height()))
             scroll_ratio = self.scroll_y / self.max_scroll_y
             thumb_y = screen_view_rect.top + scroll_ratio * (sb_h - thumb_h)
@@ -1507,14 +1550,17 @@ class PlanetUniversalModal:
             self.sb_y_rect = pygame.Rect(sb_x, screen_view_rect.top, sb_w, sb_h)
             self.thumb_y_rect = pygame.Rect(sb_x, thumb_y, sb_w, thumb_h)
             
-            pygame.draw.rect(surface, (50, 50, 50), self.sb_y_rect, border_radius=3)
-            col = (200, 200, 200) if self.dragging_y else (150, 150, 150)
-            pygame.draw.rect(surface, col, self.thumb_y_rect, border_radius=3)
+            # Track
+            pygame.draw.rect(surface, (40, 40, 40), self.sb_y_rect)
+            # Thumb
+            col = (160, 160, 160) if self.dragging_y else (100, 100, 100)
+            if self.thumb_y_rect.collidepoint(pygame.mouse.get_pos()): col = (140, 140, 140)
+            pygame.draw.rect(surface, col, self.thumb_y_rect)
             
         if self.max_scroll_x > 0:
-            sb_h = 12
+            sb_h = 10
             sb_w = screen_view_rect.width
-            sb_y = screen_view_rect.bottom + 5
+            sb_y = screen_view_rect.bottom + 2
             thumb_w = max(20, sb_w * (sb_w / self.content_surf.get_width()))
             scroll_ratio = self.scroll_x / self.max_scroll_x
             thumb_x = screen_view_rect.left + scroll_ratio * (sb_w - thumb_w)
@@ -1522,9 +1568,12 @@ class PlanetUniversalModal:
             self.sb_x_rect = pygame.Rect(screen_view_rect.left, sb_y, sb_w, sb_h)
             self.thumb_x_rect = pygame.Rect(thumb_x, sb_y, thumb_w, sb_h)
             
-            pygame.draw.rect(surface, (50, 50, 50), self.sb_x_rect, border_radius=3)
-            col = (200, 200, 200) if self.dragging_x else (150, 150, 150)
-            pygame.draw.rect(surface, col, self.thumb_x_rect, border_radius=3)
+            # Track
+            pygame.draw.rect(surface, (40, 40, 40), self.sb_x_rect)
+            # Thumb
+            col = (160, 160, 160) if self.dragging_x else (100, 100, 100)
+            if self.thumb_x_rect.collidepoint(pygame.mouse.get_pos()): col = (140, 140, 140)
+            pygame.draw.rect(surface, col, self.thumb_x_rect)
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -1847,56 +1896,53 @@ def draw_distance_reference(surface, camera, font, sketch_mode=False):
 
 def draw_speed_panel(surface, font, selected_index):
     rects = []
+    mouse_pos = pygame.mouse.get_pos()
     for i, speed in enumerate(SPEED_OPTIONS):
         rect = pygame.Rect(10 + i * 55, 10, 50, 25)
         rects.append(rect)
-        color = (0, 200, 0) if i == selected_index else (200, 200, 200)
-        pygame.draw.rect(surface, color, rect, 0 if i == selected_index else 2)
-        text = font.render(f"{speed}x", True, (0, 0, 0))
-        text_rect = text.get_rect(center=rect.center)
-        surface.blit(text, text_rect)
+
+        active = (i == selected_index)
+        hover = rect.collidepoint(mouse_pos)
+
+        draw_fluent_button(surface, rect, f"{speed}x", font, active=active, hover=hover, accent=True)
     return rects
 
 def draw_angle_buttons(surface, font, rects, focus, selected):
-    for i, (label, rect, mode) in enumerate(
-        zip(ANGLE_LABELS, rects, ANGLE_MODES)
-    ):
-        active = mode is selected
-        color = (0, 200, 0) if active else (200, 200, 200)
-        pygame.draw.rect(surface, color, rect, 0 if active else 2, border_radius=5)
+    mouse_pos = pygame.mouse.get_pos()
+    for i, (label, rect, mode) in enumerate(zip(ANGLE_LABELS, rects, ANGLE_MODES)):
+        active = (mode is selected)
+        hover = rect.collidepoint(mouse_pos)
+
+        # Focus ring simulation (white border if focused via tab)
+        draw_fluent_button(surface, rect, label, font, active=active, hover=hover)
         if i == focus:
-            pygame.draw.rect(surface, (255, 255, 0), rect, 2, border_radius=5)
-        text = font.render(label, True, (0, 0, 0))
-        surface.blit(text, text.get_rect(center=rect.center))
+            pygame.draw.rect(surface, (255, 255, 255), rect, 2)
+
     return rects
 
 def draw_play_pause_buttons(surface, font, paused, play_rect, pause_rect):
-    play_color = (0, 200, 0) if not paused else (150, 150, 150)
-    pause_color = (200, 0, 0) if paused else (150, 150, 150)
-    pygame.draw.rect(surface, play_color, play_rect)
-    pygame.draw.rect(surface, pause_color, pause_rect)
-    pygame.draw.rect(surface, (0, 0, 0), play_rect, 2)
-    pygame.draw.rect(surface, (0, 0, 0), pause_rect, 2)
-    play_txt = font.render(t("play"), True, (0, 0, 0))
-    pause_txt = font.render(t("pause"), True, (0, 0, 0))
-    surface.blit(play_txt, play_txt.get_rect(center=play_rect.center))
-    surface.blit(pause_txt, pause_txt.get_rect(center=pause_rect.center))
+    mouse_pos = pygame.mouse.get_pos()
+    
+    # Play Button
+    active_play = not paused
+    hover_play = play_rect.collidepoint(mouse_pos)
+    draw_fluent_button(surface, play_rect, t("play"), font, active=active_play, hover=hover_play, accent=True)
+    
+    # Pause Button
+    active_pause = paused
+    hover_pause = pause_rect.collidepoint(mouse_pos)
+    draw_fluent_button(surface, pause_rect, t("pause"), font, active=active_pause, hover=hover_pause, accent=True)
 
 def draw_sketch_button(surface, font, rect, sketch_mode):
-    color = (0, 0, 0) if sketch_mode else (200, 200, 200)
-    text_color = (255, 255, 255) if sketch_mode else (0, 0, 0)
-    
-    pygame.draw.rect(surface, color, rect, border_radius=5)
-    pygame.draw.rect(surface, (0, 0, 0), rect, 2, border_radius=5)
-    
-    text = font.render(t("sketch_btn"), True, text_color)
-    surface.blit(text, text.get_rect(center=rect.center))
+    mouse_pos = pygame.mouse.get_pos()
+    hover = rect.collidepoint(mouse_pos)
+    draw_fluent_button(surface, rect, t("sketch_btn"), font, active=sketch_mode, hover=hover)
 
-def draw_keyboard_button(surface, font, rect, color):
-    pygame.draw.rect(surface, color, rect, border_radius=5)
-    pygame.draw.rect(surface, (0, 0, 0), rect, 2, border_radius=5)
-    text = font.render(t("keyboard_functions"), True, (0, 0, 0))
-    surface.blit(text, text.get_rect(center=rect.center))
+def draw_keyboard_button(surface, font, rect, color_dummy):
+    # Ignoring color_dummy, using Fluent style
+    mouse_pos = pygame.mouse.get_pos()
+    hover = rect.collidepoint(mouse_pos)
+    draw_fluent_button(surface, rect, t("keyboard_functions"), font, active=False, hover=hover)
 
 def draw_keyboard_overlay(surface, font, pos):
     lines = [
@@ -1904,20 +1950,23 @@ def draw_keyboard_overlay(surface, font, pos):
         t("key_ud"), t("key_wheel"), t("key_r"), t("key_backspace"),
         t("key_space"), t("key_f11"),
     ]
-    texts = [font.render(line, True, (0, 0, 0)) for line in lines]
+    texts = [font.render(line, True, WIN10_TEXT_WHITE) for line in lines]
     width = max(t.get_width() for t in texts) + 20
     height = len(texts) * 20 + 10
-    overlay = pygame.Surface((width, height), pygame.SRCALPHA)
-    pygame.draw.rect(
-        overlay,
-        (173, 216, 230, 180),
-        overlay.get_rect(),
-        border_radius=8,
-    )
+
+    # Acrylic Background
+    overlay_surf = pygame.Surface((width, height), pygame.SRCALPHA)
+    overlay_surf.fill(WIN10_BG_DARK)
+
+    # Border
+    rect = pygame.Rect(pos, (width, height))
+    surface.blit(overlay_surf, pos)
+    pygame.draw.rect(surface, WIN10_BORDER_DEFAULT, rect, 1)
+
     for i, text in enumerate(texts):
-        overlay.blit(text, (10, 5 + i * 20))
-    surface.blit(overlay, pos)
-    return pygame.Rect(pos, (width, height))
+        surface.blit(text, (pos[0] + 10, pos[1] + 5 + i * 20))
+
+    return rect
 
 class Tooltip:
     def __init__(self, font):
@@ -2003,12 +2052,16 @@ class PlanetInfoPanel:
         value_w = max(self.font.size(val)[0] for _, val in rows)
         height = len(rows) * (self.font.get_linesize() + 4) + 10
         width = label_w + value_w + 30
+
+        # Acrylic Panel
         surf = pygame.Surface((width, height), pygame.SRCALPHA)
-        pygame.draw.rect(surf, (240, 240, 240, 230), surf.get_rect(), border_radius=6)
+        surf.fill(WIN10_BG_DARK)
+        pygame.draw.rect(surf, WIN10_BORDER_DEFAULT, surf.get_rect(), 1)
+
         y = 5
         for label, val in rows:
-            lbl = self.font.render(label, True, (0, 0, 0))
-            val_s = self.font.render(val, True, (0, 0, 0))
+            lbl = self.font.render(label, True, WIN10_TEXT_GRAY)
+            val_s = self.font.render(val, True, WIN10_TEXT_WHITE)
             surf.blit(lbl, (10, y))
             surf.blit(val_s, (20 + label_w, y))
             y += self.font.get_linesize() + 4
@@ -2696,19 +2749,20 @@ def license_screen(screen, target_key=None, startup_message=None):
     target_key: Jika diisi, user WAJIB memasukkan key yang sama dengan ini.
     """
     clock = pygame.time.Clock()
-    font_main_title = pygame.font.SysFont("arial", 48, bold=True)
-    font_title = pygame.font.SysFont("arial", 30, bold=True)
-    font_input = pygame.font.SysFont("couriernew", 30, bold=True)
-    font_msg = pygame.font.SysFont("arial", 20)
+    # Updated to Segoe UI
+    font_main_title = load_segoe_font(48, bold=True)
+    font_title = load_segoe_font(30, bold=True)
+    font_input = pygame.font.SysFont("consolas", 30) # Consolas best for codes
+    font_msg = load_segoe_font(20)
     font_quote = pygame.font.SysFont("georgia", 18, italic=True)
-    font_small = pygame.font.SysFont("arial", 14)
+    font_small = load_segoe_font(14)
     
     input_box = pygame.Rect(WIDTH // 2 - 200, HEIGHT // 2 - 25, 400, 50)
     # Posisi tombol ACTIVATE dinaikkan agar lebih dekat dengan input box
     btn_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 40, 200, 50)
     
     color_inactive = (100, 100, 100)
-    color_active = (100, 200, 255) # Biru muda blueprint
+    color_active = WIN10_ACCENT # Win10 blue
     color = color_inactive
     active = False
     text = ''
@@ -2981,13 +3035,9 @@ def license_screen(screen, target_key=None, startup_message=None):
         input_box.w = width
         input_box.centerx = WIDTH // 2
 
-        s = pygame.Surface((input_box.w, input_box.h))
-        s.set_alpha(100)
-        s.fill((0, 0, 0))
-        screen.blit(s, (input_box.x, input_box.y))
-
-        screen.blit(txt_surface, (input_box.x+5, input_box.y+5))
-        pygame.draw.rect(screen, color, input_box, 2)
+        # Background Acrylic Style for Input
+        draw_fluent_rect(screen, input_box, (30, 30, 30, 200), color, 2)
+        screen.blit(txt_surface, (input_box.x+10, input_box.y+10)) # Adjusted padding
         
         # Message Area
         msg_surf = font_msg.render(message, True, msg_color)
@@ -2995,13 +3045,21 @@ def license_screen(screen, target_key=None, startup_message=None):
         
         # Online Warning
         online_msg = "Anda harus terhubung ke internet untuk mengaktivasi serial number product keynya, harap online."
-        online_surf = font_small.render(online_msg, True, (200, 200, 200))
+        online_surf = font_small.render(online_msg, True, WIN10_TEXT_GRAY)
         screen.blit(online_surf, online_surf.get_rect(center=(WIDTH//2, HEIGHT - 30)))
         
-        # Activate Button
-        pygame.draw.rect(screen, (0, 150, 0) if state != LicenseState.ACTIVATING else (100, 100, 100), btn_rect, border_radius=5)
-        pygame.draw.rect(screen, (255, 255, 255), btn_rect, 2, border_radius=5)
-        btn_txt = font_msg.render("ACTIVATE", True, (255, 255, 255))
+        # Activate Button (Win 10 Style)
+        hover_btn = btn_rect.collidepoint(pygame.mouse.get_pos())
+        is_activating = state == LicenseState.ACTIVATING
+
+        btn_bg = WIN10_ACCENT if not is_activating else (100, 100, 100)
+        btn_border = WIN10_BORDER_HOVER if hover_btn else WIN10_BORDER_DEFAULT
+        if hover_btn and not is_activating:
+             btn_bg = (0, 140, 255) # Lighter blue on hover
+
+        draw_fluent_rect(screen, btn_rect, btn_bg, btn_border, 1)
+
+        btn_txt = font_msg.render("ACTIVATE", True, WIN10_TEXT_WHITE)
         screen.blit(btn_txt, btn_txt.get_rect(center=btn_rect.center))
         
         pygame.display.flip()
@@ -3136,15 +3194,15 @@ def main():
 
         # Masuk Game Loop
         
-        font = pygame.font.SysFont("arial", 16)
-        small_font = pygame.font.SysFont("arial", 14)
-        tooltip = Tooltip(pygame.font.SysFont("arial", 14))
-        watermark_font = pygame.font.SysFont("arial", 12, italic=True)
+        font = load_segoe_font(16)
+        small_font = load_segoe_font(14)
+        tooltip = Tooltip(load_segoe_font(14))
+        watermark_font = load_segoe_font(12, italic=True)
         watermark_text = watermark_font.render("@emansipation", True, (255, 255, 255))
         watermark_shadow = watermark_font.render("@emansipation", True, (0, 0, 0))
         
         # Tombol Kembali / Reset License
-        back_btn_font = pygame.font.SysFont("arial", 12, bold=True)
+        back_btn_font = load_segoe_font(12, bold=True)
         back_btn_text = back_btn_font.render("<< RESET / LOGIN", True, (255, 100, 100))
         back_btn_rect = pygame.Rect(0, 0, 0, 0) # Akan dihitung saat draw
         
