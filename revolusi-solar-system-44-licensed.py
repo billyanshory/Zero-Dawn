@@ -2774,10 +2774,15 @@ def check_trial_history_used(hwid):
         try:
             with open("trial_history.dat", "r") as f:
                 for line in f:
-                    parts = line.strip().split('|')
+                    line = line.strip()
+                    if not line: continue
+                    parts = line.split('|')
                     if parts[0] == hwid:
                         # Return True and the timestamp if available
-                        ts = float(parts[1]) if len(parts) > 1 and parts[1] != "USED" else 0
+                        try:
+                            ts = float(parts[1]) if len(parts) > 1 and parts[1] != "USED" else 0
+                        except ValueError:
+                            ts = 0
                         return True, ts
         except:
             pass
@@ -2789,6 +2794,8 @@ def mark_trial_used(hwid, start_time=None):
     try:
         with open("trial_history.dat", "a") as f:
             f.write(f"{hwid}|{start_time}\n")
+            f.flush()
+            os.fsync(f.fileno())
     except:
         pass
 
@@ -3246,9 +3253,36 @@ def main():
         # Jika Start Up (first_run True) DAN File Lisensi Ada: Skip
         
         should_show_license = True
-        if first_run and check_license_locally():
-            should_show_license = False
         
+        # IMPROVED STARTUP LOGIC: Skip license screen if valid license exists
+        if first_run and os.path.exists(LICENSE_FILE):
+            # Validate content to ensure we don't skip if file is corrupt or expired (double check)
+            try:
+                with open(LICENSE_FILE, "r") as f:
+                    content = f.read().split("|")
+                    if content[0] == "ACTIVATED":
+                        should_show_license = False
+                        if len(content) >= 3:
+                            active_key = content[2].strip()
+                        is_trial_mode = False
+                    elif content[0] == "TRIAL" and len(content) >= 4:
+                        ts = float(content[3])
+                        elapsed = time.time() - ts
+                        # Check expiry again strictly
+                        if elapsed < (3 * 24 * 3600):
+                            should_show_license = False
+                            is_trial_mode = True
+                            trial_start_time = ts
+                            active_key = content[2].strip()
+                        else:
+                            # Expired: Delete and Show Screen
+                            should_show_license = True
+                            startup_msg = "Masa trial 3 hari telah berakhir."
+                            try: os.remove(LICENSE_FILE)
+                            except: pass
+            except:
+                should_show_license = True # Error reading file, show screen
+
         if should_show_license:
              # Pass active_key jika ada (untuk validasi ulang)
              # Pass startup_msg jika ada
@@ -3270,20 +3304,6 @@ def main():
                         else:
                             is_trial_mode = False
                 except: pass
-        else:
-             # File ada. Baca keynya jika belum dibaca.
-             if not active_key:
-                  try:
-                      with open(LICENSE_FILE, "r") as f:
-                          content = f.read().split("|")
-                          if len(content) >= 3:
-                              active_key = content[2].strip()
-                          if content[0] == "TRIAL" and len(content) >= 4:
-                                is_trial_mode = True
-                                trial_start_time = float(content[3])
-                          else:
-                                is_trial_mode = False
-                  except: pass
         
         first_run = False # Setelah sesi pertama, flag ini mati
 
