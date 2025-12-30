@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div style="text-align: center; margin-bottom: 2rem;">
+    <h1>Menu Utama</h1>
+    <p>Silakan pilih metode tampilan data yang Anda inginkan.</p>
+</div>
+
+<div class="dashboard-grid">
+    <a href="{{ url_for('gallery') }}" class="card tool-card">
+        <div class="tool-icon">🖼️</div>
+        <h3>Lihat Data Gambar</h3>
+        <p>Lihat kumpulan foto fisik Kartu Keluarga yang telah diarsipkan.</p>
+        <span class="btn btn-secondary btn-sm">Buka Galeri</span>
+    </a>
+
+    <a href="{{ url_for('data_table') }}" class="card tool-card">
+        <div class="tool-icon">📊</div>
+        <h3>Lihat Data Tabel</h3>
+        <p>Akses data kependudukan dalam format tabel terstruktur.</p>
+        <span class="btn btn-secondary btn-sm">Buka Tabel</span>
+    </a>
+</div>
+{% endblock %}
