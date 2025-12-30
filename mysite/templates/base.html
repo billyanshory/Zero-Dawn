@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Bank Data RT. 53{% endblock %} - Kelurahan Sidodadi</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="brand-logo">
+            iLove<span>RT.53</span>
+        </a>
+        <div class="nav-user">
+            {% if session.get('logged_in') %}
+                Ketua RT. 53 <a href="{{ url_for('logout') }}" style="color: var(--brand-red); margin-left: 10px; text-decoration: none; font-size: 0.9em;">(Logout)</a>
+            {% else %}
+                Bank Data Warga
+            {% endif %}
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header-info" style="text-align: center; margin-bottom: 2rem;">
+            <p style="font-size: 0.9rem; color: #999; margin: 0;">Bank Data Kartu Keluarga</p>
+            <p style="font-size: 0.8rem; color: #aaa; margin: 0;">RT. 53, Jalan Delima Dalam, Kelurahan Sidodadi, Kecamatan Samarinda Ulu, Kota Samarinda, Provinsi Kalimantan Timur</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>
