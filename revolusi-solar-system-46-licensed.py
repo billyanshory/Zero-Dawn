@@ -32,8 +32,10 @@ import webbrowser
 # ==============================================================================
 # GANTI URL INI DENGAN URL FLASK APP KAMU DI PYTHONANYWHERE
 LICENSE_SERVER_URL = "http://b1l14n50r1.pythonanywhere.com"
-LICENSE_FILE = "license.dat"
-BINDING_FILE = "license_binding.dat"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LICENSE_FILE = os.path.join(BASE_DIR, "license.dat")
+BINDING_FILE = os.path.join(BASE_DIR, "license_binding.dat")
+TRIAL_HISTORY_FILE = os.path.join(BASE_DIR, "trial_history.dat")
 
 # --- WINDOWS 10 UI CONSTANTS & HELPERS ---
 WIN10_BG_DARK = (0, 0, 0, 120) # Mica Transparent
@@ -2770,9 +2772,9 @@ def check_trial_history_used(hwid):
     Cek apakah HWID ini sudah pernah menggunakan trial.
     Mengembalikan (bool, start_time)
     """
-    if os.path.exists("trial_history.dat"):
+    if os.path.exists(TRIAL_HISTORY_FILE):
         try:
-            with open("trial_history.dat", "r") as f:
+            with open(TRIAL_HISTORY_FILE, "r") as f:
                 for line in f:
                     parts = line.strip().split('|')
                     if parts[0] == hwid:
@@ -2787,7 +2789,7 @@ def mark_trial_used(hwid, start_time=None):
     """Tandai HWID ini sudah menggunakan trial."""
     if start_time is None: start_time = time.time()
     try:
-        with open("trial_history.dat", "a") as f:
+        with open(TRIAL_HISTORY_FILE, "a") as f:
             f.write(f"{hwid}|{start_time}\n")
     except:
         pass
@@ -3176,8 +3178,8 @@ def main():
     # HWID: 48751573395980
     if get_hwid() == "48751573395980":
         log("Special HWID detected: Resetting license state...")
-        if os.path.exists("trial_history.dat"):
-            try: os.remove("trial_history.dat")
+        if os.path.exists(TRIAL_HISTORY_FILE):
+            try: os.remove(TRIAL_HISTORY_FILE)
             except: pass
         if os.path.exists(LICENSE_FILE):
             try: os.remove(LICENSE_FILE)
@@ -3918,7 +3920,7 @@ def main():
                     if DIAGONAL_NORMALIZE:
                         move = move.normalize()
                     
-                    angle = -camera.rot
+                    angle = camera.rot
                     rot_move = move.rotate_rad(angle)
                     
                     speed_dt = PAN_SPEED_WORLD * dt
