@@ -312,7 +312,7 @@ STYLES_HTML = """
 """
 
 # Updated HTML_TEMPLATE with new Navbar and Styles
-HTML_TEMPLATE = f"""
+HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
 <head>
@@ -325,12 +325,12 @@ HTML_TEMPLATE = f"""
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-    {STYLES_HTML}
+    {{ styles|safe }}
 </head>
 <body>
 
-    {LOGIN_OVERLAY}
-    {NAVBAR_HTML}
+    {{ overlay|safe }}
+    {{ navbar|safe }}
 
     <!-- HERO -->
     <div class="hero">
@@ -401,22 +401,22 @@ HTML_TEMPLATE = f"""
     <script>
         // --- DATA TOOLS CONFIGURATION ---
         const tools = [
-            {{ id: 'merge', title: 'Merge PDF', icon: 'fa-object-group', desc: 'Combine PDFs in the order you want.', accept: '.pdf', multiple: true }},
-            {{ id: 'split', title: 'Split PDF', icon: 'fa-cut', desc: 'Separate one page or a whole set for easy conversion.', accept: '.pdf', multiple: false }},
-            {{ id: 'compress', title: 'Compress PDF', icon: 'fa-compress-arrows-alt', desc: 'Reduce file size while optimizing for maximal PDF quality.', accept: '.pdf', multiple: false }},
-            {{ id: 'pdf_to_jpg', title: 'PDF to JPG', icon: 'fa-image', desc: 'Convert each PDF page into a JPG or extract all images.', accept: '.pdf', multiple: false }},
-            {{ id: 'jpg_to_pdf', title: 'JPG to PDF', icon: 'fa-file-image', desc: 'Convert JPG images to PDF in seconds.', accept: '.jpg,.jpeg,.png', multiple: true }},
-            {{ id: 'word_to_pdf', title: 'Word to PDF', icon: 'fa-file-word', desc: 'Convert DOC and DOCX files to PDF.', accept: '.doc,.docx', multiple: false }},
-            {{ id: 'pdf_to_word', title: 'PDF to Word', icon: 'fa-file-word', desc: 'Convert your PDF to WORD documents.', accept: '.pdf', multiple: false }},
-            {{ id: 'excel_to_pdf', title: 'Excel to PDF', icon: 'fa-file-excel', desc: 'Convert Excel files to PDF.', accept: '.xlsx,.xls', multiple: false }},
-            {{ id: 'pdf_to_excel', title: 'PDF to Excel', icon: 'fa-file-excel', desc: 'Convert PDF to Excel spreadsheets.', accept: '.pdf', multiple: false }},
-            {{ id: 'ppt_to_pdf', title: 'PowerPoint to PDF', icon: 'fa-file-powerpoint', desc: 'Convert PPT files to PDF.', accept: '.ppt,.pptx', multiple: false }},
-            {{ id: 'pdf_to_ppt', title: 'PDF to PowerPoint', icon: 'fa-file-powerpoint', desc: 'Convert PDF to PowerPoint.', accept: '.pdf', multiple: false }},
-            {{ id: 'rotate', title: 'Rotate PDF', icon: 'fa-sync-alt', desc: 'Rotate your PDF pages.', accept: '.pdf', multiple: false }},
-            {{ id: 'page_numbers', title: 'Page Numbers', icon: 'fa-list-ol', desc: 'Add page numbers into PDFs.', accept: '.pdf', multiple: false }},
-            {{ id: 'watermark', title: 'Add Watermark', icon: 'fa-stamp', desc: 'Stamp an image or text over your PDF.', accept: '.pdf', multiple: false }},
-            {{ id: 'remove_pages', title: 'Remove Pages', icon: 'fa-trash-alt', desc: 'Select pages to remove from your PDF.', accept: '.pdf', multiple: false }},
-            {{ id: 'organize', title: 'Organize PDF', icon: 'fa-sort-amount-down', desc: 'Sort pages of your PDF file.', accept: '.pdf', multiple: false }},
+            { id: 'merge', title: 'Merge PDF', icon: 'fa-object-group', desc: 'Combine PDFs in the order you want.', accept: '.pdf', multiple: true },
+            { id: 'split', title: 'Split PDF', icon: 'fa-cut', desc: 'Separate one page or a whole set for easy conversion.', accept: '.pdf', multiple: false },
+            { id: 'compress', title: 'Compress PDF', icon: 'fa-compress-arrows-alt', desc: 'Reduce file size while optimizing for maximal PDF quality.', accept: '.pdf', multiple: false },
+            { id: 'pdf_to_jpg', title: 'PDF to JPG', icon: 'fa-image', desc: 'Convert each PDF page into a JPG or extract all images.', accept: '.pdf', multiple: false },
+            { id: 'jpg_to_pdf', title: 'JPG to PDF', icon: 'fa-file-image', desc: 'Convert JPG images to PDF in seconds.', accept: '.jpg,.jpeg,.png', multiple: true },
+            { id: 'word_to_pdf', title: 'Word to PDF', icon: 'fa-file-word', desc: 'Convert DOC and DOCX files to PDF.', accept: '.doc,.docx', multiple: false },
+            { id: 'pdf_to_word', title: 'PDF to Word', icon: 'fa-file-word', desc: 'Convert your PDF to WORD documents.', accept: '.pdf', multiple: false },
+            { id: 'excel_to_pdf', title: 'Excel to PDF', icon: 'fa-file-excel', desc: 'Convert Excel files to PDF.', accept: '.xlsx,.xls', multiple: false },
+            { id: 'pdf_to_excel', title: 'PDF to Excel', icon: 'fa-file-excel', desc: 'Convert PDF to Excel spreadsheets.', accept: '.pdf', multiple: false },
+            { id: 'ppt_to_pdf', title: 'PowerPoint to PDF', icon: 'fa-file-powerpoint', desc: 'Convert PPT files to PDF.', accept: '.ppt,.pptx', multiple: false },
+            { id: 'pdf_to_ppt', title: 'PDF to PowerPoint', icon: 'fa-file-powerpoint', desc: 'Convert PDF to PowerPoint.', accept: '.pdf', multiple: false },
+            { id: 'rotate', title: 'Rotate PDF', icon: 'fa-sync-alt', desc: 'Rotate your PDF pages.', accept: '.pdf', multiple: false },
+            { id: 'page_numbers', title: 'Page Numbers', icon: 'fa-list-ol', desc: 'Add page numbers into PDFs.', accept: '.pdf', multiple: false },
+            { id: 'watermark', title: 'Add Watermark', icon: 'fa-stamp', desc: 'Stamp an image or text over your PDF.', accept: '.pdf', multiple: false },
+            { id: 'remove_pages', title: 'Remove Pages', icon: 'fa-trash-alt', desc: 'Select pages to remove from your PDF.', accept: '.pdf', multiple: false },
+            { id: 'organize', title: 'Organize PDF', icon: 'fa-sort-amount-down', desc: 'Sort pages of your PDF file.', accept: '.pdf', multiple: false },
         ];
 
         let currentTool = null;
@@ -424,57 +424,57 @@ HTML_TEMPLATE = f"""
 
         // --- RENDER GRID ---
         const container = document.getElementById('toolsContainer');
-        tools.forEach(tool => {{
+        tools.forEach(tool => {
             const card = document.createElement('a');
             card.className = 'tool-card';
             card.href = '#';
             card.onclick = () => openTool(tool);
             card.innerHTML = `
-                <div class="tool-icon"><i class="fas ${{tool.icon}}"></i></div>
-                <div class="tool-title">${{tool.title}}</div>
-                <div class="tool-desc">${{tool.desc}}</div>
+                <div class="tool-icon"><i class="fas ${tool.icon}"></i></div>
+                <div class="tool-title">${tool.title}</div>
+                <div class="tool-desc">${tool.desc}</div>
             `;
             container.appendChild(card);
-        }});
+        });
 
         // --- THEME LOGIC ---
-        function setTheme(theme) {{
+        function setTheme(theme) {
             document.documentElement.setAttribute('data-bs-theme', theme);
             localStorage.setItem('theme', theme);
             updateTableTheme(theme);
-        }}
+        }
 
-        function updateTableTheme(theme) {{
+        function updateTableTheme(theme) {
             const tables = document.querySelectorAll('.table');
-            tables.forEach(table => {{
+            tables.forEach(table => {
                 const thead = table.querySelector('thead');
-                if (theme === 'dark') {{
-                    if (thead) {{
+                if (theme === 'dark') {
+                    if (thead) {
                         thead.classList.remove('table-light');
                         thead.classList.add('table-dark');
-                    }}
+                    }
                     table.classList.add('table-dark');
-                }} else {{
-                    if (thead) {{
+                } else {
+                    if (thead) {
                         thead.classList.remove('table-dark');
                         thead.classList.add('table-light');
-                    }}
+                    }
                     table.classList.remove('table-dark');
-                }}
-            }});
-        }}
+                }
+            });
+        }
 
         // Apply theme on load
-        (function() {{
+        (function() {
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-bs-theme', savedTheme);
-            document.addEventListener('DOMContentLoaded', () => {{
+            document.addEventListener('DOMContentLoaded', () => {
                 updateTableTheme(savedTheme);
-            }});
-        }})();
+            });
+        })();
 
         // --- TOOL LOGIC ---
-        function openTool(tool) {{
+        function openTool(tool) {
             currentTool = tool;
             document.getElementById('modalTitle').innerText = tool.title;
             document.getElementById('actionBtnText').innerText = tool.title.toUpperCase();
@@ -491,23 +491,23 @@ HTML_TEMPLATE = f"""
             input.multiple = tool.multiple;
 
             modal.show();
-        }}
+        }
 
-        function handleFiles(files) {{
+        function handleFiles(files) {
             if (files.length === 0) return;
 
             document.getElementById('uploadState').style.display = 'none';
             document.getElementById('processState').style.display = 'block';
 
             const list = document.getElementById('fileList');
-            list.innerHTML = Array.from(files).map(f => `<div>${{f.name}} (${{(f.size/1024).toFixed(1)}} KB)</div>`).join('');
+            list.innerHTML = Array.from(files).map(f => `<div>${f.name} (${(f.size/1024).toFixed(1)} KB)</div>`).join('');
 
             // Inject Tool Specific Options
             const panel = document.getElementById('optionsPanel');
             panel.innerHTML = '';
             panel.style.display = 'none';
 
-            if (currentTool.id === 'rotate') {{
+            if (currentTool.id === 'rotate') {
                 panel.style.display = 'block';
                 panel.innerHTML = `
                     <label>Rotation Angle:</label>
@@ -516,20 +516,20 @@ HTML_TEMPLATE = f"""
                         <option value="180">180 Degrees</option>
                         <option value="270">270 Degrees Clockwise</option>
                     </select>`;
-            }} else if (currentTool.id === 'watermark') {{
+            } else if (currentTool.id === 'watermark') {
                 panel.style.display = 'block';
                 panel.innerHTML = `
                     <label>Watermark Text:</label>
                     <input type="text" id="extraOption" class="form-control" value="CONFIDENTIAL">`;
-            }} else if (currentTool.id === 'remove_pages') {{
+            } else if (currentTool.id === 'remove_pages') {
                 panel.style.display = 'block';
                 panel.innerHTML = `
                     <label>Pages to Remove (e.g., 1,3-5):</label>
                     <input type="text" id="extraOption" class="form-control" placeholder="1">`;
-            }}
-        }}
+            }
+        }
 
-        async function processAction() {{
+        async function processAction() {
             document.getElementById('processState').style.display = 'none';
             document.getElementById('loadingState').style.display = 'block';
 
@@ -537,21 +537,21 @@ HTML_TEMPLATE = f"""
             formData.append('tool_id', currentTool.id);
 
             const files = document.getElementById('fileInput').files;
-            for (let i = 0; i < files.length; i++) {{
+            for (let i = 0; i < files.length; i++) {
                 formData.append('files', files[i]);
-            }}
+            }
 
             // Append extra option if exists
             const extra = document.getElementById('extraOption');
             if (extra) formData.append('option', extra.value);
 
-            try {{
-                const response = await fetch('/process', {{
+            try {
+                const response = await fetch('/process', {
                     method: 'POST',
                     body: formData
-                }});
+                });
 
-                if (response.ok) {{
+                if (response.ok) {
                     const blob = await response.blob();
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -560,28 +560,28 @@ HTML_TEMPLATE = f"""
                     // Filename handling
                     let filename = "ilikepdf_result";
                     const disp = response.headers.get('Content-Disposition');
-                    if (disp && disp.includes('filename=')) {{
+                    if (disp && disp.includes('filename=')) {
                         filename = disp.split('filename=')[1].replace(/"/g, '');
-                    }} else {{
+                    } else {
                         if (currentTool.id.includes('to_jpg') || currentTool.id === 'split') filename += ".zip";
                         else filename += ".pdf";
-                    }}
+                    }
 
                     a.download = filename;
                     document.body.appendChild(a);
                     a.click();
                     a.remove();
                     modal.hide();
-                }} else {{
+                } else {
                     const err = await response.text();
                     alert("Error: " + err);
                     modal.hide();
-                }}
-            }} catch (e) {{
+                }
+            } catch (e) {
                 alert("An error occurred: " + e);
                 modal.hide();
-            }}
-        }}
+            }
+        }
     </script>
 </body>
 </html>
@@ -597,22 +597,22 @@ HTML_BANK = """
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    {STYLES_HTML}
+    {{ styles|safe }}
     <style>
-        .image-container {{
+        .image-container {
             position: relative;
             border-radius: 8px;
             overflow: hidden;
             height: 200px;
             width: 100%;
-        }}
-        .image-card {{
+        }
+        .image-card {
             height: 100%;
             width: 100%;
             object-fit: cover;
             transition: 0.3s;
-        }}
-        .image-overlay {{
+        }
+        .image-overlay {
             position: absolute;
             top: 0;
             left: 0;
@@ -626,29 +626,29 @@ HTML_BANK = """
             align-items: center;
             opacity: 0;
             transition: opacity 0.3s;
-        }}
-        .image-container:hover .image-overlay {{
+        }
+        .image-container:hover .image-overlay {
             opacity: 1;
-        }}
-        .image-title {{
+        }
+        .image-title {
             color: white;
             font-weight: 600;
             text-shadow: 0 2px 4px rgba(0,0,0,0.5);
             margin-bottom: 10px;
             text-align: center;
             padding: 0 10px;
-        }}
-        .gallery-grid {{
+        }
+        .gallery-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 15px;
             padding: 20px 0;
-        }}
+        }
     </style>
 </head>
 <body>
-    {LOGIN_OVERLAY}
-    {NAVBAR_HTML}
+    {{ overlay|safe }}
+    {{ navbar|safe }}
 
     <div class="hero">
         <h1>Bank Gambar</h1>
@@ -673,10 +673,16 @@ HTML_BANK = """
                     <img src="/uploads/{{ img }}" class="image-card" alt="{{ img }}">
                     <div class="image-overlay">
                         <div class="image-title">{{ img }}</div>
-                        {% if session.get('role') == 'admin' %}
-                        <button class="btn btn-sm btn-light" onclick="openRename('{{ img }}')"><i class="fas fa-edit"></i> Rename</button>
-                        {% endif %}
-                        <a href="/uploads/{{ img }}" target="_blank" class="btn btn-sm btn-outline-light mt-2"><i class="fas fa-eye"></i> View</a>
+                        <div class="d-flex gap-2 justify-content-center mb-2">
+                            {% if session.get('role') == 'admin' %}
+                            <button class="btn btn-sm btn-light" onclick="openRename('{{ img }}')"><i class="fas fa-edit"></i> Rename</button>
+                            <form action="/bank-gambar/delete" method="post" onsubmit="return confirm('Are you sure?')">
+                                <input type="hidden" name="filename" value="{{ img }}">
+                                <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                            </form>
+                            {% endif %}
+                        </div>
+                        <a href="/uploads/{{ img }}" target="_blank" class="btn btn-sm btn-outline-light"><i class="fas fa-eye"></i> View</a>
                     </div>
                 </div>
             {% endfor %}
@@ -747,11 +753,11 @@ HTML_TABULASI = """
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    {STYLES_HTML}
+    {{ styles|safe }}
 </head>
 <body>
-    {LOGIN_OVERLAY}
-    {NAVBAR_HTML}
+    {{ overlay|safe }}
+    {{ navbar|safe }}
 
     <div class="hero">
         <h1>Data Tabulasi Tabel</h1>
@@ -1119,7 +1125,7 @@ def logout():
 
 @app.route('/')
 def index():
-    return render_template_string(HTML_TEMPLATE)
+    return render_template_string(HTML_TEMPLATE, styles=STYLES_HTML, navbar=NAVBAR_HTML, overlay=LOGIN_OVERLAY)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -1144,7 +1150,24 @@ def bank_gambar():
     images = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
     # Filter only allowed images
     images = [img for img in images if allowed_file(img)]
-    return render_template_string(HTML_BANK, images=images)
+    return render_template_string(HTML_BANK, images=images, styles=STYLES_HTML, navbar=NAVBAR_HTML, overlay=LOGIN_OVERLAY)
+
+@app.route('/bank-gambar/delete', methods=['POST'])
+def delete_image():
+    if session.get('role') != 'admin':
+        return "Unauthorized", 403
+
+    filename = request.form.get('filename')
+    if not filename:
+        return "Missing filename", 400
+
+    filename = secure_filename(filename)
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+    return redirect(url_for('bank_gambar'))
 
 @app.route('/bank-gambar/rename', methods=['POST'])
 def rename_image():
@@ -1196,7 +1219,7 @@ def data_tabulasi():
     c.execute('SELECT * FROM tabulasi')
     rows = c.fetchall()
     conn.close()
-    return render_template_string(HTML_TABULASI, rows=rows)
+    return render_template_string(HTML_TABULASI, rows=rows, styles=STYLES_HTML, navbar=NAVBAR_HTML, overlay=LOGIN_OVERLAY)
 
 @app.route('/data-tabulasi/edit', methods=['POST'])
 def edit_tabulasi():
