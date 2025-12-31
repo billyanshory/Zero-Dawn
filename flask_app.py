@@ -3,7 +3,7 @@ import os
 import zipfile
 import math
 import sqlite3
-from flask import Flask, request, send_file, render_template_string, jsonify, send_from_directory, redirect, url_for, session
+from flask import Flask, request, send_file, render_template_string, jsonify, send_from_directory, redirect, url_for, session, flash
 from PIL import Image
 from PyPDF2 import PdfReader, PdfWriter, Transformation, PageObject
 from reportlab.pdfgen import canvas
@@ -17,6 +17,7 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB Limit
 app.secret_key = "supersecretkey"
 app.config['UPLOAD_FOLDER'] = 'uploads'
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg'}
 
 def allowed_file(filename):
@@ -118,6 +119,17 @@ LOGIN_OVERLAY = """
 <div class="login-overlay">
     <div class="login-card">
         <h2 class="mb-4 fw-bold">Login Access</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-danger mb-3" role="alert">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
         <form action="/login" method="post" class="mb-4 text-start">
             <div class="mb-3">
                 <label class="form-label">ID Pengguna</label>
@@ -1100,12 +1112,20 @@ def process_organize(files):
 
 # --- ROUTES ---
 
+def render_page(content, **kwargs):
+    # Inject fragments before rendering to allow Jinja to process them
+    content = content.replace('{{ styles|safe }}', STYLES_HTML)
+    content = content.replace('{{ navbar|safe }}', NAVBAR_HTML)
+    content = content.replace('{{ overlay|safe }}', LOGIN_OVERLAY)
+    return render_template_string(content, **kwargs)
+
 @app.route('/login', methods=['POST'])
 def login():
     role = request.form.get('role')
     if role == 'guest':
         session['logged_in'] = True
         session['role'] = 'guest'
+        session.pop('login_attempts', None)
         return redirect(request.referrer or url_for('index'))
 
     username = request.form.get('username')
@@ -1114,9 +1134,21 @@ def login():
     if username == 'Ketua RT. 53' and password == 'nkrihargamati':
         session['logged_in'] = True
         session['role'] = 'admin'
+        session.pop('login_attempts', None)
         return redirect(request.referrer or url_for('index'))
 
-    return redirect(url_for('index')) # In reality should show error, but for now redirect keeps overlay
+    # Handle failure
+    attempts = session.get('login_attempts', 0) + 1
+    session['login_attempts'] = attempts
+
+    if attempts % 2 != 0:
+        msg = 'lupa password, tanyakan dengan pihak pengembang'
+    else:
+        msg = 'anda bukan Pak RT. 53, pakai akun warga saja untuk melihat-lihat'
+
+    flash(msg, 'error')
+
+    return redirect(url_for('index'))
 
 @app.route('/logout')
 def logout():
@@ -1125,7 +1157,7 @@ def logout():
 
 @app.route('/')
 def index():
-    return render_template_string(HTML_TEMPLATE, styles=STYLES_HTML, navbar=NAVBAR_HTML, overlay=LOGIN_OVERLAY)
+    return render_page(HTML_TEMPLATE)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -1150,7 +1182,7 @@ def bank_gambar():
     images = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
     # Filter only allowed images
     images = [img for img in images if allowed_file(img)]
-    return render_template_string(HTML_BANK, images=images, styles=STYLES_HTML, navbar=NAVBAR_HTML, overlay=LOGIN_OVERLAY)
+    return render_page(HTML_BANK, images=images)
 
 @app.route('/bank-gambar/delete', methods=['POST'])
 def delete_image():
@@ -1219,7 +1251,7 @@ def data_tabulasi():
     c.execute('SELECT * FROM tabulasi')
     rows = c.fetchall()
     conn.close()
-    return render_template_string(HTML_TABULASI, rows=rows, styles=STYLES_HTML, navbar=NAVBAR_HTML, overlay=LOGIN_OVERLAY)
+    return render_page(HTML_TABULASI, rows=rows)
 
 @app.route('/data-tabulasi/edit', methods=['POST'])
 def edit_tabulasi():
