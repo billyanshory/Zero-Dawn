@@ -375,7 +375,38 @@ HTML_TEMPLATE = f"""
         // --- THEME LOGIC ---
         function setTheme(theme) {{
             document.documentElement.setAttribute('data-bs-theme', theme);
+            localStorage.setItem('theme', theme);
+            updateTableTheme(theme);
         }}
+
+        function updateTableTheme(theme) {{
+            const tables = document.querySelectorAll('.table');
+            tables.forEach(table => {{
+                const thead = table.querySelector('thead');
+                if (theme === 'dark') {{
+                    if (thead) {{
+                        thead.classList.remove('table-light');
+                        thead.classList.add('table-dark');
+                    }}
+                    table.classList.add('table-dark');
+                }} else {{
+                    if (thead) {{
+                        thead.classList.remove('table-dark');
+                        thead.classList.add('table-light');
+                    }}
+                    table.classList.remove('table-dark');
+                }}
+            }});
+        }}
+
+        // Apply theme on load
+        (function() {{
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+            document.addEventListener('DOMContentLoaded', () => {{
+                updateTableTheme(savedTheme);
+            }});
+        }})();
 
         // --- TOOL LOGIC ---
         function openTool(tool) {{
@@ -503,17 +534,44 @@ HTML_BANK = f"""
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     {STYLES_HTML}
     <style>
-        .image-card {{
-            height: 200px;
-            object-fit: cover;
-            width: 100%;
+        .image-container {{
+            position: relative;
             border-radius: 8px;
-            transition: 0.3s;
-            cursor: pointer;
+            overflow: hidden;
+            height: 200px;
+            width: 100%;
         }}
-        .image-card:hover {{
-            transform: scale(1.02);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        .image-card {{
+            height: 100%;
+            width: 100%;
+            object-fit: cover;
+            transition: 0.3s;
+        }}
+        .image-overlay {{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px); /* Acrylic Blur */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }}
+        .image-container:hover .image-overlay {{
+            opacity: 1;
+        }}
+        .image-title {{
+            color: white;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 10px;
+            text-align: center;
+            padding: 0 10px;
         }}
         .gallery-grid {{
             display: grid;
@@ -533,9 +591,9 @@ HTML_BANK = f"""
 
     <div class="container container-xl">
         <div class="card p-4 mb-4 border-0 shadow-sm">
-            <h5>Upload Image</h5>
+            <h5>Upload Image (Multiple Supported)</h5>
             <form action="/bank-gambar" method="post" enctype="multipart/form-data" class="d-flex gap-2">
-                <input type="file" name="file" class="form-control" required>
+                <input type="file" name="file" class="form-control" multiple required>
                 <button type="submit" class="btn btn-brand">Upload</button>
             </form>
         </div>
@@ -543,10 +601,37 @@ HTML_BANK = f"""
         <h4 class="mb-3">Gallery</h4>
         <div class="gallery-grid">
             {{% for img in images %}}
-                <a href="/uploads/{{{{ img }}}}" target="_blank">
+                <div class="image-container">
                     <img src="/uploads/{{{{ img }}}}" class="image-card" alt="{{{{ img }}}}">
-                </a>
+                    <div class="image-overlay">
+                        <div class="image-title">{{{{ img }}}}</div>
+                        <button class="btn btn-sm btn-light" onclick="openRename('{{{{ img }}}}')"><i class="fas fa-edit"></i> Rename</button>
+                        <a href="/uploads/{{{{ img }}}}" target="_blank" class="btn btn-sm btn-outline-light mt-2"><i class="fas fa-eye"></i> View</a>
+                    </div>
+                </div>
             {{% endfor %}}
+        </div>
+    </div>
+
+    <!-- RENAME MODAL -->
+    <div class="modal fade" id="renameModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Rename Image</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="/bank-gambar/rename" method="post">
+                    <div class="modal-body">
+                        <input type="hidden" name="old_name" id="old_name">
+                        <label>New Name (without extension):</label>
+                        <input type="text" name="new_name" class="form-control" required placeholder="e.g. KK Udin">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-brand">Save Changes</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -559,6 +644,23 @@ HTML_BANK = f"""
     <script>
         function setTheme(theme) {{
             document.documentElement.setAttribute('data-bs-theme', theme);
+            localStorage.setItem('theme', theme);
+            updateTableTheme(theme);
+        }}
+
+        function updateTableTheme(theme) {{
+            // No tables here, but keep function for consistency or if added later
+        }}
+
+        // Apply theme on load
+        (function() {{
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        }})();
+
+        function openRename(filename) {{
+            document.getElementById('old_name').value = filename;
+            new bootstrap.Modal(document.getElementById('renameModal')).show();
         }}
     </script>
 </body>
@@ -713,7 +815,38 @@ HTML_TABULASI = f"""
     <script>
         function setTheme(theme) {{
             document.documentElement.setAttribute('data-bs-theme', theme);
+            localStorage.setItem('theme', theme);
+            updateTableTheme(theme);
         }}
+
+        function updateTableTheme(theme) {{
+            const tables = document.querySelectorAll('.table');
+            tables.forEach(table => {{
+                const thead = table.querySelector('thead');
+                if (theme === 'dark') {{
+                    if (thead) {{
+                        thead.classList.remove('table-light');
+                        thead.classList.add('table-dark');
+                    }}
+                    table.classList.add('table-dark');
+                }} else {{
+                    if (thead) {{
+                        thead.classList.remove('table-dark');
+                        thead.classList.add('table-light');
+                    }}
+                    table.classList.remove('table-dark');
+                }}
+            }});
+        }}
+
+        // Apply theme on load
+        (function() {{
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+            document.addEventListener('DOMContentLoaded', () => {{
+                updateTableTheme(savedTheme);
+            }});
+        }})();
 
         function editRow(data) {{
             document.getElementById('edit_id').value = data[0];
@@ -897,17 +1030,42 @@ def bank_gambar():
     if request.method == 'POST':
         if 'file' not in request.files:
             return 'No file part'
-        file = request.files['file']
-        if file.filename == '':
-            return 'No selected file'
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+        files = request.files.getlist('file')
+        for file in files:
+            if file and file.filename != '' and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        return redirect(url_for('bank_gambar'))
 
     images = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
     # Filter only allowed images
     images = [img for img in images if allowed_file(img)]
     return render_template_string(HTML_BANK, images=images)
+
+@app.route('/bank-gambar/rename', methods=['POST'])
+def rename_image():
+    old_name = request.form.get('old_name')
+    new_name_base = request.form.get('new_name')
+
+    if not old_name or not new_name_base:
+        return "Missing arguments", 400
+
+    # Security check: prevent path traversal
+    old_name = secure_filename(old_name)
+    new_name_base = secure_filename(new_name_base)
+
+    # Get extension
+    ext = os.path.splitext(old_name)[1]
+    new_name = new_name_base + ext
+
+    old_path = os.path.join(app.config['UPLOAD_FOLDER'], old_name)
+    new_path = os.path.join(app.config['UPLOAD_FOLDER'], new_name)
+
+    if os.path.exists(old_path) and not os.path.exists(new_path):
+        os.rename(old_path, new_path)
+
+    return redirect(url_for('bank_gambar'))
 
 @app.route('/data-tabulasi', methods=['GET', 'POST'])
 def data_tabulasi():
