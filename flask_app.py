@@ -3,7 +3,7 @@ import os
 import zipfile
 import math
 import sqlite3
-from flask import Flask, request, send_file, render_template_string, jsonify, send_from_directory, redirect, url_for
+from flask import Flask, request, send_file, render_template_string, jsonify, send_from_directory, redirect, url_for, session
 from PIL import Image
 from PyPDF2 import PdfReader, PdfWriter, Transformation, PageObject
 from reportlab.pdfgen import canvas
@@ -66,16 +66,80 @@ NAVBAR_HTML = """
                             <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTheme('dark')"><i class="fas fa-moon"></i></button>
                         </div>
                     </li>
-                    <li class="nav-item">
-                        <a href="#" class="btn btn-dark">Login</a>
-                    </li>
-                    <li class="nav-item ms-2">
-                        <a href="#" class="btn btn-brand">Sign Up</a>
-                    </li>
+                    {% if session.get('logged_in') %}
+                        <li class="nav-item">
+                            <span class="badge bg-secondary me-2">{{ session.get('role', 'Guest') }}</span>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/logout" class="btn btn-dark">Logout</a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a href="#" class="btn btn-dark">Login</a>
+                        </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
     </nav>
+"""
+
+LOGIN_OVERLAY = """
+{% if not session.get('logged_in') %}
+<style>
+    .login-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        z-index: 10000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    [data-bs-theme="dark"] .login-overlay {
+        background: rgba(0, 0, 0, 0.4);
+    }
+    .login-card {
+        background: var(--card-bg);
+        padding: 40px;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        width: 100%;
+        max-width: 400px;
+        text-align: center;
+        border: 1px solid rgba(0,0,0,0.1);
+    }
+</style>
+<div class="login-overlay">
+    <div class="login-card">
+        <h2 class="mb-4 fw-bold">Login Access</h2>
+        <form action="/login" method="post" class="mb-4 text-start">
+            <div class="mb-3">
+                <label class="form-label">ID Pengguna</label>
+                <input type="text" name="username" class="form-control" placeholder="Ketua RT. 53">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input type="password" name="password" class="form-control" placeholder="••••••••">
+            </div>
+            <button type="submit" class="btn btn-brand w-100 py-2 fw-bold">Login sebagai Admin</button>
+        </form>
+
+        <div class="border-top pt-3">
+            <p class="text-muted small mb-2">Hanya ingin melihat-lihat?</p>
+            <form action="/login" method="post">
+                <input type="hidden" name="role" value="guest">
+                <button type="submit" class="btn btn-outline-secondary w-100">Login sebagai Warga</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 """
 
 # Base styles fragment to reuse
@@ -265,6 +329,7 @@ HTML_TEMPLATE = f"""
 </head>
 <body>
 
+    {LOGIN_OVERLAY}
     {NAVBAR_HTML}
 
     <!-- HERO -->
@@ -522,7 +587,7 @@ HTML_TEMPLATE = f"""
 </html>
 """
 
-HTML_BANK = f"""
+HTML_BANK = """
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
 <head>
@@ -582,6 +647,7 @@ HTML_BANK = f"""
     </style>
 </head>
 <body>
+    {LOGIN_OVERLAY}
     {NAVBAR_HTML}
 
     <div class="hero">
@@ -590,6 +656,7 @@ HTML_BANK = f"""
     </div>
 
     <div class="container container-xl">
+        {% if session.get('role') == 'admin' %}
         <div class="card p-4 mb-4 border-0 shadow-sm">
             <h5>Upload Image (Multiple Supported)</h5>
             <form action="/bank-gambar" method="post" enctype="multipart/form-data" class="d-flex gap-2">
@@ -597,19 +664,22 @@ HTML_BANK = f"""
                 <button type="submit" class="btn btn-brand">Upload</button>
             </form>
         </div>
+        {% endif %}
 
         <h4 class="mb-3">Gallery</h4>
         <div class="gallery-grid">
-            {{% for img in images %}}
+            {% for img in images %}
                 <div class="image-container">
-                    <img src="/uploads/{{{{ img }}}}" class="image-card" alt="{{{{ img }}}}">
+                    <img src="/uploads/{{ img }}" class="image-card" alt="{{ img }}">
                     <div class="image-overlay">
-                        <div class="image-title">{{{{ img }}}}</div>
-                        <button class="btn btn-sm btn-light" onclick="openRename('{{{{ img }}}}')"><i class="fas fa-edit"></i> Rename</button>
-                        <a href="/uploads/{{{{ img }}}}" target="_blank" class="btn btn-sm btn-outline-light mt-2"><i class="fas fa-eye"></i> View</a>
+                        <div class="image-title">{{ img }}</div>
+                        {% if session.get('role') == 'admin' %}
+                        <button class="btn btn-sm btn-light" onclick="openRename('{{ img }}')"><i class="fas fa-edit"></i> Rename</button>
+                        {% endif %}
+                        <a href="/uploads/{{ img }}" target="_blank" class="btn btn-sm btn-outline-light mt-2"><i class="fas fa-eye"></i> View</a>
                     </div>
                 </div>
-            {{% endfor %}}
+            {% endfor %}
         </div>
     </div>
 
@@ -642,32 +712,32 @@ HTML_BANK = f"""
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function setTheme(theme) {{
+        function setTheme(theme) {
             document.documentElement.setAttribute('data-bs-theme', theme);
             localStorage.setItem('theme', theme);
             updateTableTheme(theme);
-        }}
+        }
 
-        function updateTableTheme(theme) {{
+        function updateTableTheme(theme) {
             // No tables here, but keep function for consistency or if added later
-        }}
+        }
 
         // Apply theme on load
-        (function() {{
+        (function() {
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-bs-theme', savedTheme);
-        }})();
+        })();
 
-        function openRename(filename) {{
+        function openRename(filename) {
             document.getElementById('old_name').value = filename;
             new bootstrap.Modal(document.getElementById('renameModal')).show();
-        }}
+        }
     </script>
 </body>
 </html>
 """
 
-HTML_TABULASI = f"""
+HTML_TABULASI = """
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
 <head>
@@ -680,6 +750,7 @@ HTML_TABULASI = f"""
     {STYLES_HTML}
 </head>
 <body>
+    {LOGIN_OVERLAY}
     {NAVBAR_HTML}
 
     <div class="hero">
@@ -690,7 +761,9 @@ HTML_TABULASI = f"""
     <div class="container container-xl">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h4>Data Table</h4>
+            {% if session.get('role') == 'admin' %}
             <button class="btn btn-brand" data-bs-toggle="modal" data-bs-target="#addModal"><i class="fas fa-plus"></i> Add New</button>
+            {% endif %}
         </div>
 
         <div class="table-responsive bg-white p-3 rounded shadow-sm">
@@ -711,23 +784,27 @@ HTML_TABULASI = f"""
                     </tr>
                 </thead>
                 <tbody>
-                    {{% for row in rows %}}
+                    {% for row in rows %}
                     <tr>
-                        <td>{{{{ row[1] }}}}</td>
-                        <td>{{{{ row[2] }}}}</td>
-                        <td>{{{{ row[3] }}}}</td>
-                        <td>{{{{ row[4] }}}}</td>
-                        <td>{{{{ row[5] }}}}</td>
-                        <td>{{{{ row[6] }}}}</td>
-                        <td>{{{{ row[7] }}}}</td>
-                        <td>{{{{ row[8] }}}}</td>
-                        <td>{{{{ row[9] }}}}</td>
-                        <td>{{{{ row[10] }}}}</td>
+                        <td>{{ row[1] }}</td>
+                        <td>{{ row[2] }}</td>
+                        <td>{{ row[3] }}</td>
+                        <td>{{ row[4] }}</td>
+                        <td>{{ row[5] }}</td>
+                        <td>{{ row[6] }}</td>
+                        <td>{{ row[7] }}</td>
+                        <td>{{ row[8] }}</td>
+                        <td>{{ row[9] }}</td>
+                        <td>{{ row[10] }}</td>
                         <td>
-                            <button class="btn btn-sm btn-outline-primary" onclick='editRow({{{{ row | tojson }}}})'><i class="fas fa-edit"></i></button>
+                            {% if session.get('role') == 'admin' %}
+                            <button class="btn btn-sm btn-outline-primary" onclick='editRow({{ row | tojson }})'><i class="fas fa-edit"></i></button>
+                            {% else %}
+                            <span class="text-muted"><i class="fas fa-lock"></i></span>
+                            {% endif %}
                         </td>
                     </tr>
-                    {{% endfor %}}
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
@@ -813,42 +890,42 @@ HTML_TABULASI = f"""
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function setTheme(theme) {{
+        function setTheme(theme) {
             document.documentElement.setAttribute('data-bs-theme', theme);
             localStorage.setItem('theme', theme);
             updateTableTheme(theme);
-        }}
+        }
 
-        function updateTableTheme(theme) {{
+        function updateTableTheme(theme) {
             const tables = document.querySelectorAll('.table');
-            tables.forEach(table => {{
+            tables.forEach(table => {
                 const thead = table.querySelector('thead');
-                if (theme === 'dark') {{
-                    if (thead) {{
+                if (theme === 'dark') {
+                    if (thead) {
                         thead.classList.remove('table-light');
                         thead.classList.add('table-dark');
-                    }}
+                    }
                     table.classList.add('table-dark');
-                }} else {{
-                    if (thead) {{
+                } else {
+                    if (thead) {
                         thead.classList.remove('table-dark');
                         thead.classList.add('table-light');
-                    }}
+                    }
                     table.classList.remove('table-dark');
-                }}
-            }});
-        }}
+                }
+            });
+        }
 
         // Apply theme on load
-        (function() {{
+        (function() {
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-bs-theme', savedTheme);
-            document.addEventListener('DOMContentLoaded', () => {{
+            document.addEventListener('DOMContentLoaded', () => {
                 updateTableTheme(savedTheme);
-            }});
-        }})();
+            });
+        })();
 
-        function editRow(data) {{
+        function editRow(data) {
             document.getElementById('edit_id').value = data[0];
             document.getElementById('edit_no_urut').value = data[1];
             document.getElementById('edit_nama_lengkap').value = data[2];
@@ -862,7 +939,7 @@ HTML_TABULASI = f"""
             document.getElementById('edit_golongan_darah').value = data[10];
 
             new bootstrap.Modal(document.getElementById('editModal')).show();
-        }}
+        }
     </script>
 </body>
 </html>
@@ -1017,6 +1094,29 @@ def process_organize(files):
 
 # --- ROUTES ---
 
+@app.route('/login', methods=['POST'])
+def login():
+    role = request.form.get('role')
+    if role == 'guest':
+        session['logged_in'] = True
+        session['role'] = 'guest'
+        return redirect(request.referrer or url_for('index'))
+
+    username = request.form.get('username')
+    password = request.form.get('password')
+
+    if username == 'Ketua RT. 53' and password == 'nkrihargamati':
+        session['logged_in'] = True
+        session['role'] = 'admin'
+        return redirect(request.referrer or url_for('index'))
+
+    return redirect(url_for('index')) # In reality should show error, but for now redirect keeps overlay
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('index'))
+
 @app.route('/')
 def index():
     return render_template_string(HTML_TEMPLATE)
@@ -1028,6 +1128,9 @@ def uploaded_file(filename):
 @app.route('/bank-gambar', methods=['GET', 'POST'])
 def bank_gambar():
     if request.method == 'POST':
+        if session.get('role') != 'admin':
+            return "Unauthorized", 403
+
         if 'file' not in request.files:
             return 'No file part'
 
@@ -1045,6 +1148,9 @@ def bank_gambar():
 
 @app.route('/bank-gambar/rename', methods=['POST'])
 def rename_image():
+    if session.get('role') != 'admin':
+        return "Unauthorized", 403
+
     old_name = request.form.get('old_name')
     new_name_base = request.form.get('new_name')
 
@@ -1073,6 +1179,9 @@ def data_tabulasi():
     c = conn.cursor()
 
     if request.method == 'POST':
+        if session.get('role') != 'admin':
+            return "Unauthorized", 403
+
         c.execute('''INSERT INTO tabulasi (no_urut, nama_lengkap, nik, jenis_kelamin, tempat_lahir,
                     tanggal_lahir, agama, pendidikan, jenis_pekerjaan, golongan_darah)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
@@ -1091,6 +1200,9 @@ def data_tabulasi():
 
 @app.route('/data-tabulasi/edit', methods=['POST'])
 def edit_tabulasi():
+    if session.get('role') != 'admin':
+        return "Unauthorized", 403
+
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute('''UPDATE tabulasi SET no_urut=?, nama_lengkap=?, nik=?, jenis_kelamin=?, tempat_lahir=?,
