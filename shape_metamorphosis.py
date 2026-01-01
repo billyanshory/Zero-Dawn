@@ -1,4 +1,5 @@
 from manim import *
+import os
 
 class MorphingShapes(Scene):
     def construct(self):
@@ -23,9 +24,7 @@ class MorphingShapes(Scene):
         circle.set_stroke(width=5)
 
         # Transform secara otomatis menangani interpolasi bentuk.
-        # Rotate ditambahkan ke animasi group atau menggunakan path_arc jika ingin rotasi spasial,
-        # tapi instruksi meminta "Putar... sambil mengubahnya".
-        # Transform sendiri memetakan titik ke titik. Untuk visual rotasi yang jelas, kita putar mobjectnya.
+        # Rotate ditambahkan ke animasi group atau menggunakan path_arc jika ingin rotasi spasial.
         self.play(
             Transform(square, circle),
             Rotate(square, angle=45*DEGREES),
@@ -58,3 +57,8 @@ class MorphingShapes(Scene):
         )
 
         self.wait()
+
+if __name__ == "__main__":
+    # Auto-Execute Block untuk menjalankan manim saat F5 ditekan
+    # Flag -pql: preview, quality low (untuk render cepat)
+    os.system(f"manim -pql {__file__} MorphingShapes")
