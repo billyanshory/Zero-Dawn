@@ -308,6 +308,43 @@ def wallpaper_upload():
             
     return redirect(url_for('index'))
 
+@app.route('/wallpaper-blur/delete-audio/<filename>')
+def delete_audio(filename):
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
+    if os.path.exists(filepath):
+        os.remove(filepath)
+    return redirect(url_for('index'))
+
+@app.route('/wallpaper-blur/rename-audio', methods=['POST'])
+def rename_audio():
+    old_name = request.form.get('old_name')
+    new_name = request.form.get('new_name')
+
+    if old_name and new_name:
+        safe_old = secure_filename(old_name)
+        safe_new = secure_filename(new_name)
+
+        # Keep extension
+        if '.' in safe_old:
+            ext = safe_old.rsplit('.', 1)[1]
+            if not safe_new.endswith(f'.{ext}'):
+                safe_new += f'.{ext}'
+
+        old_path = os.path.join(app.config['UPLOAD_FOLDER'], safe_old)
+        new_path = os.path.join(app.config['UPLOAD_FOLDER'], safe_new)
+
+        if os.path.exists(old_path) and not os.path.exists(new_path):
+            os.rename(old_path, new_path)
+            # Update config if active
+            if os.path.exists('audio_config.txt'):
+                with open('audio_config.txt', 'r') as f:
+                    curr = f.read().strip()
+                if curr == safe_old:
+                    with open('audio_config.txt', 'w') as f:
+                        f.write(safe_new)
+
+    return redirect(url_for('index'))
+
 @app.route('/wallpaper-blur/upload-audio', methods=['POST'])
 def audio_upload():
     if 'audio' not in request.files:
@@ -422,46 +459,55 @@ HTML_WALLPAPER = """
         }
         .audio-player {
             position: fixed;
-            bottom: 50px; /* Adjusted to be separate from visualizer */
+            bottom: 50px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 15px 25px;
-            border-radius: 15px;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px 30px;
+            border-radius: 20px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 15px;
             z-index: 100;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
             width: 90%;
-            max-width: 600px;
+            max-width: 800px;
         }
         .player-row-top {
             width: 100%;
+            padding: 0 5px;
         }
         .player-row-bottom {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr; /* Left, Center (Play), Right */
             align-items: center;
-            justify-content: space-between;
             width: 100%;
         }
-        .player-controls {
+        .player-left {
             display: flex;
             align-items: center;
             gap: 15px;
+            justify-content: flex-start;
         }
-        .player-volume {
+        .player-center {
             display: flex;
             align-items: center;
-            gap: 10px;
-            width: 120px;
+            gap: 20px;
+            justify-content: center;
         }
+        .player-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            justify-content: flex-end;
+        }
+
         .player-btn {
             background: transparent;
             border: none;
-            color: white;
+            color: rgba(255,255,255,0.8);
             width: 35px;
             height: 35px;
             border-radius: 50%;
@@ -469,28 +515,32 @@ HTML_WALLPAPER = """
             justify-content: center;
             align-items: center;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.2s;
             font-size: 1rem;
         }
         .player-btn:hover {
-            background: rgba(255,255,255,0.2);
             color: white;
+            transform: scale(1.1);
         }
         .player-btn.active {
             color: var(--brand-color);
         }
         .play-btn-large {
-            width: 45px;
-            height: 45px;
+            width: 50px;
+            height: 50px;
             background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.3);
-            font-size: 1.2rem;
+            border: 1px solid rgba(255,255,255,0.2);
+            font-size: 1.4rem;
+            color: white;
         }
         .play-btn-large:hover {
             background: white;
             color: black;
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255,255,255,0.3);
         }
-        /* Custom Range Slider */
+
+        /* Range Slider */
         input[type=range] {
             -webkit-appearance: none;
             width: 100%;
@@ -498,37 +548,97 @@ HTML_WALLPAPER = """
         }
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            height: 12px;
-            width: 12px;
+            height: 14px;
+            width: 14px;
             border-radius: 50%;
             background: white;
             cursor: pointer;
-            margin-top: -4px;
+            margin-top: -5px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
         }
         input[type=range]::-webkit-slider-runnable-track {
             width: 100%;
             height: 4px;
             cursor: pointer;
-            background: rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.2);
             border-radius: 2px;
         }
-        .time-display {
+
+        .time-display, .db-display {
             font-size: 0.85rem;
-            color: rgba(255,255,255,0.8);
+            color: rgba(255,255,255,0.7);
             font-variant-numeric: tabular-nums;
-            min-width: 45px;
+            min-width: 40px;
         }
+
         #visualizer {
             position: absolute;
-            top: 50%; /* Center vertically */
+            top: 50%;
             left: 0;
             width: 100%;
             height: 300px;
             transform: translateY(-50%);
-            z-index: 0; /* Behind content but above overlay */
+            z-index: 0;
             pointer-events: none;
-            filter: blur(1px); /* Soft blur effect */
+            filter: blur(2px); /* Soft aesthetic blur */
         }
+
+        /* Playlist Panel */
+        .playlist-panel {
+            position: fixed;
+            bottom: 160px; /* Above player */
+            right: 50px;
+            width: 300px;
+            max-height: 400px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 15px;
+            z-index: 101;
+            display: none; /* Hidden by default */
+            overflow-y: auto;
+            color: white;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .playlist-header {
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+            font-weight: 700;
+            display: flex;
+            justify-content: space-between;
+        }
+        .playlist-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.9rem;
+        }
+        .playlist-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .playlist-item.active {
+            background: rgba(229, 50, 45, 0.2);
+            color: var(--brand-color);
+        }
+        .playlist-actions {
+            display: flex;
+            gap: 5px;
+        }
+        .action-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255,255,255,0.5);
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .action-btn:hover { color: white; }
+        .action-btn.delete:hover { color: #ff4444; }
     </style>
 </head>
 <body>
@@ -573,26 +683,48 @@ HTML_WALLPAPER = """
 
                 <!-- Bottom Row: Controls -->
                 <div class="player-row-bottom">
-                    <!-- Time -->
-                    <span class="time-display" id="time-display">00:00</span>
-
-                    <!-- Main Controls -->
-                    <div class="player-controls">
+                    <!-- Left Section: Time, Shuffle, Repeat -->
+                    <div class="player-left">
+                        <span class="time-display" id="time-display">00:00</span>
                         <button class="player-btn" onclick="toggleShuffle()" title="Shuffle" id="btn-shuffle"><i class="fas fa-random"></i></button>
                         <button class="player-btn" onclick="toggleRepeat()" title="Repeat" id="btn-repeat"><i class="fas fa-redo"></i></button>
+                    </div>
+
+                    <!-- Center Section: Stop, Prev, PLAY, Next -->
+                    <div class="player-center">
                         <button class="player-btn" onclick="stopAudio()" title="Stop"><i class="fas fa-stop"></i></button>
                         <button class="player-btn" onclick="skip(-5)"><i class="fas fa-backward"></i></button>
                         <button class="player-btn play-btn-large" onclick="togglePlay()"><i class="fas fa-play" id="play-icon"></i></button>
                         <button class="player-btn" onclick="skip(5)"><i class="fas fa-forward"></i></button>
                     </div>
 
-                    <!-- Volume -->
-                    <div class="player-volume">
-                        <i class="fas fa-volume-up" id="vol-icon"></i>
-                        <input type="range" id="vol-slider" min="0" max="1" step="0.05" value="1">
+                    <!-- Right Section: Volume, Playlist -->
+                    <div class="player-right">
+                        <i class="fas fa-volume-up" id="vol-icon" style="color:rgba(255,255,255,0.7)"></i>
+                        <div style="width: 80px;">
+                            <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="1">
+                        </div>
+                        <span class="db-display" id="db-display">0 dB</span>
+                        <button class="player-btn" onclick="togglePlaylist()" title="Playlist" id="btn-playlist"><i class="fas fa-list"></i></button>
                     </div>
                 </div>
             </div>
+
+            <!-- Playlist Modal -->
+            <div class="playlist-panel" id="playlist-panel">
+                <div class="playlist-header">
+                    <span>Playlist</span>
+                    <i class="fas fa-times" onclick="togglePlaylist()" style="cursor:pointer"></i>
+                </div>
+                <div id="playlist-items">
+                    <!-- Items injected by JS -->
+                </div>
+            </div>
+
+            <form id="rename-form" action="/wallpaper-blur/rename-audio" method="post" style="display:none">
+                <input type="hidden" name="old_name" id="rename-old">
+                <input type="hidden" name="new_name" id="rename-new">
+            </form>
 
             <script>
                 const audio = document.getElementById('main-audio');
@@ -601,16 +733,18 @@ HTML_WALLPAPER = """
                 const seekSlider = document.getElementById('seek-slider');
                 const timeDisplay = document.getElementById('time-display');
                 const volSlider = document.getElementById('vol-slider');
+                const dbDisplay = document.getElementById('db-display');
                 const btnShuffle = document.getElementById('btn-shuffle');
                 const btnRepeat = document.getElementById('btn-repeat');
+                const playlistPanel = document.getElementById('playlist-panel');
 
                 // Audio List logic
-                let playlist = {{ audio_files|tojson }}; // Passed from Flask
+                let playlist = {{ audio_files|tojson }};
                 let currentFile = "{{ audio_file }}";
                 let isShuffle = false;
                 let isRepeat = false;
 
-                // Visualizer Setup
+                // --- VISUALIZER ---
                 const canvas = document.getElementById('visualizer');
                 const ctx = canvas.getContext('2d');
                 let audioCtx, analyser, source;
@@ -618,7 +752,7 @@ HTML_WALLPAPER = """
 
                 function resizeCanvas() {
                     canvas.width = window.innerWidth;
-                    canvas.height = 300; // Fixed height for visualizer strip
+                    canvas.height = 300;
                 }
                 window.addEventListener('resize', resizeCanvas);
                 resizeCanvas();
@@ -631,7 +765,7 @@ HTML_WALLPAPER = """
                         source = audioCtx.createMediaElementSource(audio);
                         source.connect(analyser);
                         analyser.connect(audioCtx.destination);
-                        analyser.fftSize = 2048; // Higher res for smoother wave
+                        analyser.fftSize = 2048;
                         drawVisualizer();
                     }
                     if (audioCtx && audioCtx.state === 'suspended') {
@@ -647,7 +781,7 @@ HTML_WALLPAPER = """
 
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     ctx.lineWidth = 3;
-                    ctx.strokeStyle = 'rgba(220, 220, 220, 0.6)'; // Light gray semi-transparent
+                    ctx.strokeStyle = 'rgba(220, 220, 220, 0.6)';
                     ctx.shadowBlur = 10;
                     ctx.shadowColor = "white";
 
@@ -666,7 +800,7 @@ HTML_WALLPAPER = """
                     ctx.stroke();
                 }
 
-                // Player Logic
+                // --- PLAYER LOGIC ---
                 function togglePlay() {
                     initAudio();
                     if (audio.paused) {
@@ -694,7 +828,7 @@ HTML_WALLPAPER = """
                 function toggleRepeat() {
                     isRepeat = !isRepeat;
                     btnRepeat.classList.toggle('active', isRepeat);
-                    audio.loop = isRepeat; // Simple loop
+                    audio.loop = isRepeat;
                 }
 
                 function toggleShuffle() {
@@ -707,16 +841,64 @@ HTML_WALLPAPER = """
                     sourceEl.src = "/uploads/" + filename;
                     audio.load();
                     togglePlay();
+                    renderPlaylist(); // Update active state
                 }
 
-                // Auto next track logic
+                // --- PLAYLIST LOGIC ---
+                function togglePlaylist() {
+                    if(playlistPanel.style.display === 'block') {
+                        playlistPanel.style.display = 'none';
+                    } else {
+                        playlistPanel.style.display = 'block';
+                        renderPlaylist();
+                    }
+                }
+
+                function renderPlaylist() {
+                    const container = document.getElementById('playlist-items');
+                    container.innerHTML = '';
+
+                    if(playlist.length === 0) {
+                        container.innerHTML = '<div style="text-align:center; padding:10px; color:rgba(255,255,255,0.5)">No audio files</div>';
+                        return;
+                    }
+
+                    playlist.forEach(file => {
+                        const div = document.createElement('div');
+                        div.className = `playlist-item ${file === currentFile ? 'active' : ''}`;
+                        div.innerHTML = `
+                            <span onclick="loadTrack('${file}')" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${file}</span>
+                            <div class="playlist-actions">
+                                <button class="action-btn" onclick="renameTrack('${file}')"><i class="fas fa-pencil-alt"></i></button>
+                                <button class="action-btn delete" onclick="deleteTrack('${file}')"><i class="fas fa-trash"></i></button>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+
+                function deleteTrack(filename) {
+                    if(confirm('Delete ' + filename + '?')) {
+                        window.location.href = `/wallpaper-blur/delete-audio/${filename}`;
+                    }
+                }
+
+                function renameTrack(filename) {
+                    const newName = prompt('Rename ' + filename + ' to:', filename);
+                    if(newName && newName !== filename) {
+                        document.getElementById('rename-old').value = filename;
+                        document.getElementById('rename-new').value = newName;
+                        document.getElementById('rename-form').submit();
+                    }
+                }
+
+                // Auto next track
                 audio.addEventListener('ended', () => {
                     if (!isRepeat && playlist.length > 0) {
                         if (isShuffle) {
                             let nextIndex = Math.floor(Math.random() * playlist.length);
                             loadTrack(playlist[nextIndex]);
                         } else {
-                            // Find current index
                             let idx = playlist.indexOf(currentFile);
                             let nextIdx = (idx + 1) % playlist.length;
                             loadTrack(playlist[nextIdx]);
@@ -730,7 +912,6 @@ HTML_WALLPAPER = """
                         const val = (audio.currentTime / audio.duration) * 100;
                         seekSlider.value = val;
 
-                        // Time
                         let mins = Math.floor(audio.currentTime / 60);
                         let secs = Math.floor(audio.currentTime % 60);
                         if(secs < 10) secs = '0' + secs;
@@ -739,7 +920,6 @@ HTML_WALLPAPER = """
                     }
                 });
 
-                // Seek
                 seekSlider.addEventListener('input', () => {
                     if(audio.duration) {
                         const seekTime = (seekSlider.value / 100) * audio.duration;
@@ -747,9 +927,22 @@ HTML_WALLPAPER = """
                     }
                 });
 
-                // Volume
+                // Volume & Decibels
                 volSlider.addEventListener('input', (e) => {
-                    audio.volume = e.target.value;
+                    const val = parseFloat(e.target.value);
+                    audio.volume = val;
+
+                    // Convert linear 0-1 to approx dB
+                    // Typically 0 is -inf, 1 is 0dB.
+                    // Formula: 20 * log10(val)
+                    let db = -Infinity;
+                    if(val > 0) {
+                        db = 20 * Math.log10(val);
+                    }
+
+                    // Clamp display
+                    if(db < -60) dbDisplay.innerText = "Mute";
+                    else dbDisplay.innerText = Math.round(db) + " dB";
                 });
             </script>
             {% endif %}
