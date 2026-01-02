@@ -277,7 +277,13 @@ def index():
             if content:
                 audio_file = content
 
-    return render_page(HTML_WALLPAPER, bg_image=bg_image, audio_file=audio_file)
+    audio_files = []
+    if os.path.exists(app.config['UPLOAD_FOLDER']):
+        audio_exts = {'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac'}
+        audio_files = [f for f in os.listdir(app.config['UPLOAD_FOLDER'])
+                       if allowed_file(f) and f.rsplit('.', 1)[1].lower() in audio_exts]
+
+    return render_page(HTML_WALLPAPER, bg_image=bg_image, audio_file=audio_file, audio_files=audio_files)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -416,43 +422,112 @@ HTML_WALLPAPER = """
         }
         .audio-player {
             position: fixed;
-            top: 50%;
+            bottom: 50px; /* Adjusted to be separate from visualizer */
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(15px);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 20px;
+            padding: 15px 25px;
             border-radius: 15px;
             display: flex;
-            gap: 15px;
-            align-items: center;
+            flex-direction: column;
+            gap: 10px;
             z-index: 100;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 90%;
+            max-width: 600px;
+        }
+        .player-row-top {
+            width: 100%;
+        }
+        .player-row-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+        }
+        .player-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .player-volume {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 120px;
         }
         .player-btn {
             background: transparent;
-            border: 1px solid white;
+            border: none;
             color: white;
-            width: 40px;
-            height: 40px;
+            width: 35px;
+            height: 35px;
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
             cursor: pointer;
             transition: 0.2s;
+            font-size: 1rem;
         }
         .player-btn:hover {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+        .player-btn.active {
+            color: var(--brand-color);
+        }
+        .play-btn-large {
+            width: 45px;
+            height: 45px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            font-size: 1.2rem;
+        }
+        .play-btn-large:hover {
             background: white;
             color: black;
         }
+        /* Custom Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            margin-top: -4px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+        }
+        .time-display {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.8);
+            font-variant-numeric: tabular-nums;
+            min-width: 45px;
+        }
         #visualizer {
-            width: 100px;
-            height: 40px;
-            margin-left: 10px;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 5px;
+            position: absolute;
+            top: 50%; /* Center vertically */
+            left: 0;
+            width: 100%;
+            height: 300px;
+            transform: translateY(-50%);
+            z-index: 0; /* Behind content but above overlay */
+            pointer-events: none;
+            filter: blur(1px); /* Soft blur effect */
         }
     </style>
 </head>
@@ -483,76 +558,117 @@ HTML_WALLPAPER = """
             </div>
 
             {% if audio_file %}
+            <!-- Visualizer Overlay -->
+            <canvas id="visualizer"></canvas>
+
             <div class="audio-player">
-                <audio id="main-audio" loop crossorigin="anonymous">
-                    <source src="/uploads/{{ audio_file }}">
+                <audio id="main-audio" crossorigin="anonymous">
+                    <source src="/uploads/{{ audio_file }}" id="audio-source">
                 </audio>
-                <button class="player-btn" onclick="skip(-5)"><i class="fas fa-backward"></i></button>
-                <button class="player-btn" onclick="togglePlay()"><i class="fas fa-play" id="play-icon"></i></button>
-                <button class="player-btn" onclick="skip(5)"><i class="fas fa-forward"></i></button>
-                <canvas id="visualizer"></canvas>
+
+                <!-- Top Row: Progress -->
+                <div class="player-row-top">
+                    <input type="range" id="seek-slider" min="0" max="100" value="0">
+                </div>
+
+                <!-- Bottom Row: Controls -->
+                <div class="player-row-bottom">
+                    <!-- Time -->
+                    <span class="time-display" id="time-display">00:00</span>
+
+                    <!-- Main Controls -->
+                    <div class="player-controls">
+                        <button class="player-btn" onclick="toggleShuffle()" title="Shuffle" id="btn-shuffle"><i class="fas fa-random"></i></button>
+                        <button class="player-btn" onclick="toggleRepeat()" title="Repeat" id="btn-repeat"><i class="fas fa-redo"></i></button>
+                        <button class="player-btn" onclick="stopAudio()" title="Stop"><i class="fas fa-stop"></i></button>
+                        <button class="player-btn" onclick="skip(-5)"><i class="fas fa-backward"></i></button>
+                        <button class="player-btn play-btn-large" onclick="togglePlay()"><i class="fas fa-play" id="play-icon"></i></button>
+                        <button class="player-btn" onclick="skip(5)"><i class="fas fa-forward"></i></button>
+                    </div>
+
+                    <!-- Volume -->
+                    <div class="player-volume">
+                        <i class="fas fa-volume-up" id="vol-icon"></i>
+                        <input type="range" id="vol-slider" min="0" max="1" step="0.05" value="1">
+                    </div>
+                </div>
             </div>
+
             <script>
                 const audio = document.getElementById('main-audio');
+                const sourceEl = document.getElementById('audio-source');
                 const playIcon = document.getElementById('play-icon');
+                const seekSlider = document.getElementById('seek-slider');
+                const timeDisplay = document.getElementById('time-display');
+                const volSlider = document.getElementById('vol-slider');
+                const btnShuffle = document.getElementById('btn-shuffle');
+                const btnRepeat = document.getElementById('btn-repeat');
+
+                // Audio List logic
+                let playlist = {{ audio_files|tojson }}; // Passed from Flask
+                let currentFile = "{{ audio_file }}";
+                let isShuffle = false;
+                let isRepeat = false;
+
+                // Visualizer Setup
                 const canvas = document.getElementById('visualizer');
                 const ctx = canvas.getContext('2d');
+                let audioCtx, analyser, source;
+                let initialized = false;
 
-                let audioCtx;
-                let analyser;
-                let source;
+                function resizeCanvas() {
+                    canvas.width = window.innerWidth;
+                    canvas.height = 300; // Fixed height for visualizer strip
+                }
+                window.addEventListener('resize', resizeCanvas);
+                resizeCanvas();
 
                 function initAudio() {
-                    if (!audioCtx) {
+                    if (!initialized) {
+                        initialized = true;
                         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                         analyser = audioCtx.createAnalyser();
                         source = audioCtx.createMediaElementSource(audio);
                         source.connect(analyser);
                         analyser.connect(audioCtx.destination);
-
-                        analyser.fftSize = 256;
+                        analyser.fftSize = 2048; // Higher res for smoother wave
                         drawVisualizer();
+                    }
+                    if (audioCtx && audioCtx.state === 'suspended') {
+                        audioCtx.resume();
                     }
                 }
 
                 function drawVisualizer() {
                     requestAnimationFrame(drawVisualizer);
-
                     const bufferLength = analyser.frequencyBinCount;
                     const dataArray = new Uint8Array(bufferLength);
                     analyser.getByteTimeDomainData(dataArray);
 
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.lineWidth = 2;
-                    ctx.strokeStyle = '#d3d3d3'; // Light gray
-                    ctx.beginPath();
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = 'rgba(220, 220, 220, 0.6)'; // Light gray semi-transparent
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = "white";
 
+                    ctx.beginPath();
                     const sliceWidth = canvas.width * 1.0 / bufferLength;
                     let x = 0;
 
                     for(let i = 0; i < bufferLength; i++) {
                         const v = dataArray[i] / 128.0;
                         const y = v * canvas.height / 2;
-
-                        if(i === 0) {
-                            ctx.moveTo(x, y);
-                        } else {
-                            ctx.lineTo(x, y);
-                        }
-
+                        if(i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
                         x += sliceWidth;
                     }
-
                     ctx.lineTo(canvas.width, canvas.height/2);
                     ctx.stroke();
                 }
 
+                // Player Logic
                 function togglePlay() {
                     initAudio();
-                    if (audioCtx && audioCtx.state === 'suspended') {
-                        audioCtx.resume();
-                    }
-
                     if (audio.paused) {
                         audio.play();
                         playIcon.classList.remove('fa-play');
@@ -564,9 +680,77 @@ HTML_WALLPAPER = """
                     }
                 }
 
+                function stopAudio() {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    playIcon.classList.add('fa-play');
+                    playIcon.classList.remove('fa-pause');
+                }
+
                 function skip(seconds) {
                     audio.currentTime += seconds;
                 }
+
+                function toggleRepeat() {
+                    isRepeat = !isRepeat;
+                    btnRepeat.classList.toggle('active', isRepeat);
+                    audio.loop = isRepeat; // Simple loop
+                }
+
+                function toggleShuffle() {
+                    isShuffle = !isShuffle;
+                    btnShuffle.classList.toggle('active', isShuffle);
+                }
+
+                function loadTrack(filename) {
+                    currentFile = filename;
+                    sourceEl.src = "/uploads/" + filename;
+                    audio.load();
+                    togglePlay();
+                }
+
+                // Auto next track logic
+                audio.addEventListener('ended', () => {
+                    if (!isRepeat && playlist.length > 0) {
+                        if (isShuffle) {
+                            let nextIndex = Math.floor(Math.random() * playlist.length);
+                            loadTrack(playlist[nextIndex]);
+                        } else {
+                            // Find current index
+                            let idx = playlist.indexOf(currentFile);
+                            let nextIdx = (idx + 1) % playlist.length;
+                            loadTrack(playlist[nextIdx]);
+                        }
+                    }
+                });
+
+                // Update Progress & Time
+                audio.addEventListener('timeupdate', () => {
+                    if(audio.duration) {
+                        const val = (audio.currentTime / audio.duration) * 100;
+                        seekSlider.value = val;
+
+                        // Time
+                        let mins = Math.floor(audio.currentTime / 60);
+                        let secs = Math.floor(audio.currentTime % 60);
+                        if(secs < 10) secs = '0' + secs;
+                        if(mins < 10) mins = '0' + mins;
+                        timeDisplay.textContent = `${mins}:${secs}`;
+                    }
+                });
+
+                // Seek
+                seekSlider.addEventListener('input', () => {
+                    if(audio.duration) {
+                        const seekTime = (seekSlider.value / 100) * audio.duration;
+                        audio.currentTime = seekTime;
+                    }
+                });
+
+                // Volume
+                volSlider.addEventListener('input', (e) => {
+                    audio.volume = e.target.value;
+                });
             </script>
             {% endif %}
         </div>
