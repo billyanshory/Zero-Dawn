@@ -63,7 +63,7 @@ NAVBAR_HTML = """
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link fw-bold" href="/">
+                        <a class="nav-link fw-bold" href="/" style="color: white !important;">
                             <span class="lang-id">Daftar Game Playstation</span>
                             <span class="lang-en">List Game Playstation</span>
                         </a>
@@ -72,12 +72,6 @@ NAVBAR_HTML = """
                 <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item me-2">
                         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleLanguage()" id="lang-btn">ID</button>
-                    </li>
-                    <li class="nav-item me-3">
-                        <div class="btn-group" role="group">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTheme('light')"><i class="fas fa-sun"></i></button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTheme('dark')"><i class="fas fa-moon"></i></button>
-                        </div>
                     </li>
                 </ul>
             </div>
@@ -1118,15 +1112,17 @@ HTML_GAME_LIST = """
         .read-more-overlay {
             position: absolute;
             bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 60px;
-            background: linear-gradient(transparent, rgba(0,0,0,0.8));
-            backdrop-filter: blur(2px);
+            /* Expand to edge of card (overcoming 25px padding of .game-info) */
+            left: -25px;
+            width: calc(100% + 50px);
+            height: 80px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.6));
+            /* Soft smooth acrylic blur */
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             display: flex;
             justify-content: center;
-            align-items: flex-end;
-            padding-bottom: 5px;
+            align-items: center; /* Center text vertically in the overlay */
             cursor: pointer;
             transition: opacity 0.3s;
         }
@@ -1174,7 +1170,6 @@ HTML_GAME_LIST = """
         /* Footer Styling */
         footer.acrylic-footer {
             margin-top: 80px;
-            text-align: center;
             color: rgba(255,255,255,0.7);
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(20px);
@@ -1185,6 +1180,16 @@ HTML_GAME_LIST = """
             max-width: 800px;
             margin-left: auto;
             margin-right: auto;
+
+            /* Vertical and Horizontal Centering */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 80px; /* Fixed height to ensure vertical centering space */
+        }
+        footer.acrylic-footer p {
+            margin: 0; /* Remove default paragraph margin */
+            padding: 0;
         }
     </style>
 </head>
