@@ -270,7 +270,14 @@ def index():
             if content:
                 bg_image = content
 
-    return render_page(HTML_WALLPAPER, bg_image=bg_image)
+    audio_file = None
+    if os.path.exists('audio_config.txt'):
+        with open('audio_config.txt', 'r') as f:
+            content = f.read().strip()
+            if content:
+                audio_file = content
+
+    return render_page(HTML_WALLPAPER, bg_image=bg_image, audio_file=audio_file)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -293,6 +300,21 @@ def wallpaper_upload():
         with open('bg_config.txt', 'w') as f:
             f.write(filename)
             
+    return redirect(url_for('index'))
+
+@app.route('/wallpaper-blur/upload-audio', methods=['POST'])
+def audio_upload():
+    if 'audio' not in request.files:
+        return redirect(url_for('index'))
+
+    file = request.files['audio']
+    if file and file.filename != '' and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+        with open('audio_config.txt', 'w') as f:
+            f.write(filename)
+
     return redirect(url_for('index'))
 
 
@@ -392,6 +414,39 @@ HTML_WALLPAPER = """
             transform: translateY(-2px);
             color: white;
         }
+        .audio-player {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 15px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .player-btn {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .player-btn:hover {
+            background: white;
+            color: black;
+        }
     </style>
 </head>
 <body>
@@ -410,7 +465,46 @@ HTML_WALLPAPER = """
                         <i class="fas fa-image me-2"></i> Set Wallpaper
                     </button>
                 </form>
+
+                <!-- Audio Upload -->
+                <form action="/wallpaper-blur/upload-audio" method="post" enctype="multipart/form-data" id="form-audio">
+                    <input type="file" name="audio" id="file-audio" hidden onchange="document.getElementById('form-audio').submit()" accept="audio/*">
+                    <button type="button" class="acrylic-btn" onclick="document.getElementById('file-audio').click()">
+                        <i class="fas fa-music me-2"></i> Set Audio
+                    </button>
+                </form>
             </div>
+
+            {% if audio_file %}
+            <div class="audio-player">
+                <audio id="main-audio" loop>
+                    <source src="/uploads/{{ audio_file }}">
+                </audio>
+                <button class="player-btn" onclick="skip(-5)"><i class="fas fa-backward"></i></button>
+                <button class="player-btn" onclick="togglePlay()"><i class="fas fa-play" id="play-icon"></i></button>
+                <button class="player-btn" onclick="skip(5)"><i class="fas fa-forward"></i></button>
+            </div>
+            <script>
+                const audio = document.getElementById('main-audio');
+                const playIcon = document.getElementById('play-icon');
+
+                function togglePlay() {
+                    if (audio.paused) {
+                        audio.play();
+                        playIcon.classList.remove('fa-play');
+                        playIcon.classList.add('fa-pause');
+                    } else {
+                        audio.pause();
+                        playIcon.classList.add('fa-play');
+                        playIcon.classList.remove('fa-pause');
+                    }
+                }
+
+                function skip(seconds) {
+                    audio.currentTime += seconds;
+                }
+            </script>
+            {% endif %}
         </div>
         
         <footer style="background: transparent; border: none; color: rgba(255,255,255,0.7);">
