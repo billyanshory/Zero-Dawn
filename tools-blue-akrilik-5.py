@@ -56,16 +56,23 @@ NAVBAR_HTML = """
     </style>
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
-            <a class="navbar-brand" href="/">our<span>tools</span></a>
+            <a class="navbar-brand" href="/">Game of <span>Playstation</span></a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link fw-bold" href="/wallpaper-blur">Wallpaper Blur Akrilik</a></li>
-                    <li class="nav-item"><a class="nav-link fw-bold" href="/list-game-playstation">List Game Playstation</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link fw-bold" href="/">
+                            <span class="lang-id">Daftar Game Playstation</span>
+                            <span class="lang-en">List Game Playstation</span>
+                        </a>
+                    </li>
                 </ul>
                 <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item me-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleLanguage()" id="lang-btn">ID</button>
+                    </li>
                     <li class="nav-item me-3">
                         <div class="btn-group" role="group">
                             <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTheme('light')"><i class="fas fa-sun"></i></button>
@@ -263,28 +270,19 @@ def render_page(content, **kwargs):
 
 @app.route('/')
 def index():
-    # Make wallpaper page the main page
-    bg_image = "default.jpg" # Fallback
-    if os.path.exists('bg_config.txt'):
-        with open('bg_config.txt', 'r') as f:
-            content = f.read().strip()
-            if content:
-                bg_image = content
+    # Main page is now List Game Playstation
+    # We still perform the image scan for the game list logic
+    game_images = {}
+    for i in range(1, 4):
+        found = None
+        for ext in ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif', 'tiff', 'svg', 'ico']:
+             fname = f"game{i}.{ext}"
+             if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], fname)):
+                 found = fname
+                 break
+        game_images[f'game{i}'] = found if found else 'default_game.jpg'
 
-    audio_file = None
-    if os.path.exists('audio_config.txt'):
-        with open('audio_config.txt', 'r') as f:
-            content = f.read().strip()
-            if content:
-                audio_file = content
-
-    audio_files = []
-    if os.path.exists(app.config['UPLOAD_FOLDER']):
-        audio_exts = {'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac'}
-        audio_files = [f for f in os.listdir(app.config['UPLOAD_FOLDER'])
-                       if allowed_file(f) and f.rsplit('.', 1)[1].lower() in audio_exts]
-
-    return render_page(HTML_WALLPAPER, bg_image=bg_image, audio_file=audio_file, audio_files=audio_files)
+    return render_page(HTML_GAME_LIST, game_images=game_images)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -328,6 +326,10 @@ def list_game_playstation():
 
 @app.route('/list-game-playstation/upload/<game_id>', methods=['POST'])
 def upload_game_image(game_id):
+    # Security check: whitelist allowed game_ids
+    if game_id not in ['game1', 'game2', 'game3']:
+        return "Invalid Game ID", 400
+
     if 'game_image' not in request.files:
         return redirect(url_for('list_game_playstation'))
 
@@ -1014,15 +1016,15 @@ HTML_GAME_LIST = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>List Game Playstation | ourtools</title>
+    <title>Game of Playstation</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     {{ styles|safe }}
     <style>
         body {
-            background-color: #0f0f0f; /* Fallback dark */
-            background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop'); /* Tech/Gaming BG */
+            background-color: #0f0f0f;
+            background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop');
             background-size: cover;
             background-attachment: fixed;
             background-position: center;
@@ -1050,12 +1052,12 @@ HTML_GAME_LIST = """
         .game-card:hover {
             transform: translateY(-10px);
             box-shadow: 0 15px 40px rgba(0,0,0,0.4);
-            border-color: rgba(229, 50, 45, 0.5); /* Brand color hint */
+            border-color: rgba(229, 50, 45, 0.5);
         }
         .game-poster-container {
             position: relative;
             width: 100%;
-            padding-top: 140%; /* Aspect Ratio for poster */
+            padding-top: 140%;
             background: rgba(0,0,0,0.3);
             cursor: pointer;
             overflow: hidden;
@@ -1095,20 +1097,58 @@ HTML_GAME_LIST = """
             color: #fff;
             text-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
-        .game-desc p {
+
+        /* Expandable Description */
+        .game-desc {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        .game-desc-content {
             font-size: 0.95rem;
             line-height: 1.6;
             color: rgba(255, 255, 255, 0.8);
-            margin-bottom: 15px;
             font-weight: 300;
+            max-height: 100px; /* Adjust based on ~1 paragraph */
+            overflow: hidden;
+            transition: max-height 0.5s ease;
         }
+        .game-desc-content.expanded {
+            max-height: 1000px; /* Large enough to fit full text */
+        }
+        .read-more-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            backdrop-filter: blur(2px);
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 5px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        .game-desc-content.expanded + .read-more-overlay {
+            display: none;
+            /* Alternatively: opacity: 0; pointer-events: none; */
+        }
+        .read-more-btn {
+            color: var(--brand-color);
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
         .game-price-tag {
             margin-top: auto;
             padding-top: 20px;
             border-top: 1px solid rgba(255,255,255,0.1);
             font-size: 1.5rem;
             font-weight: 700;
-            color: #4cd137; /* Price Green */
+            color: #4cd137;
             text-align: right;
             display: flex;
             justify-content: space-between;
@@ -1121,9 +1161,34 @@ HTML_GAME_LIST = """
             text-transform: uppercase;
             letter-spacing: 1px;
         }
+
+        /* Language Toggle Classes */
+        .lang-id, .lang-en { display: none; }
+
+        body.lang-mode-id div.lang-id { display: block; }
+        body.lang-mode-id span.lang-id { display: inline; }
+
+        body.lang-mode-en div.lang-en { display: block; }
+        body.lang-mode-en span.lang-en { display: inline; }
+
+        /* Footer Styling */
+        footer.acrylic-footer {
+            margin-top: 80px;
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
     </style>
 </head>
-<body>
+<body class="lang-mode-id"> <!-- Default to ID -->
     <div class="acrylic-overlay-page"></div>
 
     {{ navbar|safe }}
@@ -1142,19 +1207,38 @@ HTML_GAME_LIST = """
                                 <div class="game-poster" style="background: #2d3436; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.2); font-size:3rem;"><i class="fas fa-gamepad"></i></div>
                             {% endif %}
                             <div class="upload-overlay">
-                                <span class="text-white"><i class="fas fa-camera me-2"></i>Change Cover</span>
+                                <span class="text-white">
+                                    <i class="fas fa-camera me-2"></i>
+                                    <span class="lang-id">Ganti Sampul</span>
+                                    <span class="lang-en">Change Cover</span>
+                                </span>
                             </div>
                         </div>
                     </form>
                     <div class="game-info">
                         <h2 class="game-title">Horizon Zero Dawn</h2>
                         <div class="game-desc">
-                            <p>In a post-apocalyptic era where nature has reclaimed the ruins of a forgotten civilization, humanity is no longer the dominant species. Colossal machines, evolving with terrifying biological mimicry, roam the landscapes. This is not merely a survival story, but a profound scientific inquiry into the consequences of unchecked technological advancement and the resilience of life itself.</p>
-                            <p>You inhabit the soul of Aloy, an outcast shunned by her tribe, carrying the heavy burden of an unknown lineage. Her journey is a deeply emotional odyssey of self-discovery, driven by a primal need for acceptance and truth. Every step through the lush, vibrant wilderness is a testament to the human spirit's refusal to fade into oblivion, even when faced with mechanical gods.</p>
-                            <p>The narrative weaves a complex tapestry of ancient mysteries and futuristic despair. As you unravel the secrets of "Zero Dawn," you are confronted with the heartbreaking choices of those who came before. It is a poignant reminder of our fragility and the enduring legacy of hope that persists, even after the end of the world.</p>
+                            <div class="game-desc-content" id="desc-game1">
+                                <div class="lang-en">
+                                    <p>In a post-apocalyptic era where nature has reclaimed the ruins of a forgotten civilization, humanity is no longer the dominant species. Colossal machines, evolving with terrifying biological mimicry, roam the landscapes. This is not merely a survival story, but a profound scientific inquiry into the consequences of unchecked technological advancement and the resilience of life itself.</p>
+                                    <p>You inhabit the soul of Aloy, an outcast shunned by her tribe, carrying the heavy burden of an unknown lineage. Her journey is a deeply emotional odyssey of self-discovery, driven by a primal need for acceptance and truth. Every step through the lush, vibrant wilderness is a testament to the human spirit's refusal to fade into oblivion, even when faced with mechanical gods.</p>
+                                    <p>The narrative weaves a complex tapestry of ancient mysteries and futuristic despair. As you unravel the secrets of "Zero Dawn," you are confronted with the heartbreaking choices of those who came before. It is a poignant reminder of our fragility and the enduring legacy of hope that persists, even after the end of the world.</p>
+                                </div>
+                                <div class="lang-id">
+                                    <p>Di era pasca-apokaliptik di mana alam telah merebut kembali reruntuhan peradaban yang terlupakan, umat manusia tidak lagi menjadi spesies dominan. Mesin-mesin raksasa, yang berevolusi dengan mimikri biologis yang menakutkan, berkeliaran di lanskap. Ini bukan sekadar kisah bertahan hidup, melainkan penyelidikan ilmiah mendalam tentang konsekuensi kemajuan teknologi yang tidak terkendali dan ketahanan kehidupan itu sendiri.</p>
+                                    <p>Anda menghuni jiwa Aloy, seorang buangan yang dijauhi oleh sukunya, memikul beban berat garis keturunan yang tidak diketahui. Perjalanannya adalah pengembaraan emosional yang mendalam tentang penemuan jati diri, didorong oleh kebutuhan mendasar akan penerimaan dan kebenaran. Setiap langkah melalui hutan belantara yang subur dan hidup adalah bukti penolakan jiwa manusia untuk memudar dalam ketiadaan, bahkan saat berhadapan dengan dewa-dewa mekanis.</p>
+                                    <p>Narasi ini menjalin permadani kompleks dari misteri kuno dan keputusasaan futuristik. Saat Anda mengungkap rahasia "Zero Dawn," Anda dihadapkan pada pilihan memilukan dari mereka yang datang sebelumnya. Ini adalah pengingat pedih akan kerapuhan kita dan warisan harapan abadi yang bertahan, bahkan setelah akhir dunia.</p>
+                                </div>
+                            </div>
+                            <div class="read-more-overlay" onclick="toggleReadMore('desc-game1')">
+                                <span class="read-more-btn"><span class="lang-id">Selengkapnya</span><span class="lang-en">Read More</span> <i class="fas fa-chevron-down"></i></span>
+                            </div>
                         </div>
                         <div class="game-price-tag">
-                            <span class="price-label">Price (2026)</span>
+                            <span class="price-label">
+                                <span class="lang-id">Harga (2026)</span>
+                                <span class="lang-en">Price (2026)</span>
+                            </span>
                             Rp 729.000
                         </div>
                     </div>
@@ -1173,19 +1257,38 @@ HTML_GAME_LIST = """
                                 <div class="game-poster" style="background: #2d3436; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.2); font-size:3rem;"><i class="fas fa-gamepad"></i></div>
                             {% endif %}
                             <div class="upload-overlay">
-                                <span class="text-white"><i class="fas fa-camera me-2"></i>Change Cover</span>
+                                <span class="text-white">
+                                    <i class="fas fa-camera me-2"></i>
+                                    <span class="lang-id">Ganti Sampul</span>
+                                    <span class="lang-en">Change Cover</span>
+                                </span>
                             </div>
                         </div>
                     </form>
                     <div class="game-info">
                         <h2 class="game-title">The Last Of Us Part I</h2>
                         <div class="game-desc">
-                            <p>Rooted in terrifying biological plausibility, the Cordyceps brain infection has decimated civilization, stripping humanity of its infrastructure and its morality. The world is a brutal, overgrown husk where survival is a daily negotiation with death. This scientific horror serves as the backdrop for a raw, unfiltered examination of the human condition under extreme duress.</p>
-                            <p>At its core, this is a heart-wrenching study of the bond between Joel, a hardened survivor haunted by loss, and Ellie, a girl who represents a glimmer of impossible hope. Their journey across a fractured America is an emotional tour de force, exploring the fierce, sometimes destructive nature of paternal love and the trauma of growing up in a world without innocence.</p>
-                            <p>The narrative challenges the binary of right and wrong, forcing players to confront the gray areas of morality. Every choice carries weight; every violent act leaves a scar on the soul. It is a masterpiece of storytelling that asks a haunting question: how far would you go to save the one thing that gives your life meaning in a godless world?</p>
+                            <div class="game-desc-content" id="desc-game2">
+                                <div class="lang-en">
+                                    <p>Rooted in terrifying biological plausibility, the Cordyceps brain infection has decimated civilization, stripping humanity of its infrastructure and its morality. The world is a brutal, overgrown husk where survival is a daily negotiation with death. This scientific horror serves as the backdrop for a raw, unfiltered examination of the human condition under extreme duress.</p>
+                                    <p>At its core, this is a heart-wrenching study of the bond between Joel, a hardened survivor haunted by loss, and Ellie, a girl who represents a glimmer of impossible hope. Their journey across a fractured America is an emotional tour de force, exploring the fierce, sometimes destructive nature of paternal love and the trauma of growing up in a world without innocence.</p>
+                                    <p>The narrative challenges the binary of right and wrong, forcing players to confront the gray areas of morality. Every choice carries weight; every violent act leaves a scar on the soul. It is a masterpiece of storytelling that asks a haunting question: how far would you go to save the one thing that gives your life meaning in a godless world?</p>
+                                </div>
+                                <div class="lang-id">
+                                    <p>Berakar pada kemungkinan biologis yang menakutkan, infeksi otak Cordyceps telah memusnahkan peradaban, melucuti infrastruktur dan moralitas umat manusia. Dunia adalah sekam brutal yang ditumbuhi tanaman liar di mana bertahan hidup adalah negosiasi harian dengan kematian. Horor ilmiah ini menjadi latar belakang bagi pemeriksaan mentah dan tanpa filter terhadap kondisi manusia di bawah tekanan ekstrem.</p>
+                                    <p>Pada intinya, ini adalah studi yang menyayat hati tentang ikatan antara Joel, seorang penyintas keras yang dihantui oleh kehilangan, dan Ellie, seorang gadis yang mewakili secercah harapan yang mustahil. Perjalanan mereka melintasi Amerika yang retak adalah tour de force emosional, mengeksplorasi sifat cinta kebapakan yang ganas dan terkadang merusak serta trauma tumbuh di dunia tanpa kepolosan.</p>
+                                    <p>Narasi ini menantang biner benar dan salah, memaksa pemain untuk menghadapi area abu-abu moralitas. Setiap pilihan memiliki bobot; setiap tindakan kekerasan meninggalkan bekas luka pada jiwa. Ini adalah mahakarya penceritaan yang mengajukan pertanyaan menghantui: seberapa jauh Anda akan pergi untuk menyelamatkan satu hal yang memberi hidup Anda makna di dunia tanpa tuhan?</p>
+                                </div>
+                            </div>
+                            <div class="read-more-overlay" onclick="toggleReadMore('desc-game2')">
+                                <span class="read-more-btn"><span class="lang-id">Selengkapnya</span><span class="lang-en">Read More</span> <i class="fas fa-chevron-down"></i></span>
+                            </div>
                         </div>
                         <div class="game-price-tag">
-                            <span class="price-label">Price (2026)</span>
+                            <span class="price-label">
+                                <span class="lang-id">Harga (2026)</span>
+                                <span class="lang-en">Price (2026)</span>
+                            </span>
                             Rp 1.029.000
                         </div>
                     </div>
@@ -1204,19 +1307,38 @@ HTML_GAME_LIST = """
                                 <div class="game-poster" style="background: #2d3436; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.2); font-size:3rem;"><i class="fas fa-gamepad"></i></div>
                             {% endif %}
                             <div class="upload-overlay">
-                                <span class="text-white"><i class="fas fa-camera me-2"></i>Change Cover</span>
+                                <span class="text-white">
+                                    <i class="fas fa-camera me-2"></i>
+                                    <span class="lang-id">Ganti Sampul</span>
+                                    <span class="lang-en">Change Cover</span>
+                                </span>
                             </div>
                         </div>
                     </form>
                     <div class="game-info">
                         <h2 class="game-title">Resident Evil 2 Remake</h2>
                         <div class="game-desc">
-                            <p>A catastrophic viral outbreak has transformed the bustling metropolis of Raccoon City into a nightmare of biological distortion. The G-Virus represents the pinnacle of corporate scientific hubris, a terrifying force that warps flesh and mind. The atmosphere is thick with the scent of decay and the oppressive dread of an unseen, mutating predator stalking the halls.</p>
-                            <p>Leon S. Kennedy and Claire Redfield are thrust into this chaos, their survival instincts pushed to the breaking point. The game masterfully manipulates fear and tension, creating an emotional rollercoaster where every shadow holds a threat. It captures the raw, visceral panic of being hunted, forcing players to manage scarce resources while their heart races in sync with the characters.</p>
-                            <p>Beneath the gore lies a tragic narrative of the Birkin family, destroyed by their own creation. It serves as a cautionary tale about the ethics of genetic manipulation and the cost of ambition. The reimagined experience elevates the horror to a poignant level, making the struggle for survival feel intimate, desperate, and utterly compelling.</p>
+                            <div class="game-desc-content" id="desc-game3">
+                                <div class="lang-en">
+                                    <p>A catastrophic viral outbreak has transformed the bustling metropolis of Raccoon City into a nightmare of biological distortion. The G-Virus represents the pinnacle of corporate scientific hubris, a terrifying force that warps flesh and mind. The atmosphere is thick with the scent of decay and the oppressive dread of an unseen, mutating predator stalking the halls.</p>
+                                    <p>Leon S. Kennedy and Claire Redfield are thrust into this chaos, their survival instincts pushed to the breaking point. The game masterfully manipulates fear and tension, creating an emotional rollercoaster where every shadow holds a threat. It captures the raw, visceral panic of being hunted, forcing players to manage scarce resources while their heart races in sync with the characters.</p>
+                                    <p>Beneath the gore lies a tragic narrative of the Birkin family, destroyed by their own creation. It serves as a cautionary tale about the ethics of genetic manipulation and the cost of ambition. The reimagined experience elevates the horror to a poignant level, making the struggle for survival feel intimate, desperate, and utterly compelling.</p>
+                                </div>
+                                <div class="lang-id">
+                                    <p>Wabah virus yang membawa bencana telah mengubah kota metropolis Raccoon City yang ramai menjadi mimpi buruk distorsi biologis. G-Virus mewakili puncak keangkuhan ilmiah korporat, kekuatan mengerikan yang membelokkan daging dan pikiran. Atmosfernya kental dengan aroma pembusukan dan ketakutan menindas akan predator tak terlihat yang bermutasi mengintai di lorong-lorong.</p>
+                                    <p>Leon S. Kennedy dan Claire Redfield terdorong ke dalam kekacauan ini, naluri bertahan hidup mereka didorong hingga titik puncaknya. Game ini dengan ahli memanipulasi ketakutan dan ketegangan, menciptakan rollercoaster emosional di mana setiap bayangan menyimpan ancaman. Ini menangkap kepanikan mentah dan mendalam saat diburu, memaksa pemain untuk mengelola sumber daya yang langka sementara jantung mereka berpacu selaras dengan karakter.</p>
+                                    <p>Di balik pertumpahan darah terdapat narasi tragis keluarga Birkin, yang dihancurkan oleh ciptaan mereka sendiri. Ini berfungsi sebagai kisah peringatan tentang etika manipulasi genetik dan harga dari ambisi. Pengalaman yang dirancang ulang ini mengangkat horor ke tingkat yang pedih, membuat perjuangan untuk bertahan hidup terasa intim, putus asa, dan sangat memikat.</p>
+                                </div>
+                            </div>
+                            <div class="read-more-overlay" onclick="toggleReadMore('desc-game3')">
+                                <span class="read-more-btn"><span class="lang-id">Selengkapnya</span><span class="lang-en">Read More</span> <i class="fas fa-chevron-down"></i></span>
+                            </div>
                         </div>
                         <div class="game-price-tag">
-                            <span class="price-label">Price (2026)</span>
+                            <span class="price-label">
+                                <span class="lang-id">Harga (2026)</span>
+                                <span class="lang-en">Price (2026)</span>
+                            </span>
                             Rp 559.000
                         </div>
                     </div>
@@ -1224,8 +1346,8 @@ HTML_GAME_LIST = """
             </div>
         </div>
 
-        <footer style="margin-top: 80px; text-align: center; color: rgba(255,255,255,0.5);">
-            <p>&copy; 2025 ourtools - Python 3.13.5 Powered. "We Making The Time"</p>
+        <footer class="acrylic-footer">
+            <p>&copy; 2025 Game of Playstation - Powered by <i>emansipation</i>. "Life it's Game itself"</p>
         </footer>
     </div>
 
@@ -1239,6 +1361,29 @@ HTML_GAME_LIST = """
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-bs-theme', savedTheme);
         })();
+
+        // Language Toggle
+        function toggleLanguage() {
+            const body = document.body;
+            const btn = document.getElementById('lang-btn');
+
+            if (body.classList.contains('lang-mode-id')) {
+                body.classList.remove('lang-mode-id');
+                body.classList.add('lang-mode-en');
+                btn.textContent = 'EN';
+            } else {
+                body.classList.remove('lang-mode-en');
+                body.classList.add('lang-mode-id');
+                btn.textContent = 'ID';
+            }
+        }
+
+        // Read More Toggle
+        function toggleReadMore(id) {
+            const content = document.getElementById(id);
+            content.classList.toggle('expanded');
+            // Hide overlay is handled by CSS
+        }
     </script>
 </body>
 </html>
