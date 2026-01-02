@@ -447,6 +447,13 @@ HTML_WALLPAPER = """
             background: white;
             color: black;
         }
+        #visualizer {
+            width: 100px;
+            height: 40px;
+            margin-left: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
@@ -477,18 +484,75 @@ HTML_WALLPAPER = """
 
             {% if audio_file %}
             <div class="audio-player">
-                <audio id="main-audio" loop>
+                <audio id="main-audio" loop crossorigin="anonymous">
                     <source src="/uploads/{{ audio_file }}">
                 </audio>
                 <button class="player-btn" onclick="skip(-5)"><i class="fas fa-backward"></i></button>
                 <button class="player-btn" onclick="togglePlay()"><i class="fas fa-play" id="play-icon"></i></button>
                 <button class="player-btn" onclick="skip(5)"><i class="fas fa-forward"></i></button>
+                <canvas id="visualizer"></canvas>
             </div>
             <script>
                 const audio = document.getElementById('main-audio');
                 const playIcon = document.getElementById('play-icon');
+                const canvas = document.getElementById('visualizer');
+                const ctx = canvas.getContext('2d');
+
+                let audioCtx;
+                let analyser;
+                let source;
+
+                function initAudio() {
+                    if (!audioCtx) {
+                        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        analyser = audioCtx.createAnalyser();
+                        source = audioCtx.createMediaElementSource(audio);
+                        source.connect(analyser);
+                        analyser.connect(audioCtx.destination);
+
+                        analyser.fftSize = 256;
+                        drawVisualizer();
+                    }
+                }
+
+                function drawVisualizer() {
+                    requestAnimationFrame(drawVisualizer);
+
+                    const bufferLength = analyser.frequencyBinCount;
+                    const dataArray = new Uint8Array(bufferLength);
+                    analyser.getByteTimeDomainData(dataArray);
+
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#d3d3d3'; // Light gray
+                    ctx.beginPath();
+
+                    const sliceWidth = canvas.width * 1.0 / bufferLength;
+                    let x = 0;
+
+                    for(let i = 0; i < bufferLength; i++) {
+                        const v = dataArray[i] / 128.0;
+                        const y = v * canvas.height / 2;
+
+                        if(i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+
+                        x += sliceWidth;
+                    }
+
+                    ctx.lineTo(canvas.width, canvas.height/2);
+                    ctx.stroke();
+                }
 
                 function togglePlay() {
+                    initAudio();
+                    if (audioCtx && audioCtx.state === 'suspended') {
+                        audioCtx.resume();
+                    }
+
                     if (audio.paused) {
                         audio.play();
                         playIcon.classList.remove('fa-play');
