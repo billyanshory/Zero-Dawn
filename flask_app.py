@@ -18,7 +18,7 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB Limit
 app.secret_key = "supersecretkey"
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -56,7 +56,7 @@ NAVBAR_HTML = """
     </style>
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
-            <a class="navbar-brand" href="/">i<span>like</span>pdf</a>
+            <a class="navbar-brand" href="/">our<span>tools</span></a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -71,91 +71,10 @@ NAVBAR_HTML = """
                             <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTheme('dark')"><i class="fas fa-moon"></i></button>
                         </div>
                     </li>
-                    {% if session.get('logged_in') %}
-                        <li class="nav-item">
-                            <span class="badge bg-secondary me-2">{{ session.get('role', 'Guest') }}</span>
-                        </li>
-                        <li class="nav-item">
-                            <a href="/logout" class="btn btn-dark">Logout</a>
-                        </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a href="#" class="btn btn-dark">Login</a>
-                        </li>
-                    {% endif %}
                 </ul>
             </div>
         </div>
     </nav>
-"""
-
-LOGIN_OVERLAY = """
-{% if not session.get('logged_in') %}
-<style>
-    .login-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(255, 255, 255, 0.2);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        z-index: 10000;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-    [data-bs-theme="dark"] .login-overlay {
-        background: rgba(0, 0, 0, 0.4);
-    }
-    .login-card {
-        background: var(--card-bg);
-        padding: 40px;
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        width: 100%;
-        max-width: 400px;
-        text-align: center;
-        border: 1px solid rgba(0,0,0,0.1);
-    }
-</style>
-<div class="login-overlay">
-    <div class="login-card">
-        <h2 class="mb-4 fw-bold">Login Access</h2>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="alert alert-danger mb-3" role="alert">
-                {{ message }}
-              </div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
-
-        <form action="/login" method="post" class="mb-4 text-start">
-            <div class="mb-3">
-                <label class="form-label">ID Pengguna</label>
-                <input type="text" name="username" class="form-control" placeholder="Ketua RT. 53">
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Password</label>
-                <input type="password" name="password" class="form-control" placeholder="••••••••">
-            </div>
-            <button type="submit" class="btn btn-brand w-100 py-2 fw-bold">Login sebagai Admin</button>
-        </form>
-
-        <div class="border-top pt-3">
-            <p class="text-muted small mb-2">Hanya ingin melihat-lihat?</p>
-            <form action="/login" method="post">
-                <input type="hidden" name="role" value="guest">
-                <button type="submit" class="btn btn-outline-secondary w-100">Login sebagai Warga</button>
-            </form>
-        </div>
-    </div>
-</div>
-{% endif %}
 """
 
 # Base styles fragment to reuse
@@ -193,8 +112,17 @@ STYLES_HTML = """
         .navbar-brand {
             font-weight: 800;
             font-size: 1.8rem;
+            /* White in Dark mode/Overlay, Dark in Light mode.
+               Since the navbar is transparent over a wallpaper, white usually works best,
+               but we respect the requested theme logic. */
             color: var(--text-dark);
             letter-spacing: -1px;
+        }
+        [data-bs-theme="dark"] .navbar-brand {
+             color: white;
+        }
+        [data-bs-theme="light"] .navbar-brand {
+             color: #333;
         }
         .navbar-brand span { color: var(--brand-color); }
 
@@ -334,44 +262,7 @@ def render_page(content, **kwargs):
     # Inject fragments before rendering to allow Jinja to process them
     content = content.replace('{{ styles|safe }}', STYLES_HTML)
     content = content.replace('{{ navbar|safe }}', NAVBAR_HTML)
-    content = content.replace('{{ overlay|safe }}', LOGIN_OVERLAY)
     return render_template_string(content, **kwargs)
-
-@app.route('/login', methods=['POST'])
-def login():
-    role = request.form.get('role')
-    if role == 'guest':
-        session['logged_in'] = True
-        session['role'] = 'guest'
-        session.pop('login_attempts', None)
-        return redirect(request.referrer or url_for('index'))
-
-    username = request.form.get('username')
-    password = request.form.get('password')
-
-    if username == 'Ketua RT. 53' and password == 'nkrihargamati':
-        session['logged_in'] = True
-        session['role'] = 'admin'
-        session.pop('login_attempts', None)
-        return redirect(request.referrer or url_for('index'))
-
-    # Handle failure
-    attempts = session.get('login_attempts', 0) + 1
-    session['login_attempts'] = attempts
-
-    if attempts % 2 != 0:
-        msg = 'lupa password, tanyakan dengan pihak pengembang'
-    else:
-        msg = 'anda bukan Pak RT. 53, pakai akun warga saja untuk melihat-lihat'
-
-    flash(msg, 'error')
-
-    return redirect(url_for('index'))
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('index'))
 
 @app.route('/')
 def index():
@@ -382,7 +273,22 @@ def index():
             content = f.read().strip()
             if content:
                 bg_image = content
-    return render_page(HTML_WALLPAPER, bg_image=bg_image)
+
+    audio_file = ""
+    if os.path.exists('audio_config.txt'):
+         with open('audio_config.txt', 'r') as f:
+            content = f.read().strip()
+            if content:
+                audio_file = content
+
+    sub_file = ""
+    if os.path.exists('sub_config.txt'):
+         with open('sub_config.txt', 'r') as f:
+            content = f.read().strip()
+            if content:
+                sub_file = content
+
+    return render_page(HTML_WALLPAPER, bg_image=bg_image, audio_file=audio_file, sub_file=sub_file)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -403,6 +309,36 @@ def wallpaper_upload():
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
         with open('bg_config.txt', 'w') as f:
+            f.write(filename)
+
+    return redirect(url_for('index'))
+
+@app.route('/upload/audio', methods=['POST'])
+def upload_audio():
+    if 'audio' not in request.files:
+        return redirect(url_for('index'))
+
+    file = request.files['audio']
+    if file and file.filename != '' and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+        with open('audio_config.txt', 'w') as f:
+            f.write(filename)
+
+    return redirect(url_for('index'))
+
+@app.route('/upload/subtitle', methods=['POST'])
+def upload_subtitle():
+    if 'subtitle' not in request.files:
+        return redirect(url_for('index'))
+
+    file = request.files['subtitle']
+    if file and file.filename != '' and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+        with open('sub_config.txt', 'w') as f:
             f.write(filename)
 
     return redirect(url_for('index'))
@@ -462,18 +398,89 @@ HTML_WALLPAPER = """
             align-items: center;
             color: white;
             text-align: center;
+            width: 100%;
         }
         .upload-card {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
-            padding: 40px;
+            padding: 30px;
             border-radius: 20px;
             border: 1px solid rgba(255, 255, 255, 0.2);
             box-shadow: 0 15px 35px rgba(0,0,0,0.2);
-            max-width: 500px;
+            max-width: 600px;
             width: 90%;
+            margin-bottom: 20px;
         }
-        /* Navbar transparency override for this page if needed, but keeping standard for consistency */
+        .controls-container {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        .acrylic-btn {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            transition: 0.3s;
+            text-decoration: none;
+            cursor: pointer;
+            display: inline-block;
+        }
+        .acrylic-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            color: white;
+        }
+
+        /* Subtitle Area */
+        #subtitle-display {
+            font-size: 2rem;
+            font-weight: 700;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+            margin: 20px 0;
+            min-height: 3rem;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            max-width: 80%;
+            pointer-events: none;
+        }
+        .subtitle-active {
+            opacity: 1 !important;
+        }
+
+        /* Audio Player UI */
+        .audio-player-ui {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(15px);
+            padding: 15px 30px;
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .player-btn {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+        .player-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
     </style>
 </head>
 <body>
@@ -484,16 +491,42 @@ HTML_WALLPAPER = """
         {{ navbar|safe }}
 
         <div class="center-content">
-            <div class="upload-card">
-                <h2 class="fw-bold mb-4">Wallpaper Blur Akrilik</h2>
-                <p class="mb-4">Upload an image to set it as the background with a modern cool acrylic blur effect.</p>
+            <!-- Subtitle Display -->
+            <div id="subtitle-display"></div>
 
-                <form action="/wallpaper-blur/upload" method="post" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <input type="file" name="background" class="form-control" accept="image/*" required>
-                    </div>
-                    <button type="submit" class="btn btn-brand w-100 fw-bold">
-                        <i class="fas fa-magic me-2"></i> Set Background
+            <!-- Audio Player UI -->
+            <div class="audio-player-ui" id="playerUI" style="display:none;">
+                <button class="player-btn" onclick="seek(-5)"><i class="fas fa-backward"></i></button>
+                <button class="player-btn" onclick="togglePlay()" id="playBtn"><i class="fas fa-play"></i></button>
+                <button class="player-btn" onclick="seek(5)"><i class="fas fa-forward"></i></button>
+            </div>
+
+            <audio id="audioPlayer" src="/uploads/{{ audio_file }}" preload="auto"></audio>
+
+            <div style="height: 50px;"></div>
+
+            <div class="controls-container">
+                <!-- Wallpaper Upload -->
+                <form action="/wallpaper-blur/upload" method="post" enctype="multipart/form-data" id="form-wall">
+                    <input type="file" name="background" id="file-wall" hidden onchange="document.getElementById('form-wall').submit()" accept="image/*">
+                    <button type="button" class="acrylic-btn" onclick="document.getElementById('file-wall').click()">
+                        <i class="fas fa-image me-2"></i> Set Wallpaper
+                    </button>
+                </form>
+
+                <!-- Audio Upload -->
+                <form action="/upload/audio" method="post" enctype="multipart/form-data" id="form-audio">
+                    <input type="file" name="audio" id="file-audio" hidden onchange="document.getElementById('form-audio').submit()" accept=".mp3,.wav,.ogg,.mp4,.m4a,.flac">
+                    <button type="button" class="acrylic-btn" onclick="document.getElementById('file-audio').click()">
+                        <i class="fas fa-music me-2"></i> Set Audio
+                    </button>
+                </form>
+
+                <!-- Subtitle Upload -->
+                <form action="/upload/subtitle" method="post" enctype="multipart/form-data" id="form-sub">
+                    <input type="file" name="subtitle" id="file-sub" hidden onchange="document.getElementById('form-sub').submit()" accept=".srt">
+                    <button type="button" class="acrylic-btn" onclick="document.getElementById('file-sub').click()">
+                        <i class="fas fa-closed-captioning me-2"></i> Set Subtitle
                     </button>
                 </form>
             </div>
@@ -517,6 +550,87 @@ HTML_WALLPAPER = """
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-bs-theme', savedTheme);
         })();
+
+        // --- AUDIO & SUBTITLE LOGIC ---
+        const audio = document.getElementById('audioPlayer');
+        const playBtn = document.getElementById('playBtn');
+        const playerUI = document.getElementById('playerUI');
+        const subDisplay = document.getElementById('subtitle-display');
+
+        let subtitles = [];
+
+        // Show player if audio exists
+        if (audio.getAttribute('src') && audio.getAttribute('src') !== '/uploads/') {
+            playerUI.style.display = 'flex';
+            loadSubtitles();
+        }
+
+        function togglePlay() {
+            if (audio.paused) {
+                audio.play();
+                playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+            } else {
+                audio.pause();
+                playBtn.innerHTML = '<i class="fas fa-play"></i>';
+            }
+        }
+
+        function seek(seconds) {
+            audio.currentTime += seconds;
+        }
+
+        // Parse SRT
+        function parseSRT(text) {
+            const pattern = /(\d+)\n(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})\n([\s\S]*?)(?=\n\n|\n*$)/g;
+            const result = [];
+            let match;
+            while ((match = pattern.exec(text)) !== null) {
+                result.push({
+                    start: timeToSeconds(match[2]),
+                    end: timeToSeconds(match[3]),
+                    text: match[4].trim()
+                });
+            }
+            return result;
+        }
+
+        function timeToSeconds(t) {
+            const [h, m, s] = t.split(':');
+            const [sec, ms] = s.split(',');
+            return parseInt(h) * 3600 + parseInt(m) * 60 + parseInt(sec) + parseInt(ms) / 1000;
+        }
+
+        async function loadSubtitles() {
+            const subFile = "{{ sub_file }}";
+            if (!subFile) return;
+
+            try {
+                const response = await fetch('/uploads/' + subFile);
+                if (response.ok) {
+                    const text = await response.text();
+                    subtitles = parseSRT(text.replace(/\r\n/g, '\n'));
+                }
+            } catch (e) {
+                console.error("Failed to load subs", e);
+            }
+        }
+
+        // Sync Logic
+        audio.addEventListener('timeupdate', () => {
+            const t = audio.currentTime;
+            const active = subtitles.find(s => t >= s.start && t <= s.end);
+
+            if (active) {
+                if (subDisplay.innerText !== active.text) {
+                    subDisplay.innerText = active.text;
+                    subDisplay.classList.add('subtitle-active');
+                }
+            } else {
+                subDisplay.classList.remove('subtitle-active');
+                // Allow fade out before clearing text?
+                // For smoother exp, we clear text after transition, but here we keep it simple.
+            }
+        });
     </script>
 </body>
 </html>
