@@ -63,6 +63,7 @@ NAVBAR_HTML = """
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item"><a class="nav-link fw-bold" href="/wallpaper-blur">Wallpaper Blur Akrilik</a></li>
+                    <li class="nav-item"><a class="nav-link fw-bold" href="/list-game-playstation">List Game Playstation</a></li>
                 </ul>
                 <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item me-3">
@@ -307,6 +308,42 @@ def wallpaper_upload():
             f.write(filename)
             
     return redirect(url_for('index'))
+
+@app.route('/list-game-playstation')
+def list_game_playstation():
+    # Check for game images
+    game_images = {}
+    for i in range(1, 4):
+        img_name = f"game{i}.jpg"
+        found = None
+        # Priority search
+        for ext in ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif', 'tiff', 'svg', 'ico']:
+             fname = f"game{i}.{ext}"
+             if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], fname)):
+                 found = fname
+                 break
+        game_images[f'game{i}'] = found if found else 'default_game.jpg'
+
+    return render_page(HTML_GAME_LIST, game_images=game_images)
+
+@app.route('/list-game-playstation/upload/<game_id>', methods=['POST'])
+def upload_game_image(game_id):
+    if 'game_image' not in request.files:
+        return redirect(url_for('list_game_playstation'))
+
+    file = request.files['game_image']
+    if file and file.filename != '' and allowed_file(file.filename):
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        # Remove old images for this game_id
+        for e in ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif', 'tiff', 'svg', 'ico']:
+            old_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{game_id}.{e}")
+            if os.path.exists(old_path):
+                os.remove(old_path)
+
+        new_filename = f"{game_id}.{ext}"
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], new_filename))
+
+    return redirect(url_for('list_game_playstation'))
 
 @app.route('/wallpaper-blur/delete-audio/<filename>')
 def delete_audio(filename):
@@ -958,6 +995,242 @@ HTML_WALLPAPER = """
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Minimal theme logic for navbar compatibility
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-bs-theme', theme);
+            localStorage.setItem('theme', theme);
+        }
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        })();
+    </script>
+</body>
+</html>
+"""
+
+HTML_GAME_LIST = """
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>List Game Playstation | ourtools</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    {{ styles|safe }}
+    <style>
+        body {
+            background-color: #0f0f0f; /* Fallback dark */
+            background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop'); /* Tech/Gaming BG */
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: center;
+        }
+        .acrylic-overlay-page {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(20px);
+            z-index: -1;
+        }
+        .game-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+            color: white;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .game-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+            border-color: rgba(229, 50, 45, 0.5); /* Brand color hint */
+        }
+        .game-poster-container {
+            position: relative;
+            width: 100%;
+            padding-top: 140%; /* Aspect Ratio for poster */
+            background: rgba(0,0,0,0.3);
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .game-poster {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s;
+        }
+        .game-poster-container:hover .game-poster {
+            transform: scale(1.05);
+        }
+        .upload-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .game-poster-container:hover .upload-overlay {
+            opacity: 1;
+        }
+        .game-info {
+            padding: 25px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .game-title {
+            font-weight: 800;
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            color: #fff;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        .game-desc p {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 15px;
+            font-weight: 300;
+        }
+        .game-price-tag {
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #4cd137; /* Price Green */
+            text-align: right;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .price-label {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.5);
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div class="acrylic-overlay-page"></div>
+
+    {{ navbar|safe }}
+
+    <div class="container container-xl py-5">
+        <div class="row g-5">
+            <!-- Game 1: Horizon Zero Dawn -->
+            <div class="col-lg-4">
+                <div class="game-card">
+                    <form action="/list-game-playstation/upload/game1" method="post" enctype="multipart/form-data" id="form-game1">
+                        <input type="file" name="game_image" id="file-game1" hidden onchange="document.getElementById('form-game1').submit()" accept="image/*">
+                        <div class="game-poster-container" onclick="document.getElementById('file-game1').click()">
+                            {% if game_images.game1 != 'default_game.jpg' %}
+                                <img src="/uploads/{{ game_images.game1 }}" class="game-poster" alt="Horizon Zero Dawn">
+                            {% else %}
+                                <div class="game-poster" style="background: #2d3436; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.2); font-size:3rem;"><i class="fas fa-gamepad"></i></div>
+                            {% endif %}
+                            <div class="upload-overlay">
+                                <span class="text-white"><i class="fas fa-camera me-2"></i>Change Cover</span>
+                            </div>
+                        </div>
+                    </form>
+                    <div class="game-info">
+                        <h2 class="game-title">Horizon Zero Dawn</h2>
+                        <div class="game-desc">
+                            <p>In a post-apocalyptic era where nature has reclaimed the ruins of a forgotten civilization, humanity is no longer the dominant species. Colossal machines, evolving with terrifying biological mimicry, roam the landscapes. This is not merely a survival story, but a profound scientific inquiry into the consequences of unchecked technological advancement and the resilience of life itself.</p>
+                            <p>You inhabit the soul of Aloy, an outcast shunned by her tribe, carrying the heavy burden of an unknown lineage. Her journey is a deeply emotional odyssey of self-discovery, driven by a primal need for acceptance and truth. Every step through the lush, vibrant wilderness is a testament to the human spirit's refusal to fade into oblivion, even when faced with mechanical gods.</p>
+                            <p>The narrative weaves a complex tapestry of ancient mysteries and futuristic despair. As you unravel the secrets of "Zero Dawn," you are confronted with the heartbreaking choices of those who came before. It is a poignant reminder of our fragility and the enduring legacy of hope that persists, even after the end of the world.</p>
+                        </div>
+                        <div class="game-price-tag">
+                            <span class="price-label">Price (2026)</span>
+                            Rp 729.000
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game 2: The Last Of Us Part I -->
+            <div class="col-lg-4">
+                <div class="game-card">
+                    <form action="/list-game-playstation/upload/game2" method="post" enctype="multipart/form-data" id="form-game2">
+                        <input type="file" name="game_image" id="file-game2" hidden onchange="document.getElementById('form-game2').submit()" accept="image/*">
+                        <div class="game-poster-container" onclick="document.getElementById('file-game2').click()">
+                            {% if game_images.game2 != 'default_game.jpg' %}
+                                <img src="/uploads/{{ game_images.game2 }}" class="game-poster" alt="The Last Of Us Part I">
+                            {% else %}
+                                <div class="game-poster" style="background: #2d3436; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.2); font-size:3rem;"><i class="fas fa-gamepad"></i></div>
+                            {% endif %}
+                            <div class="upload-overlay">
+                                <span class="text-white"><i class="fas fa-camera me-2"></i>Change Cover</span>
+                            </div>
+                        </div>
+                    </form>
+                    <div class="game-info">
+                        <h2 class="game-title">The Last Of Us Part I</h2>
+                        <div class="game-desc">
+                            <p>Rooted in terrifying biological plausibility, the Cordyceps brain infection has decimated civilization, stripping humanity of its infrastructure and its morality. The world is a brutal, overgrown husk where survival is a daily negotiation with death. This scientific horror serves as the backdrop for a raw, unfiltered examination of the human condition under extreme duress.</p>
+                            <p>At its core, this is a heart-wrenching study of the bond between Joel, a hardened survivor haunted by loss, and Ellie, a girl who represents a glimmer of impossible hope. Their journey across a fractured America is an emotional tour de force, exploring the fierce, sometimes destructive nature of paternal love and the trauma of growing up in a world without innocence.</p>
+                            <p>The narrative challenges the binary of right and wrong, forcing players to confront the gray areas of morality. Every choice carries weight; every violent act leaves a scar on the soul. It is a masterpiece of storytelling that asks a haunting question: how far would you go to save the one thing that gives your life meaning in a godless world?</p>
+                        </div>
+                        <div class="game-price-tag">
+                            <span class="price-label">Price (2026)</span>
+                            Rp 1.029.000
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game 3: Resident Evil 2 Remake -->
+            <div class="col-lg-4">
+                <div class="game-card">
+                    <form action="/list-game-playstation/upload/game3" method="post" enctype="multipart/form-data" id="form-game3">
+                        <input type="file" name="game_image" id="file-game3" hidden onchange="document.getElementById('form-game3').submit()" accept="image/*">
+                        <div class="game-poster-container" onclick="document.getElementById('file-game3').click()">
+                            {% if game_images.game3 != 'default_game.jpg' %}
+                                <img src="/uploads/{{ game_images.game3 }}" class="game-poster" alt="Resident Evil 2 Remake">
+                            {% else %}
+                                <div class="game-poster" style="background: #2d3436; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.2); font-size:3rem;"><i class="fas fa-gamepad"></i></div>
+                            {% endif %}
+                            <div class="upload-overlay">
+                                <span class="text-white"><i class="fas fa-camera me-2"></i>Change Cover</span>
+                            </div>
+                        </div>
+                    </form>
+                    <div class="game-info">
+                        <h2 class="game-title">Resident Evil 2 Remake</h2>
+                        <div class="game-desc">
+                            <p>A catastrophic viral outbreak has transformed the bustling metropolis of Raccoon City into a nightmare of biological distortion. The G-Virus represents the pinnacle of corporate scientific hubris, a terrifying force that warps flesh and mind. The atmosphere is thick with the scent of decay and the oppressive dread of an unseen, mutating predator stalking the halls.</p>
+                            <p>Leon S. Kennedy and Claire Redfield are thrust into this chaos, their survival instincts pushed to the breaking point. The game masterfully manipulates fear and tension, creating an emotional rollercoaster where every shadow holds a threat. It captures the raw, visceral panic of being hunted, forcing players to manage scarce resources while their heart races in sync with the characters.</p>
+                            <p>Beneath the gore lies a tragic narrative of the Birkin family, destroyed by their own creation. It serves as a cautionary tale about the ethics of genetic manipulation and the cost of ambition. The reimagined experience elevates the horror to a poignant level, making the struggle for survival feel intimate, desperate, and utterly compelling.</p>
+                        </div>
+                        <div class="game-price-tag">
+                            <span class="price-label">Price (2026)</span>
+                            Rp 559.000
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer style="margin-top: 80px; text-align: center; color: rgba(255,255,255,0.5);">
+            <p>&copy; 2025 ourtools - Python 3.13.5 Powered. "We Making The Time"</p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
         function setTheme(theme) {
             document.documentElement.setAttribute('data-bs-theme', theme);
             localStorage.setItem('theme', theme);
