@@ -270,21 +270,7 @@ def index():
             if content:
                 bg_image = content
 
-    audio_file = ""
-    if os.path.exists('audio_config.txt'):
-         with open('audio_config.txt', 'r') as f:
-            content = f.read().strip()
-            if content:
-                audio_file = content
-
-    sub_file = ""
-    if os.path.exists('sub_config.txt'):
-         with open('sub_config.txt', 'r') as f:
-            content = f.read().strip()
-            if content:
-                sub_file = content
-
-    return render_page(HTML_WALLPAPER, bg_image=bg_image, audio_file=audio_file, sub_file=sub_file)
+    return render_page(HTML_WALLPAPER, bg_image=bg_image)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -309,53 +295,6 @@ def wallpaper_upload():
 
     return redirect(url_for('index'))
 
-@app.route('/upload/audio', methods=['POST'])
-def upload_audio():
-    if 'audio' not in request.files:
-        return redirect(url_for('index'))
-
-    file = request.files['audio']
-    if file and file.filename != '':
-        # Explicit content-length check (fallback)
-        file.seek(0, os.SEEK_END)
-        size = file.tell()
-        file.seek(0)
-
-        if size > 10 * 1024 * 1024: # 10MB Limit
-            return render_template_string(f"<script>alert('File too large! Limit is 10MB.'); window.location.href='/';</script>")
-
-        if allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-
-            with open('audio_config.txt', 'w') as f:
-                f.write(filename)
-
-    return redirect(url_for('index'))
-
-@app.route('/upload/subtitle', methods=['POST'])
-def upload_subtitle():
-    if 'subtitle' not in request.files:
-        return redirect(url_for('index'))
-
-    file = request.files['subtitle']
-    if file and file.filename != '':
-        # Explicit content-length check
-        file.seek(0, os.SEEK_END)
-        size = file.tell()
-        file.seek(0)
-
-        if size > 10 * 1024 * 1024: # 10MB Limit (Generous for SRT but safe)
-            return render_template_string(f"<script>alert('File too large! Limit is 10MB.'); window.location.href='/';</script>")
-
-        if allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-
-            with open('sub_config.txt', 'w') as f:
-                f.write(filename)
-
-    return redirect(url_for('index'))
 
 HTML_WALLPAPER = """
 <!DOCTYPE html>
@@ -434,25 +373,7 @@ HTML_WALLPAPER = """
             flex-wrap: wrap;
             justify-content: center;
             margin-bottom: 30px;
-            transition: all 0.8s ease-in-out;
         }
-
-        /* Active State: Move controls to left */
-        body.content-active .controls-container {
-            position: fixed;
-            left: 30px;
-            top: 50%;
-            transform: translateY(-50%);
-            flex-direction: column;
-            align-items: flex-start;
-            margin: 0;
-            z-index: 100;
-        }
-
-        body.content-active .center-content {
-            margin-left: 0; /* Centered relative to viewport, visualizer takes center */
-        }
-
         .acrylic-btn {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(5px);
@@ -471,62 +392,6 @@ HTML_WALLPAPER = """
             transform: translateY(-2px);
             color: white;
         }
-
-        /* Subtitle Area */
-        #subtitle-display {
-            font-size: 2.5rem;
-            font-weight: 700;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
-            margin: 20px 0;
-            min-height: 4rem;
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
-            max-width: 80%;
-            pointer-events: none;
-            text-align: center;
-        }
-        .subtitle-active {
-            opacity: 1 !important;
-        }
-
-        /* Audio Player UI */
-        .audio-player-ui {
-            background: rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(15px);
-            padding: 15px 30px;
-            border-radius: 50px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            margin-top: 20px;
-            z-index: 10;
-        }
-
-        /* Visualizer */
-        #visualizer {
-            width: 600px;
-            height: 150px;
-            margin-top: 30px;
-            filter: drop-shadow(0 0 10px rgba(0, 255, 0, 0.5));
-        }
-        .player-btn {
-            background: transparent;
-            border: none;
-            color: white;
-            font-size: 1.5rem;
-            cursor: pointer;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            transition: 0.2s;
-        }
-        .player-btn:hover {
-            background: rgba(255,255,255,0.2);
-        }
     </style>
 </head>
 <body>
@@ -537,45 +402,12 @@ HTML_WALLPAPER = """
         {{ navbar|safe }}
 
         <div class="center-content">
-            <!-- Subtitle Display -->
-            <div id="subtitle-display"></div>
-
-            <!-- Audio Player UI -->
-            <div class="audio-player-ui" id="playerUI" style="display:none;">
-                <button class="player-btn" onclick="seek(-5)"><i class="fas fa-backward"></i></button>
-                <button class="player-btn" onclick="togglePlay()" id="playBtn"><i class="fas fa-play"></i></button>
-                <button class="player-btn" onclick="seek(5)"><i class="fas fa-forward"></i></button>
-            </div>
-
-            <audio id="audioPlayer" src="/uploads/{{ audio_file }}" crossorigin="anonymous"></audio>
-
-            <!-- Heartbeat Visualizer -->
-            <canvas id="visualizer" style="display:none;"></canvas>
-
-            <div style="height: 50px;"></div>
-
             <div class="controls-container">
                 <!-- Wallpaper Upload -->
                 <form action="/wallpaper-blur/upload" method="post" enctype="multipart/form-data" id="form-wall">
                     <input type="file" name="background" id="file-wall" hidden onchange="document.getElementById('form-wall').submit()" accept="image/*">
                     <button type="button" class="acrylic-btn" onclick="document.getElementById('file-wall').click()">
                         <i class="fas fa-image me-2"></i> Set Wallpaper
-                    </button>
-                </form>
-
-                <!-- Audio Upload -->
-                <form action="/upload/audio" method="post" enctype="multipart/form-data" id="form-audio">
-                    <input type="file" name="audio" id="file-audio" hidden onchange="document.getElementById('form-audio').submit()" accept=".mp3,.wav,.ogg,.mp4,.m4a,.flac">
-                    <button type="button" class="acrylic-btn" onclick="document.getElementById('file-audio').click()">
-                        <i class="fas fa-music me-2"></i> Set Audio
-                    </button>
-                </form>
-
-                <!-- Subtitle Upload -->
-                <form action="/upload/subtitle" method="post" enctype="multipart/form-data" id="form-sub">
-                    <input type="file" name="subtitle" id="file-sub" hidden onchange="document.getElementById('form-sub').submit()" accept=".srt">
-                    <button type="button" class="acrylic-btn" onclick="document.getElementById('file-sub').click()">
-                        <i class="fas fa-closed-captioning me-2"></i> Set Subtitle
                     </button>
                 </form>
             </div>
@@ -599,198 +431,6 @@ HTML_WALLPAPER = """
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-bs-theme', savedTheme);
         })();
-
-        // --- AUDIO & SUBTITLE LOGIC ---
-        const audio = document.getElementById('audioPlayer');
-        const playBtn = document.getElementById('playBtn');
-        const playerUI = document.getElementById('playerUI');
-        const subDisplay = document.getElementById('subtitle-display');
-
-        let subtitles = [];
-
-        // --- VISUALIZER ---
-        const canvas = document.getElementById('visualizer');
-        const canvasCtx = canvas.getContext('2d');
-        let audioCtx, analyser, source;
-        let isVisualizerInit = false;
-
-        function initAudio() {
-            if (isVisualizerInit) return;
-            isVisualizerInit = true;
-
-            try {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioCtx.createAnalyser();
-                source = audioCtx.createMediaElementSource(audio);
-                source.connect(analyser);
-                analyser.connect(audioCtx.destination);
-
-                analyser.fftSize = 256;
-                drawVisualizer();
-            } catch(e) {
-                console.log("Audio Context Error", e);
-            }
-        }
-
-        function drawVisualizer() {
-            if (!audioCtx) return;
-
-            requestAnimationFrame(drawVisualizer);
-
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
-            analyser.getByteFrequencyData(dataArray); // Use frequency for volume
-
-            // Calc avg volume
-            let sum = 0;
-            for(let i = 0; i < bufferLength; i++) {
-                sum += dataArray[i];
-            }
-            let average = sum / bufferLength;
-
-            // Draw
-            canvas.width = canvas.clientWidth;
-            canvas.height = canvas.clientHeight;
-            const w = canvas.width;
-            const h = canvas.height;
-            const cy = h / 2;
-
-            canvasCtx.clearRect(0, 0, w, h);
-
-            // Line Style (Heartbeat Green/White mix)
-            canvasCtx.lineWidth = 3;
-            canvasCtx.strokeStyle = 'rgba(100, 255, 100, 0.8)';
-            canvasCtx.shadowBlur = 10;
-            canvasCtx.shadowColor = 'rgba(0, 255, 0, 0.8)';
-
-            canvasCtx.beginPath();
-
-            // Simulate ECG pulse
-            // We move a "point" across the screen based on time, but simplified:
-            // Just draw a line that gets noisy in the middle based on volume
-
-            canvasCtx.moveTo(0, cy);
-
-            // Heartbeat Logic (ECG Style)
-            // We want a moving green point that leaves a trail, or a scanning line
-            // But requested is "animasi denyut jantung smooth".
-            // Let's use a time-domain waveform but amplify peaks to look like QRS complex
-
-            const timeData = new Uint8Array(bufferLength);
-            analyser.getByteTimeDomainData(timeData);
-
-            canvasCtx.beginPath();
-            let sliceWidth = w * 1.0 / bufferLength;
-            let x = 0;
-
-            for(let i = 0; i < bufferLength; i++) {
-                let v = timeData[i] / 128.0;
-
-                // Amplify variations to simulate heartbeat spikes on loud sounds
-                // Center is 1.0.
-                let deviation = v - 1.0;
-                // Make it sharper
-                if (Math.abs(deviation) > 0.01) {
-                    deviation = deviation * 2.5;
-                }
-
-                let y = (1.0 + deviation) * h/2;
-
-                if(i === 0) canvasCtx.moveTo(x, y);
-                else canvasCtx.lineTo(x, y);
-
-                x += sliceWidth;
-            }
-
-            canvasCtx.lineTo(canvas.width, canvas.height/2);
-            canvasCtx.stroke();
-
-            // Add a "scanline" leading dot effect if desired, but waveform is continuous
-        }
-
-        // --- STATE MANAGEMENT ---
-        const hasAudio = audio.getAttribute('src') && audio.getAttribute('src') !== '/uploads/';
-        const hasSub = "{{ sub_file }}" !== "";
-
-        if (hasAudio || hasSub) {
-            document.body.classList.add('content-active');
-            if (hasAudio) {
-                playerUI.style.display = 'flex';
-                document.getElementById('visualizer').style.display = 'block';
-            }
-            loadSubtitles();
-        }
-
-        function togglePlay() {
-            if (!isVisualizerInit) initAudio();
-            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-
-            if (audio.paused) {
-                audio.play();
-                playBtn.innerHTML = '<i class="fas fa-pause"></i>';
-            } else {
-                audio.pause();
-                playBtn.innerHTML = '<i class="fas fa-play"></i>';
-            }
-        }
-
-        function seek(seconds) {
-            audio.currentTime += seconds;
-        }
-
-        // Parse SRT
-        function parseSRT(text) {
-            // Regex double-escaped for Python string
-            const pattern = /(\\d+)\\n(\\d{2}:\\d{2}:\\d{2},\\d{3}) --> (\\d{2}:\\d{2}:\\d{2},\\d{3})\\n([\\s\\S]*?)(?=\\n\\n|\\n*$)/g;
-            const result = [];
-            let match;
-            while ((match = pattern.exec(text)) !== null) {
-                result.push({
-                    start: timeToSeconds(match[2]),
-                    end: timeToSeconds(match[3]),
-                    text: match[4].trim()
-                });
-            }
-            return result;
-        }
-
-        function timeToSeconds(t) {
-            const [h, m, s] = t.split(':');
-            const [sec, ms] = s.split(',');
-            return parseInt(h) * 3600 + parseInt(m) * 60 + parseInt(sec) + parseInt(ms) / 1000;
-        }
-
-        async function loadSubtitles() {
-            const subFile = "{{ sub_file }}";
-            if (!subFile) return;
-
-            try {
-                const response = await fetch('/uploads/' + subFile);
-                if (response.ok) {
-                    const text = await response.text();
-                    subtitles = parseSRT(text.replace(/\r\n/g, '\n'));
-                }
-            } catch (e) {
-                console.error("Failed to load subs", e);
-            }
-        }
-
-        // Sync Logic
-        audio.addEventListener('timeupdate', () => {
-            const t = audio.currentTime;
-            const active = subtitles.find(s => t >= s.start && t <= s.end);
-
-            if (active) {
-                if (subDisplay.innerText !== active.text) {
-                    subDisplay.innerText = active.text;
-                    subDisplay.classList.add('subtitle-active');
-                }
-            } else {
-                subDisplay.classList.remove('subtitle-active');
-                // Allow fade out before clearing text?
-                // For smoother exp, we clear text after transition, but here we keep it simple.
-            }
-        });
     </script>
 </body>
 </html>
