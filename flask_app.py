@@ -112,17 +112,13 @@ STYLES_HTML = """
         .navbar-brand {
             font-weight: 800;
             font-size: 1.8rem;
-            /* White in Dark mode/Overlay, Dark in Light mode.
-               Since the navbar is transparent over a wallpaper, white usually works best,
-               but we respect the requested theme logic. */
-            color: var(--text-dark);
+            /* User request: "our" permanently white */
+            color: white !important;
             letter-spacing: -1px;
         }
-        [data-bs-theme="dark"] .navbar-brand {
-             color: white;
-        }
+        /* Override any theme specific colors for the logo text part 'our' */
         [data-bs-theme="light"] .navbar-brand {
-             color: #333;
+             color: white !important;
         }
         .navbar-brand span { color: var(--brand-color); }
 
@@ -417,7 +413,25 @@ HTML_WALLPAPER = """
             flex-wrap: wrap;
             justify-content: center;
             margin-bottom: 30px;
+            transition: all 0.8s ease-in-out;
         }
+
+        /* Active State: Move controls to left */
+        body.content-active .controls-container {
+            position: fixed;
+            left: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            flex-direction: column;
+            align-items: flex-start;
+            margin: 0;
+            z-index: 100;
+        }
+
+        body.content-active .center-content {
+            margin-left: 0; /* Centered relative to viewport, visualizer takes center */
+        }
+
         .acrylic-btn {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(5px);
@@ -429,6 +443,7 @@ HTML_WALLPAPER = """
             text-decoration: none;
             cursor: pointer;
             display: inline-block;
+            white-space: nowrap;
         }
         .acrylic-btn:hover {
             background: rgba(255, 255, 255, 0.2);
@@ -438,15 +453,16 @@ HTML_WALLPAPER = """
 
         /* Subtitle Area */
         #subtitle-display {
-            font-size: 2rem;
+            font-size: 2.5rem;
             font-weight: 700;
             text-shadow: 0 2px 10px rgba(0,0,0,0.8);
             margin: 20px 0;
-            min-height: 3rem;
+            min-height: 4rem;
             opacity: 0;
             transition: opacity 0.5s ease-in-out;
             max-width: 80%;
             pointer-events: none;
+            text-align: center;
         }
         .subtitle-active {
             opacity: 1 !important;
@@ -463,6 +479,15 @@ HTML_WALLPAPER = """
             align-items: center;
             gap: 20px;
             margin-top: 20px;
+            z-index: 10;
+        }
+
+        /* Visualizer */
+        #visualizer {
+            width: 600px;
+            height: 150px;
+            margin-top: 30px;
+            filter: drop-shadow(0 0 10px rgba(0, 255, 0, 0.5));
         }
         .player-btn {
             background: transparent;
@@ -501,7 +526,10 @@ HTML_WALLPAPER = """
                 <button class="player-btn" onclick="seek(5)"><i class="fas fa-forward"></i></button>
             </div>
 
-            <audio id="audioPlayer" src="/uploads/{{ audio_file }}" preload="auto"></audio>
+            <audio id="audioPlayer" src="/uploads/{{ audio_file }}" crossorigin="anonymous"></audio>
+
+            <!-- Heartbeat Visualizer -->
+            <canvas id="visualizer" style="display:none;"></canvas>
 
             <div style="height: 50px;"></div>
 
@@ -559,13 +587,117 @@ HTML_WALLPAPER = """
 
         let subtitles = [];
 
-        // Show player if audio exists
-        if (audio.getAttribute('src') && audio.getAttribute('src') !== '/uploads/') {
-            playerUI.style.display = 'flex';
+        // --- VISUALIZER ---
+        const canvas = document.getElementById('visualizer');
+        const canvasCtx = canvas.getContext('2d');
+        let audioCtx, analyser, source;
+        let isVisualizerInit = false;
+
+        function initAudio() {
+            if (isVisualizerInit) return;
+            isVisualizerInit = true;
+
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                source = audioCtx.createMediaElementSource(audio);
+                source.connect(analyser);
+                analyser.connect(audioCtx.destination);
+
+                analyser.fftSize = 256;
+                drawVisualizer();
+            } catch(e) {
+                console.log("Audio Context Error", e);
+            }
+        }
+
+        function drawVisualizer() {
+            if (!audioCtx) return;
+
+            requestAnimationFrame(drawVisualizer);
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray); // Use frequency for volume
+
+            // Calc avg volume
+            let sum = 0;
+            for(let i = 0; i < bufferLength; i++) {
+                sum += dataArray[i];
+            }
+            let average = sum / bufferLength;
+
+            // Draw
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+            const w = canvas.width;
+            const h = canvas.height;
+            const cy = h / 2;
+
+            canvasCtx.clearRect(0, 0, w, h);
+
+            // Line Style (Heartbeat Green/White mix)
+            canvasCtx.lineWidth = 3;
+            canvasCtx.strokeStyle = 'rgba(100, 255, 100, 0.8)';
+            canvasCtx.shadowBlur = 10;
+            canvasCtx.shadowColor = 'rgba(0, 255, 0, 0.8)';
+
+            canvasCtx.beginPath();
+
+            // Simulate ECG pulse
+            // We move a "point" across the screen based on time, but simplified:
+            // Just draw a line that gets noisy in the middle based on volume
+
+            canvasCtx.moveTo(0, cy);
+
+            // A simple way: draw a flat line that vibrates based on volume
+            // Let's make it look like the user image: Line... pulse... line...
+
+            // To make it look cool, we can just map the waveform buffer
+            // But let's use the requested "volume" to drive a pulse amplitude
+
+            let scale = average / 50; // Sensitivity
+
+            // Draw a waveform based on time domain?
+            // Let's use time domain for the line look
+            const timeData = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(timeData);
+
+            canvasCtx.beginPath();
+            let sliceWidth = w * 1.0 / bufferLength;
+            let x = 0;
+
+            for(let i = 0; i < bufferLength; i++) {
+                let v = timeData[i] / 128.0;
+                let y = v * h/2;
+
+                if(i === 0) canvasCtx.moveTo(x, y);
+                else canvasCtx.lineTo(x, y);
+
+                x += sliceWidth;
+            }
+
+            canvasCtx.lineTo(canvas.width, canvas.height/2);
+            canvasCtx.stroke();
+        }
+
+        // --- STATE MANAGEMENT ---
+        const hasAudio = audio.getAttribute('src') && audio.getAttribute('src') !== '/uploads/';
+        const hasSub = "{{ sub_file }}" !== "";
+
+        if (hasAudio || hasSub) {
+            document.body.classList.add('content-active');
+            if (hasAudio) {
+                playerUI.style.display = 'flex';
+                document.getElementById('visualizer').style.display = 'block';
+            }
             loadSubtitles();
         }
 
         function togglePlay() {
+            if (!isVisualizerInit) initAudio();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
             if (audio.paused) {
                 audio.play();
                 playBtn.innerHTML = '<i class="fas fa-pause"></i>';
@@ -581,7 +713,8 @@ HTML_WALLPAPER = """
 
         // Parse SRT
         function parseSRT(text) {
-            const pattern = /(\d+)\n(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})\n([\s\S]*?)(?=\n\n|\n*$)/g;
+            // Regex double-escaped for Python string
+            const pattern = /(\\d+)\\n(\\d{2}:\\d{2}:\\d{2},\\d{3}) --> (\\d{2}:\\d{2}:\\d{2},\\d{3})\\n([\\s\\S]*?)(?=\\n\\n|\\n*$)/g;
             const result = [];
             let match;
             while ((match = pattern.exec(text)) !== null) {
