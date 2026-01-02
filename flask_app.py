@@ -315,12 +315,21 @@ def upload_audio():
         return redirect(url_for('index'))
 
     file = request.files['audio']
-    if file and file.filename != '' and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    if file and file.filename != '':
+        # Explicit content-length check (fallback)
+        file.seek(0, os.SEEK_END)
+        size = file.tell()
+        file.seek(0)
 
-        with open('audio_config.txt', 'w') as f:
-            f.write(filename)
+        if size > 10 * 1024 * 1024: # 10MB Limit
+            return render_template_string(f"<script>alert('File too large! Limit is 10MB.'); window.location.href='/';</script>")
+
+        if allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+            with open('audio_config.txt', 'w') as f:
+                f.write(filename)
 
     return redirect(url_for('index'))
 
@@ -330,12 +339,21 @@ def upload_subtitle():
         return redirect(url_for('index'))
 
     file = request.files['subtitle']
-    if file and file.filename != '' and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    if file and file.filename != '':
+        # Explicit content-length check
+        file.seek(0, os.SEEK_END)
+        size = file.tell()
+        file.seek(0)
 
-        with open('sub_config.txt', 'w') as f:
-            f.write(filename)
+        if size > 10 * 1024 * 1024: # 10MB Limit (Generous for SRT but safe)
+            return render_template_string(f"<script>alert('File too large! Limit is 10MB.'); window.location.href='/';</script>")
+
+        if allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+            with open('sub_config.txt', 'w') as f:
+                f.write(filename)
 
     return redirect(url_for('index'))
 
@@ -406,6 +424,9 @@ HTML_WALLPAPER = """
             max-width: 600px;
             width: 90%;
             margin-bottom: 20px;
+        }
+        .upload-card h2 {
+            color: white !important;
         }
         .controls-container {
             display: flex;
@@ -650,16 +671,11 @@ HTML_WALLPAPER = """
 
             canvasCtx.moveTo(0, cy);
 
-            // A simple way: draw a flat line that vibrates based on volume
-            // Let's make it look like the user image: Line... pulse... line...
+            // Heartbeat Logic (ECG Style)
+            // We want a moving green point that leaves a trail, or a scanning line
+            // But requested is "animasi denyut jantung smooth".
+            // Let's use a time-domain waveform but amplify peaks to look like QRS complex
 
-            // To make it look cool, we can just map the waveform buffer
-            // But let's use the requested "volume" to drive a pulse amplitude
-
-            let scale = average / 50; // Sensitivity
-
-            // Draw a waveform based on time domain?
-            // Let's use time domain for the line look
             const timeData = new Uint8Array(bufferLength);
             analyser.getByteTimeDomainData(timeData);
 
@@ -669,7 +685,16 @@ HTML_WALLPAPER = """
 
             for(let i = 0; i < bufferLength; i++) {
                 let v = timeData[i] / 128.0;
-                let y = v * h/2;
+
+                // Amplify variations to simulate heartbeat spikes on loud sounds
+                // Center is 1.0.
+                let deviation = v - 1.0;
+                // Make it sharper
+                if (Math.abs(deviation) > 0.01) {
+                    deviation = deviation * 2.5;
+                }
+
+                let y = (1.0 + deviation) * h/2;
 
                 if(i === 0) canvasCtx.moveTo(x, y);
                 else canvasCtx.lineTo(x, y);
@@ -679,6 +704,8 @@ HTML_WALLPAPER = """
 
             canvasCtx.lineTo(canvas.width, canvas.height/2);
             canvasCtx.stroke();
+
+            // Add a "scanline" leading dot effect if desired, but waveform is continuous
         }
 
         // --- STATE MANAGEMENT ---
