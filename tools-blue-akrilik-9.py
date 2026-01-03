@@ -3,6 +3,8 @@ import os
 import zipfile
 import math
 import sqlite3
+import speech_recognition as sr
+from pydub import AudioSegment, silence
 from flask import Flask, request, send_file, render_template_string, jsonify, send_from_directory, redirect, url_for, session, flash
 from PIL import Image
 from PyPDF2 import PdfReader, PdfWriter, Transformation, PageObject
@@ -360,6 +362,67 @@ def audio_upload():
             
     return redirect(url_for('index'))
 
+@app.route('/generate-subtitle', methods=['POST'])
+def generate_subtitle():
+    data = request.get_json()
+    filename = data.get('filename')
+    if not filename: return jsonify({'error': 'No filename specified'}), 400
+
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
+    if not os.path.exists(filepath): return jsonify({'error': 'File not found'}), 404
+
+    try:
+        # Load audio using pydub
+        sound = AudioSegment.from_file(filepath)
+
+        # Detect non-silent chunks to preserve timing
+        # Returns list of [start_ms, end_ms]
+        # Adjust silence threshold as needed (e.g., -14 dBFS relative to peak)
+        nonsilent_ranges = silence.detect_nonsilent(
+            sound,
+            min_silence_len=500, # 500ms
+            silence_thresh=sound.dBFS - 14
+        )
+
+        # If no ranges found (e.g. constant noise or too quiet), try recognizing whole file
+        if not nonsilent_ranges:
+             nonsilent_ranges = [[0, len(sound)]]
+
+        r = sr.Recognizer()
+        subtitles = []
+
+        for start_ms, end_ms in nonsilent_ranges:
+            chunk = sound[start_ms:end_ms]
+
+            # Export chunk to memory as WAV
+            buf = io.BytesIO()
+            chunk.export(buf, format="wav")
+            buf.seek(0)
+
+            try:
+                with sr.AudioFile(buf) as source:
+                    audio_data = r.record(source)
+                    # Recognize speech using Google Web Speech API (free, limited)
+                    text = r.recognize_google(audio_data, language="id-ID")
+
+                    if text:
+                        subtitles.append({
+                            'start': start_ms / 1000.0,
+                            'end': end_ms / 1000.0,
+                            'text': text
+                        })
+            except sr.UnknownValueError:
+                pass # Unintelligible audio in this chunk
+            except sr.RequestError as e:
+                print(f"API Error: {e}")
+                pass
+
+        return jsonify({'subtitles': subtitles})
+
+    except Exception as e:
+        print(f"Transcription error: {e}")
+        return jsonify({'error': f"Processing failed: {str(e)}"}), 500
+
 
 HTML_WALLPAPER = """
 <!DOCTYPE html>
@@ -582,6 +645,25 @@ HTML_WALLPAPER = """
             pointer-events: none;
             filter: blur(2px); /* Soft aesthetic blur */
         }
+
+        /* Subtitle Overlay */
+        #subtitle-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -100%); /* Center and move up slightly */
+            margin-top: -40px; /* Adjust to be above the heartbeat line */
+            width: 80%;
+            text-align: center;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+            z-index: 50;
+            pointer-events: none;
+            min-height: 1.5em;
+            transition: opacity 0.3s;
+        }
         
         /* Playlist Panel */
         .playlist-panel {
@@ -665,8 +747,15 @@ HTML_WALLPAPER = """
                         <i class="fas fa-music me-2"></i> Set Audio
                     </button>
                 </form>
+
+                <!-- Audio to Subtitle Button -->
+                <button type="button" class="acrylic-btn" onclick="generateSubtitle()" id="btn-subtitle">
+                    <i class="fas fa-closed-captioning me-2"></i> Audio to Subtitle
+                </button>
             </div>
             
+            <div id="subtitle-overlay"></div>
+
             {% if audio_file %}
             <!-- Visualizer Overlay -->
             <canvas id="visualizer"></canvas>
@@ -737,12 +826,47 @@ HTML_WALLPAPER = """
                 const btnShuffle = document.getElementById('btn-shuffle');
                 const btnRepeat = document.getElementById('btn-repeat');
                 const playlistPanel = document.getElementById('playlist-panel');
+                const subtitleOverlay = document.getElementById('subtitle-overlay');
                 
                 // Audio List logic
                 let playlist = {{ audio_files|tojson }};
                 let currentFile = "{{ audio_file }}";
                 let isShuffle = false;
                 let isRepeat = false;
+                let currentSubtitles = [];
+
+                // --- SUBTITLE LOGIC ---
+                function generateSubtitle() {
+                    const btn = document.getElementById('btn-subtitle');
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Generating...';
+                    btn.disabled = true;
+                    subtitleOverlay.innerText = "Processing audio...";
+
+                    fetch('/generate-subtitle', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({filename: currentFile})
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        btn.innerHTML = '<i class="fas fa-check me-2"></i> Subtitles Ready';
+                        btn.disabled = false;
+                        if(data.error) {
+                            subtitleOverlay.innerText = "Error: " + data.error;
+                            setTimeout(() => { subtitleOverlay.innerText = ""; }, 3000);
+                        } else {
+                            currentSubtitles = data.subtitles;
+                            subtitleOverlay.innerText = "Subtitles Loaded (" + currentSubtitles.length + " lines)";
+                            setTimeout(() => { subtitleOverlay.innerText = ""; }, 2000);
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        btn.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i> Failed';
+                        btn.disabled = false;
+                        subtitleOverlay.innerText = "Connection Error";
+                    });
+                }
 
                 // --- VISUALIZER ---
                 const canvas = document.getElementById('visualizer');
@@ -841,6 +965,9 @@ HTML_WALLPAPER = """
                     sourceEl.src = "/uploads/" + filename;
                     audio.load();
                     togglePlay();
+                    currentSubtitles = []; // Reset subtitles
+                    document.getElementById('btn-subtitle').innerHTML = '<i class="fas fa-closed-captioning me-2"></i> Audio to Subtitle';
+                    subtitleOverlay.innerText = "";
                     renderPlaylist(); // Update active state
                 }
 
@@ -906,17 +1033,33 @@ HTML_WALLPAPER = """
                     }
                 });
 
-                // Update Progress & Time
+                // Update Progress & Time & Subtitles
                 audio.addEventListener('timeupdate', () => {
+                    const t = audio.currentTime;
+
                     if(audio.duration) {
-                        const val = (audio.currentTime / audio.duration) * 100;
+                        const val = (t / audio.duration) * 100;
                         seekSlider.value = val;
                         
-                        let mins = Math.floor(audio.currentTime / 60);
-                        let secs = Math.floor(audio.currentTime % 60);
+                        let mins = Math.floor(t / 60);
+                        let secs = Math.floor(t % 60);
                         if(secs < 10) secs = '0' + secs;
                         if(mins < 10) mins = '0' + mins;
                         timeDisplay.textContent = `${mins}:${secs}`;
+                    }
+
+                    // Check subtitles
+                    if(currentSubtitles.length > 0) {
+                        const sub = currentSubtitles.find(s => t >= s.start && t <= s.end);
+                        if(sub) {
+                            subtitleOverlay.innerText = sub.text;
+                            subtitleOverlay.style.opacity = 1;
+                        } else {
+                            subtitleOverlay.innerText = ""; // Hide if no sub
+                            // Or keep last text? usually hide.
+                            // But to avoid flickering, maybe debounce?
+                            // For SRT style, we hide when time is out.
+                        }
                     }
                 });
 
