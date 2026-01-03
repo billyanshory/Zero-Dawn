@@ -1,0 +1,9 @@
+ * Serving Flask app 'tools-blue-akrilik-9'
+ * Debug mode: on
+Address already in use
+Port 5000 is in use by another program. Either identify and stop that program, or start the server with a different port.
+127.0.0.1 - - [03/Jan/2026 22:37:21] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jan/2026 22:37:22] "[33mGET /uploads/default.jpg HTTP/1.1[0m" 404 -
+127.0.0.1 - - [03/Jan/2026 22:38:05] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jan/2026 22:38:05] "GET /uploads/test_audio.mp3 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jan/2026 22:38:05] "[33mGET /uploads/default.jpg HTTP/1.1[0m" 404 -

@@ -18,7 +18,7 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB Limit
 app.secret_key = "supersecretkey"
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt', 'vtt'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -277,13 +277,20 @@ def index():
             if content:
                 audio_file = content
 
+    subtitle_file = None
+    if os.path.exists('subtitle_config.txt'):
+        with open('subtitle_config.txt', 'r') as f:
+            content = f.read().strip()
+            if content:
+                subtitle_file = content
+
     audio_files = []
     if os.path.exists(app.config['UPLOAD_FOLDER']):
         audio_exts = {'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac'}
         audio_files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) 
                        if allowed_file(f) and f.rsplit('.', 1)[1].lower() in audio_exts]
 
-    return render_page(HTML_WALLPAPER, bg_image=bg_image, audio_file=audio_file, audio_files=audio_files)
+    return render_page(HTML_WALLPAPER, bg_image=bg_image, audio_file=audio_file, subtitle_file=subtitle_file, audio_files=audio_files)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -358,6 +365,21 @@ def audio_upload():
         with open('audio_config.txt', 'w') as f:
             f.write(filename)
             
+    return redirect(url_for('index'))
+
+@app.route('/wallpaper-blur/upload-subtitle', methods=['POST'])
+def subtitle_upload():
+    if 'subtitle' not in request.files:
+        return redirect(url_for('index'))
+
+    file = request.files['subtitle']
+    if file and file.filename != '' and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+        with open('subtitle_config.txt', 'w') as f:
+            f.write(filename)
+
     return redirect(url_for('index'))
 
 
@@ -582,6 +604,22 @@ HTML_WALLPAPER = """
             pointer-events: none;
             filter: blur(2px); /* Soft aesthetic blur */
         }
+
+        #subtitle-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            color: white;
+            font-size: 1.5rem;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5);
+            pointer-events: none;
+            width: 80%;
+            max-width: 800px;
+            min-height: 1.5em;
+        }
         
         /* Playlist Panel */
         .playlist-panel {
@@ -665,11 +703,21 @@ HTML_WALLPAPER = """
                         <i class="fas fa-music me-2"></i> Set Audio
                     </button>
                 </form>
+
+                <!-- Subtitle Upload -->
+                <form action="/wallpaper-blur/upload-subtitle" method="post" enctype="multipart/form-data" id="form-sub">
+                    <input type="file" name="subtitle" id="file-sub" hidden onchange="document.getElementById('form-sub').submit()" accept=".srt,.vtt">
+                    <button type="button" class="acrylic-btn" onclick="document.getElementById('file-sub').click()">
+                        <i class="fas fa-closed-captioning me-2"></i> Set Subtitle
+                    </button>
+                </form>
             </div>
             
             {% if audio_file %}
             <!-- Visualizer Overlay -->
             <canvas id="visualizer"></canvas>
+
+            <div id="subtitle-overlay"></div>
 
             <div class="audio-player">
                 <audio id="main-audio" crossorigin="anonymous">
@@ -737,12 +785,91 @@ HTML_WALLPAPER = """
                 const btnShuffle = document.getElementById('btn-shuffle');
                 const btnRepeat = document.getElementById('btn-repeat');
                 const playlistPanel = document.getElementById('playlist-panel');
+                const subtitleOverlay = document.getElementById('subtitle-overlay');
                 
                 // Audio List logic
                 let playlist = {{ audio_files|tojson }};
                 let currentFile = "{{ audio_file }}";
+                let currentSubtitleFile = "{{ subtitle_file if subtitle_file else '' }}";
                 let isShuffle = false;
                 let isRepeat = false;
+
+                // Subtitle Data
+                let subtitles = [];
+
+                // --- SUBTITLE LOGIC ---
+                function parseTime(timeStr) {
+                    // HH:MM:SS,mmm or HH:MM:SS.mmm
+                    timeStr = timeStr.replace(',', '.');
+                    const parts = timeStr.split(':');
+                    let seconds = 0;
+                    if (parts.length === 3) {
+                        seconds = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2]);
+                    } else if (parts.length === 2) {
+                        seconds = parseInt(parts[0]) * 60 + parseFloat(parts[1]);
+                    }
+                    return seconds;
+                }
+
+                function parseSRT(text) {
+                    const subs = [];
+                    const blocks = text.trim().replace(/\\r\\n/g, '\\n').split(/\\n\\n+/);
+                    blocks.forEach(block => {
+                        const lines = block.split('\\n');
+                        if (lines.length >= 2) {
+                            // First line index, second line time
+                            let timeLine = lines[1];
+                            // If first line is time (sometimes index is missing in loose formats)
+                            if(lines[0].includes('-->')) timeLine = lines[0];
+
+                            if (timeLine && timeLine.includes('-->')) {
+                                const times = timeLine.split('-->');
+                                const start = parseTime(times[0].trim());
+                                const end = parseTime(times[1].trim());
+                                // Text is the rest
+                                let textLines = lines.slice(lines[0].includes('-->') ? 1 : 2);
+                                subs.push({ start, end, text: textLines.join('<br>') });
+                            }
+                        }
+                    });
+                    return subs;
+                }
+
+                function parseVTT(text) {
+                    const subs = [];
+                    const blocks = text.trim().replace(/\\r\\n/g, '\\n').split(/\\n\\n+/);
+                    blocks.forEach(block => {
+                        const lines = block.split('\\n');
+                        // Remove WEBVTT header block
+                        if (lines[0].includes('WEBVTT')) return;
+
+                        let timeLineIndex = 0;
+                        if (!lines[0].includes('-->')) timeLineIndex = 1; // ID present
+
+                        if (lines[timeLineIndex] && lines[timeLineIndex].includes('-->')) {
+                            const times = lines[timeLineIndex].split('-->');
+                            const start = parseTime(times[0].trim());
+                            const end = parseTime(times[1].trim());
+                            let textLines = lines.slice(timeLineIndex + 1);
+                            subs.push({ start, end, text: textLines.join('<br>') });
+                        }
+                    });
+                    return subs;
+                }
+
+                if (currentSubtitleFile) {
+                    fetch('/uploads/' + currentSubtitleFile)
+                        .then(r => r.text())
+                        .then(text => {
+                            if (currentSubtitleFile.endsWith('.vtt')) {
+                                subtitles = parseVTT(text);
+                            } else {
+                                subtitles = parseSRT(text);
+                            }
+                            console.log('Loaded subtitles:', subtitles.length);
+                        })
+                        .catch(e => console.error('Error loading subtitles', e));
+                }
 
                 // --- VISUALIZER ---
                 const canvas = document.getElementById('visualizer');
@@ -906,14 +1033,28 @@ HTML_WALLPAPER = """
                     }
                 });
 
-                // Update Progress & Time
+                // Update Progress & Time & Subtitles
                 audio.addEventListener('timeupdate', () => {
+                    const ct = audio.currentTime;
+
+                    // Subtitle Update
+                    if (subtitles.length > 0) {
+                        const cue = subtitles.find(s => ct >= s.start && ct <= s.end);
+                        if (cue) {
+                            if (subtitleOverlay.innerHTML !== cue.text) {
+                                subtitleOverlay.innerHTML = cue.text;
+                            }
+                        } else {
+                            subtitleOverlay.innerHTML = '';
+                        }
+                    }
+
                     if(audio.duration) {
-                        const val = (audio.currentTime / audio.duration) * 100;
+                        const val = (ct / audio.duration) * 100;
                         seekSlider.value = val;
                         
-                        let mins = Math.floor(audio.currentTime / 60);
-                        let secs = Math.floor(audio.currentTime % 60);
+                        let mins = Math.floor(ct / 60);
+                        let secs = Math.floor(ct % 60);
                         if(secs < 10) secs = '0' + secs;
                         if(mins < 10) mins = '0' + mins;
                         timeDisplay.textContent = `${mins}:${secs}`;
