@@ -1,0 +1,18 @@
+/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/pydub/utils.py:170: RuntimeWarning: Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work
+  warn("Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work", RuntimeWarning)
+ * Serving Flask app 'tools-blue-akrilik-9'
+ * Debug mode: on
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/pydub/utils.py:170: RuntimeWarning: Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work
+  warn("Couldn't find ffmpeg or avconv - defaulting to ffmpeg, but may not work", RuntimeWarning)
+ * Debugger is active!
+ * Debugger PIN: 132-491-319
+/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/pydub/utils.py:198: RuntimeWarning: Couldn't find ffprobe or avprobe - defaulting to ffprobe, but may not work
+  warn("Couldn't find ffprobe or avprobe - defaulting to ffprobe, but may not work", RuntimeWarning)
+127.0.0.1 - - [03/Jan/2026 21:13:59] "[35m[1mPOST /generate-subtitle HTTP/1.1[0m" 500 -
+127.0.0.1 - - [03/Jan/2026 21:14:18] "POST /generate-subtitle HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jan/2026 21:14:34] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jan/2026 21:14:34] "[33mGET /uploads/default.jpg HTTP/1.1[0m" 404 -

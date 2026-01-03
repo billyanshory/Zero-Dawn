@@ -372,50 +372,73 @@ def generate_subtitle():
     if not os.path.exists(filepath): return jsonify({'error': 'File not found'}), 404
 
     try:
-        # Load audio using pydub
-        sound = AudioSegment.from_file(filepath)
+        # Pydub might fail if ffmpeg is missing
+        try:
+            sound = AudioSegment.from_file(filepath)
 
-        # Detect non-silent chunks to preserve timing
-        # Returns list of [start_ms, end_ms]
-        # Adjust silence threshold as needed (e.g., -14 dBFS relative to peak)
-        nonsilent_ranges = silence.detect_nonsilent(
-            sound,
-            min_silence_len=500, # 500ms
-            silence_thresh=sound.dBFS - 14
-        )
+            # Detect non-silent chunks to preserve timing
+            nonsilent_ranges = silence.detect_nonsilent(
+                sound,
+                min_silence_len=500, # 500ms
+                silence_thresh=sound.dBFS - 14
+            )
 
-        # If no ranges found (e.g. constant noise or too quiet), try recognizing whole file
-        if not nonsilent_ranges:
-             nonsilent_ranges = [[0, len(sound)]]
+            # If no ranges found, use whole file
+            if not nonsilent_ranges:
+                nonsilent_ranges = [[0, len(sound)]]
+
+            use_fallback = False
+
+        except (FileNotFoundError, OSError) as e:
+            # Likely ffmpeg missing
+            print(f"Pydub error (ffmpeg missing?): {e}")
+            use_fallback = True
+            nonsilent_ranges = [] # Will not use loop
 
         r = sr.Recognizer()
         subtitles = []
 
-        for start_ms, end_ms in nonsilent_ranges:
-            chunk = sound[start_ms:end_ms]
+        if not use_fallback:
+            for start_ms, end_ms in nonsilent_ranges:
+                chunk = sound[start_ms:end_ms]
 
-            # Export chunk to memory as WAV
-            buf = io.BytesIO()
-            chunk.export(buf, format="wav")
-            buf.seek(0)
+                # Export chunk to memory as WAV
+                buf = io.BytesIO()
+                chunk.export(buf, format="wav")
+                buf.seek(0)
 
+                try:
+                    with sr.AudioFile(buf) as source:
+                        audio_data = r.record(source)
+                        text = r.recognize_google(audio_data, language="id-ID")
+
+                        if text:
+                            subtitles.append({
+                                'start': start_ms / 1000.0,
+                                'end': end_ms / 1000.0,
+                                'text': text
+                            })
+                except sr.UnknownValueError:
+                    pass
+                except sr.RequestError as e:
+                    print(f"API Error: {e}")
+                    pass
+        else:
+            # Fallback: Try direct recognition without pydub
+            # Only works well for WAV/AIFF/FLAC
             try:
-                with sr.AudioFile(buf) as source:
+                with sr.AudioFile(filepath) as source:
                     audio_data = r.record(source)
-                    # Recognize speech using Google Web Speech API (free, limited)
                     text = r.recognize_google(audio_data, language="id-ID")
-
                     if text:
+                        # Return as one big subtitle
                         subtitles.append({
-                            'start': start_ms / 1000.0,
-                            'end': end_ms / 1000.0,
+                            'start': 0,
+                            'end': 99999, # Show until end
                             'text': text
                         })
-            except sr.UnknownValueError:
-                pass # Unintelligible audio in this chunk
-            except sr.RequestError as e:
-                print(f"API Error: {e}")
-                pass
+            except Exception as e:
+                return jsonify({'error': 'ffmpeg not found and file format not natively supported by recognizer.'}), 500
 
         return jsonify({'subtitles': subtitles})
 
