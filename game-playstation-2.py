@@ -392,6 +392,7 @@ STYLES_HTML = """
             --card-bg: #ffffff;
             --text-dark: #333333;
             --text-muted: #666666;
+            --neon-blue: #00f3ff;
         }
         /* Keep existing variable definitions */
         [data-bs-theme="dark"] {
@@ -402,6 +403,28 @@ STYLES_HTML = """
         }
         body {
             font-family: 'Inter', sans-serif;
+        }
+
+        .text-blue-neon {
+            color: var(--neon-blue);
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+        }
+
+        .btn-cyan-neon {
+            background: transparent;
+            border: 2px solid var(--neon-blue);
+            color: var(--neon-blue);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+            transition: all 0.3s;
+        }
+        .btn-cyan-neon:hover {
+            background: var(--neon-blue);
+            color: black;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.6);
+            transform: translateY(-2px);
         }
     </style>
 """
@@ -432,6 +455,31 @@ HTML_GAME_LIST = """
             background: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(20px);
             z-index: -1;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            padding: 80px 20px;
+            position: relative;
+        }
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.2;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+        }
+        .hero-subtitle {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.8);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Section Header */
+        .section-header h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            display: inline-block;
         }
 
         /* Grid Layout */
@@ -612,7 +660,7 @@ HTML_GAME_LIST = """
 
         /* Footer Styling */
         footer.acrylic-footer {
-            margin-top: 60px;
+            margin-top: 80px;
             color: rgba(255,255,255,0.6);
             background: rgba(0, 0, 0, 0.3);
             backdrop-filter: blur(10px);
@@ -660,6 +708,19 @@ HTML_GAME_LIST = """
 
     <div class="container container-xl py-5">
 
+        <!-- HERO SECTION -->
+        <div class="hero-section text-center mb-5">
+            <h1 class="hero-title">Temukan Petualangan <br> <span class="text-blue-neon">Baru Anda</span></h1>
+            <p class="hero-subtitle mt-3">Jelajahi ribuan game dari berbagai genre. Petualangan tanpa batas menanti!</p>
+            <button class="btn btn-cyan-neon mt-4 px-5 py-2 rounded-pill">Mulai Jelajah</button>
+        </div>
+
+        <!-- POPULAR HEADER -->
+        <div class="section-header mb-4">
+            <h2 class="fw-bold">Game Populer <span class="text-blue-neon" style="border-bottom: 3px solid #00f3ff;">Saat Ini</span></h2>
+        </div>
+
+        <!-- GRID -->
         <div class="games-grid">
             {% for game in games %}
             <div class="mini-card" onclick="openModal('{{ game.id }}')">
@@ -681,6 +742,35 @@ HTML_GAME_LIST = """
                 </div>
             </div>
             {% endfor %}
+        </div>
+
+        <!-- NEW RELEASES SECTION -->
+        <div class="section-header mt-5 mb-4">
+            <h2 class="fw-bold">Rilisan <span class="text-blue-neon" style="border-bottom: 3px solid #00f3ff;">Terbaru</span></h2>
+        </div>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4 mb-5">
+            <!-- Placeholder New Release 1 -->
+            <div class="col">
+                <div class="mini-card h-100">
+                     <div class="mini-poster" style="background: linear-gradient(45deg, #1e1e1e, #2d2d2d); display:flex; align-items:center; justify-content:center; color:white; font-size:1.5rem;">GTA VI</div>
+                     <div class="mini-info">
+                        <div class="mini-title">Grand Theft Auto VI</div>
+                        <div class="mini-status"><span class="text-info"><i class="fas fa-clock me-1"></i> Pre-Order</span></div>
+                        <div class="mini-price">Rp 1.150.000</div>
+                     </div>
+                </div>
+            </div>
+            <!-- Placeholder New Release 2 -->
+             <div class="col">
+                <div class="mini-card h-100">
+                     <div class="mini-poster" style="background: linear-gradient(45deg, #1e1e1e, #2d2d2d); display:flex; align-items:center; justify-content:center; color:white; font-size:1.5rem;">Witcher 4</div>
+                     <div class="mini-info">
+                        <div class="mini-title">The Witcher: Polaris</div>
+                        <div class="mini-status"><span class="text-info"><i class="fas fa-clock me-1"></i> Coming Soon</span></div>
+                        <div class="mini-price">Rp 899.000</div>
+                     </div>
+                </div>
+            </div>
         </div>
 
         <footer class="acrylic-footer">
