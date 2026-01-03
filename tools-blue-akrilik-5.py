@@ -2,6 +2,7 @@ import io
 import os
 import zipfile
 import math
+import glob
 import sqlite3
 from flask import Flask, request, send_file, render_template_string, jsonify, send_from_directory, redirect, url_for, session, flash
 from PIL import Image
@@ -276,7 +277,27 @@ def index():
                  break
         game_images[f'game{i}'] = found if found else 'default_game.jpg'
 
-    return render_page(HTML_GAME_LIST, game_images=game_images)
+    # --- Wallpaper Logic ---
+    bg_image = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop'
+    if os.path.exists('bg_config.txt'):
+        with open('bg_config.txt', 'r') as f:
+            bg_name = f.read().strip()
+            if bg_name:
+                bg_image = f'/uploads/{bg_name}'
+
+    # --- Audio Logic ---
+    audio_file = None
+    if os.path.exists('audio_config.txt'):
+        with open('audio_config.txt', 'r') as f:
+            audio_file = f.read().strip()
+
+    audio_files = []
+    if os.path.exists(app.config['UPLOAD_FOLDER']):
+        for f in os.listdir(app.config['UPLOAD_FOLDER']):
+            if f.lower().endswith(('.mp3', '.wav', '.ogg', '.m4a', '.flac')):
+                audio_files.append(f)
+
+    return render_page(HTML_GAME_LIST, game_images=game_images, bg_image=bg_image, audio_file=audio_file, audio_files=audio_files)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -316,7 +337,27 @@ def list_game_playstation():
                  break
         game_images[f'game{i}'] = found if found else 'default_game.jpg'
 
-    return render_page(HTML_GAME_LIST, game_images=game_images)
+    # --- Wallpaper Logic ---
+    bg_image = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop'
+    if os.path.exists('bg_config.txt'):
+        with open('bg_config.txt', 'r') as f:
+            bg_name = f.read().strip()
+            if bg_name:
+                bg_image = f'/uploads/{bg_name}'
+
+    # --- Audio Logic ---
+    audio_file = None
+    if os.path.exists('audio_config.txt'):
+        with open('audio_config.txt', 'r') as f:
+            audio_file = f.read().strip()
+
+    audio_files = []
+    if os.path.exists(app.config['UPLOAD_FOLDER']):
+        for f in os.listdir(app.config['UPLOAD_FOLDER']):
+            if f.lower().endswith(('.mp3', '.wav', '.ogg', '.m4a', '.flac')):
+                audio_files.append(f)
+
+    return render_page(HTML_GAME_LIST, game_images=game_images, bg_image=bg_image, audio_file=audio_file, audio_files=audio_files)
 
 @app.route('/list-game-playstation/upload/<game_id>', methods=['POST'])
 def upload_game_image(game_id):
@@ -1018,7 +1059,8 @@ HTML_GAME_LIST = """
     <style>
         body {
             background-color: #0f0f0f;
-            background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop');
+            /* Use injected bg_image or default if empty (fallback handled in Python mostly, but good to have) */
+            background-image: url('{{ bg_image }}');
             background-size: cover;
             background-attachment: fixed;
             background-position: center;
@@ -1112,23 +1154,20 @@ HTML_GAME_LIST = """
         .read-more-overlay {
             position: absolute;
             bottom: 0;
-            /* Expand to edge of card (overcoming 25px padding of .game-info) */
             left: -25px;
             width: calc(100% + 50px);
             height: 80px;
             background: linear-gradient(transparent, rgba(0,0,0,0.6));
-            /* Soft smooth acrylic blur */
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             display: flex;
             justify-content: center;
-            align-items: center; /* Center text vertically in the overlay */
+            align-items: center;
             cursor: pointer;
             transition: opacity 0.3s;
         }
         .game-desc-content.expanded + .read-more-overlay {
             display: none;
-            /* Alternatively: opacity: 0; pointer-events: none; */
         }
         .read-more-btn {
             color: var(--brand-color);
@@ -1180,25 +1219,202 @@ HTML_GAME_LIST = """
             max-width: 800px;
             margin-left: auto;
             margin-right: auto;
-
-            /* Vertical and Horizontal Centering */
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 80px; /* Fixed height to ensure vertical centering space */
+            height: 80px;
         }
         footer.acrylic-footer p {
-            margin: 0; /* Remove default paragraph margin */
+            margin: 0;
             padding: 0;
         }
+
+        /* --- AUDIO & WALLPAPER CONTROL STYLES --- */
+        .acrylic-btn {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 6px 15px;
+            border-radius: 8px;
+            transition: 0.3s;
+            text-decoration: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+        .acrylic-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        /* Audio Player Styles */
+        .audio-player {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px 25px;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            width: 90%;
+            max-width: 700px;
+        }
+        .player-row-top { width: 100%; padding: 0 5px; }
+        .player-row-bottom {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            width: 100%;
+        }
+        .player-left { display: flex; align-items: center; gap: 10px; justify-content: flex-start; }
+        .player-center { display: flex; align-items: center; gap: 15px; justify-content: center; }
+        .player-right { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+
+        .player-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255,255,255,0.8);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        .player-btn:hover { color: white; transform: scale(1.1); }
+        .player-btn.active { color: var(--brand-color); }
+        .play-btn-large {
+            width: 40px; height: 40px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            font-size: 1.2rem;
+            color: white;
+        }
+        .play-btn-large:hover { background: white; color: black; transform: scale(1.05); }
+
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 12px; width: 12px;
+            border-radius: 50%; background: white; cursor: pointer; margin-top: -4px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; cursor: pointer;
+            background: rgba(255,255,255,0.2); border-radius: 2px;
+        }
+        .time-display, .db-display {
+            font-size: 0.8rem; color: rgba(255,255,255,0.7); font-variant-numeric: tabular-nums; min-width: 35px;
+        }
+
+        #visualizer {
+            position: fixed;
+            top: 50%; left: 0;
+            width: 100%; height: 300px;
+            transform: translateY(-50%);
+            z-index: -1;
+            pointer-events: none;
+            filter: blur(2px);
+            opacity: 0.6;
+        }
+
+        /* Playlist Panel */
+        .playlist-panel {
+            position: fixed;
+            bottom: 130px; right: 50px;
+            width: 280px; max-height: 350px;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 15px;
+            z-index: 1001;
+            display: none;
+            overflow-y: auto;
+            color: white;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .playlist-header {
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px; margin-bottom: 10px;
+            font-weight: 700; display: flex; justify-content: space-between;
+        }
+        .playlist-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 6px; border-radius: 5px; cursor: pointer; transition: 0.2s; font-size: 0.85rem;
+        }
+        .playlist-item:hover { background: rgba(255,255,255,0.1); }
+        .playlist-item.active { background: rgba(229, 50, 45, 0.2); color: var(--brand-color); }
+        .action-btn {
+            background: transparent; border: none; color: rgba(255,255,255,0.5);
+            cursor: pointer; font-size: 0.8rem;
+        }
+        .action-btn:hover { color: white; }
+        .action-btn.delete:hover { color: #ff4444; }
     </style>
 </head>
-<body class="lang-mode-id"> <!-- Default to ID -->
+<body class="lang-mode-id">
     <div class="acrylic-overlay-page"></div>
 
-    {{ navbar|safe }}
+    <!-- Navbar with extra controls -->
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">Game of <span>Playstation</span></a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link fw-bold" href="/" style="color: white !important;">
+                            <span class="lang-id">Daftar Game Playstation</span>
+                            <span class="lang-en">List Game Playstation</span>
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav ms-auto align-items-center gap-2">
+                     <!-- Controls -->
+                    <li class="nav-item">
+                        <form action="/wallpaper-blur/upload" method="post" enctype="multipart/form-data" id="form-wall-nav">
+                            <input type="file" name="background" id="file-wall-nav" hidden onchange="document.getElementById('form-wall-nav').submit()" accept="image/*">
+                            <button type="button" class="acrylic-btn" onclick="document.getElementById('file-wall-nav').click()">
+                                <i class="fas fa-image me-2"></i> Set Wallpaper
+                            </button>
+                        </form>
+                    </li>
+                    <li class="nav-item">
+                        <form action="/wallpaper-blur/upload-audio" method="post" enctype="multipart/form-data" id="form-audio-nav">
+                            <input type="file" name="audio" id="file-audio-nav" hidden onchange="document.getElementById('form-audio-nav').submit()" accept="audio/*">
+                            <button type="button" class="acrylic-btn" onclick="document.getElementById('file-audio-nav').click()">
+                                <i class="fas fa-music me-2"></i> Set Audio
+                            </button>
+                        </form>
+                    </li>
+                    <li class="nav-item">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleLanguage()" id="lang-btn">ID</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
 
-    <div class="container container-xl py-5">
+    <!-- Visualizer Background -->
+    {% if audio_file %}
+    <canvas id="visualizer"></canvas>
+    {% endif %}
+
+    <div class="container container-xl py-5" style="padding-bottom: 120px !important;">
         <div class="row g-5">
             <!-- Game 1: Horizon Zero Dawn -->
             <div class="col-lg-4">
@@ -1356,6 +1572,58 @@ HTML_GAME_LIST = """
         </footer>
     </div>
 
+    {% if audio_file %}
+    <!-- Audio Player UI -->
+    <div class="audio-player">
+        <audio id="main-audio" crossorigin="anonymous">
+            <source src="/uploads/{{ audio_file }}" id="audio-source">
+        </audio>
+
+        <div class="player-row-top">
+            <input type="range" id="seek-slider" min="0" max="100" value="0">
+        </div>
+
+        <div class="player-row-bottom">
+            <div class="player-left">
+                <span class="time-display" id="time-display">00:00</span>
+                <button class="player-btn" onclick="toggleShuffle()" title="Shuffle" id="btn-shuffle"><i class="fas fa-random"></i></button>
+                <button class="player-btn" onclick="toggleRepeat()" title="Repeat" id="btn-repeat"><i class="fas fa-redo"></i></button>
+            </div>
+            <div class="player-center">
+                <button class="player-btn" onclick="stopAudio()" title="Stop"><i class="fas fa-stop"></i></button>
+                <button class="player-btn" onclick="skip(-5)"><i class="fas fa-backward"></i></button>
+                <button class="player-btn play-btn-large" onclick="togglePlay()"><i class="fas fa-play" id="play-icon"></i></button>
+                <button class="player-btn" onclick="skip(5)"><i class="fas fa-forward"></i></button>
+            </div>
+            <div class="player-right">
+                <i class="fas fa-volume-up" id="vol-icon" style="color:rgba(255,255,255,0.7)"></i>
+                <div style="width: 70px;">
+                    <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="1">
+                </div>
+                <span class="db-display" id="db-display">0 dB</span>
+                <button class="player-btn" onclick="togglePlaylist()" title="Playlist" id="btn-playlist"><i class="fas fa-list"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Playlist Modal -->
+    <div class="playlist-panel" id="playlist-panel">
+        <div class="playlist-header">
+            <span>Playlist</span>
+            <i class="fas fa-times" onclick="togglePlaylist()" style="cursor:pointer"></i>
+        </div>
+        <div id="playlist-items">
+            <!-- Items injected by JS -->
+        </div>
+    </div>
+
+    <!-- Hidden Rename Form -->
+    <form id="rename-form" action="/wallpaper-blur/rename-audio" method="post" style="display:none">
+        <input type="hidden" name="old_name" id="rename-old">
+        <input type="hidden" name="new_name" id="rename-new">
+    </form>
+    {% endif %}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function setTheme(theme) {
@@ -1387,8 +1655,218 @@ HTML_GAME_LIST = """
         function toggleReadMore(id) {
             const content = document.getElementById(id);
             content.classList.toggle('expanded');
-            // Hide overlay is handled by CSS
         }
+
+        // --- AUDIO PLAYER JS ---
+        {% if audio_file %}
+        const audio = document.getElementById('main-audio');
+        const sourceEl = document.getElementById('audio-source');
+        const playIcon = document.getElementById('play-icon');
+        const seekSlider = document.getElementById('seek-slider');
+        const timeDisplay = document.getElementById('time-display');
+        const volSlider = document.getElementById('vol-slider');
+        const dbDisplay = document.getElementById('db-display');
+        const btnShuffle = document.getElementById('btn-shuffle');
+        const btnRepeat = document.getElementById('btn-repeat');
+        const playlistPanel = document.getElementById('playlist-panel');
+
+        // Playlist Data
+        let playlist = {{ audio_files|tojson }};
+        let currentFile = "{{ audio_file }}";
+        let isShuffle = false;
+        let isRepeat = false;
+
+        // Visualizer Setup
+        const canvas = document.getElementById('visualizer');
+        let ctx, audioCtx, analyser, source;
+        let initialized = false;
+
+        if (canvas) {
+            ctx = canvas.getContext('2d');
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = 300;
+            }
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+        }
+
+        function initAudio() {
+            if (!initialized && canvas) {
+                initialized = true;
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                source = audioCtx.createMediaElementSource(audio);
+                source.connect(analyser);
+                analyser.connect(audioCtx.destination);
+                analyser.fftSize = 2048;
+                drawVisualizer();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function drawVisualizer() {
+            if(!canvas) return;
+            requestAnimationFrame(drawVisualizer);
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(dataArray);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)'; // Brighter for dark background
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = "rgba(229, 50, 45, 0.5)"; // Red glow
+
+            ctx.beginPath();
+            const sliceWidth = canvas.width * 1.0 / bufferLength;
+            let x = 0;
+
+            for(let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = v * canvas.height / 2;
+                if(i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+                x += sliceWidth;
+            }
+            ctx.lineTo(canvas.width, canvas.height/2);
+            ctx.stroke();
+        }
+
+        function togglePlay() {
+            initAudio();
+            if (audio.paused) {
+                audio.play();
+                playIcon.classList.remove('fa-play');
+                playIcon.classList.add('fa-pause');
+            } else {
+                audio.pause();
+                playIcon.classList.add('fa-play');
+                playIcon.classList.remove('fa-pause');
+            }
+        }
+
+        function stopAudio() {
+            audio.pause();
+            audio.currentTime = 0;
+            playIcon.classList.add('fa-play');
+            playIcon.classList.remove('fa-pause');
+        }
+
+        function skip(seconds) {
+            audio.currentTime += seconds;
+        }
+
+        function toggleRepeat() {
+            isRepeat = !isRepeat;
+            btnRepeat.classList.toggle('active', isRepeat);
+            audio.loop = isRepeat;
+        }
+
+        function toggleShuffle() {
+            isShuffle = !isShuffle;
+            btnShuffle.classList.toggle('active', isShuffle);
+        }
+
+        function loadTrack(filename) {
+            currentFile = filename;
+            sourceEl.src = "/uploads/" + filename;
+            audio.load();
+            togglePlay();
+            renderPlaylist();
+        }
+
+        function togglePlaylist() {
+            if(playlistPanel.style.display === 'block') {
+                playlistPanel.style.display = 'none';
+            } else {
+                playlistPanel.style.display = 'block';
+                renderPlaylist();
+            }
+        }
+
+        function renderPlaylist() {
+            const container = document.getElementById('playlist-items');
+            container.innerHTML = '';
+
+            if(playlist.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:10px; color:rgba(255,255,255,0.5)">No audio files</div>';
+                return;
+            }
+
+            playlist.forEach(file => {
+                const div = document.createElement('div');
+                div.className = `playlist-item ${file === currentFile ? 'active' : ''}`;
+                div.innerHTML = `
+                    <span onclick="loadTrack('${file}')" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${file}</span>
+                    <div class="playlist-actions">
+                        <button class="action-btn" onclick="renameTrack('${file}')"><i class="fas fa-pencil-alt"></i></button>
+                        <button class="action-btn delete" onclick="deleteTrack('${file}')"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function deleteTrack(filename) {
+            if(confirm('Delete ' + filename + '?')) {
+                window.location.href = `/wallpaper-blur/delete-audio/${filename}`;
+            }
+        }
+
+        function renameTrack(filename) {
+            const newName = prompt('Rename ' + filename + ' to:', filename);
+            if(newName && newName !== filename) {
+                document.getElementById('rename-old').value = filename;
+                document.getElementById('rename-new').value = newName;
+                document.getElementById('rename-form').submit();
+            }
+        }
+
+        audio.addEventListener('ended', () => {
+            if (!isRepeat && playlist.length > 0) {
+                if (isShuffle) {
+                    let nextIndex = Math.floor(Math.random() * playlist.length);
+                    loadTrack(playlist[nextIndex]);
+                } else {
+                    let idx = playlist.indexOf(currentFile);
+                    let nextIdx = (idx + 1) % playlist.length;
+                    loadTrack(playlist[nextIdx]);
+                }
+            }
+        });
+
+        audio.addEventListener('timeupdate', () => {
+            if(audio.duration) {
+                const val = (audio.currentTime / audio.duration) * 100;
+                seekSlider.value = val;
+
+                let mins = Math.floor(audio.currentTime / 60);
+                let secs = Math.floor(audio.currentTime % 60);
+                if(secs < 10) secs = '0' + secs;
+                if(mins < 10) mins = '0' + mins;
+                timeDisplay.textContent = `${mins}:${secs}`;
+            }
+        });
+
+        seekSlider.addEventListener('input', () => {
+            if(audio.duration) {
+                const seekTime = (seekSlider.value / 100) * audio.duration;
+                audio.currentTime = seekTime;
+            }
+        });
+
+        volSlider.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            audio.volume = val;
+            let db = -Infinity;
+            if(val > 0) db = 20 * Math.log10(val);
+            if(db < -60) dbDisplay.innerText = "Mute";
+            else dbDisplay.innerText = Math.round(db) + " dB";
+        });
+        {% endif %}
     </script>
 </body>
 </html>
