@@ -351,12 +351,19 @@ NAVBAR_HTML = """
             background: rgba(0, 243, 255, 0.1);
             box-shadow: 0 0 15px rgba(0, 243, 255, 0.4);
         }
+        /* Mobile Menu Toggler White Fix */
+        .navbar-toggler {
+            border-color: rgba(255,255,255,0.5) !important;
+        }
+        .navbar-toggler-icon {
+            filter: brightness(0) invert(1) !important;
+        }
     </style>
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
             <a class="navbar-brand" href="/">Game<span class="brand-verse">Verse</span></a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon" style="filter: invert(1);"></span>
+                <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
@@ -403,6 +410,9 @@ STYLES_HTML = """
         }
         body {
             font-family: 'Inter', sans-serif;
+        }
+        html {
+            scroll-behavior: smooth;
         }
 
         .text-blue-neon {
@@ -712,11 +722,11 @@ HTML_GAME_LIST = """
         <div class="hero-section text-center mb-5">
             <h1 class="hero-title">Temukan Petualangan <br> <span class="text-blue-neon">Baru Anda</span></h1>
             <p class="hero-subtitle mt-3">Jelajahi ribuan game dari berbagai genre. Petualangan tanpa batas menanti!</p>
-            <button class="btn btn-cyan-neon mt-4 px-5 py-2 rounded-pill">Mulai Jelajah</button>
+            <button class="btn btn-cyan-neon mt-4 px-5 py-2 rounded-pill" onclick="scrollToPopular()">Mulai Jelajah</button>
         </div>
 
         <!-- POPULAR HEADER -->
-        <div class="section-header mb-4">
+        <div class="section-header mb-4" id="popular-games">
             <h2 class="fw-bold">Game Populer <span class="text-blue-neon" style="border-bottom: 3px solid #00f3ff;">Saat Ini</span></h2>
         </div>
 
@@ -854,6 +864,14 @@ HTML_GAME_LIST = """
         function closeModal() {
             const overlay = document.getElementById('modal-overlay');
             overlay.classList.remove('active');
+        }
+
+        // Smooth scroll function
+        function scrollToPopular() {
+            const el = document.getElementById('popular-games');
+            if(el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+            }
         }
 
         // Close on click outside
