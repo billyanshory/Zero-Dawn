@@ -3,6 +3,7 @@ import os
 import zipfile
 import math
 import sqlite3
+import speech_recognition as sr
 from flask import Flask, request, send_file, render_template_string, jsonify, send_from_directory, redirect, url_for, session, flash
 from PIL import Image
 from PyPDF2 import PdfReader, PdfWriter, Transformation, PageObject
@@ -11,6 +12,8 @@ from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 from werkzeug.utils import secure_filename
+from pydub import AudioSegment
+from pydub.silence import detect_nonsilent
 
 # --- KONFIGURASI FLASK ---
 app = Flask(__name__)
@@ -360,6 +363,64 @@ def audio_upload():
             
     return redirect(url_for('index'))
 
+@app.route('/generate-subtitle', methods=['POST'])
+def generate_subtitle():
+    data = request.get_json()
+    filename = data.get('filename')
+
+    if not filename:
+        return jsonify({'error': 'No filename provided'}), 400
+
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
+    if not os.path.exists(filepath):
+        return jsonify({'error': 'File not found'}), 404
+
+    try:
+        # Load audio using pydub
+        sound = AudioSegment.from_file(filepath)
+
+        # Detect nonsilent chunks to determine timing
+        # Adjust min_silence_len and silence_thresh as needed
+        # Using dBFS - 16 as a relative threshold
+        nonsilent_ranges = detect_nonsilent(sound, min_silence_len=500, silence_thresh=sound.dBFS-16)
+
+        recognizer = sr.Recognizer()
+        subtitles = []
+
+        for start_ms, end_ms in nonsilent_ranges:
+            # Extract the chunk
+            chunk = sound[start_ms:end_ms]
+
+            # Export to memory buffer as WAV for SpeechRecognition
+            buf = io.BytesIO()
+            chunk.export(buf, format="wav")
+            buf.seek(0)
+
+            with sr.AudioFile(buf) as source:
+                # Record the audio from the file
+                audio_data = recognizer.record(source)
+                try:
+                    # Recognize speech using Google Web Speech API (Indonesian)
+                    text = recognizer.recognize_google(audio_data, language="id-ID")
+                    subtitles.append({
+                        "start": start_ms / 1000.0,
+                        "end": end_ms / 1000.0,
+                        "text": text
+                    })
+                except sr.UnknownValueError:
+                    # Speech was unintelligible
+                    pass
+                except sr.RequestError as e:
+                    # API was unreachable or failed
+                    pass
+
+        return jsonify({'subtitles': subtitles})
+
+    except FileNotFoundError:
+        return jsonify({'error': 'FFmpeg not found or file format not supported without FFmpeg. Please ensure FFmpeg is installed.'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 HTML_WALLPAPER = """
 <!DOCTYPE html>
@@ -639,6 +700,24 @@ HTML_WALLPAPER = """
         }
         .action-btn:hover { color: white; }
         .action-btn.delete:hover { color: #ff4444; }
+
+        /* Subtitle Overlay */
+        #subtitle-overlay {
+            position: absolute;
+            top: 40%; /* Positioned slightly above the vertical center */
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white !important;
+            font-size: 1.5rem; /* Medium pleasant font */
+            font-weight: 600;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            z-index: 50; /* Above visualizer */
+            width: 80%;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            min-height: 2em;
+        }
     </style>
 </head>
 <body>
@@ -665,9 +744,17 @@ HTML_WALLPAPER = """
                         <i class="fas fa-music me-2"></i> Set Audio
                     </button>
                 </form>
+
+                <!-- Audio To Subtitle Button -->
+                <button type="button" class="acrylic-btn" id="btn-subtitle" onclick="generateSubtitle()">
+                    <i class="fas fa-closed-captioning me-2"></i> Audio to Subtitle
+                </button>
             </div>
             
             {% if audio_file %}
+            <!-- Subtitle Overlay -->
+            <div id="subtitle-overlay"></div>
+
             <!-- Visualizer Overlay -->
             <canvas id="visualizer"></canvas>
 
@@ -743,6 +830,38 @@ HTML_WALLPAPER = """
                 let currentFile = "{{ audio_file }}";
                 let isShuffle = false;
                 let isRepeat = false;
+                let currentSubtitles = [];
+
+                // --- SUBTITLE LOGIC ---
+                async function generateSubtitle() {
+                    if(!currentFile) return alert("No audio selected");
+
+                    const btn = document.getElementById('btn-subtitle');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Processing...';
+                    btn.disabled = true;
+
+                    try {
+                        const response = await fetch('/generate-subtitle', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({filename: currentFile})
+                        });
+                        const data = await response.json();
+
+                        if(response.ok && data.subtitles) {
+                            currentSubtitles = data.subtitles;
+                            alert("Subtitles generated successfully!");
+                        } else {
+                            alert("Failed: " + (data.error || "Unknown error"));
+                        }
+                    } catch(e) {
+                        alert("Error: " + e);
+                    } finally {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }
+                }
 
                 // --- VISUALIZER ---
                 const canvas = document.getElementById('visualizer');
@@ -841,6 +960,8 @@ HTML_WALLPAPER = """
                     sourceEl.src = "/uploads/" + filename;
                     audio.load();
                     togglePlay();
+                    currentSubtitles = []; // Clear subtitles for new track
+                    document.getElementById('subtitle-overlay').innerText = "";
                     renderPlaylist(); // Update active state
                 }
 
@@ -906,7 +1027,7 @@ HTML_WALLPAPER = """
                     }
                 });
 
-                // Update Progress & Time
+                // Update Progress & Time & Subtitles
                 audio.addEventListener('timeupdate', () => {
                     if(audio.duration) {
                         const val = (audio.currentTime / audio.duration) * 100;
@@ -917,6 +1038,20 @@ HTML_WALLPAPER = """
                         if(secs < 10) secs = '0' + secs;
                         if(mins < 10) mins = '0' + mins;
                         timeDisplay.textContent = `${mins}:${secs}`;
+
+                        // Subtitle sync
+                        const t = audio.currentTime;
+                        const sub = currentSubtitles.find(s => t >= s.start && t <= s.end);
+                        const overlay = document.getElementById('subtitle-overlay');
+                        if(sub) {
+                            if(overlay.innerText !== sub.text) {
+                                overlay.innerText = sub.text;
+                                overlay.style.opacity = 1;
+                            }
+                        } else {
+                            overlay.innerText = "";
+                            // overlay.style.opacity = 0; // Optional: fade out
+                        }
                     }
                 });
 
