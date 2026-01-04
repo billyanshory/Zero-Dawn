@@ -314,8 +314,12 @@ def audio_upload():
 NAVBAR_HTML = """
     <style>
         .navbar {
-            background-color: transparent !important;
-            box-shadow: none !important;
+            background-color: rgba(0, 0, 0, 0.6) !important;
+            backdrop-filter: blur(15px) saturate(120%);
+            -webkit-backdrop-filter: blur(15px) saturate(120%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
         }
         .navbar-brand {
             font-weight: 800;
@@ -357,6 +361,20 @@ NAVBAR_HTML = """
         }
         .navbar-toggler-icon {
             filter: brightness(0) invert(1) !important;
+        }
+
+        /* Mobile Menu Acrylic Box */
+        @media (max-width: 991px) {
+            .navbar-collapse {
+                background: rgba(0, 0, 0, 0.85);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 15px;
+                padding: 20px;
+                margin-top: 10px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            }
         }
     </style>
     <nav class="navbar navbar-expand-lg sticky-top">
@@ -791,6 +809,8 @@ HTML_GAME_LIST = """
                     <i class="fab fa-facebook social-icon"></i>
                     <i class="fab fa-twitter social-icon"></i>
                     <i class="fab fa-instagram social-icon"></i>
+                    <a href="https://wa.me/6281241865310" target="_blank" style="text-decoration:none;"><i class="fab fa-whatsapp social-icon"></i></a>
+                    <a href="https://maps.app.goo.gl/BsCQBk3NYK3ARL6p7" target="_blank" style="text-decoration:none;"><i class="fas fa-map-marker-alt social-icon"></i></a>
                 </div>
             </div>
         </footer>
