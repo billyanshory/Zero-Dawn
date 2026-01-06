@@ -682,15 +682,15 @@ HTML_WALLPAPER = """
         #fullscreen-btn {
             display: none; /* Hidden by default */
             position: fixed;
-            top: 80px; /* Below navbar */
+            top: 72px; /* Adjusted to align better with menu button typically */
             right: 20px;
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(5px);
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: rgba(255, 255, 255, 0.8);
-            width: 50px;
-            height: 50px;
-            border-radius: 10px;
+            width: 56px;  /* Match standard toggler width approx */
+            height: 40px; /* Match standard toggler height approx */
+            border-radius: 5px; /* Match standard Bootstrap toggler radius */
             z-index: 1000;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -710,10 +710,10 @@ HTML_WALLPAPER = """
             border-color: rgba(255, 255, 255, 0.8);
             border-style: solid;
         }
-        #fullscreen-btn .tl { top: 10px; left: 10px; border-width: 2px 0 0 2px; }
-        #fullscreen-btn .tr { top: 10px; right: 10px; border-width: 2px 2px 0 0; }
-        #fullscreen-btn .bl { bottom: 10px; left: 10px; border-width: 0 0 2px 2px; }
-        #fullscreen-btn .br { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }
+        #fullscreen-btn .tl { top: 3px; left: 3px; border-width: 2px 0 0 2px; }
+        #fullscreen-btn .tr { top: 3px; right: 3px; border-width: 2px 2px 0 0; }
+        #fullscreen-btn .bl { bottom: 3px; left: 3px; border-width: 0 0 2px 2px; }
+        #fullscreen-btn .br { bottom: 3px; right: 3px; border-width: 0 2px 2px 0; }
 
         #fullscreen-btn .fa-lock, #fullscreen-btn .fa-lock-open {
             font-size: 0.9rem;
@@ -731,6 +731,18 @@ HTML_WALLPAPER = """
             #fullscreen-btn {
                 display: block;
             }
+            /* Hide Dark/Light toggle on mobile */
+            .navbar .btn-group {
+                display: none !important;
+            }
+            /* Force white hamburger menu */
+            .navbar-toggler {
+                border-color: rgba(255,255,255,0.5) !important;
+            }
+            .navbar-toggler-icon {
+                filter: brightness(0) invert(1) !important;
+            }
+
             .audio-player {
                 width: 95%;
                 padding: 15px;
