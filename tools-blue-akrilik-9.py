@@ -786,52 +786,64 @@ HTML_WALLPAPER = """
             }
         }
 
-        /* Record Mode Styles */
-        body.record-mode .navbar,
-        body.record-mode #fullscreen-btn,
-        body.record-mode .controls-container,
-        body.record-mode .audio-player,
-        body.record-mode .playlist-panel,
-        body.record-mode footer {
+        /* Clean Mode Styles */
+        body.clean-mode .navbar,
+        body.clean-mode #fullscreen-btn,
+        body.clean-mode .controls-container,
+        body.clean-mode .audio-player,
+        body.clean-mode .playlist-panel,
+        body.clean-mode footer {
             display: none !important;
         }
 
-        #record-control-btn {
+        /* Restore/Broom Button */
+        #restore-btn {
             display: none;
             position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #ff1493; /* Deep Pink */
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             color: white;
-            border: 2px solid white;
-            padding: 15px 40px;
-            border-radius: 50px;
-            font-weight: 700;
-            font-size: 1.2rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            box-shadow: 0 0 20px #ff1493, inset 0 0 10px white;
-            z-index: 2000;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            z-index: 3000;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: 0.3s;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 15px rgba(255,255,255,0.2);
         }
-        #record-control-btn:hover {
-            transform: translateX(-50%) scale(1.05);
-            box-shadow: 0 0 30px #ff1493, inset 0 0 15px white;
+        body.clean-mode #restore-btn {
+            display: flex;
         }
-        body.record-mode #record-control-btn {
-            display: block;
+        #restore-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
         }
-        #record-control-btn.recording {
-            animation: pulse-pink 1.5s infinite;
-            background-color: #ff0055;
+
+        /* Blur Config Panel */
+        .blur-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 25px;
+            width: 300px;
+            z-index: 2000;
+            color: white;
+            text-align: center;
+            display: none;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
-        @keyframes pulse-pink {
-            0% { box-shadow: 0 0 20px #ff0055; }
-            50% { box-shadow: 0 0 40px #ff0055; }
-            100% { box-shadow: 0 0 20px #ff0055; }
-        }
+        .blur-panel h4 { margin-bottom: 20px; font-weight: 700; }
+        .blur-value { font-size: 1.2rem; margin-top: 10px; font-weight: bold; color: var(--brand-color); }
     </style>
 </head>
 <body>
@@ -852,10 +864,18 @@ HTML_WALLPAPER = """
             </div>
         </button>
 
-        <!-- Record Control Button -->
-        <button id="record-control-btn" onclick="handleRecordClick()">
-            <i class="fas fa-video me-2"></i> Record
+        <!-- Restore Button for Clean Mode -->
+        <button id="restore-btn" onclick="exitCleanMode()" title="Clean All / Restore">
+            <i class="fas fa-broom"></i>
         </button>
+
+        <!-- Blur Settings Panel -->
+        <div class="blur-panel" id="blur-panel">
+            <h4>Blur Strength</h4>
+            <input type="range" id="blur-slider" min="-100" max="100" value="0" oninput="updateBlur(this.value)">
+            <div class="blur-value" id="blur-value-display">0</div>
+            <button class="acrylic-btn mt-3" onclick="toggleBlurPanel()">Close</button>
+        </div>
         
         <div class="center-content">
             <div class="controls-container">
@@ -883,9 +903,14 @@ HTML_WALLPAPER = """
                     </button>
                 </form>
 
-                <!-- Take Record Button -->
-                <button type="button" class="acrylic-btn" onclick="enterRecordMode()">
-                    <i class="fas fa-circle me-2" style="color: #ff1493;"></i> Take Record
+                <!-- Set Blur Button -->
+                <button type="button" class="acrylic-btn" onclick="toggleBlurPanel()">
+                    <i class="fas fa-sliders-h me-2"></i> Set Blur
+                </button>
+
+                <!-- Set Clean Button -->
+                <button type="button" class="acrylic-btn" onclick="enterCleanMode()">
+                    <i class="fas fa-broom me-2"></i> Set Clean
                 </button>
             </div>
             
@@ -964,7 +989,7 @@ HTML_WALLPAPER = """
                 const subtitleOverlay = document.getElementById('subtitle-overlay');
                 const fullscreenBtn = document.getElementById('fullscreen-btn');
                 const fsLockIcon = document.getElementById('fs-lock-icon');
-                const recordBtn = document.getElementById('record-control-btn');
+                const blurPanel = document.getElementById('blur-panel');
                 
                 // Fullscreen Logic
                 function toggleFullScreen() {
@@ -993,79 +1018,50 @@ HTML_WALLPAPER = """
                     }
                 });
 
-                // RECORDING LOGIC
-                let mediaRecorder;
-                let recordedChunks = [];
-                let isRecording = false;
-
-                function enterRecordMode() {
-                    document.body.classList.add('record-mode');
+                // BLUR LOGIC
+                function toggleBlurPanel() {
+                    blurPanel.style.display = (blurPanel.style.display === 'block') ? 'none' : 'block';
                 }
 
-                async function handleRecordClick() {
-                    if (!isRecording) {
-                        // START RECORDING
-                        try {
-                            // 1. Force fullscreen
-                            if (!document.fullscreenElement) {
-                                await document.documentElement.requestFullscreen();
-                            }
+                function updateBlur(val) {
+                    val = parseInt(val);
+                    document.getElementById('blur-value-display').innerText = val;
 
-                            // 2. Select screen to record
-                            const stream = await navigator.mediaDevices.getDisplayMedia({
-                                video: { mediaSource: "screen" },
-                                audio: true
-                            });
+                    const overlay = document.querySelector('.acrylic-overlay');
 
-                            // 3. Setup Recorder
-                            mediaRecorder = new MediaRecorder(stream);
-                            recordedChunks = [];
+                    // Default: blur 20px, opacity 0.47 (approx 120/255)
+                    let blurPx = 20;
+                    let opacity = 0.47;
 
-                            mediaRecorder.ondataavailable = event => {
-                                if (event.data.size > 0) {
-                                    recordedChunks.push(event.data);
-                                }
-                            };
-
-                            mediaRecorder.onstop = () => {
-                                isRecording = false;
-                                recordBtn.classList.remove('recording');
-                                recordBtn.innerHTML = '<i class="fas fa-video me-2"></i> Record';
-                                saveRecording();
-
-                                // Stop all tracks to clear sharing indicator
-                                stream.getTracks().forEach(track => track.stop());
-                            };
-
-                            // 4. Start
-                            mediaRecorder.start();
-                            isRecording = true;
-                            recordBtn.classList.add('recording');
-                            recordBtn.innerHTML = '<i class="fas fa-stop me-2"></i> Stop';
-
-                        } catch (err) {
-                            console.error("Error starting recording:", err);
-                            alert("Could not start recording: " + err.message);
-                        }
+                    if (val < 0) {
+                        // -100 to 0: Scale down to 0
+                        const ratio = (100 + val) / 100; // 0 to 1
+                        blurPx = 20 * ratio;
+                        opacity = 0.47 * ratio;
                     } else {
-                        // STOP RECORDING
-                        mediaRecorder.stop();
+                        // 0 to 100: Scale up
+                        const ratio = val / 100; // 0 to 1
+                        // Max blur 60px, max opacity 0.85
+                        blurPx = 20 + (40 * ratio);
+                        opacity = 0.47 + (0.38 * ratio);
+                    }
+
+                    overlay.style.backdropFilter = `blur(${blurPx}px) saturate(125%)`;
+                    overlay.style.webkitBackdropFilter = `blur(${blurPx}px) saturate(125%)`;
+                    overlay.style.backgroundColor = `rgba(0, 0, 0, ${opacity})`;
+                }
+
+                // CLEAN MODE LOGIC
+                function enterCleanMode() {
+                    document.body.classList.add('clean-mode');
+                    // Play audio if paused
+                    if(audio.paused) {
+                        togglePlay();
                     }
                 }
 
-                function saveRecording() {
-                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = 'ourtools-recording-' + new Date().getTime() + '.webm';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    // Optional: Exit record mode? User implied "one button left", so maybe stay?
-                    // We'll leave them in record mode until they reload or we add an exit button.
-                    // But usually stopping implies finishing. For now we stay in clean mode.
+                function exitCleanMode() {
+                    document.body.classList.remove('clean-mode');
                 }
 
                 // Audio List logic

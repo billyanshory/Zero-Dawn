@@ -44,3 +44,10 @@ Port 5000 is in use by another program. Either identify and stop that program, o
 127.0.0.1 - - [06/Jan/2026 06:36:04] "GET / HTTP/1.1" 200 -
 127.0.0.1 - - [06/Jan/2026 06:36:04] "GET /uploads/test_audio.mp3 HTTP/1.1" 200 -
 127.0.0.1 - - [06/Jan/2026 06:36:04] "[33mGET /uploads/default.jpg HTTP/1.1[0m" 404 -
+ * Detected change in '/app/tools-blue-akrilik-9.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 132-491-319
+127.0.0.1 - - [06/Jan/2026 08:35:16] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 08:35:16] "GET /uploads/test_audio.mp3 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 08:35:16] "[33mGET /uploads/default.jpg HTTP/1.1[0m" 404 -
