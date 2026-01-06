@@ -677,6 +677,102 @@ HTML_WALLPAPER = """
         }
         .action-btn:hover { color: white; }
         .action-btn.delete:hover { color: #ff4444; }
+
+        /* Fullscreen Button (Mobile Only) */
+        #fullscreen-btn {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 80px; /* Below navbar */
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            z-index: 1000;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        #fullscreen-btn .icon-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #fullscreen-btn .corner {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-color: rgba(255, 255, 255, 0.8);
+            border-style: solid;
+        }
+        #fullscreen-btn .tl { top: 10px; left: 10px; border-width: 2px 0 0 2px; }
+        #fullscreen-btn .tr { top: 10px; right: 10px; border-width: 2px 2px 0 0; }
+        #fullscreen-btn .bl { bottom: 10px; left: 10px; border-width: 0 0 2px 2px; }
+        #fullscreen-btn .br { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }
+
+        #fullscreen-btn .fa-lock, #fullscreen-btn .fa-lock-open {
+            font-size: 0.9rem;
+        }
+
+        #fullscreen-btn.neon-glow {
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.8);
+            color: white;
+            text-shadow: 0 0 5px white;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            #fullscreen-btn {
+                display: block;
+            }
+            .audio-player {
+                width: 95%;
+                padding: 15px;
+                bottom: 20px;
+                gap: 10px;
+            }
+            .player-row-bottom {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: space-between;
+                row-gap: 15px;
+            }
+            .player-left {
+                order: 2;
+                width: 100%;
+                justify-content: space-between;
+                margin-top: 5px;
+            }
+            .player-center {
+                order: 1;
+                width: 100%;
+                justify-content: center;
+                margin-bottom: 5px;
+            }
+            .player-right {
+                order: 3;
+                width: 100%;
+                justify-content: space-between;
+                margin-top: 5px;
+            }
+            .player-right input[type=range] {
+                width: 100% !important;
+            }
+            /* Adjust playlist panel for mobile */
+            .playlist-panel {
+                right: 0;
+                left: 0;
+                margin: 0 auto;
+                width: 95%;
+                bottom: 240px; /* Above expanded player */
+            }
+        }
     </style>
 </head>
 <body>
@@ -685,6 +781,17 @@ HTML_WALLPAPER = """
 
     <div class="content-wrapper">
         {{ navbar|safe }}
+
+        <!-- Fullscreen Button -->
+        <button id="fullscreen-btn" onclick="toggleFullScreen()">
+            <div class="icon-container">
+                <div class="corner tl"></div>
+                <div class="corner tr"></div>
+                <div class="corner bl"></div>
+                <div class="corner br"></div>
+                <i class="fas fa-lock-open" id="fs-lock-icon"></i>
+            </div>
+        </button>
         
         <div class="center-content">
             <div class="controls-container">
@@ -786,7 +893,43 @@ HTML_WALLPAPER = """
                 const btnRepeat = document.getElementById('btn-repeat');
                 const playlistPanel = document.getElementById('playlist-panel');
                 const subtitleOverlay = document.getElementById('subtitle-overlay');
+                const fullscreenBtn = document.getElementById('fullscreen-btn');
+                const fsLockIcon = document.getElementById('fs-lock-icon');
                 
+                // Fullscreen Logic
+                function toggleFullScreen() {
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen().catch(err => {
+                            console.log(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                        });
+                        // Lock state UI
+                        fullscreenBtn.classList.add('neon-glow');
+                        fsLockIcon.classList.remove('fa-lock-open');
+                        fsLockIcon.classList.add('fa-lock');
+                    } else {
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen();
+                        }
+                        // Unlock state UI
+                        fullscreenBtn.classList.remove('neon-glow');
+                        fsLockIcon.classList.remove('fa-lock');
+                        fsLockIcon.classList.add('fa-lock-open');
+                    }
+                }
+
+                // Listen for fullscreen change events (ESC key etc)
+                document.addEventListener('fullscreenchange', () => {
+                    if (!document.fullscreenElement) {
+                        fullscreenBtn.classList.remove('neon-glow');
+                        fsLockIcon.classList.remove('fa-lock');
+                        fsLockIcon.classList.add('fa-lock-open');
+                    } else {
+                         fullscreenBtn.classList.add('neon-glow');
+                         fsLockIcon.classList.remove('fa-lock-open');
+                         fsLockIcon.classList.add('fa-lock');
+                    }
+                });
+
                 // Audio List logic
                 let playlist = {{ audio_files|tojson }};
                 let currentFile = "{{ audio_file }}";
