@@ -683,7 +683,7 @@ HTML_WALLPAPER = """
             display: none; /* Hidden by default */
             position: fixed;
             top: 72px; /* Adjusted to align better with menu button typically */
-            right: 20px;
+            right: 14px; /* Align with bootstrap container padding (approx 12px + 2px) */
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(5px);
             border: 1px solid rgba(255, 255, 255, 0.2);
@@ -785,6 +785,53 @@ HTML_WALLPAPER = """
                 bottom: 240px; /* Above expanded player */
             }
         }
+
+        /* Record Mode Styles */
+        body.record-mode .navbar,
+        body.record-mode #fullscreen-btn,
+        body.record-mode .controls-container,
+        body.record-mode .audio-player,
+        body.record-mode .playlist-panel,
+        body.record-mode footer {
+            display: none !important;
+        }
+
+        #record-control-btn {
+            display: none;
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #ff1493; /* Deep Pink */
+            color: white;
+            border: 2px solid white;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 20px #ff1493, inset 0 0 10px white;
+            z-index: 2000;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        #record-control-btn:hover {
+            transform: translateX(-50%) scale(1.05);
+            box-shadow: 0 0 30px #ff1493, inset 0 0 15px white;
+        }
+        body.record-mode #record-control-btn {
+            display: block;
+        }
+        #record-control-btn.recording {
+            animation: pulse-pink 1.5s infinite;
+            background-color: #ff0055;
+        }
+        @keyframes pulse-pink {
+            0% { box-shadow: 0 0 20px #ff0055; }
+            50% { box-shadow: 0 0 40px #ff0055; }
+            100% { box-shadow: 0 0 20px #ff0055; }
+        }
     </style>
 </head>
 <body>
@@ -803,6 +850,11 @@ HTML_WALLPAPER = """
                 <div class="corner br"></div>
                 <i class="fas fa-lock-open" id="fs-lock-icon"></i>
             </div>
+        </button>
+
+        <!-- Record Control Button -->
+        <button id="record-control-btn" onclick="handleRecordClick()">
+            <i class="fas fa-video me-2"></i> Record
         </button>
         
         <div class="center-content">
@@ -830,6 +882,11 @@ HTML_WALLPAPER = """
                         <i class="fas fa-closed-captioning me-2"></i> Set Subtitle
                     </button>
                 </form>
+
+                <!-- Take Record Button -->
+                <button type="button" class="acrylic-btn" onclick="enterRecordMode()">
+                    <i class="fas fa-circle me-2" style="color: #ff1493;"></i> Take Record
+                </button>
             </div>
             
             {% if audio_file %}
@@ -907,6 +964,7 @@ HTML_WALLPAPER = """
                 const subtitleOverlay = document.getElementById('subtitle-overlay');
                 const fullscreenBtn = document.getElementById('fullscreen-btn');
                 const fsLockIcon = document.getElementById('fs-lock-icon');
+                const recordBtn = document.getElementById('record-control-btn');
                 
                 // Fullscreen Logic
                 function toggleFullScreen() {
@@ -914,18 +972,11 @@ HTML_WALLPAPER = """
                         document.documentElement.requestFullscreen().catch(err => {
                             console.log(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
                         });
-                        // Lock state UI
-                        fullscreenBtn.classList.add('neon-glow');
-                        fsLockIcon.classList.remove('fa-lock-open');
-                        fsLockIcon.classList.add('fa-lock');
+                        // Lock state UI (managed by event listener mostly, but helper here)
                     } else {
                         if (document.exitFullscreen) {
                             document.exitFullscreen();
                         }
-                        // Unlock state UI
-                        fullscreenBtn.classList.remove('neon-glow');
-                        fsLockIcon.classList.remove('fa-lock');
-                        fsLockIcon.classList.add('fa-lock-open');
                     }
                 }
 
@@ -941,6 +992,81 @@ HTML_WALLPAPER = """
                          fsLockIcon.classList.add('fa-lock');
                     }
                 });
+
+                // RECORDING LOGIC
+                let mediaRecorder;
+                let recordedChunks = [];
+                let isRecording = false;
+
+                function enterRecordMode() {
+                    document.body.classList.add('record-mode');
+                }
+
+                async function handleRecordClick() {
+                    if (!isRecording) {
+                        // START RECORDING
+                        try {
+                            // 1. Force fullscreen
+                            if (!document.fullscreenElement) {
+                                await document.documentElement.requestFullscreen();
+                            }
+
+                            // 2. Select screen to record
+                            const stream = await navigator.mediaDevices.getDisplayMedia({
+                                video: { mediaSource: "screen" },
+                                audio: true
+                            });
+
+                            // 3. Setup Recorder
+                            mediaRecorder = new MediaRecorder(stream);
+                            recordedChunks = [];
+
+                            mediaRecorder.ondataavailable = event => {
+                                if (event.data.size > 0) {
+                                    recordedChunks.push(event.data);
+                                }
+                            };
+
+                            mediaRecorder.onstop = () => {
+                                isRecording = false;
+                                recordBtn.classList.remove('recording');
+                                recordBtn.innerHTML = '<i class="fas fa-video me-2"></i> Record';
+                                saveRecording();
+
+                                // Stop all tracks to clear sharing indicator
+                                stream.getTracks().forEach(track => track.stop());
+                            };
+
+                            // 4. Start
+                            mediaRecorder.start();
+                            isRecording = true;
+                            recordBtn.classList.add('recording');
+                            recordBtn.innerHTML = '<i class="fas fa-stop me-2"></i> Stop';
+
+                        } catch (err) {
+                            console.error("Error starting recording:", err);
+                            alert("Could not start recording: " + err.message);
+                        }
+                    } else {
+                        // STOP RECORDING
+                        mediaRecorder.stop();
+                    }
+                }
+
+                function saveRecording() {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = 'ourtools-recording-' + new Date().getTime() + '.webm';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    // Optional: Exit record mode? User implied "one button left", so maybe stay?
+                    // We'll leave them in record mode until they reload or we add an exit button.
+                    // But usually stopping implies finishing. For now we stay in clean mode.
+                }
 
                 // Audio List logic
                 let playlist = {{ audio_files|tojson }};
