@@ -355,6 +355,21 @@ def upload_logo():
             
     return redirect(url_for('index'))
 
+@app.route('/wallpaper-blur/upload', methods=['POST'])
+def wallpaper_upload():
+    if 'background' not in request.files:
+        return redirect(url_for('index'))
+
+    file = request.files['background']
+    if file and file.filename != '' and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+        with open('bg_config.txt', 'w') as f:
+            f.write(filename)
+
+    return redirect(url_for('index'))
+
 
 HTML_WALLPAPER = """
 <!DOCTYPE html>
@@ -1369,6 +1384,7 @@ HTML_DOREMI = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nada Dasar C | doremifasolasido</title>
+    <link rel="icon" href="{{ url_for('static', filename='hamiartlogo.png') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1565,7 +1581,7 @@ HTML_DOREMI = """
             <div class="header-controls">
                 <h1 class="title-neon">nada dasar C</h1>
 
-                <form action="/wallpaper-blur/upload" method="post" enctype="multipart/form-data" id="form-wall-header">
+                <form action="{{ url_for('wallpaper_upload') }}" method="post" enctype="multipart/form-data" id="form-wall-header">
                     <input type="file" name="background" id="file-wall-header" hidden onchange="document.getElementById('form-wall-header').submit()" accept="image/*">
                     <button type="button" class="btn-set-wallpaper" onclick="document.getElementById('file-wall-header').click()">
                         <i class="fas fa-image"></i> Set Wallpaper
@@ -1593,6 +1609,132 @@ HTML_DOREMI = """
                     <div class="black-key" style="left: 365px;"></div> <!-- A# -->
                 </div>
             </div>
+
+            <!-- D Major -->
+            <h1 class="title-neon" style="margin-top:20px;">nada dasar D</h1>
+            <div class="piano-container" data-scale="D">
+                <div class="keys-wrapper">
+                    <div class="white-key glow"><div class="key-sticker">1</div></div> <!-- D -->
+                    <div class="white-key glow"><div class="key-sticker">2</div></div> <!-- E -->
+                    <div class="white-key glow"></div> <!-- F -->
+                    <div class="white-key glow"><div class="key-sticker">4</div></div> <!-- G -->
+                    <div class="white-key glow"><div class="key-sticker">5</div></div> <!-- A -->
+                    <div class="white-key glow"><div class="key-sticker">6</div></div> <!-- B -->
+                    <div class="white-key glow"></div> <!-- C -->
+                    <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- D -->
+
+                    <div class="black-key"></div> <!-- D# -->
+                    <div class="black-key"><div class="key-sticker">3</div></div> <!-- F# -->
+                    <div class="black-key"></div> <!-- G# -->
+                    <div class="black-key"></div> <!-- A# -->
+                    <div class="black-key"><div class="key-sticker">7</div></div> <!-- C# -->
+                </div>
+            </div>
+
+            <!-- E Major -->
+            <h1 class="title-neon" style="margin-top:20px;">nada dasar E</h1>
+            <div class="piano-container" data-scale="E">
+                <div class="keys-wrapper">
+                    <div class="white-key glow"><div class="key-sticker">1</div></div> <!-- E -->
+                    <div class="white-key glow"></div> <!-- F -->
+                    <div class="white-key glow"></div> <!-- G -->
+                    <div class="white-key glow"><div class="key-sticker">4</div></div> <!-- A -->
+                    <div class="white-key glow"><div class="key-sticker">5</div></div> <!-- B -->
+                    <div class="white-key glow"></div> <!-- C -->
+                    <div class="white-key glow"></div> <!-- D -->
+                    <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- E -->
+
+                    <div class="black-key"><div class="key-sticker">2</div></div> <!-- F# -->
+                    <div class="black-key"><div class="key-sticker">3</div></div> <!-- G# -->
+                    <div class="black-key"></div> <!-- A# -->
+                    <div class="black-key"><div class="key-sticker">6</div></div> <!-- C# -->
+                    <div class="black-key"><div class="key-sticker">7</div></div> <!-- D# -->
+                </div>
+            </div>
+
+            <!-- F Major -->
+            <h1 class="title-neon" style="margin-top:20px;">nada dasar F</h1>
+            <div class="piano-container" data-scale="F">
+                <div class="keys-wrapper">
+                    <div class="white-key glow"><div class="key-sticker">1</div></div> <!-- F -->
+                    <div class="white-key glow"><div class="key-sticker">2</div></div> <!-- G -->
+                    <div class="white-key glow"><div class="key-sticker">3</div></div> <!-- A -->
+                    <div class="white-key glow"></div> <!-- B -->
+                    <div class="white-key glow"><div class="key-sticker">5</div></div> <!-- C -->
+                    <div class="white-key glow"><div class="key-sticker">6</div></div> <!-- D -->
+                    <div class="white-key glow"><div class="key-sticker">7</div></div> <!-- E -->
+                    <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- F -->
+
+                    <div class="black-key"></div> <!-- F# -->
+                    <div class="black-key"></div> <!-- G# -->
+                    <div class="black-key"><div class="key-sticker">4</div></div> <!-- Bb -->
+                    <div class="black-key"></div> <!-- C# -->
+                    <div class="black-key"></div> <!-- D# -->
+                </div>
+            </div>
+
+            <!-- G Major -->
+            <h1 class="title-neon" style="margin-top:20px;">nada dasar G</h1>
+            <div class="piano-container" data-scale="G">
+                <div class="keys-wrapper">
+                    <div class="white-key glow"><div class="key-sticker">1</div></div> <!-- G -->
+                    <div class="white-key glow"><div class="key-sticker">2</div></div> <!-- A -->
+                    <div class="white-key glow"><div class="key-sticker">3</div></div> <!-- B -->
+                    <div class="white-key glow"><div class="key-sticker">4</div></div> <!-- C -->
+                    <div class="white-key glow"><div class="key-sticker">5</div></div> <!-- D -->
+                    <div class="white-key glow"><div class="key-sticker">6</div></div> <!-- E -->
+                    <div class="white-key glow"></div> <!-- F -->
+                    <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- G -->
+
+                    <div class="black-key"></div> <!-- G# -->
+                    <div class="black-key"></div> <!-- A# -->
+                    <div class="black-key"></div> <!-- C# -->
+                    <div class="black-key"></div> <!-- D# -->
+                    <div class="black-key"><div class="key-sticker">7</div></div> <!-- F# -->
+                </div>
+            </div>
+
+            <!-- A Major -->
+            <h1 class="title-neon" style="margin-top:20px;">nada dasar A</h1>
+            <div class="piano-container" data-scale="A">
+                <div class="keys-wrapper">
+                    <div class="white-key glow"><div class="key-sticker">1</div></div> <!-- A -->
+                    <div class="white-key glow"><div class="key-sticker">2</div></div> <!-- B -->
+                    <div class="white-key glow"></div> <!-- C -->
+                    <div class="white-key glow"><div class="key-sticker">4</div></div> <!-- D -->
+                    <div class="white-key glow"><div class="key-sticker">5</div></div> <!-- E -->
+                    <div class="white-key glow"></div> <!-- F -->
+                    <div class="white-key glow"></div> <!-- G -->
+                    <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- A -->
+
+                    <div class="black-key"></div> <!-- A# -->
+                    <div class="black-key"><div class="key-sticker">3</div></div> <!-- C# -->
+                    <div class="black-key"></div> <!-- D# -->
+                    <div class="black-key"><div class="key-sticker">6</div></div> <!-- F# -->
+                    <div class="black-key"><div class="key-sticker">7</div></div> <!-- G# -->
+                </div>
+            </div>
+
+            <!-- B Major -->
+            <h1 class="title-neon" style="margin-top:20px;">nada dasar B</h1>
+            <div class="piano-container" data-scale="B">
+                <div class="keys-wrapper">
+                    <div class="white-key glow"><div class="key-sticker">1</div></div> <!-- B -->
+                    <div class="white-key glow"></div> <!-- C -->
+                    <div class="white-key glow"></div> <!-- D -->
+                    <div class="white-key glow"><div class="key-sticker">4</div></div> <!-- E -->
+                    <div class="white-key glow"></div> <!-- F -->
+                    <div class="white-key glow"></div> <!-- G -->
+                    <div class="white-key glow"></div> <!-- A -->
+                    <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- B -->
+
+                    <div class="black-key"><div class="key-sticker">2</div></div> <!-- C# -->
+                    <div class="black-key"><div class="key-sticker">3</div></div> <!-- D# -->
+                    <div class="black-key"><div class="key-sticker">5</div></div> <!-- F# -->
+                    <div class="black-key"><div class="key-sticker">6</div></div> <!-- G# -->
+                    <div class="black-key"><div class="key-sticker">7</div></div> <!-- A# -->
+                </div>
+            </div>
         </div>
 
         <footer style="background: transparent; border: none; color: rgba(255,255,255,0.7); padding: 20px; text-align: center;">
@@ -1610,23 +1752,41 @@ HTML_DOREMI = """
         })();
 
         function adjustBlackKeys() {
-            const whiteKey = document.querySelector('.white-key');
-            if(!whiteKey) return;
+            const pianoContainers = document.querySelectorAll('.piano-container');
 
-            const w = whiteKey.offsetWidth;
-            const m = 4; // margin 0 2px -> 4px total space
-            const slot = w + m;
+            const scaleIndices = {
+                'C': [1, 2, 4, 5, 6],
+                'D': [1, 3, 4, 5, 7],
+                'E': [2, 3, 4, 6, 7],
+                'F': [1, 2, 3, 5, 6],
+                'G': [1, 2, 4, 5, 7],
+                'A': [1, 3, 4, 6, 7],
+                'B': [2, 3, 5, 6, 7]
+            };
 
-            const blackKeys = document.querySelectorAll('.black-key');
-            const blackWidth = blackKeys[0].offsetWidth;
+            pianoContainers.forEach(container => {
+                const whiteKey = container.querySelector('.white-key');
+                if(!whiteKey) return;
 
-            // Indices of slots where black keys follow (C=0 -> C# is at 1 boundary)
-            const indices = [1, 2, 4, 5, 6];
+                const w = whiteKey.offsetWidth;
+                const m = 4; // margin
+                const slot = w + m;
 
-            blackKeys.forEach((key, i) => {
-                const idx = indices[i];
-                const leftPos = (idx * slot) - (blackWidth / 2);
-                key.style.left = leftPos + 'px';
+                const blackKeys = container.querySelectorAll('.black-key');
+                if(blackKeys.length === 0) return;
+
+                const blackWidth = blackKeys[0].offsetWidth;
+
+                const scaleType = container.getAttribute('data-scale') || 'C';
+                const indices = scaleIndices[scaleType] || scaleIndices['C'];
+
+                blackKeys.forEach((key, i) => {
+                    if (i < indices.length) {
+                        const idx = indices[i];
+                        const leftPos = (idx * slot) - (blackWidth / 2);
+                        key.style.left = leftPos + 'px';
+                    }
+                });
             });
         }
 
