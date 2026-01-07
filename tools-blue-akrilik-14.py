@@ -63,6 +63,7 @@ NAVBAR_HTML = """
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item"><a class="nav-link fw-bold" href="/wallpaper-blur">Wallpaper Blur Akrilik</a></li>
+                    <li class="nav-item"><a class="nav-link fw-bold" href="/doremifasolasido">doremifasolasido</a></li>
                 </ul>
                 <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item me-3">
@@ -381,6 +382,16 @@ def subtitle_upload():
             f.write(filename)
             
     return redirect(url_for('index'))
+
+@app.route('/doremifasolasido')
+def doremifasolasido():
+    bg_image = "default.jpg"
+    if os.path.exists('bg_config.txt'):
+        with open('bg_config.txt', 'r') as f:
+            content = f.read().strip()
+            if content:
+                bg_image = content
+    return render_page(HTML_DOREMI, bg_image=bg_image)
 
 
 HTML_WALLPAPER = """
@@ -1384,6 +1395,218 @@ HTML_WALLPAPER = """
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-bs-theme', savedTheme);
         })();
+    </script>
+</body>
+</html>
+"""
+
+HTML_DOREMI = """
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nada Dasar C | doremifasolasido</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    {{ styles|safe }}
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        .wallpaper-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('/uploads/{{ bg_image }}');
+            background-size: cover;
+            background-position: center;
+            z-index: -2;
+        }
+        .acrylic-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.47);
+            backdrop-filter: blur(20px) saturate(125%);
+            -webkit-backdrop-filter: blur(20px) saturate(125%);
+            z-index: -1;
+        }
+        .content-wrapper {
+            position: relative;
+            z-index: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .piano-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+        }
+
+        .keys-wrapper {
+            position: relative;
+            display: flex;
+        }
+
+        .white-key {
+            width: 60px;
+            height: 220px;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 0 0 8px 8px;
+            margin: 0 2px;
+            background: rgba(0, 0, 0, 0.2);
+            z-index: 1;
+            position: relative;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .black-key {
+            width: 40px;
+            height: 130px;
+            position: absolute;
+            z-index: 2;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 0 0 5px 5px;
+            top: 0;
+        }
+
+        /* Neon Glow for C Major Scale (White Keys) */
+        .white-key.glow {
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.4);
+            border-color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+            animation: pulse-glow 3s infinite alternate;
+        }
+
+        /* Dim/Faint for Black Keys */
+        .black-key.dim {
+            opacity: 0.4;
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: none;
+        }
+
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 15px rgba(255, 255, 255, 0.7), inset 0 0 10px rgba(255, 255, 255, 0.2); }
+            100% { box-shadow: 0 0 25px rgba(255, 255, 255, 1), inset 0 0 25px rgba(255, 255, 255, 0.5); }
+        }
+
+        .title-neon {
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            font-size: 3rem;
+            color: white;
+            text-align: center;
+            margin-bottom: 40px;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.4);
+            letter-spacing: 2px;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .white-key {
+                width: 35px;
+                height: 140px;
+            }
+            .black-key {
+                width: 24px;
+                height: 85px;
+            }
+            .title-neon {
+                font-size: 2rem;
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wallpaper-bg"></div>
+    <div class="acrylic-overlay"></div>
+
+    <div class="content-wrapper">
+        {{ navbar|safe }}
+
+        <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+            <h1 class="title-neon">nada dasar C</h1>
+
+            <div class="piano-container">
+                <div class="keys-wrapper">
+                    <!-- White Keys -->
+                    <div class="white-key glow"></div> <!-- C -->
+                    <div class="white-key glow"></div> <!-- D -->
+                    <div class="white-key glow"></div> <!-- E -->
+                    <div class="white-key glow"></div> <!-- F -->
+                    <div class="white-key glow"></div> <!-- G -->
+                    <div class="white-key glow"></div> <!-- A -->
+                    <div class="white-key glow"></div> <!-- B -->
+                    <div class="white-key glow"></div> <!-- C (High) -->
+
+                    <!-- Black Keys -->
+                    <div class="black-key dim" style="left: 45px;"></div>  <!-- C# -->
+                    <div class="black-key dim" style="left: 109px;"></div> <!-- D# -->
+                    <div class="black-key dim" style="left: 237px;"></div> <!-- F# -->
+                    <div class="black-key dim" style="left: 301px;"></div> <!-- G# -->
+                    <div class="black-key dim" style="left: 365px;"></div> <!-- A# -->
+                </div>
+            </div>
+        </div>
+
+        <footer style="background: transparent; border: none; color: rgba(255,255,255,0.7); padding: 20px; text-align: center;">
+            <div class="container">
+                <p>&copy; 2025 ourtools - Python 3.13.5 Powered. "We Making The Time"</p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        })();
+
+        function adjustBlackKeys() {
+            const whiteKey = document.querySelector('.white-key');
+            if(!whiteKey) return;
+
+            const w = whiteKey.offsetWidth;
+            const m = 4; // margin 0 2px -> 4px total space
+            const slot = w + m;
+
+            const blackKeys = document.querySelectorAll('.black-key');
+            const blackWidth = blackKeys[0].offsetWidth;
+
+            // Indices of slots where black keys follow (C=0 -> C# is at 1 boundary)
+            const indices = [1, 2, 4, 5, 6];
+
+            blackKeys.forEach((key, i) => {
+                const idx = indices[i];
+                const leftPos = (idx * slot) - (blackWidth / 2);
+                key.style.left = leftPos + 'px';
+            });
+        }
+
+        window.addEventListener('resize', adjustBlackKeys);
+        window.addEventListener('load', adjustBlackKeys);
     </script>
 </body>
 </html>
