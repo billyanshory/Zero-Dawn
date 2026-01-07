@@ -52,6 +52,19 @@ NAVBAR_HTML = """
         .navbar {
             background-color: transparent !important;
             box-shadow: none !important;
+            padding-top: 20px;
+        }
+        .navbar-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            padding: 10px 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
         .navbar-brand {
              /* Pink Sage Gradient: Sage Green (#9DC183) to Pastel Pink (#FFD1DC) */
@@ -68,9 +81,16 @@ NAVBAR_HTML = """
                 background-position: 200% center;
             }
         }
-        .logo-upload-btn {
-            width: 55px; /* Increased size */
-            height: 55px;
+
+        .nav-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-icon-btn {
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             border: 2px solid rgba(255,255,255,0.5);
             background: rgba(255,255,255,0.1);
@@ -79,57 +99,71 @@ NAVBAR_HTML = """
             justify-content: center;
             align-items: center;
             cursor: pointer;
-            overflow: hidden;
             transition: all 0.3s ease;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            overflow: hidden;
         }
-        .logo-upload-btn:hover {
+        .nav-icon-btn:hover {
+            background: rgba(255,255,255,0.3);
             border-color: white;
+            color: white;
+            transform: scale(1.05);
             box-shadow: 0 0 10px rgba(255,255,255,0.5);
         }
-        .logo-upload-btn img {
+        /* Smaller button modifier */
+        .nav-icon-btn.small-btn {
+            width: 35px;
+            height: 35px;
+        }
+        .nav-icon-btn.small-btn i {
+            font-size: 0.9rem;
+        }
+
+        .nav-icon-btn img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
-        .logo-upload-btn i {
-            color: rgba(255,255,255,0.7);
-            font-size: 1.2rem;
+        .nav-icon-btn i {
+            font-size: 1.1rem;
         }
-        /* Mobile Specific: Hide toggler, align logo right */
-        .navbar-toggler {
-            display: none !important;
-        }
-        .navbar .container {
-            display: flex;
-            justify-content: space-between; /* Brand Left, Logo Right */
-            align-items: center;
-        }
-        /* Hide original collapse for safety/cleanup visually */
-        .navbar-collapse {
-            display: none !important;
-        }
+
+        /* Mobile Specific */
+        .navbar-toggler { display: none !important; }
+        .navbar-collapse { display: none !important; }
     </style>
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
-            <a class="navbar-brand" href="/">hamiart.<span>education</span></a>
+            <div class="navbar-box">
+                <a class="navbar-brand" href="/">hamiart.<span>education</span></a>
 
-            <!-- Direct Placement of Logo Button (Mobile & Desktop) -->
-            <form action="/upload-logo" method="post" enctype="multipart/form-data" id="logo-form" style="margin: 0;">
-                <input type="file" name="logo" id="logo-file" hidden onchange="document.getElementById('logo-form').submit()" accept="image/*">
-                <div class="logo-upload-btn" onclick="document.getElementById('logo-file').click()" title="Upload Website Logo">
-                    {% if logo_file %}
-                        <img src="/uploads/{{ logo_file }}" alt="Logo">
-                    {% else %}
-                        <i class="fas fa-camera"></i>
-                    {% endif %}
+                <div class="nav-controls">
+                    <!-- Logo Upload -->
+                    <form action="/upload-logo" method="post" enctype="multipart/form-data" id="logo-form" style="margin: 0;">
+                        <input type="file" name="logo" id="logo-file" hidden onchange="document.getElementById('logo-form').submit()" accept="image/*">
+                        <div class="nav-icon-btn" onclick="document.getElementById('logo-file').click()" title="Upload Website Logo">
+                            {% if logo_file %}
+                                <img src="/uploads/{{ logo_file }}" alt="Logo">
+                            {% else %}
+                                <i class="fas fa-camera"></i>
+                            {% endif %}
+                        </div>
+                    </form>
+
+                    <!-- Wallpaper Upload (Moved from Body) -->
+                    <form action="/wallpaper-blur/upload" method="post" enctype="multipart/form-data" id="nav-wall-form" style="margin: 0;">
+                        <input type="file" name="background" id="nav-wall-file" hidden onchange="document.getElementById('nav-wall-form').submit()" accept="image/*">
+                        <div class="nav-icon-btn small-btn" onclick="document.getElementById('nav-wall-file').click()" title="Set Wallpaper">
+                            <i class="fas fa-image"></i>
+                        </div>
+                    </form>
                 </div>
-            </form>
-
-            <!-- Hidden Toggler & Menu (Deactivated) -->
-            <button class="navbar-toggler" type="button" style="display:none"></button>
-            <div class="collapse navbar-collapse" id="navbarNav" style="display:none">
-                <ul class="navbar-nav me-auto"></ul>
             </div>
+
+            <!-- Hidden Toggler/Collapse -->
+            <button class="navbar-toggler" type="button" style="display:none"></button>
+            <div class="collapse navbar-collapse" id="navbarNav" style="display:none"></div>
         </div>
     </nav>
 """
@@ -1391,9 +1425,11 @@ HTML_DOREMI = """
     {{ styles|safe }}
     <style>
         body, html {
-            height: 100%;
+            height: auto;
+            min-height: 100%;
             margin: 0;
-            overflow: hidden;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
         .wallpaper-bg {
             position: fixed;
@@ -1420,11 +1456,12 @@ HTML_DOREMI = """
         .content-wrapper {
             position: relative;
             z-index: 1;
-            height: 100%;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            /* Remove justify-content: center to allow top-down flow */
+            padding-bottom: 50px;
         }
 
         .piano-container {
@@ -1471,6 +1508,12 @@ HTML_DOREMI = """
             border-radius: 0 0 5px 5px;
             top: 0;
             box-shadow: none; /* Removed dim effect */
+            /* Flex alignment for sticker */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 10px;
         }
 
         /* Neon Glow for C Major Scale (White Keys) */
@@ -1520,28 +1563,6 @@ HTML_DOREMI = """
             flex-wrap: wrap;
         }
 
-        .btn-set-wallpaper {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 30px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-        }
-        .btn-set-wallpaper:hover {
-            background: rgba(255, 255, 255, 0.25);
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-            color: white;
-        }
-
         /* Mobile Responsiveness */
         @media (max-width: 768px) {
             .white-key {
@@ -1576,17 +1597,10 @@ HTML_DOREMI = """
     <div class="content-wrapper">
         {{ navbar|safe }}
 
-        <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+        <div style="width:100%; display:flex; flex-direction:column; align-items:center; padding-top: 40px;">
 
             <div class="header-controls">
                 <h1 class="title-neon">nada dasar C</h1>
-
-                <form action="{{ url_for('wallpaper_upload') }}" method="post" enctype="multipart/form-data" id="form-wall-header">
-                    <input type="file" name="background" id="file-wall-header" hidden onchange="document.getElementById('form-wall-header').submit()" accept="image/*">
-                    <button type="button" class="btn-set-wallpaper" onclick="document.getElementById('file-wall-header').click()">
-                        <i class="fas fa-image"></i> Set Wallpaper
-                    </button>
-                </form>
             </div>
 
             <div class="piano-container">
