@@ -53,24 +53,62 @@ NAVBAR_HTML = """
             background-color: transparent !important;
             box-shadow: none !important;
         }
+        .navbar-brand {
+             background: linear-gradient(to right, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+             -webkit-background-clip: text;
+             -webkit-text-fill-color: transparent;
+             text-shadow: 0 0 10px rgba(255,255,255,0.3);
+             font-weight: 800;
+        }
+        .logo-upload-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .logo-upload-btn:hover {
+            border-color: white;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        .logo-upload-btn img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .logo-upload-btn i {
+            color: rgba(255,255,255,0.7);
+        }
     </style>
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
-            <a class="navbar-brand" href="/">our<span>tools</span></a>
+            <a class="navbar-brand" href="/">hamiart.<span>education</span></a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link fw-bold" href="/wallpaper-blur">Wallpaper Blur Akrilik</a></li>
-                    <li class="nav-item"><a class="nav-link fw-bold" href="/doremifasolasido">doremifasolasido</a></li>
+                    <!-- Links removed as per request -->
                 </ul>
                 <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item me-3">
-                        <div class="btn-group" role="group">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTheme('light')"><i class="fas fa-sun"></i></button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTheme('dark')"><i class="fas fa-moon"></i></button>
-                        </div>
+                        <form action="/upload-logo" method="post" enctype="multipart/form-data" id="logo-form">
+                            <input type="file" name="logo" id="logo-file" hidden onchange="document.getElementById('logo-form').submit()" accept="image/*">
+                            <div class="logo-upload-btn" onclick="document.getElementById('logo-file').click()" title="Upload Website Logo">
+                                {% if logo_file %}
+                                    <img src="/uploads/{{ logo_file }}" alt="Logo">
+                                {% else %}
+                                    <i class="fas fa-camera"></i>
+                                {% endif %}
+                            </div>
+                        </form>
                     </li>
                 </ul>
             </div>
@@ -263,7 +301,7 @@ def render_page(content, **kwargs):
 
 @app.route('/')
 def index():
-    # Make wallpaper page the main page
+    # Make doremifasolasido the main page
     bg_image = "default.jpg" # Fallback
     if os.path.exists('bg_config.txt'):
         with open('bg_config.txt', 'r') as f:
@@ -271,127 +309,33 @@ def index():
             if content:
                 bg_image = content
 
-    audio_file = None
-    if os.path.exists('audio_config.txt'):
-        with open('audio_config.txt', 'r') as f:
+    logo_file = None
+    if os.path.exists('logo_config.txt'):
+         with open('logo_config.txt', 'r') as f:
             content = f.read().strip()
             if content:
-                audio_file = content
+                logo_file = content
 
-    subtitle_file = None
-    if os.path.exists('subtitle_config.txt'):
-        with open('subtitle_config.txt', 'r') as f:
-            content = f.read().strip()
-            if content:
-                subtitle_file = content
-
-    audio_files = []
-    if os.path.exists(app.config['UPLOAD_FOLDER']):
-        audio_exts = {'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac'}
-        audio_files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) 
-                       if allowed_file(f) and f.rsplit('.', 1)[1].lower() in audio_exts]
-
-    return render_page(HTML_WALLPAPER, bg_image=bg_image, audio_file=audio_file, subtitle_file=subtitle_file, audio_files=audio_files)
+    return render_page(HTML_DOREMI, bg_image=bg_image, logo_file=logo_file)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-@app.route('/wallpaper-blur')
-def wallpaper_blur():
-    return redirect(url_for('index'))
-
-@app.route('/wallpaper-blur/upload', methods=['POST'])
-def wallpaper_upload():
-    if 'background' not in request.files:
+@app.route('/upload-logo', methods=['POST'])
+def upload_logo():
+    if 'logo' not in request.files:
         return redirect(url_for('index'))
     
-    file = request.files['background']
+    file = request.files['logo']
     if file and file.filename != '' and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         
-        with open('bg_config.txt', 'w') as f:
+        with open('logo_config.txt', 'w') as f:
             f.write(filename)
             
     return redirect(url_for('index'))
-
-@app.route('/wallpaper-blur/delete-audio/<filename>')
-def delete_audio(filename):
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
-    if os.path.exists(filepath):
-        os.remove(filepath)
-    return redirect(url_for('index'))
-
-@app.route('/wallpaper-blur/rename-audio', methods=['POST'])
-def rename_audio():
-    old_name = request.form.get('old_name')
-    new_name = request.form.get('new_name')
-    
-    if old_name and new_name:
-        safe_old = secure_filename(old_name)
-        safe_new = secure_filename(new_name)
-        
-        # Keep extension
-        if '.' in safe_old:
-            ext = safe_old.rsplit('.', 1)[1]
-            if not safe_new.endswith(f'.{ext}'):
-                safe_new += f'.{ext}'
-        
-        old_path = os.path.join(app.config['UPLOAD_FOLDER'], safe_old)
-        new_path = os.path.join(app.config['UPLOAD_FOLDER'], safe_new)
-        
-        if os.path.exists(old_path) and not os.path.exists(new_path):
-            os.rename(old_path, new_path)
-            # Update config if active
-            if os.path.exists('audio_config.txt'):
-                with open('audio_config.txt', 'r') as f:
-                    curr = f.read().strip()
-                if curr == safe_old:
-                    with open('audio_config.txt', 'w') as f:
-                        f.write(safe_new)
-                        
-    return redirect(url_for('index'))
-
-@app.route('/wallpaper-blur/upload-audio', methods=['POST'])
-def audio_upload():
-    if 'audio' not in request.files:
-        return redirect(url_for('index'))
-    
-    file = request.files['audio']
-    if file and file.filename != '' and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        
-        with open('audio_config.txt', 'w') as f:
-            f.write(filename)
-            
-    return redirect(url_for('index'))
-
-@app.route('/wallpaper-blur/upload-subtitle', methods=['POST'])
-def subtitle_upload():
-    if 'subtitle' not in request.files:
-        return redirect(url_for('index'))
-    
-    file = request.files['subtitle']
-    if file and file.filename != '' and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        
-        with open('subtitle_config.txt', 'w') as f:
-            f.write(filename)
-            
-    return redirect(url_for('index'))
-
-@app.route('/doremifasolasido')
-def doremifasolasido():
-    bg_image = "default.jpg"
-    if os.path.exists('bg_config.txt'):
-        with open('bg_config.txt', 'r') as f:
-            content = f.read().strip()
-            if content:
-                bg_image = content
-    return render_page(HTML_DOREMI, bg_image=bg_image)
 
 
 HTML_WALLPAPER = """
@@ -1472,11 +1416,15 @@ HTML_DOREMI = """
             border: 2px solid rgba(255, 255, 255, 0.8);
             border-radius: 0 0 8px 8px;
             margin: 0 2px;
-            background: rgba(0, 0, 0, 0.2);
+            background: #ffffff; /* Solid White */
             z-index: 1;
             position: relative;
             box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
             transition: all 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 20px;
         }
 
         .black-key {
@@ -1484,25 +1432,33 @@ HTML_DOREMI = """
             height: 130px;
             position: absolute;
             z-index: 2;
-            background: rgba(0, 0, 0, 0.6);
+            background: #000000; /* Solid Black */
             border: 2px solid rgba(255, 255, 255, 0.5);
             border-radius: 0 0 5px 5px;
             top: 0;
+            box-shadow: none; /* Removed dim effect */
         }
 
         /* Neon Glow for C Major Scale (White Keys) */
         .white-key.glow {
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.4);
             border-color: #fff;
-            background: rgba(255, 255, 255, 0.1);
             animation: pulse-glow 3s infinite alternate;
         }
 
-        /* Dim/Faint for Black Keys */
-        .black-key.dim {
-            opacity: 0.4;
-            border-color: rgba(255, 255, 255, 0.3);
-            box-shadow: none;
+        /* Sticker Styles */
+        .key-sticker {
+            width: 25px;
+            height: 25px;
+            background: #ffff00; /* Neon Yellow */
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 800;
+            color: #000;
+            font-size: 0.9rem;
+            box-shadow: 0 0 10px #ffff00, inset 0 0 5px rgba(255,255,255,0.8);
         }
 
         @keyframes pulse-glow {
@@ -1526,6 +1482,7 @@ HTML_DOREMI = """
             .white-key {
                 width: 35px;
                 height: 140px;
+                padding-bottom: 10px;
             }
             .black-key {
                 width: 24px;
@@ -1534,6 +1491,11 @@ HTML_DOREMI = """
             .title-neon {
                 font-size: 2rem;
                 margin-bottom: 20px;
+            }
+            .key-sticker {
+                width: 18px;
+                height: 18px;
+                font-size: 0.7rem;
             }
         }
     </style>
@@ -1550,29 +1512,29 @@ HTML_DOREMI = """
 
             <div class="piano-container">
                 <div class="keys-wrapper">
-                    <!-- White Keys -->
-                    <div class="white-key glow"></div> <!-- C -->
-                    <div class="white-key glow"></div> <!-- D -->
-                    <div class="white-key glow"></div> <!-- E -->
-                    <div class="white-key glow"></div> <!-- F -->
-                    <div class="white-key glow"></div> <!-- G -->
-                    <div class="white-key glow"></div> <!-- A -->
-                    <div class="white-key glow"></div> <!-- B -->
-                    <div class="white-key glow"></div> <!-- C (High) -->
+                    <!-- White Keys with Stickers -->
+                    <div class="white-key glow"><div class="key-sticker">1</div></div> <!-- C -->
+                    <div class="white-key glow"><div class="key-sticker">2</div></div> <!-- D -->
+                    <div class="white-key glow"><div class="key-sticker">3</div></div> <!-- E -->
+                    <div class="white-key glow"><div class="key-sticker">4</div></div> <!-- F -->
+                    <div class="white-key glow"><div class="key-sticker">5</div></div> <!-- G -->
+                    <div class="white-key glow"><div class="key-sticker">6</div></div> <!-- A -->
+                    <div class="white-key glow"><div class="key-sticker">7</div></div> <!-- B -->
+                    <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- C (High) -->
 
                     <!-- Black Keys -->
-                    <div class="black-key dim" style="left: 45px;"></div>  <!-- C# -->
-                    <div class="black-key dim" style="left: 109px;"></div> <!-- D# -->
-                    <div class="black-key dim" style="left: 237px;"></div> <!-- F# -->
-                    <div class="black-key dim" style="left: 301px;"></div> <!-- G# -->
-                    <div class="black-key dim" style="left: 365px;"></div> <!-- A# -->
+                    <div class="black-key" style="left: 45px;"></div>  <!-- C# -->
+                    <div class="black-key" style="left: 109px;"></div> <!-- D# -->
+                    <div class="black-key" style="left: 237px;"></div> <!-- F# -->
+                    <div class="black-key" style="left: 301px;"></div> <!-- G# -->
+                    <div class="black-key" style="left: 365px;"></div> <!-- A# -->
                 </div>
             </div>
         </div>
 
         <footer style="background: transparent; border: none; color: rgba(255,255,255,0.7); padding: 20px; text-align: center;">
             <div class="container">
-                <p>&copy; 2025 ourtools - Python 3.13.5 Powered. "We Making The Time"</p>
+                <p>&copy; 2026 hamiart.education - All Rights Reserved. "We Making The Time"</p>
             </div>
         </footer>
     </div>
