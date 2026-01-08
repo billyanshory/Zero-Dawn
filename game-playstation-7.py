@@ -193,6 +193,21 @@ def get_games_data():
         }
     ]
 
+def get_agenda_data():
+    data = []
+    # 18 items total (9 for section 1, 9 for section 2)
+    # Default text mimics the game cards but is editable
+    for i in range(1, 19):
+        data.append({
+            "id": f"agenda{i}",
+            "title": "Horizon Zero Dawn",
+            "price": "Rp 729.000",
+            "available": True,
+            "desc_id": "Masih menunggu pengembangan",
+            "desc_en": "Still waiting for development"
+        })
+    return data
+
 # --- ROUTES ---
 
 def render_page(content, **kwargs):
@@ -258,8 +273,8 @@ def list_game_playstation():
 
 @app.route('/list-game-playstation/upload/<game_id>', methods=['POST'])
 def upload_game_image(game_id):
-    # Allow game1 to game24
-    allowed_ids = [f'game{i}' for i in range(1, 25)]
+    # Allow game1 to game24 and agenda1 to agenda18
+    allowed_ids = [f'game{i}' for i in range(1, 25)] + [f'agenda{i}' for i in range(1, 19)]
     if game_id not in allowed_ids:
         return "Invalid Game ID", 400
 
@@ -331,6 +346,25 @@ def audio_upload():
             f.write(filename)
             
     return redirect(url_for('index'))
+
+@app.route('/ustadz-rivki-fc')
+def ustadz_rivki_fc():
+    # Scan for agenda images (agenda1 to agenda18)
+    game_images = {}
+    for i in range(1, 19):
+        found = None
+        for ext in ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif', 'tiff', 'svg', 'ico']:
+             fname = f"agenda{i}.{ext}"
+             if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], fname)):
+                 found = fname
+                 break
+        game_images[f'agenda{i}'] = found if found else None
+
+    full_data = get_agenda_data()
+    agenda1 = full_data[:9]   # Items 1-9 for Section 1
+    agenda2 = full_data[9:18] # Items 10-18 for Section 2
+
+    return render_page(HTML_UR_FC, game_images=game_images, games=full_data, agenda1=agenda1, agenda2=agenda2)
 
 
 # --- FRONTEND FRAGMENTS ---
@@ -417,6 +451,9 @@ NAVBAR_HTML = """
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#">New Releases</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/ustadz-rivki-fc">Ustadz Rivki FC</a>
                     </li>
                 </ul>
                 <ul class="navbar-nav ms-auto align-items-center">
@@ -1189,6 +1226,464 @@ HTML_GAME_LIST = """
                 btn.textContent = 'ID';
             }
         }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+"""
+
+HTML_UR_FC = """
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ustadz Rivki FC</title>
+    <link rel="shortcut icon" href="{{ url_for('static', filename='ikon_rss.ico') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    {{ styles|safe }}
+    <style>
+        body {
+            background-color: #050505;
+            background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop');
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: center;
+            color: white;
+        }
+        .acrylic-overlay-page {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(20px);
+            z-index: -1;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            padding: 80px 20px;
+            position: relative;
+        }
+        .hero-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1.2;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+            font-style: italic;
+        }
+
+        /* Section Header */
+        .section-header h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+
+        /* Grid Layout */
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 1400px) { .games-grid { grid-template-columns: repeat(4, 1fr); } }
+        @media (max-width: 992px) { .games-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 768px) { .games-grid { grid-template-columns: repeat(2, 1fr); } }
+
+        /* Mini Card */
+        .mini-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+        }
+        .mini-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        .mini-poster {
+            width: 100%;
+            aspect-ratio: 1/1;
+            object-fit: cover;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .mini-info {
+            padding: 12px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .mini-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .mini-status {
+            font-size: 0.75rem;
+            margin-bottom: 8px;
+        }
+        .status-avail { color: #4cd137; }
+
+        .card-bottom-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .mini-price {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.9);
+        }
+
+        /* Modal Overlay */
+        .game-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            z-index: 2000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .game-modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+        .modal-card {
+            background: rgba(20, 20, 20, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        @media (max-width: 992px) {
+            .modal-card { flex-direction: column; overflow-y: auto; }
+        }
+
+        .modal-poster-container {
+            width: 40%;
+            position: relative;
+            background: black;
+        }
+        @media (max-width: 992px) { .modal-poster-container { width: 100%; height: 300px; } }
+
+        .modal-poster {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .modal-info {
+            width: 60%;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        @media (max-width: 992px) { .modal-info { width: 100%; padding: 25px; } }
+
+        .modal-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        .modal-desc {
+            font-size: 1rem;
+            line-height: 1.7;
+            color: rgba(255,255,255,0.85);
+            font-weight: 300;
+            margin-bottom: 30px;
+        }
+        .modal-desc p { margin-bottom: 15px; }
+
+        .modal-price {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #4cd137;
+            margin-top: auto;
+            text-align: right;
+        }
+
+        .close-modal-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.5);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: 0.2s;
+            z-index: 10;
+        }
+        .close-modal-btn:hover { background: rgba(255,255,255,0.2); }
+
+        .upload-btn-modal {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: 0.2s;
+        }
+        .upload-btn-modal:hover { background: var(--brand-color); }
+
+        /* Footer Styling */
+        footer.acrylic-footer {
+            margin-top: 80px;
+            color: rgba(255,255,255,0.6);
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 40px 0;
+            text-align: center;
+        }
+        .footer-logo {
+            font-weight: 800;
+            font-size: 1.5rem;
+            color: white;
+            margin-bottom: 10px;
+        }
+        .social-icons {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        .social-icon {
+            color: rgba(255,255,255,0.6);
+            font-size: 1.5rem;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+        .social-icon:hover { color: white; transform: scale(1.1); text-shadow: 0 0 10px white; }
+
+        /* Editable Styles */
+        [contenteditable="true"] {
+            outline: 1px dashed rgba(255, 255, 255, 0.2);
+            transition: outline 0.2s;
+            min-width: 50px;
+            display: inline-block;
+        }
+        [contenteditable="true"]:focus {
+            outline: 1px solid #00f3ff;
+            background: rgba(0, 243, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="acrylic-overlay-page"></div>
+
+    {{ navbar|safe }}
+
+    <div class="container container-xl py-5">
+
+        <!-- HERO SECTION -->
+        <div class="hero-section text-center mb-5">
+            <h1 class="hero-title">"Sepak bola adalah permainan tentang kesalahan. Tim yang paling sedikit membuat kesalahan akan jadi pemenang" – Johan Cruyff</h1>
+            <button class="btn btn-cyan-neon mt-4 px-5 py-2 rounded-pill" onclick="scrollToPopular()">Lihat Agenda Kami</button>
+        </div>
+
+        <!-- SECTION 1 -->
+        <div class="section-header mb-4" id="popular-games">
+            <h2 class="fw-bold">Agenda Latihan <span class="text-blue-neon" style="border-bottom: 3px solid #00f3ff;">UR FC</span></h2>
+        </div>
+
+        <div class="games-grid">
+            {% for item in agenda1 %}
+            <div class="mini-card" onclick="openModal('{{ item.id }}')">
+                {% if game_images[item.id] %}
+                    <img src="/uploads/{{ game_images[item.id] }}" class="mini-poster" alt="Agenda">
+                {% else %}
+                    <!-- Empty/Placeholder as requested -->
+                    <div class="mini-poster" style="background: #1e1e1e; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.1); font-size:2rem;">
+                         <i class="fas fa-camera"></i>
+                    </div>
+                {% endif %}
+                <div class="mini-info">
+                    <div class="mini-title" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_title')">{{ item.title }}</div>
+                    <div class="mini-status">
+                        <span class="status-avail" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_status')"><i class="fas fa-check-circle me-1"></i> Tersedia</span>
+                    </div>
+                    <div class="card-bottom-row">
+                        <div class="mini-price" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_price')">{{ item.price }}</div>
+                        <!-- Buy Button Removed -->
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- SECTION 2 -->
+        <div class="section-header mt-5 mb-4">
+            <h2 class="fw-bold">Next <span class="text-blue-neon" style="border-bottom: 3px solid #00f3ff;">Agenda</span></h2>
+        </div>
+        <div class="games-grid">
+            {% for item in agenda2 %}
+             <div class="mini-card" onclick="openModal('{{ item.id }}')">
+                {% if game_images[item.id] %}
+                    <img src="/uploads/{{ game_images[item.id] }}" class="mini-poster" alt="Agenda">
+                {% else %}
+                    <div class="mini-poster" style="background: #1e1e1e; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.1); font-size:2rem;">
+                         <i class="fas fa-camera"></i>
+                    </div>
+                {% endif %}
+                <div class="mini-info">
+                    <div class="mini-title" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_title')">{{ item.title }}</div>
+                    <div class="mini-status">
+                        <span class="status-avail" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_status')"><i class="fas fa-check-circle me-1"></i> Tersedia</span>
+                    </div>
+                    <div class="card-bottom-row">
+                        <div class="mini-price" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_price')">{{ item.price }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <footer class="acrylic-footer">
+            <div class="container">
+                <div class="footer-logo">Ustadz Rivki FC</div>
+                <p>&copy; 2026 UR FC. All rights reserved.</p>
+                <div class="social-icons">
+                    <!-- WA: Direct to number -->
+                    <a href="https://wa.me/6281528455350" target="_blank" style="text-decoration:none;"><i class="fab fa-whatsapp social-icon"></i></a>
+
+                    <!-- Maps -->
+                    <a href="https://maps.app.goo.gl/uWsamfYCzcMXiq6e6" target="_blank" style="text-decoration:none;"><i class="fas fa-map-marker-alt social-icon"></i></a>
+
+                    <!-- IG -->
+                    <a href="https://www.instagram.com/adihidayatofficial?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" style="text-decoration:none;"><i class="fab fa-instagram social-icon"></i></a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- DETAIL POPUP -->
+    <div id="modal-overlay" class="game-modal-overlay">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <button class="close-modal-btn" onclick="closeModal()"><i class="fas fa-times"></i></button>
+
+            <div class="modal-poster-container">
+                <img id="m-poster" src="" class="modal-poster">
+                <form id="m-upload-form" method="post" enctype="multipart/form-data" style="display:none">
+                    <input type="file" name="game_image" id="m-file-input" onchange="this.form.submit()" accept="image/*">
+                </form>
+                <div class="upload-btn-modal" onclick="triggerUpload()">
+                    <i class="fas fa-camera me-1"></i> Change Cover
+                </div>
+            </div>
+
+            <div class="modal-info">
+                <h2 class="modal-title" id="m-title">Title</h2>
+                <div class="modal-desc">
+                    <p>Masih menunggu pengembangan</p>
+                </div>
+                <div class="modal-price" id="m-price">Price</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const gamesData = {{ games|tojson }};
+        const gameImages = {{ game_images|tojson }};
+
+        function openModal(id) {
+            const game = gamesData.find(g => g.id === id);
+
+            // For modal title/price, we use what's in data or standard placeholder
+            // Note: Since text on card is editable by user, the modal might show default text unless we also update it from DOM or localstorage.
+            // For simplicity in this "tool" request, we show the default data passed or placeholders.
+
+            // If user edited text, retrieve from localStorage
+            const savedTitle = localStorage.getItem(id + '_title') || game.title;
+            const savedPrice = localStorage.getItem(id + '_price') || game.price;
+
+            document.getElementById('m-title').innerText = savedTitle;
+            document.getElementById('m-price').innerText = savedPrice;
+
+            const imgPath = gameImages[id] ? '/uploads/' + gameImages[id] : '';
+            const posterImg = document.getElementById('m-poster');
+            if (imgPath) {
+                posterImg.src = imgPath;
+                posterImg.style.display = 'block';
+            } else {
+                posterImg.src = '';
+                posterImg.style.background = '#1e1e1e';
+            }
+
+            // Setup Upload Form
+            const form = document.getElementById('m-upload-form');
+            form.action = '/list-game-playstation/upload/' + id;
+
+            const overlay = document.getElementById('modal-overlay');
+            overlay.classList.add('active');
+        }
+
+        function closeModal() {
+            const overlay = document.getElementById('modal-overlay');
+            overlay.classList.remove('active');
+        }
+
+        function scrollToPopular() {
+            const el = document.getElementById('popular-games');
+            if(el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+        document.getElementById('modal-overlay').addEventListener('click', closeModal);
+
+        function triggerUpload() {
+            document.getElementById('m-file-input').click();
+        }
+
+        // Save editable text to localStorage
+        function saveText(el, key) {
+            localStorage.setItem(key, el.innerText);
+        }
+
+        // Load editable text from localStorage on startup
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('[contenteditable="true"]').forEach(el => {
+                const key = el.getAttribute('oninput').match(/'([^']+)'/)[1];
+                const saved = localStorage.getItem(key);
+                if(saved) {
+                    el.innerText = saved;
+                }
+            });
+        });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
