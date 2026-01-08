@@ -1,6 +1,57 @@
 import os
-from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for
+from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response
 from werkzeug.utils import secure_filename
+
+# --- PWA CONFIGURATION (SINGLE FILE PATTERN) ---
+MANIFEST_CONTENT = """{
+  "name": "Hamiart Education",
+  "short_name": "Hamiart",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#E5322D",
+  "icons": [
+    {
+      "src": "/uploads/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/uploads/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}"""
+
+SW_CONTENT = """
+const CACHE_NAME = 'hamiart-v1';
+const urlsToCache = [
+  '/',
+  '/manifest.json'
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        return cache.addAll(urlsToCache);
+      })
+  );
+});
+
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        if (response) {
+          return response;
+        }
+        return fetch(event.request);
+      })
+  );
+});
+"""
 
 # --- KONFIGURASI FLASK ---
 app = Flask(__name__)
@@ -127,6 +178,11 @@ NAVBAR_HTML = """
                             <i class="fas fa-image"></i>
                         </div>
                     </form>
+
+                    <!-- Download PWA Button (Right of Wallpaper) -->
+                    <div id="pwa-install-btn" class="nav-icon-btn small-btn" onclick="installPWA()" title="Download PWA" style="display:none;">
+                        <i class="fas fa-download"></i>
+                    </div>
                 </div>
             </div>
 
@@ -135,6 +191,37 @@ NAVBAR_HTML = """
             <div class="collapse navbar-collapse" id="navbarNav" style="display:none"></div>
         </div>
     </nav>
+
+    <script>
+        let deferredPrompt;
+        const installBtn = document.getElementById('pwa-install-btn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent Chrome 67 and earlier from automatically showing the prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+            // Update UI to notify the user they can add to home screen
+            installBtn.style.display = 'flex';
+        });
+
+        function installPWA() {
+            if (deferredPrompt) {
+                // Show the prompt
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted the A2HS prompt');
+                    } else {
+                        console.log('User dismissed the A2HS prompt');
+                    }
+                    deferredPrompt = null;
+                    installBtn.style.display = 'none';
+                });
+            }
+        }
+    </script>
 """
 
 # Base styles fragment to reuse
@@ -320,6 +407,14 @@ def render_page(content, **kwargs):
     content = content.replace('{{ navbar|safe }}', NAVBAR_HTML)
     return render_template_string(content, **kwargs)
 
+@app.route('/manifest.json')
+def serve_manifest():
+    return Response(MANIFEST_CONTENT, mimetype='application/manifest+json')
+
+@app.route('/service-worker.js')
+def serve_sw():
+    return Response(SW_CONTENT, mimetype='application/javascript')
+
 @app.route('/')
 def index():
     # Make doremifasolasido the main page
@@ -380,6 +475,13 @@ HTML_DOREMI = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#E5322D">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Hamiart">
+
     <title>Nada Dasar C | doremifasolasido</title>
     <link rel="icon" href="{{ url_for('static', filename='hamiartlogo.png') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -723,6 +825,19 @@ HTML_DOREMI = """
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+
         (function() {
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-bs-theme', savedTheme);
