@@ -162,7 +162,7 @@ NAVBAR_HTML = """
                     </form>
 
                     <!-- PWA Install Button -->
-                    <div id="pwa-install-btn" class="nav-icon-btn small-btn" style="display: none;" title="Install Web App">
+                    <div id="pwa-install-btn" class="nav-icon-btn small-btn" style="display: flex;" title="Install Web App">
                         <i class="fas fa-download"></i>
                     </div>
                 </div>
@@ -799,27 +799,19 @@ HTML_DOREMI = """
         const pwaBtn = document.getElementById('pwa-install-btn');
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-        // Show button immediately on iOS
-        if (isIOS) {
-            pwaBtn.style.display = 'flex';
-        }
-
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            pwaBtn.style.display = 'flex';
         });
 
         pwaBtn.addEventListener('click', () => {
             if (deferredPrompt) {
-                pwaBtn.style.display = 'none';
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then((choiceResult) => {
                     if (choiceResult.outcome === 'accepted') {
                         console.log('User accepted the A2HS prompt');
                     } else {
                         console.log('User dismissed the A2HS prompt');
-                        pwaBtn.style.display = 'flex'; // Show again if dismissed
                     }
                     deferredPrompt = null;
                 });
@@ -828,14 +820,9 @@ HTML_DOREMI = """
                 alert("To install on iOS: Tap the Share button and select 'Add to Home Screen'");
             } else {
                  // Fallback or if already installed/not supported
-                 alert("To install, look for 'Add to Home Screen' in your browser menu.");
+                 alert("To install, look for 'Add to Home Screen' in your browser menu. If you have already installed the app, you can open it from your device menu.");
             }
         });
-
-        // Check if already installed (standalone)
-        if (window.matchMedia('(display-mode: standalone)').matches) {
-            pwaBtn.style.display = 'none';
-        }
     </script>
     <script>
         (function() {
