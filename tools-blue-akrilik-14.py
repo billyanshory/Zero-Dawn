@@ -179,8 +179,8 @@ NAVBAR_HTML = """
                         </div>
                     </form>
 
-                    <!-- Download PWA Button (Right of Wallpaper) -->
-                    <div id="pwa-install-btn" class="nav-icon-btn small-btn" onclick="installPWA()" title="Download PWA" style="display:none;">
+                    <!-- Download PWA Button (Right of Wallpaper) - ALWAYS VISIBLE -->
+                    <div id="pwa-install-btn" class="nav-icon-btn small-btn" onclick="installPWA()" title="Download PWA" style="display:flex;">
                         <i class="fas fa-download"></i>
                     </div>
                 </div>
@@ -196,20 +196,17 @@ NAVBAR_HTML = """
         let deferredPrompt;
         const installBtn = document.getElementById('pwa-install-btn');
 
+        // Capture event for Android/Desktop
         window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevent Chrome 67 and earlier from automatically showing the prompt
             e.preventDefault();
-            // Stash the event so it can be triggered later.
             deferredPrompt = e;
-            // Update UI to notify the user they can add to home screen
-            installBtn.style.display = 'flex';
+            console.log('beforeinstallprompt fired');
         });
 
         function installPWA() {
             if (deferredPrompt) {
-                // Show the prompt
+                // Show the prompt if available
                 deferredPrompt.prompt();
-                // Wait for the user to respond to the prompt
                 deferredPrompt.userChoice.then((choiceResult) => {
                     if (choiceResult.outcome === 'accepted') {
                         console.log('User accepted the A2HS prompt');
@@ -217,8 +214,16 @@ NAVBAR_HTML = """
                         console.log('User dismissed the A2HS prompt');
                     }
                     deferredPrompt = null;
-                    installBtn.style.display = 'none';
                 });
+            } else {
+                // Fallback for iOS or if browser doesn't support the event
+                // Detect OS
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                if (isIOS) {
+                    alert("To install on iOS:\\n1. Tap the Share button (rectangle with arrow).\\n2. Scroll down and tap 'Add to Home Screen'.");
+                } else {
+                    alert("To install:\\nUse your browser's menu (⋮) and select 'Install App' or 'Add to Home Screen'.");
+                }
             }
         }
     </script>
