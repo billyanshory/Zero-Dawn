@@ -247,9 +247,9 @@ def get_agenda_data():
             # Simulating structure:
             status_text = db_item['status'] # "Tersedia" etc
         else:
-            title = "Horizon Zero Dawn"
-            price = "Rp 729.000"
-            status_text = "Tersedia"
+            title = "Judul Agenda"
+            price = "Waktu/Tempat"
+            status_text = "Dijadwalkan"
 
         data.append({
             "id": item_id,
@@ -292,16 +292,27 @@ def get_agenda_data():
 
 # --- ROUTES ---
 
-def render_page(content, **kwargs):
+def render_page(content, navbar=None, **kwargs):
     # Inject fragments before rendering to allow Jinja to process them
     content = content.replace('{{ styles|safe }}', STYLES_HTML)
-    content = content.replace('{{ navbar|safe }}', NAVBAR_HTML)
+    content = content.replace('{{ navbar|safe }}', navbar if navbar else NAVBAR_GAMEVERSE)
     return render_template_string(content, **kwargs)
 
 @app.route('/')
 def index():
-    # Use Ustadz Rivki FC logic for main page now
-    return ustadz_rivki_fc()
+    # Scan for game images for all 24 games
+    game_images = {}
+    for i in range(1, 25):
+        found = None
+        for ext in ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif', 'tiff', 'svg', 'ico']:
+             fname = f"game{i}.{ext}"
+             if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], fname)):
+                 found = fname
+                 break
+        game_images[f'game{i}'] = found if found else 'default_game.jpg'
+
+    games = get_games_data()
+    return render_page(HTML_GAME_LIST, navbar=NAVBAR_GAMEVERSE, game_images=game_images, games=games)
 
 @app.route('/legacy-home')
 def legacy_index():
@@ -314,10 +325,10 @@ def legacy_index():
              if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], fname)):
                  found = fname
                  break
-        game_images[f'game{i}'] = found if found else 'default_game.jpg' 
-    
+        game_images[f'game{i}'] = found if found else 'default_game.jpg'
+
     games = get_games_data()
-    return render_page(HTML_GAME_LIST, game_images=game_images, games=games)
+    return render_page(HTML_GAME_LIST, navbar=NAVBAR_GAMEVERSE, game_images=game_images, games=games)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -389,9 +400,9 @@ def upload_game_image(game_id):
         new_filename = f"{game_id}.{ext}"
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], new_filename))
 
-    # Redirect logic fix: Agenda items go to index, legacy games go to list
+    # Redirect logic fix: Agenda items go to UR FC page, legacy games go to list
     if game_id.startswith('agenda'):
-        return redirect(url_for('index'))
+        return redirect(url_for('ustadz_rivki_fc'))
         
     return redirect(url_for('list_game_playstation'))
 
@@ -519,12 +530,117 @@ def ustadz_rivki_fc():
                  break
         game_images[item_id] = found if found else None
 
-    return render_page(HTML_UR_FC, game_images=game_images, games=full_data, agenda1=agenda1, agenda2=agenda2)
+    return render_page(HTML_UR_FC, navbar=NAVBAR_UR_FC, game_images=game_images, games=full_data, agenda1=agenda1, agenda2=agenda2)
 
 
 # --- FRONTEND FRAGMENTS ---
 
-NAVBAR_HTML = """
+NAVBAR_GAMEVERSE = """
+    <style>
+        .navbar {
+            background-color: rgba(0, 0, 0, 0.6) !important;
+            backdrop-filter: blur(15px) saturate(120%);
+            -webkit-backdrop-filter: blur(15px) saturate(120%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+        .navbar-brand {
+            font-weight: 800;
+            font-size: 1.8rem;
+            color: white !important;
+            letter-spacing: -1px;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        .brand-verse {
+            color: #00f3ff;
+            text-shadow: 0 0 5px #00f3ff, 0 0 10px #00f3ff, 0 0 20px #00f3ff;
+            font-style: italic;
+            font-family: 'Inter', sans-serif;
+        }
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8) !important;
+            font-weight: 500;
+            margin-right: 15px;
+            transition: color 0.3s;
+        }
+        .nav-link:hover {
+            color: white !important;
+            text-shadow: 0 0 8px rgba(255,255,255,0.5);
+        }
+        .join-btn {
+            border: 1px solid #00f3ff;
+            color: #00f3ff !important;
+            border-radius: 5px;
+            padding: 5px 15px;
+            box-shadow: 0 0 5px rgba(0, 243, 255, 0.2);
+            transition: all 0.3s;
+        }
+        .join-btn:hover {
+            background: rgba(0, 243, 255, 0.1);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.4);
+        }
+        .navbar-toggler {
+            border-color: rgba(255,255,255,0.5) !important;
+        }
+        .navbar-toggler-icon {
+            filter: brightness(0) invert(1) !important;
+        }
+        @media (max-width: 991px) {
+            .navbar-collapse {
+                background: rgba(20, 20, 20, 0.6);
+                backdrop-filter: blur(25px);
+                -webkit-backdrop-filter: blur(25px);
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 15px;
+                padding: 20px;
+                margin-top: 10px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            }
+        }
+    </style>
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">Game<span class="brand-verse">Verse</span></a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/#popular-games" onclick="smoothScroll(event, 'popular-games')">Popular Games</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/#new-releases" onclick="smoothScroll(event, 'new-releases')">New Releases</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/ustadz-rivki-fc">Ustadz Rivki FC</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item">
+                        <a class="nav-link join-btn" href="#">Join Community</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <script>
+        function smoothScroll(e, id) {
+            if (window.location.pathname === '/' || window.location.pathname === '/index') {
+                e.preventDefault();
+                const el = document.getElementById(id);
+                if(el) {
+                    el.scrollIntoView({ behavior: 'smooth' });
+                }
+            } else {
+                window.location.href = '/#' + id;
+            }
+        }
+    </script>
+"""
+
+NAVBAR_UR_FC = """
     <style>
         .navbar {
             background-color: rgba(0, 0, 0, 0.6) !important;
@@ -576,7 +692,7 @@ NAVBAR_HTML = """
         .navbar-toggler-icon {
             filter: brightness(0) invert(1) !important;
         }
-        
+
         /* Mobile Menu Acrylic Box - Adjusted to be lighter/glassy */
         @media (max-width: 991px) {
             .navbar-collapse {
