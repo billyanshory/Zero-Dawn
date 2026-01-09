@@ -631,7 +631,7 @@ NAVBAR_HTML = """
         }
     </style>
     <nav class="navbar navbar-expand-lg sticky-top">
-        <div class="container-fluid px-4 px-lg-5">
+        <div class="container-fluid px-4 px-lg-4">
             <div class="d-flex align-items-center">
                 <!-- Logo Image - Triggers Popup -->
                 <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" alt="Logo"
@@ -650,7 +650,7 @@ NAVBAR_HTML = """
                 <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
+                <ul class="navbar-nav mx-lg-auto text-center">
                     <li class="nav-item">
                         <a class="nav-link" href="#popular-games" onclick="smoothScroll(event, 'popular-games')">
                             <span class="lang-id">Agenda Latihan TAHKIL FC</span>
@@ -900,6 +900,11 @@ HTML_GAME_LIST = """
             font-size: 2rem;
             margin-bottom: 20px;
             display: inline-block;
+        }
+        @media (max-width: 768px) {
+            .section-header h2 {
+                font-size: 1.5rem; /* Reduced font size for mobile to prevent wrap */
+            }
         }
 
         /* Grid Layout */
@@ -1518,6 +1523,11 @@ HTML_UR_FC = """
             font-size: 2rem;
             margin-bottom: 20px;
             display: inline-block;
+        }
+        @media (max-width: 768px) {
+            .section-header h2 {
+                font-size: 1.5rem; /* Reduced font size for mobile to prevent wrap */
+            }
         }
 
         /* Grid Layout */
