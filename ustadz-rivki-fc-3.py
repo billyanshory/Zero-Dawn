@@ -582,26 +582,70 @@ NAVBAR_HTML = """
         /* Mobile Menu Acrylic Box - Adjusted to be lighter/glassy */
         @media (max-width: 991px) {
             .navbar-collapse {
-                background: rgba(0, 0, 0, 0.6);
-                backdrop-filter: blur(15px);
-                -webkit-backdrop-filter: blur(15px);
+                background: transparent; /* Polos - blends with main navbar */
                 border: none;
-                border-radius: 0 0 15px 15px;
-                padding: 15px;
+                border-radius: 0;
+                padding: 0; /* Remove padding to blend perfectly */
                 margin-top: 0;
                 box-shadow: none;
+            }
+            .navbar-nav {
+                padding: 15px 0; /* Add internal padding instead */
             }
             .nav-link {
                 font-size: 0.9rem;
             }
+            .navbar-brand {
+                font-size: 1.4rem; /* Slightly smaller on mobile to prevent wrap */
+            }
+        }
+
+        /* Logo Modal */
+        #logo-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.47); /* Acrylic blur aesthetic */
+            backdrop-filter: blur(20px) saturate(125%);
+            -webkit-backdrop-filter: blur(20px) saturate(125%);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #logo-modal.active {
+            display: flex;
+            opacity: 1;
+        }
+        #logo-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 50%; /* Keep circular aesthetic */
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s;
+        }
+        #logo-modal img:hover {
+            transform: scale(1.05);
         }
     </style>
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container-fluid px-4 px-lg-5">
-            <a class="navbar-brand d-flex align-items-center" href="#" onclick="window.scrollTo({top: 0, behavior: 'smooth'}); return false;">
-                <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" alt="Logo" style="height: 50px; margin-right: 10px;">
-                TAHFIZH <span class="brand-verse ps-2">KILAT FC</span>
-            </a>
+            <div class="d-flex align-items-center">
+                <!-- Logo Image - Triggers Popup -->
+                <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" alt="Logo"
+                     onclick="viewLogo()"
+                     style="height: 50px; margin-right: 10px; cursor: pointer; transition: transform 0.2s;"
+                     onmouseover="this.style.transform='scale(1.1)'"
+                     onmouseout="this.style.transform='scale(1)'">
+
+                <!-- Brand Text - Triggers Scroll to Top -->
+                <a class="navbar-brand m-0 p-0" href="#" onclick="window.scrollTo({top: 0, behavior: 'smooth'}); return false;">
+                    TAHFIZH <span class="brand-verse ps-2">KILAT FC</span>
+                </a>
+            </div>
+
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
             </button>
@@ -1857,6 +1901,11 @@ HTML_UR_FC = """
         </footer>
     </div>
 
+    <!-- LOGO POPUP MODAL -->
+    <div id="logo-modal" onclick="closeLogoModal()">
+        <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" alt="Full Logo" onclick="event.stopPropagation()">
+    </div>
+
     <!-- DETAIL POPUP -->
     <div id="modal-overlay" class="game-modal-overlay">
         <div class="modal-card" onclick="event.stopPropagation()">
@@ -1923,6 +1972,17 @@ HTML_UR_FC = """
         function closeModal() {
             const overlay = document.getElementById('modal-overlay');
             overlay.classList.remove('active');
+        }
+
+        // Logo Modal Functions
+        function viewLogo() {
+            const modal = document.getElementById('logo-modal');
+            modal.classList.add('active');
+        }
+
+        function closeLogoModal() {
+            const modal = document.getElementById('logo-modal');
+            modal.classList.remove('active');
         }
 
         function scrollToPopular() {
