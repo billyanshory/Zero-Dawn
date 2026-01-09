@@ -552,6 +552,7 @@ NAVBAR_HTML = """
             font-weight: 500;
             margin-right: 15px;
             transition: color 0.3s;
+            white-space: nowrap !important;
         }
         .nav-link:hover {
             color: white !important;
@@ -561,9 +562,10 @@ NAVBAR_HTML = """
             border: 1px solid #FFD700;
             color: #FFD700 !important;
             border-radius: 5px;
-            padding: 5px 15px;
+            padding: 5px 30px;
             box-shadow: 0 0 5px rgba(255, 215, 0, 0.2);
             transition: all 0.3s;
+            white-space: nowrap !important;
         }
         .join-btn:hover {
             background: rgba(255, 215, 0, 0.1);
@@ -580,20 +582,23 @@ NAVBAR_HTML = """
         /* Mobile Menu Acrylic Box - Adjusted to be lighter/glassy */
         @media (max-width: 991px) {
             .navbar-collapse {
-                background: rgba(20, 20, 20, 0.6);
-                backdrop-filter: blur(25px);
-                -webkit-backdrop-filter: blur(25px);
-                border: 1px solid rgba(255,255,255,0.1);
-                border-radius: 15px;
-                padding: 20px;
-                margin-top: 10px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+                background: rgba(0, 0, 0, 0.6);
+                backdrop-filter: blur(15px);
+                -webkit-backdrop-filter: blur(15px);
+                border: none;
+                border-radius: 0 0 15px 15px;
+                padding: 15px;
+                margin-top: 0;
+                box-shadow: none;
+            }
+            .nav-link {
+                font-size: 0.9rem;
             }
         }
     </style>
     <nav class="navbar navbar-expand-lg sticky-top">
-        <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="/">
+        <div class="container-fluid px-4 px-lg-5">
+            <a class="navbar-brand d-flex align-items-center" href="#" onclick="window.scrollTo({top: 0, behavior: 'smooth'}); return false;">
                 <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" alt="Logo" style="height: 50px; margin-right: 10px;">
                 TAHFIZH <span class="brand-verse ps-2">KILAT FC</span>
             </a>
@@ -1543,12 +1548,12 @@ HTML_UR_FC = """
         
         /* Add Card Button Style */
         .add-card-btn {
-            background: rgba(255, 215, 0, 0.1);
-            border: 2px dashed #FFD700;
+            background: rgba(46, 204, 113, 0.1);
+            border: 2px dashed #2ecc71;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #FFD700;
+            color: #2ecc71;
             font-size: 2rem;
             cursor: pointer;
             transition: 0.3s;
@@ -1556,8 +1561,22 @@ HTML_UR_FC = """
             border-radius: 12px;
         }
         .add-card-btn:hover {
-            background: rgba(255, 215, 0, 0.2);
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+            background: rgba(46, 204, 113, 0.2);
+            box-shadow: 0 0 20px rgba(46, 204, 113, 0.3);
+        }
+
+        .btn-add-green {
+            color: #2ecc71;
+            border: 1px solid #2ecc71;
+            background: transparent;
+            padding: 8px 20px;
+            border-radius: 5px;
+            transition: 0.3s;
+        }
+        .btn-add-green:hover {
+            background: #2ecc71;
+            color: white;
+            box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
         }
 
         /* Modal Overlay */
@@ -1622,6 +1641,7 @@ HTML_UR_FC = """
             font-weight: 800;
             margin-bottom: 20px;
             text-shadow: 0 0 10px rgba(0,0,0,0.5);
+            color: #FFFFFF !important;
         }
         .modal-desc {
             font-size: 1rem;
@@ -1765,12 +1785,12 @@ HTML_UR_FC = """
                     </div>
                 {% endif %}
                 <div class="mini-info">
-                    <div class="mini-title" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_title')">{{ item.title }}</div>
+                    <div class="mini-title" id="title-{{ item.id }}" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_title')">{{ item.title }}</div>
                     <div class="mini-status">
-                        <span class="status-avail" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_status')"><i class="fas fa-check-circle me-1"></i> {{ item.status_text }}</span>
+                        <span class="status-avail" id="status-{{ item.id }}" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_status')"><i class="fas fa-check-circle me-1"></i> {{ item.status_text }}</span>
                     </div>
                     <div class="card-bottom-row">
-                        <div class="mini-price" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_price')">{{ item.price }}</div>
+                        <div class="mini-price" id="price-{{ item.id }}" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_price')">{{ item.price }}</div>
                     </div>
                 </div>
             </div>
@@ -1780,7 +1800,7 @@ HTML_UR_FC = """
         
         <!-- Add Card Button for Section 1 -->
         <div class="d-flex justify-content-end mb-5">
-            <button class="btn btn-outline-info" onclick="addCard('grid-agenda-latihan', 'agenda1_dynamic')">+ Tambah Card Agenda</button>
+            <button class="btn btn-add-green" onclick="addCard('grid-agenda-latihan', 'agenda1_dynamic')">+ Tambah Card Agenda</button>
         </div>
         
         <!-- SECTION 2: NEXT AGENDA -->
@@ -1801,12 +1821,12 @@ HTML_UR_FC = """
                     </div>
                 {% endif %}
                 <div class="mini-info">
-                    <div class="mini-title" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_title')">{{ item.title }}</div>
+                    <div class="mini-title" id="title-{{ item.id }}" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_title')">{{ item.title }}</div>
                     <div class="mini-status">
-                        <span class="status-avail" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_status')"><i class="fas fa-check-circle me-1"></i> {{ item.status_text }}</span>
+                        <span class="status-avail" id="status-{{ item.id }}" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_status')"><i class="fas fa-check-circle me-1"></i> {{ item.status_text }}</span>
                     </div>
                     <div class="card-bottom-row">
-                        <div class="mini-price" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_price')">{{ item.price }}</div>
+                        <div class="mini-price" id="price-{{ item.id }}" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_price')">{{ item.price }}</div>
                     </div>
                 </div>
             </div>
@@ -1816,7 +1836,7 @@ HTML_UR_FC = """
         
         <!-- Add Card Button for Section 2 -->
         <div class="d-flex justify-content-end mb-5">
-            <button class="btn btn-outline-info" onclick="addCard('grid-next-agenda', 'agenda2_dynamic')">+ Tambah Card Agenda</button>
+            <button class="btn btn-add-green" onclick="addCard('grid-next-agenda', 'agenda2_dynamic')">+ Tambah Card Agenda</button>
         </div>
 
         <footer class="acrylic-footer" id="footer-social">
@@ -1869,16 +1889,15 @@ HTML_UR_FC = """
         function openModal(id) {
             const game = gamesData.find(g => g.id === id);
             
-            // For modal title/price, we use what's in data or standard placeholder
-            // Note: Since text on card is editable by user, the modal might show default text unless we also update it from DOM or localstorage. 
-            // For simplicity in this "tool" request, we show the default data passed or placeholders. 
+            // Fetch directly from DOM to sync with user edits
+            const titleEl = document.getElementById('title-' + id);
+            const priceEl = document.getElementById('price-' + id);
             
-            // If user edited text, retrieve from localStorage
-            const savedTitle = localStorage.getItem(id + '_title') || game.title;
-            const savedPrice = localStorage.getItem(id + '_price') || game.price;
+            const currentTitle = titleEl ? titleEl.innerText : (localStorage.getItem(id + '_title') || game.title);
+            const currentPrice = priceEl ? priceEl.innerText : (localStorage.getItem(id + '_price') || game.price);
 
-            document.getElementById('m-title').innerText = savedTitle;
-            document.getElementById('m-price').innerText = savedPrice;
+            document.getElementById('m-title').innerText = currentTitle;
+            document.getElementById('m-price').innerText = currentPrice;
             
             const imgPath = gameImages[id] ? '/uploads/' + gameImages[id] : '';
             const posterImg = document.getElementById('m-poster');
