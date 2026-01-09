@@ -218,6 +218,11 @@ def render_page(content, **kwargs):
 
 @app.route('/')
 def index():
+    # Use Ustadz Rivki FC logic for main page now
+    return ustadz_rivki_fc()
+
+@app.route('/legacy-home')
+def legacy_index():
     # Scan for game images for all 24 games
     game_images = {}
     for i in range(1, 25):
@@ -273,9 +278,16 @@ def list_game_playstation():
 
 @app.route('/list-game-playstation/upload/<game_id>', methods=['POST'])
 def upload_game_image(game_id):
-    # Allow game1 to game24 and agenda1 to agenda18
-    allowed_ids = [f'game{i}' for i in range(1, 25)] + [f'agenda{i}' for i in range(1, 19)]
-    if game_id not in allowed_ids:
+    # Allow game1 to game24 and agenda1 to agenda18, plus any dynamic agenda IDs
+    is_valid = False
+    if game_id.startswith('game'):
+         # Simple check for legacy game IDs or just allow
+         is_valid = True
+    elif game_id.startswith('agenda'):
+         # Allow agenda1..18 and agenda1_dynamic_X
+         is_valid = True
+
+    if not is_valid:
         return "Invalid Game ID", 400
 
     if 'game_image' not in request.files:
@@ -390,6 +402,7 @@ NAVBAR_HTML = """
             color: #00f3ff;
             text-shadow: 0 0 5px #00f3ff, 0 0 10px #00f3ff, 0 0 20px #00f3ff;
             font-style: italic;
+            font-family: 'Inter', sans-serif; /* Ensuring consistent font */
         }
         .nav-link {
             color: rgba(255, 255, 255, 0.8) !important;
@@ -437,28 +450,37 @@ NAVBAR_HTML = """
     </style>
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
-            <a class="navbar-brand" href="/">Game<span class="brand-verse">Verse</span></a>
+            <a class="navbar-brand" href="/">Ustadz <span class="brand-verse">Rivki FC</span></a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Home</a>
+                        <a class="nav-link" href="#popular-games" onclick="smoothScroll(event, 'popular-games')">
+                            <span class="lang-id">Agenda Latihan</span>
+                            <span class="lang-en" style="display:none">Practice Agenda</span>
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Popular Games</a>
+                        <a class="nav-link" href="#next-agenda" onclick="smoothScroll(event, 'next-agenda')">
+                            <span class="lang-id">Next Agenda</span>
+                            <span class="lang-en" style="display:none">Next Agenda</span>
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">New Releases</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/ustadz-rivki-fc">Ustadz Rivki FC</a>
+                        <a class="nav-link" href="#footer-social" onclick="smoothScroll(event, 'footer-social')">
+                            <span class="lang-id">Social Media</span>
+                            <span class="lang-en" style="display:none">Social Media</span>
+                        </a>
                     </li>
                 </ul>
                 <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item">
-                        <a class="nav-link join-btn" href="#">Join Community</a>
+                        <a class="nav-link join-btn" href="https://chat.whatsapp.com/invite/placeholder" target="_blank">
+                            <span class="lang-id">Gabung Grup Whatsapp UR FC</span>
+                            <span class="lang-en" style="display:none">Join UR FC WhatsApp Group</span>
+                        </a>
                     </li>
                     <li class="nav-item ms-3">
                         <button type="button" class="btn btn-outline-light btn-sm" onclick="toggleLanguage()" id="lang-btn">ID</button>
@@ -467,6 +489,18 @@ NAVBAR_HTML = """
             </div>
         </div>
     </nav>
+    <script>
+        function smoothScroll(e, id) {
+            e.preventDefault();
+            const el = document.getElementById(id);
+            if(el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                // Fallback if on a page where elements don't exist (legacy pages)
+                window.location.href = '/#' + id;
+            }
+        }
+    </script>
 """
 
 STYLES_HTML = """
@@ -1273,6 +1307,13 @@ HTML_UR_FC = """
             text-shadow: 0 4px 20px rgba(0,0,0,0.8);
             font-style: italic;
         }
+        /* Responsive Font for Quote */
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 1.5rem; /* Ideal size for mobile */
+                line-height: 1.4;
+            }
+        }
 
         /* Section Header */
         .section-header h2 {
@@ -1347,6 +1388,25 @@ HTML_UR_FC = """
             font-size: 0.85rem;
             font-weight: 700;
             color: rgba(255,255,255,0.9);
+        }
+
+        /* Add Card Button Style */
+        .add-card-btn {
+            background: rgba(0, 243, 255, 0.1);
+            border: 2px dashed #00f3ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #00f3ff;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: 0.3s;
+            min-height: 300px; /* Match typical card height */
+            border-radius: 12px;
+        }
+        .add-card-btn:hover {
+            background: rgba(0, 243, 255, 0.2);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
         }
 
         /* Modal Overlay */
@@ -1476,6 +1536,12 @@ HTML_UR_FC = """
             color: white;
             margin-bottom: 10px;
         }
+        .footer-logo span {
+            color: #00f3ff;
+            text-shadow: 0 0 5px #00f3ff, 0 0 10px #00f3ff, 0 0 20px #00f3ff;
+            font-style: italic;
+            font-family: 'Inter', sans-serif;
+        }
         .social-icons {
             margin-top: 20px;
             display: flex;
@@ -1501,9 +1567,16 @@ HTML_UR_FC = """
             outline: 1px solid #00f3ff;
             background: rgba(0, 243, 255, 0.1);
         }
+
+        /* Language Toggle Classes */
+        .lang-id, .lang-en { display: none; }
+        body.lang-mode-id div.lang-id, body.lang-mode-id span.lang-id, body.lang-mode-id h1.lang-id { display: block; }
+        body.lang-mode-id span.lang-id { display: inline; }
+        body.lang-mode-en div.lang-en, body.lang-mode-en span.lang-en, body.lang-mode-en h1.lang-en { display: block; }
+        body.lang-mode-en span.lang-en { display: inline; }
     </style>
 </head>
-<body>
+<body class="lang-mode-id">
     <div class="acrylic-overlay-page"></div>
 
     {{ navbar|safe }}
@@ -1512,16 +1585,24 @@ HTML_UR_FC = """
 
         <!-- HERO SECTION -->
         <div class="hero-section text-center mb-5">
-            <h1 class="hero-title">"Sepak bola adalah permainan tentang kesalahan. Tim yang paling sedikit membuat kesalahan akan jadi pemenang" – Johan Cruyff</h1>
-            <button class="btn btn-cyan-neon mt-4 px-5 py-2 rounded-pill" onclick="scrollToPopular()">Lihat Agenda Kami</button>
+            <h1 class="hero-title lang-id">"Sepak bola adalah permainan tentang kesalahan. Tim yang paling sedikit membuat kesalahan akan jadi pemenang" – Johan Cruyff</h1>
+            <h1 class="hero-title lang-en">"Football is a game of mistakes. Whoever makes the fewest mistakes wins" – Johan Cruyff</h1>
+
+            <button class="btn btn-cyan-neon mt-4 px-5 py-2 rounded-pill" onclick="scrollToPopular()">
+                <span class="lang-id">Lihat Agenda Kami</span>
+                <span class="lang-en">View Our Agenda</span>
+            </button>
         </div>
 
-        <!-- SECTION 1 -->
+        <!-- SECTION 1: AGENDA LATIHAN -->
         <div class="section-header mb-4" id="popular-games">
-            <h2 class="fw-bold">Agenda Latihan <span class="text-blue-neon" style="border-bottom: 3px solid #00f3ff;">UR FC</span></h2>
+            <h2 class="fw-bold">
+                <span class="lang-id">Agenda Latihan <span class="text-blue-neon" style="border-bottom: 3px solid #00f3ff;">UR FC</span></span>
+                <span class="lang-en">Training Agenda <span class="text-blue-neon" style="border-bottom: 3px solid #00f3ff;">UR FC</span></span>
+            </h2>
         </div>
 
-        <div class="games-grid">
+        <div class="games-grid" id="grid-agenda-latihan">
             {% for item in agenda1 %}
             <div class="mini-card" onclick="openModal('{{ item.id }}')">
                 {% if game_images[item.id] %}
@@ -1539,18 +1620,26 @@ HTML_UR_FC = """
                     </div>
                     <div class="card-bottom-row">
                         <div class="mini-price" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_price')">{{ item.price }}</div>
-                        <!-- Buy Button Removed -->
                     </div>
                 </div>
             </div>
             {% endfor %}
+            <!-- JS will append dynamic cards here -->
         </div>
 
-        <!-- SECTION 2 -->
-        <div class="section-header mt-5 mb-4">
-            <h2 class="fw-bold">Next <span class="text-blue-neon" style="border-bottom: 3px solid #00f3ff;">Agenda</span></h2>
+        <!-- Add Card Button for Section 1 -->
+        <div class="d-flex justify-content-end mb-5">
+            <button class="btn btn-outline-info" onclick="addCard('grid-agenda-latihan', 'agenda1_dynamic')">+ Tambah Card Agenda</button>
         </div>
-        <div class="games-grid">
+
+        <!-- SECTION 2: NEXT AGENDA -->
+        <div class="section-header mt-5 mb-4" id="next-agenda">
+            <h2 class="fw-bold">
+                <span class="lang-id">Next <span class="text-blue-neon" style="border-bottom: 3px solid #00f3ff;">Agenda</span></span>
+                <span class="lang-en">Next <span class="text-blue-neon" style="border-bottom: 3px solid #00f3ff;">Agenda</span></span>
+            </h2>
+        </div>
+        <div class="games-grid" id="grid-next-agenda">
             {% for item in agenda2 %}
              <div class="mini-card" onclick="openModal('{{ item.id }}')">
                 {% if game_images[item.id] %}
@@ -1571,11 +1660,17 @@ HTML_UR_FC = """
                 </div>
             </div>
             {% endfor %}
+            <!-- JS will append dynamic cards here -->
         </div>
 
-        <footer class="acrylic-footer">
+        <!-- Add Card Button for Section 2 -->
+        <div class="d-flex justify-content-end mb-5">
+            <button class="btn btn-outline-info" onclick="addCard('grid-next-agenda', 'agenda2_dynamic')">+ Tambah Card Agenda</button>
+        </div>
+
+        <footer class="acrylic-footer" id="footer-social">
             <div class="container">
-                <div class="footer-logo">Ustadz Rivki FC</div>
+                <div class="footer-logo">Ustadz <span>Rivki FC</span></div>
                 <p>&copy; 2026 UR FC. All rights reserved.</p>
                 <div class="social-icons">
                     <!-- WA: Direct to number -->
@@ -1650,6 +1745,9 @@ HTML_UR_FC = """
 
             const overlay = document.getElementById('modal-overlay');
             overlay.classList.add('active');
+
+            // Re-apply language
+            toggleLanguage(true);
         }
 
         function closeModal() {
@@ -1674,16 +1772,114 @@ HTML_UR_FC = """
             localStorage.setItem(key, el.innerText);
         }
 
-        // Load editable text from localStorage on startup
+        // --- DYNAMIC CARD LOGIC ---
+        function addCard(gridId, storageKey) {
+            // Get current count
+            let count = parseInt(localStorage.getItem(storageKey + '_count') || '0');
+            count++;
+            localStorage.setItem(storageKey + '_count', count);
+
+            // Create ID for new card
+            const newId = storageKey + '_' + count;
+            renderDynamicCard(gridId, newId);
+        }
+
+        function renderDynamicCard(gridId, id) {
+            const grid = document.getElementById(gridId);
+            const div = document.createElement('div');
+            div.className = 'mini-card';
+            div.onclick = function() { openModal(id); };
+
+            div.innerHTML = `
+                <div class="mini-poster" style="background: #1e1e1e; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.1); font-size:2rem;">
+                     <i class="fas fa-camera"></i>
+                </div>
+                <div class="mini-info">
+                    <div class="mini-title" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '${id}_title')">New Agenda</div>
+                    <div class="mini-status">
+                        <span class="status-avail" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '${id}_status')"><i class="fas fa-check-circle me-1"></i> Tersedia</span>
+                    </div>
+                    <div class="card-bottom-row">
+                        <div class="mini-price" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '${id}_price')">Rp 0</div>
+                    </div>
+                </div>
+            `;
+
+            // Restore text if exists
+            const titleEl = div.querySelector('.mini-title');
+            const statusEl = div.querySelector('.status-avail');
+            const priceEl = div.querySelector('.mini-price');
+
+            if(localStorage.getItem(id + '_title')) titleEl.innerText = localStorage.getItem(id + '_title');
+            if(localStorage.getItem(id + '_status')) statusEl.innerHTML = '<i class="fas fa-check-circle me-1"></i> ' + localStorage.getItem(id + '_status');
+            if(localStorage.getItem(id + '_price')) priceEl.innerText = localStorage.getItem(id + '_price');
+
+            grid.appendChild(div);
+
+            // We also need to add a dummy entry to gamesData array in memory for the modal to work cleanly
+            // or modify openModal to handle unknown IDs
+            const dummyData = {
+                id: id,
+                title: localStorage.getItem(id + '_title') || "New Agenda",
+                price: localStorage.getItem(id + '_price') || "Rp 0",
+                desc_id: "Masih menunggu pengembangan",
+                desc_en: "Still waiting for development"
+            };
+
+            // Check if exists
+            const existing = gamesData.find(g => g.id === id);
+            if(!existing) {
+                gamesData.push(dummyData);
+            }
+        }
+
+        // Load dynamic cards and text on startup
         document.addEventListener('DOMContentLoaded', () => {
+            // Load text for static cards
             document.querySelectorAll('[contenteditable="true"]').forEach(el => {
-                const key = el.getAttribute('oninput').match(/'([^']+)'/)[1];
-                const saved = localStorage.getItem(key);
-                if(saved) {
-                    el.innerText = saved;
+                const onInputVal = el.getAttribute('oninput');
+                if(onInputVal) {
+                    const match = onInputVal.match(/'([^']+)'/);
+                    if(match) {
+                        const key = match[1];
+                        const saved = localStorage.getItem(key);
+                        if(saved) {
+                            el.innerText = saved;
+                        }
+                    }
+                }
+            });
+
+            // Load dynamic cards
+            ['agenda1_dynamic', 'agenda2_dynamic'].forEach(key => {
+                const gridId = key === 'agenda1_dynamic' ? 'grid-agenda-latihan' : 'grid-next-agenda';
+                const count = parseInt(localStorage.getItem(key + '_count') || '0');
+                for(let i=1; i<=count; i++) {
+                    renderDynamicCard(gridId, key + '_' + i);
                 }
             });
         });
+
+        // Language Toggle Logic
+        function toggleLanguage(retainState = false) {
+            const body = document.body;
+            const btn = document.getElementById('lang-btn');
+
+            if (retainState) {
+                 btn.textContent = body.classList.contains('lang-mode-id') ? 'ID' : 'EN';
+                 return;
+            }
+
+            if (body.classList.contains('lang-mode-id')) {
+                body.classList.remove('lang-mode-id');
+                body.classList.add('lang-mode-en');
+                btn.textContent = 'EN';
+            } else {
+                body.classList.remove('lang-mode-en');
+                body.classList.add('lang-mode-id');
+                btn.textContent = 'ID';
+            }
+        }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
