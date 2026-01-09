@@ -2,6 +2,7 @@ import io
 import os
 import zipfile
 import math
+import time
 import sqlite3
 from flask import Flask, request, send_file, render_template_string, jsonify, send_from_directory, redirect, url_for, session, flash
 from PIL import Image
@@ -42,9 +43,46 @@ def init_db():
     conn.commit()
     conn.close()
 
+def init_agenda_db():
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    # Table to store text content for agenda items (both static and dynamic)
+    c.execute('''CREATE TABLE IF NOT EXISTS agenda_content (
+                    id TEXT PRIMARY KEY,
+                    title TEXT,
+                    status TEXT,
+                    price TEXT
+                )''')
+    # Table to track the list of dynamic cards
+    c.execute('''CREATE TABLE IF NOT EXISTS agenda_list (
+                    id TEXT PRIMARY KEY,
+                    section INTEGER,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )''')
+    conn.commit()
+    conn.close()
+
 init_db()
+init_agenda_db()
 
 # --- GAME DATA HELPER ---
+def get_agenda_content_from_db():
+    conn = sqlite3.connect('data.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    # Get all text content
+    c.execute("SELECT * FROM agenda_content")
+    rows = c.fetchall()
+    content_map = {row['id']: dict(row) for row in rows}
+
+    # Get dynamic items
+    c.execute("SELECT * FROM agenda_list ORDER BY created_at ASC")
+    dynamic_rows = c.fetchall()
+
+    conn.close()
+    return content_map, dynamic_rows
+
 def get_games_data():
     return [
         {
@@ -194,18 +232,62 @@ def get_games_data():
     ]
 
 def get_agenda_data():
+    content_map, dynamic_rows = get_agenda_content_from_db()
+
     data = []
-    # 18 items total (9 for section 1, 9 for section 2)
-    # Default text mimics the game cards but is editable
+    # 1. Static items (agenda1 to agenda18)
     for i in range(1, 19):
+        item_id = f"agenda{i}"
+        # Use DB content if exists, else default
+        if item_id in content_map:
+            db_item = content_map[item_id]
+            title = db_item['title']
+            price = db_item['price']
+            # status stored as text in DB, but template expects available boolean or string logic
+            # Simulating structure:
+            status_text = db_item['status'] # "Tersedia" etc
+        else:
+            title = "Horizon Zero Dawn"
+            price = "Rp 729.000"
+            status_text = "Tersedia"
+
         data.append({
-            "id": f"agenda{i}",
-            "title": "Horizon Zero Dawn",
-            "price": "Rp 729.000",
+            "id": item_id,
+            "title": title,
+            "price": price,
+            "status_text": status_text, # Passed to template
+            "available": True, # Keep logic simple
+            "desc_id": "Masih menunggu pengembangan",
+            "desc_en": "Still waiting for development",
+            "is_dynamic": False
+        })
+
+    # 2. Dynamic items
+    for row in dynamic_rows:
+        item_id = row['id']
+        section = row['section']
+        if item_id in content_map:
+            db_item = content_map[item_id]
+            title = db_item['title']
+            price = db_item['price']
+            status_text = db_item['status']
+        else:
+            title = "New Agenda"
+            price = "Rp 0"
+            status_text = "Tersedia"
+
+        data.append({
+            "id": item_id,
+            "title": title,
+            "price": price,
+            "status_text": status_text,
             "available": True,
             "desc_id": "Masih menunggu pengembangan",
-            "desc_en": "Still waiting for development"
+            "desc_en": "Still waiting for development",
+            "section": section, # 1 or 2
+            "is_dynamic": True
         })
+
     return data
 
 # --- ROUTES ---
@@ -291,6 +373,8 @@ def upload_game_image(game_id):
         return "Invalid Game ID", 400
 
     if 'game_image' not in request.files:
+        if game_id.startswith('agenda'):
+            return redirect(url_for('index'))
         return redirect(url_for('list_game_playstation'))
     
     file = request.files['game_image']
@@ -304,6 +388,10 @@ def upload_game_image(game_id):
                 
         new_filename = f"{game_id}.{ext}"
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], new_filename))
+
+    # Redirect logic fix: Agenda items go to index, legacy games go to list
+    if game_id.startswith('agenda'):
+        return redirect(url_for('index'))
         
     return redirect(url_for('list_game_playstation'))
 
@@ -359,22 +447,77 @@ def audio_upload():
             
     return redirect(url_for('index'))
 
+@app.route('/api/update-agenda-text', methods=['POST'])
+def api_update_agenda_text():
+    data = request.json
+    item_id = data.get('id')
+    title = data.get('title')
+    status = data.get('status')
+    price = data.get('price')
+
+    if not item_id:
+        return jsonify({'error': 'Missing ID'}), 400
+
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    # Upsert logic (Insert or Replace)
+    c.execute("""
+        INSERT INTO agenda_content (id, title, status, price)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+        title=excluded.title,
+        status=excluded.status,
+        price=excluded.price
+    """, (item_id, title, status, price))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/add-agenda-card', methods=['POST'])
+def api_add_agenda_card():
+    data = request.json
+    section = data.get('section') # 1 or 2
+
+    if not section:
+        return jsonify({'error': 'Missing Section'}), 400
+
+    import time
+    new_id = f"agenda_dynamic_{int(time.time() * 1000)}"
+
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute("INSERT INTO agenda_list (id, section) VALUES (?, ?)", (new_id, section))
+    # Initialize content with defaults
+    c.execute("INSERT INTO agenda_content (id, title, status, price) VALUES (?, ?, ?, ?)",
+              (new_id, "New Agenda", "Tersedia", "Rp 0"))
+    conn.commit()
+    conn.close()
+
+    return jsonify({'success': True, 'id': new_id})
+
 @app.route('/ustadz-rivki-fc')
 def ustadz_rivki_fc():
-    # Scan for agenda images (agenda1 to agenda18)
+    full_data = get_agenda_data()
+
+    # Split static items (agenda1-18)
+    # agenda1..9 -> Section 1
+    # agenda10..18 -> Section 2
+    # Plus dynamic items based on their 'section' field
+
+    agenda1 = [x for x in full_data if (not x.get('is_dynamic') and int(x['id'].replace('agenda','')) <= 9) or (x.get('is_dynamic') and x['section'] == 1)]
+    agenda2 = [x for x in full_data if (not x.get('is_dynamic') and int(x['id'].replace('agenda','')) > 9) or (x.get('is_dynamic') and x['section'] == 2)]
+
+    # Scan for images for ALL items in full_data
     game_images = {}
-    for i in range(1, 19):
+    for item in full_data:
+        item_id = item['id']
         found = None
         for ext in ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif', 'tiff', 'svg', 'ico']:
-             fname = f"agenda{i}.{ext}"
+             fname = f"{item_id}.{ext}"
              if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], fname)):
                  found = fname
                  break
-        game_images[f'agenda{i}'] = found if found else None
-
-    full_data = get_agenda_data()
-    agenda1 = full_data[:9]   # Items 1-9 for Section 1
-    agenda2 = full_data[9:18] # Items 10-18 for Section 2
+        game_images[item_id] = found if found else None
 
     return render_page(HTML_UR_FC, game_images=game_images, games=full_data, agenda1=agenda1, agenda2=agenda2)
 
@@ -481,9 +624,6 @@ NAVBAR_HTML = """
                             <span class="lang-id">Gabung Grup Whatsapp UR FC</span>
                             <span class="lang-en" style="display:none">Join UR FC WhatsApp Group</span>
                         </a>
-                    </li>
-                    <li class="nav-item ms-3">
-                        <button type="button" class="btn btn-outline-light btn-sm" onclick="toggleLanguage()" id="lang-btn">ID</button>
                     </li>
                 </ul>
             </div>
@@ -1616,7 +1756,7 @@ HTML_UR_FC = """
                 <div class="mini-info">
                     <div class="mini-title" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_title')">{{ item.title }}</div>
                     <div class="mini-status">
-                        <span class="status-avail" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_status')"><i class="fas fa-check-circle me-1"></i> Tersedia</span>
+                        <span class="status-avail" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_status')"><i class="fas fa-check-circle me-1"></i> {{ item.status_text }}</span>
                     </div>
                     <div class="card-bottom-row">
                         <div class="mini-price" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_price')">{{ item.price }}</div>
@@ -1652,7 +1792,7 @@ HTML_UR_FC = """
                 <div class="mini-info">
                     <div class="mini-title" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_title')">{{ item.title }}</div>
                     <div class="mini-status">
-                        <span class="status-avail" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_status')"><i class="fas fa-check-circle me-1"></i> Tersedia</span>
+                        <span class="status-avail" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_status')"><i class="fas fa-check-circle me-1"></i> {{ item.status_text }}</span>
                     </div>
                     <div class="card-bottom-row">
                         <div class="mini-price" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_price')">{{ item.price }}</div>
@@ -1773,112 +1913,75 @@ HTML_UR_FC = """
         }
 
         // --- DYNAMIC CARD LOGIC ---
-        function addCard(gridId, storageKey) {
-            // Get current count
-            let count = parseInt(localStorage.getItem(storageKey + '_count') || '0');
-            count++;
-            localStorage.setItem(storageKey + '_count', count);
+        function addCard(gridId, sectionKey) {
+            // Determine section integer
+            const section = (sectionKey === 'agenda1_dynamic') ? 1 : 2;
 
-            // Create ID for new card
-            const newId = storageKey + '_' + count;
-            renderDynamicCard(gridId, newId);
-        }
-
-        function renderDynamicCard(gridId, id) {
-            const grid = document.getElementById(gridId);
-            const div = document.createElement('div');
-            div.className = 'mini-card';
-            div.onclick = function() { openModal(id); };
-
-            div.innerHTML = `
-                <div class="mini-poster" style="background: #1e1e1e; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.1); font-size:2rem;">
-                     <i class="fas fa-camera"></i>
-                </div>
-                <div class="mini-info">
-                    <div class="mini-title" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '${id}_title')">New Agenda</div>
-                    <div class="mini-status">
-                        <span class="status-avail" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '${id}_status')"><i class="fas fa-check-circle me-1"></i> Tersedia</span>
-                    </div>
-                    <div class="card-bottom-row">
-                        <div class="mini-price" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '${id}_price')">Rp 0</div>
-                    </div>
-                </div>
-            `;
-
-            // Restore text if exists
-            const titleEl = div.querySelector('.mini-title');
-            const statusEl = div.querySelector('.status-avail');
-            const priceEl = div.querySelector('.mini-price');
-
-            if(localStorage.getItem(id + '_title')) titleEl.innerText = localStorage.getItem(id + '_title');
-            if(localStorage.getItem(id + '_status')) statusEl.innerHTML = '<i class="fas fa-check-circle me-1"></i> ' + localStorage.getItem(id + '_status');
-            if(localStorage.getItem(id + '_price')) priceEl.innerText = localStorage.getItem(id + '_price');
-
-            grid.appendChild(div);
-
-            // We also need to add a dummy entry to gamesData array in memory for the modal to work cleanly
-            // or modify openModal to handle unknown IDs
-            const dummyData = {
-                id: id,
-                title: localStorage.getItem(id + '_title') || "New Agenda",
-                price: localStorage.getItem(id + '_price') || "Rp 0",
-                desc_id: "Masih menunggu pengembangan",
-                desc_en: "Still waiting for development"
-            };
-
-            // Check if exists
-            const existing = gamesData.find(g => g.id === id);
-            if(!existing) {
-                gamesData.push(dummyData);
-            }
-        }
-
-        // Load dynamic cards and text on startup
-        document.addEventListener('DOMContentLoaded', () => {
-            // Load text for static cards
-            document.querySelectorAll('[contenteditable="true"]').forEach(el => {
-                const onInputVal = el.getAttribute('oninput');
-                if(onInputVal) {
-                    const match = onInputVal.match(/'([^']+)'/);
-                    if(match) {
-                        const key = match[1];
-                        const saved = localStorage.getItem(key);
-                        if(saved) {
-                            el.innerText = saved;
-                        }
-                    }
+            fetch('/api/add-agenda-card', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ section: section })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    location.reload(); // Reload to render new card from server
+                } else {
+                    alert('Error adding card');
                 }
             });
+        }
 
-            // Load dynamic cards
-            ['agenda1_dynamic', 'agenda2_dynamic'].forEach(key => {
-                const gridId = key === 'agenda1_dynamic' ? 'grid-agenda-latihan' : 'grid-next-agenda';
-                const count = parseInt(localStorage.getItem(key + '_count') || '0');
-                for(let i=1; i<=count; i++) {
-                    renderDynamicCard(gridId, key + '_' + i);
-                }
-            });
-        });
+        let debounceTimer;
+        // Save editable text to Server (Universal Persistence)
+        function saveText(el, key) {
+            // Key format: "agendaID_field" e.g., "agenda1_title"
+            clearTimeout(debounceTimer);
 
-        // Language Toggle Logic
+            const parts = key.split('_');
+            const field = parts.pop(); // 'title', 'status', 'price'
+            const id = parts.join('_'); // 'agenda1' or 'agenda_dynamic_123'
+
+            debounceTimer = setTimeout(() => {
+                const payload = { id: id };
+                payload[field] = el.innerText;
+
+                // We need to fetch current state of other fields to avoid overwriting with null?
+                // Or backend can handle partial updates if we change SQL.
+                // Current backend SQL is ON CONFLICT DO UPDATE SET title=excluded.title...
+                // It expects full row insert or update.
+                // However, we only send one field. This is tricky.
+                // Simple fix: We send ALL fields for this ID by reading from DOM.
+
+                // Find parent card
+                const card = el.closest('.mini-card');
+                if(!card) return;
+
+                // Extract current values from DOM
+                const titleVal = card.querySelector('.mini-title').innerText;
+                const statusVal = card.querySelector('.status-avail').innerText.replace(' Tersedia', '').trim(); // Remove icon text if needed, or just save raw
+                const priceVal = card.querySelector('.mini-price').innerText;
+
+                const fullPayload = {
+                    id: id,
+                    title: titleVal,
+                    status: statusVal,
+                    price: priceVal
+                };
+
+                fetch('/api/update-agenda-text', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(fullPayload)
+                });
+            }, 500); // 500ms debounce
+        }
+
+        // Removed localStorage loading logic as data is now server-rendered
+
+        // Language Toggle Logic (Disabled/Removed as per request, keeping function stub to prevent errors if called)
         function toggleLanguage(retainState = false) {
-            const body = document.body;
-            const btn = document.getElementById('lang-btn');
-
-            if (retainState) {
-                 btn.textContent = body.classList.contains('lang-mode-id') ? 'ID' : 'EN';
-                 return;
-            }
-
-            if (body.classList.contains('lang-mode-id')) {
-                body.classList.remove('lang-mode-id');
-                body.classList.add('lang-mode-en');
-                btn.textContent = 'EN';
-            } else {
-                body.classList.remove('lang-mode-en');
-                body.classList.add('lang-mode-id');
-                btn.textContent = 'ID';
-            }
+            // No-op
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
