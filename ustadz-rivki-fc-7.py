@@ -1,7 +1,8 @@
 import os
 import sqlite3
 import time
-from flask import Flask, request, send_from_directory, redirect, url_for, render_template_string, jsonify
+import datetime
+from flask import Flask, request, send_from_directory, redirect, url_for, render_template_string, jsonify, session
 from werkzeug.utils import secure_filename
 
 # --- KONFIGURASI FLASK ---
@@ -15,1056 +16,1000 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico',
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def init_agenda_db():
+def init_db():
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
-    # Table to store text content for agenda items (both static and dynamic)
+    # Existing tables
     c.execute('''CREATE TABLE IF NOT EXISTS agenda_content (
                     id TEXT PRIMARY KEY,
                     title TEXT,
                     status TEXT,
                     price TEXT
                 )''')
-    # Table to track the list of dynamic cards
     c.execute('''CREATE TABLE IF NOT EXISTS agenda_list (
                     id TEXT PRIMARY KEY,
                     section INTEGER,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
+
+    # New Tables for Barca-style Layout
+    # News/Hero Content
+    c.execute('''CREATE TABLE IF NOT EXISTS news_content (
+                    id TEXT PRIMARY KEY,
+                    title TEXT,
+                    subtitle TEXT,
+                    category TEXT, -- 'First Team', etc.
+                    timestamp TEXT,
+                    image_path TEXT,
+                    type TEXT -- 'hero', 'sub_1', 'sub_2', 'sub_3', 'sub_4'
+                )''')
+
+    # Personnel (Players, Coaches, MVP)
+    c.execute('''CREATE TABLE IF NOT EXISTS personnel (
+                    id TEXT PRIMARY KEY,
+                    name TEXT,
+                    role TEXT, -- 'player', 'coach', 'mvp'
+                    position TEXT, -- e.g. 'Forward', 'Head Coach'
+                    details TEXT, -- JSON or text blob
+                    image_path TEXT
+                )''')
+
+    # Sponsors
+    c.execute('''CREATE TABLE IF NOT EXISTS sponsors (
+                    id TEXT PRIMARY KEY,
+                    name TEXT,
+                    image_path TEXT
+                )''')
+
+    # General Site Settings (Next Match Time, etc)
+    c.execute('''CREATE TABLE IF NOT EXISTS site_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT
+                )''')
+
+    # Seed Initial Data if empty
+    # Hero
+    c.execute("INSERT OR IGNORE INTO news_content (id, title, subtitle, category, type) VALUES ('hero', 'VICTORY IN THE DERBY', 'A stunning performance secures the win', 'FIRST TEAM', 'hero')")
+    for i in range(1, 5):
+        c.execute(f"INSERT OR IGNORE INTO news_content (id, title, category, type) VALUES ('news_{i}', 'Breaking News Headline {i}', 'CLUB', 'sub_{i}')")
+
+    # Next Match Default
+    c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES ('next_match_time', '2026-02-01T20:00:00')")
+    c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES ('history_text', 'Sejarah TAHKIL FC bermula pada tahun...')")
+
     conn.commit()
     conn.close()
 
-init_agenda_db()
+init_db()
 
 # --- DATA HELPER ---
-def get_agenda_content_from_db():
+def get_db_connection():
     conn = sqlite3.connect('data.db')
     conn.row_factory = sqlite3.Row
+    return conn
+
+def get_all_data():
+    conn = get_db_connection()
     c = conn.cursor()
     
-    # Get all text content
+    # Agenda Data (Existing)
     c.execute("SELECT * FROM agenda_content")
-    rows = c.fetchall()
-    content_map = {row['id']: dict(row) for row in rows}
-    
-    # Get dynamic items
+    agenda_content = {row['id']: dict(row) for row in c.fetchall()}
     c.execute("SELECT * FROM agenda_list ORDER BY created_at ASC")
-    dynamic_rows = c.fetchall()
+    agenda_list = [dict(row) for row in c.fetchall()]
     
+    # News Data
+    c.execute("SELECT * FROM news_content")
+    news_data = {row['id']: dict(row) for row in c.fetchall()}
+    
+    # Personnel
+    c.execute("SELECT * FROM personnel")
+    personnel_rows = [dict(row) for row in c.fetchall()]
+    personnel = {'player': [], 'coach': [], 'mvp': []}
+    for p in personnel_rows:
+        personnel[p['role']].append(p)
+
+    # Sponsors
+    c.execute("SELECT * FROM sponsors")
+    sponsors = [dict(row) for row in c.fetchall()]
+
+    # Settings
+    c.execute("SELECT * FROM site_settings")
+    settings = {row['key']: row['value'] for row in c.fetchall()}
+
     conn.close()
-    return content_map, dynamic_rows
-
-def get_agenda_data():
-    content_map, dynamic_rows = get_agenda_content_from_db()
-    
-    data = []
-    # 1. Static items (agenda1 to agenda18)
-    for i in range(1, 19):
-        item_id = f"agenda{i}"
-        # Use DB content if exists, else default
-        if item_id in content_map:
-            db_item = content_map[item_id]
-            title = db_item['title']
-            price = db_item['price']
-            # status stored as text in DB
-            status_text = db_item['status'] 
-        else:
-            title = "Judul Agenda"
-            price = "Waktu/Tempat"
-            status_text = "Tersedia"
-
-        data.append({
-            "id": item_id, 
-            "title": title, 
-            "price": price, 
-            "status_text": status_text, # Passed to template
-            "available": True, 
-            "desc_id": "Masih menunggu pengembangan",
-            "desc_en": "Still waiting for development",
-            "is_dynamic": False
-        })
-        
-    # 2. Dynamic items
-    for row in dynamic_rows:
-        item_id = row['id']
-        section = row['section']
-        if item_id in content_map:
-            db_item = content_map[item_id]
-            title = db_item['title']
-            price = db_item['price']
-            status_text = db_item['status']
-        else:
-            title = "New Agenda"
-            price = "Rp 0"
-            status_text = "Tersedia"
-            
-        data.append({
-            "id": item_id,
-            "title": title,
-            "price": price,
-            "status_text": status_text,
-            "available": True,
-            "desc_id": "Masih menunggu pengembangan",
-            "desc_en": "Still waiting for development",
-            "section": section, # 1 or 2
-            "is_dynamic": True
-        })
-        
-    return data
+    return {
+        'agenda_content': agenda_content,
+        'agenda_list': agenda_list,
+        'news': news_data,
+        'personnel': personnel,
+        'sponsors': sponsors,
+        'settings': settings
+    }
 
 # --- ROUTES ---
 
 def render_page(content, **kwargs):
-    # Inject fragments before rendering to allow Jinja to process them
     content = content.replace('{{ styles|safe }}', STYLES_HTML)
     content = content.replace('{{ navbar|safe }}', NAVBAR_HTML)
     return render_template_string(content, **kwargs)
 
 @app.route('/')
 def index():
-    full_data = get_agenda_data()
+    data = get_all_data()
     
-    # Split static items (agenda1-18)
-    # agenda1..9 -> Section 1
-    # agenda10..18 -> Section 2
-    # Plus dynamic items based on their 'section' field
+    # Construct Agenda Lists
+    # Combine static (agenda1..3) and dynamic for the "Calendar" view
+    # Limit to 3 for display as per request, but load all
     
-    agenda1 = [x for x in full_data if (not x.get('is_dynamic') and int(x['id'].replace('agenda','')) <= 9) or (x.get('is_dynamic') and x['section'] == 1)]
-    agenda2 = [x for x in full_data if (not x.get('is_dynamic') and int(x['id'].replace('agenda','')) > 9) or (x.get('is_dynamic') and x['section'] == 2)]
+    # Process Agenda Items for display
+    def process_agenda(id_prefix, dynamic_section_id):
+        items = []
+        # Check static slots (limiting to 3 for the new layout initial view)
+        for i in range(1, 4):
+            id = f"{id_prefix}{i}"
+            content = data['agenda_content'].get(id, {'title': 'Judul Agenda', 'status': 'Tersedia', 'price': 'Waktu/Tempat'})
+            items.append({**content, 'id': id, 'is_dynamic': False})
 
-    # Scan for images for ALL items in full_data
-    game_images = {}
-    for item in full_data:
-        item_id = item['id']
-        found = None
-        for ext in ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif', 'tiff', 'svg', 'ico']:
-             fname = f"{item_id}.{ext}"
-             if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], fname)):
-                 found = fname
-                 break
-        game_images[item_id] = found if found else None 
+        # Add dynamic
+        for item in data['agenda_list']:
+            if item['section'] == dynamic_section_id:
+                content = data['agenda_content'].get(item['id'], {'title': 'New Agenda', 'status': 'Tersedia', 'price': 'Rp 0'})
+                items.append({**content, 'id': item['id'], 'is_dynamic': True})
+        return items
 
-    # We reuse 'games' variable name in template for the modal data source
-    return render_page(HTML_UR_FC, game_images=game_images, games=full_data, agenda1=agenda1, agenda2=agenda2)
+    agenda_latihan = process_agenda("agenda", 1)
+    turnamen = process_agenda("turnamen", 2) # Renamed from Next Agenda
+
+    # Ensure Personnel lists have at least some placeholders if empty
+    if not data['personnel']['player']:
+        for i in range(11):
+            data['personnel']['player'].append({'id': f'player_placeholder_{i}', 'name': 'Nama Pemain', 'position': 'Posisi', 'role': 'player', 'image_path': None})
+    if not data['personnel']['coach']:
+        for i in range(3):
+            data['personnel']['coach'].append({'id': f'coach_placeholder_{i}', 'name': 'Nama Pelatih', 'position': 'Head Coach', 'role': 'coach', 'image_path': None})
+    if not data['personnel']['mvp']:
+        for i in range(3):
+            data['personnel']['mvp'].append({'id': f'mvp_placeholder_{i}', 'name': 'Nama MVP', 'position': 'Tournament X', 'role': 'mvp', 'image_path': None})
+
+    # Ensure Sponsors
+    if not data['sponsors']:
+        for i in range(4):
+            data['sponsors'].append({'id': f'sponsor_{i}', 'name': 'Sponsor', 'image_path': None})
+
+    return render_page(HTML_UR_FC,
+                       data=data,
+                       agenda_latihan=agenda_latihan,
+                       turnamen=turnamen,
+                       admin=session.get('admin', False))
+
+@app.route('/login', methods=['POST'])
+def login():
+    uid = request.form.get('userid')
+    pwd = request.form.get('password')
+    if uid == 'adminwebsite' and pwd == '4dm1nw3bs1t3':
+        session['admin'] = True
+        return redirect(url_for('index'))
+    return redirect(url_for('index')) # Silent fail or redirect back
+
+@app.route('/logout')
+def logout():
+    session.pop('admin', None)
+    return redirect(url_for('index'))
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-@app.route('/upload-agenda-image/<item_id>', methods=['POST'])
-def upload_agenda_image(item_id):
-    if 'game_image' not in request.files:
-        return redirect(url_for('index'))
+# --- UPLOAD & API HANDLERS ---
+
+@app.route('/upload/<type>/<id>', methods=['POST'])
+def upload_image(type, id):
+    if not session.get('admin'): return "Unauthorized", 403
+    if 'image' not in request.files: return "No file", 400
     
-    file = request.files['game_image']
+    file = request.files['image']
     if file and file.filename != '' and allowed_file(file.filename):
         ext = file.filename.rsplit('.', 1)[1].lower()
-        # Remove old images for this item_id
-        for e in ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif', 'tiff', 'svg', 'ico']:
-            old_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{item_id}.{e}")
-            if os.path.exists(old_path):
-                os.remove(old_path)
-                
-        new_filename = f"{item_id}.{ext}"
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], new_filename))
+        filename = f"{type}_{id}_{int(time.time())}.{ext}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        conn = get_db_connection()
+        c = conn.cursor()
+
+        if type == 'news':
+            c.execute("INSERT OR IGNORE INTO news_content (id) VALUES (?)", (id,))
+            c.execute("UPDATE news_content SET image_path = ? WHERE id = ?", (filename, id))
+        elif type == 'personnel':
+            # Check if exists, if not create (for dynamic adds)
+            c.execute("SELECT id FROM personnel WHERE id = ?", (id,))
+            if not c.fetchone():
+                c.execute("INSERT INTO personnel (id, role, name) VALUES (?, ?, ?)", (id, request.form.get('role', 'player'), 'New Person'))
+            c.execute("UPDATE personnel SET image_path = ? WHERE id = ?", (filename, id))
+        elif type == 'agenda':
+            # agenda logic handled separately usually but can unify
+            pass
+        elif type == 'sponsor':
+            c.execute("INSERT OR IGNORE INTO sponsors (id) VALUES (?)", (id,))
+            c.execute("UPDATE sponsors SET image_path = ? WHERE id = ?", (filename, id))
+
+        conn.commit()
+        conn.close()
 
     return redirect(url_for('index'))
 
-@app.route('/api/update-agenda-text', methods=['POST'])
-def api_update_agenda_text():
+@app.route('/api/update-text', methods=['POST'])
+def api_update_text():
+    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
-    item_id = data.get('id')
-    title = data.get('title')
-    status = data.get('status')
-    price = data.get('price')
+    table = data.get('table')
+    id = data.get('id')
+    field = data.get('field')
+    value = data.get('value')
+
+    # Security: Whitelist allowed tables and fields to prevent SQL Injection
+    allowed_tables = ['news_content', 'personnel', 'agenda_content', 'sponsors', 'site_settings']
+    allowed_fields = ['title', 'subtitle', 'category', 'name', 'position', 'role', 'status', 'price', 'value']
+
+    if table not in allowed_tables:
+        return jsonify({'error': 'Invalid table'}), 400
     
-    if not item_id:
-        return jsonify({'error': 'Missing ID'}), 400
-        
-    conn = sqlite3.connect('data.db')
+    if table != 'site_settings' and field not in allowed_fields:
+        return jsonify({'error': 'Invalid field'}), 400
+
+    conn = get_db_connection()
     c = conn.cursor()
-    # Upsert logic (Insert or Replace)
-    c.execute("""
-        INSERT INTO agenda_content (id, title, status, price) 
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-        title=excluded.title,
-        status=excluded.status,
-        price=excluded.price
-    """, (item_id, title, status, price))
+
+    if table == 'site_settings':
+        c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", (id, value))
+    else:
+        # Ensure row exists
+        c.execute(f"SELECT id FROM {table} WHERE id = ?", (id,))
+        if not c.fetchone():
+            # Minimal insert if missing
+            if table == 'personnel':
+                c.execute(f"INSERT INTO {table} (id, role) VALUES (?, ?)", (id, data.get('role', 'player')))
+            else:
+                c.execute(f"INSERT INTO {table} (id) VALUES (?)", (id,))
+
+        # Use formatting for column name (safe because validated against whitelist)
+        c.execute(f"UPDATE {table} SET {field} = ? WHERE id = ?", (value, id))
+
     conn.commit()
     conn.close()
     return jsonify({'success': True})
 
-@app.route('/api/add-agenda-card', methods=['POST'])
-def api_add_agenda_card():
-    data = request.json
-    section = data.get('section') # 1 or 2
+@app.route('/api/add-card', methods=['POST'])
+def api_add_card():
+    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    type = request.json.get('type') # personnel, agenda
     
-    if not section:
-        return jsonify({'error': 'Missing Section'}), 400
-
-    new_id = f"agenda_dynamic_{int(time.time() * 1000)}"
-    
-    conn = sqlite3.connect('data.db')
+    conn = get_db_connection()
     c = conn.cursor()
-    c.execute("INSERT INTO agenda_list (id, section) VALUES (?, ?)", (new_id, section))
-    # Initialize content with defaults
-    c.execute("INSERT INTO agenda_content (id, title, status, price) VALUES (?, ?, ?, ?)", 
-              (new_id, "New Agenda", "Tersedia", "Rp 0"))
+    new_id = f"{type}_{int(time.time()*1000)}"
+
+    if type == 'personnel':
+        role = request.json.get('role', 'player')
+        c.execute("INSERT INTO personnel (id, role, name, position) VALUES (?, ?, ?, ?)", (new_id, role, 'New Name', 'Position'))
+    elif type == 'agenda':
+        section = request.json.get('section', 1)
+        c.execute("INSERT INTO agenda_list (id, section) VALUES (?, ?)", (new_id, section))
+        c.execute("INSERT INTO agenda_content (id, title, status, price) VALUES (?, ?, ?, ?)", (new_id, "New Agenda", "Available", "Location"))
+
     conn.commit()
     conn.close()
-    
     return jsonify({'success': True, 'id': new_id})
 
 
-# --- FRONTEND FRAGMENTS ---
+# --- FRONTEND ---
 
 NAVBAR_HTML = """
-    <style>
-        .navbar {
-            background-color: rgba(0, 0, 0, 0.6) !important;
-            backdrop-filter: blur(15px) saturate(120%);
-            -webkit-backdrop-filter: blur(15px) saturate(120%);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        }
-        .navbar-brand {
-            font-weight: 800;
-            font-size: 1.8rem;
-            color: white !important;
-            letter-spacing: -1px;
-            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-        }
-        .brand-verse {
-            color: #FFD700;
-            text-shadow: 0 0 5px #FFD700, 0 0 10px #FFD700, 0 0 20px #FFD700;
-            font-style: italic;
-            font-family: 'Inter', sans-serif; /* Ensuring consistent font */
-        }
-        .nav-link {
-            color: rgba(255, 255, 255, 0.8) !important;
-            font-weight: 500;
-            margin-right: 15px;
-            transition: color 0.3s;
-            white-space: nowrap !important;
-        }
-        .nav-link:hover {
-            color: white !important;
-            text-shadow: 0 0 8px rgba(255,255,255,0.5);
-        }
-        .join-btn {
-            border: 1px solid #FFD700;
-            color: #FFD700 !important;
-            border-radius: 5px;
-            padding: 5px 30px;
-            box-shadow: 0 0 5px rgba(255, 215, 0, 0.2);
-            transition: all 0.3s;
-            white-space: nowrap !important;
-        }
-        .join-btn:hover {
-            background: rgba(255, 215, 0, 0.1);
-            box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
-        }
-        /* Mobile Menu Toggler White Fix */
-        .navbar-toggler {
-            border-color: rgba(255,255,255,0.5) !important;
-        }
-        .navbar-toggler-icon {
-            filter: brightness(0) invert(1) !important;
-        }
-        
-        /* Mobile Menu Acrylic Box - Adjusted to be lighter/glassy */
-        @media (max-width: 991px) {
-            .navbar-collapse {
-                background: transparent; /* Polos - blends with main navbar */
-                border: none;
-                border-radius: 0;
-                padding: 0; /* Remove padding to blend perfectly */
-                margin-top: 0;
-                box-shadow: none;
-            }
-            .navbar-nav {
-                padding: 15px 0; /* Add internal padding instead */
-            }
-            .nav-link {
-                font-size: 0.9rem;
-            }
-            .navbar-brand {
-                font-size: 1.4rem; /* Slightly smaller on mobile to prevent wrap */
-            }
-        }
-        
-        /* Logo Modal */
-        #logo-modal {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.47); /* Acrylic blur aesthetic */
-            backdrop-filter: blur(20px) saturate(125%);
-            -webkit-backdrop-filter: blur(20px) saturate(125%);
-            z-index: 9999;
-            display: none;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        #logo-modal.active {
-            display: flex;
-            opacity: 1;
-        }
-        #logo-modal img {
-            max-width: 90%;
-            max-height: 90%;
-            object-fit: contain;
-            border-radius: 50%; /* Keep circular aesthetic */
-            box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
-            transition: transform 0.3s;
-        }
-        #logo-modal img:hover {
-            transform: scale(1.05);
-        }
-    </style>
-    <nav class="navbar navbar-expand-lg sticky-top">
-        <div class="container-fluid px-4 px-lg-4">
-            <div class="d-flex align-items-center">
-                <!-- Logo Image - Triggers Popup -->
-                <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" alt="Logo" 
-                     onclick="viewLogo()" 
-                     style="height: 50px; margin-right: 10px; cursor: pointer; transition: transform 0.2s;"
-                     onmouseover="this.style.transform='scale(1.1)'" 
-                     onmouseout="this.style.transform='scale(1)'">
-                
-                <!-- Brand Text - Triggers Scroll to Top -->
-                <a class="navbar-brand m-0 p-0" href="#" onclick="window.scrollTo({top: 0, behavior: 'smooth'}); return false;">
-                    TAHFIZH <span class="brand-verse ps-2">KILAT FC</span>
-                </a>
-            </div>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav mx-lg-auto text-center">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#popular-games" onclick="smoothScroll(event, 'popular-games')">
-                            <span class="lang-id">Agenda Latihan TAHKIL FC</span>
-                            <span class="lang-en" style="display:none">Practice Agenda TAHKIL FC</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#next-agenda" onclick="smoothScroll(event, 'next-agenda')">
-                            <span class="lang-id">Next Agenda</span>
-                            <span class="lang-en" style="display:none">Next Agenda</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#footer-social" onclick="smoothScroll(event, 'footer-social')">
-                            <span class="lang-id">Social Media</span>
-                            <span class="lang-en" style="display:none">Social Media</span>
-                        </a>
-                    </li>
-                </ul>
-                <ul class="navbar-nav ms-auto align-items-center">
-                    <li class="nav-item">
-                        <a class="nav-link join-btn" href="https://chat.whatsapp.com/invite/placeholder" target="_blank">
-                            <span class="lang-id">Gabung Grup Whatsapp TAHKIL FC</span>
-                            <span class="lang-en" style="display:none">Join TAHKIL FC WhatsApp Group</span>
-                        </a>
-                    </li>
-                </ul>
-            </div>
+<style>
+    /* Top Bar */
+    .top-bar {
+        background-color: #2ecc71; /* Green */
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 5%;
+        font-size: 0.9rem;
+        position: relative;
+        z-index: 1030;
+    }
+    .top-bar-left {
+        display: flex;
+        align-items: center;
+    }
+    .next-match-mini {
+        background: rgba(0,0,0,0.2);
+        color: white;
+        padding: 5px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: 0.2s;
+    }
+    .next-match-mini:hover { background: rgba(0,0,0,0.4); }
+
+    .top-bar-right {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    /* Login Button */
+    .admin-login-btn {
+        background: transparent;
+        border: 1px solid white;
+        color: white;
+        padding: 2px 10px;
+        font-size: 0.8rem;
+        border-radius: 4px;
+        text-transform: uppercase;
+        text-decoration: none;
+    }
+
+    /* History Button */
+    .history-btn {
+        background: #FFD700; /* Gold */
+        color: black;
+        border-radius: 20px 4px 20px 4px; /* Tumpul style */
+        padding: 5px 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: 0.3s;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    .history-btn img { height: 20px; filter: brightness(0) invert(1); } /* White sketch style */
+    .history-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 10px rgba(0,0,0,0.2); color: black; }
+
+    /* WA Button */
+    .wa-btn-circle {
+        background: #25D366;
+        color: white;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        text-decoration: none;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        transition: 0.3s;
+    }
+    .wa-btn-circle:hover { transform: scale(1.1); color: white; }
+
+    /* Main Navbar (Bottom) */
+    .main-navbar {
+        background-color: white;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        padding: 0 5%;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        position: sticky;
+        top: 0;
+        z-index: 1020;
+    }
+    .navbar-logo-container {
+        position: absolute;
+        left: 5%;
+        top: -15px; /* Overlap upwards */
+        z-index: 1031;
+    }
+    .navbar-logo-img {
+        height: 85px;
+        transition: 0.3s;
+        filter: drop-shadow(0 2px 5px rgba(0,0,0,0.2));
+    }
+    .navbar-links {
+        margin-left: 120px; /* Space for logo */
+        display: flex;
+        gap: 30px;
+    }
+    .nav-item-custom {
+        color: #333;
+        text-transform: uppercase;
+        font-weight: 700;
+        text-decoration: none;
+        font-size: 0.9rem;
+        position: relative;
+    }
+    .nav-item-custom:after {
+        content: '';
+        position: absolute;
+        width: 0;
+        height: 3px;
+        bottom: -24px; /* Align with bottom of navbar */
+        left: 0;
+        background-color: #FFD700;
+        transition: width 0.3s;
+    }
+    .nav-item-custom:hover:after { width: 100%; }
+
+    /* Mobile Responsive */
+    @media (max-width: 992px) {
+        .top-bar { display: none; } /* Simplify for mobile or adjust */
+        .main-navbar { justify-content: space-between; padding: 0 20px; }
+        .navbar-logo-container { position: static; transform: none; }
+        .navbar-logo-img { height: 50px; }
+        .navbar-links { display: none; } /* Hide for now or hamburger */
+    }
+</style>
+
+<!-- Top Bar -->
+<div class="top-bar">
+    <div class="top-bar-left">
+        <div class="next-match-mini" onclick="togglePopup('next-match-popup')">
+            Next Match: TAHKIL FC (Jan 2026)
         </div>
-    </nav>
-    <script>
-        function smoothScroll(e, id) {
-            e.preventDefault();
-            const el = document.getElementById(id);
-            if(el) {
-                el.scrollIntoView({ behavior: 'smooth' });
-            } else {
-                // Fallback if on a page where elements don't exist (legacy pages)
-                window.location.href = '/#' + id;
-            }
-        }
-    </script>
+    </div>
+    <div class="top-bar-right">
+        {% if not admin %}
+        <button onclick="document.getElementById('login-modal').style.display='flex'" class="admin-login-btn">Admin Login</button>
+        {% else %}
+        <a href="/logout" class="admin-login-btn" style="background:red; border:none;">Logout</a>
+        {% endif %}
+
+        <a href="#" class="history-btn" onclick="openHistoryModal()">
+            <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}">
+            Lihat Sejarah
+        </a>
+        <a href="https://chat.whatsapp.com/invite/placeholder" class="wa-btn-circle" target="_blank">
+            <i class="fab fa-whatsapp"></i>
+        </a>
+    </div>
+</div>
+
+<!-- Main Navbar -->
+<div class="main-navbar">
+    <div class="navbar-logo-container">
+        <a href="/">
+            <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="navbar-logo-img" alt="TAHKIL FC">
+        </a>
+    </div>
+    <div class="navbar-links d-none d-lg-flex">
+        <a href="#hero" class="nav-item-custom">Home</a>
+        <a href="#agenda-latihan" class="nav-item-custom">Agenda Latihan</a>
+        <a href="#turnamen" class="nav-item-custom">Turnamen</a>
+        <a href="#players" class="nav-item-custom">Pemain</a>
+        <a href="#coaches" class="nav-item-custom">Pelatih</a>
+        <a href="#sponsors" class="nav-item-custom">Sponsors</a>
+    </div>
+    <!-- Mobile Toggler -->
+    <button class="d-lg-none btn border-0" onclick="alert('Mobile menu coming soon')"><i class="fas fa-bars fa-2x"></i></button>
+</div>
+
+<!-- Login Modal -->
+<div id="login-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:white; padding:30px; border-radius:10px; width:300px;">
+        <h3 class="text-center mb-3">Admin Login</h3>
+        <form action="/login" method="POST">
+            <input type="text" name="userid" placeholder="User ID" class="form-control mb-2" required>
+            <input type="password" name="password" placeholder="Password" class="form-control mb-3" required>
+            <button type="submit" class="btn btn-success w-100">Login</button>
+        </form>
+        <button onclick="document.getElementById('login-modal').style.display='none'" class="btn btn-link w-100 mt-2">Cancel</button>
+    </div>
+</div>
+
+<!-- History Modal -->
+<div id="history-modal" class="modal-overlay" onclick="this.style.display='none'">
+    <div class="modal-content-custom" onclick="event.stopPropagation()">
+        <h2 style="color:var(--gold);">Sejarah TAHKIL FC</h2>
+        <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" style="width:150px; display:block; margin:20px auto;">
+        <p id="history-text" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('site_settings', 'history_text', 'value', this)">
+            {{ history_text_placeholder }}
+        </p>
+    </div>
+</div>
 """
 
 STYLES_HTML = """
-    <style>
-        :root {
-            --brand-color: #2ecc71;
-            --brand-hover: #27ae60;
-            --bg-light: #f4f7fa;
-            --card-bg: #ffffff;
-            --text-dark: #333333;
-            --text-muted: #666666;
-            --neon-blue: #FFD700;
-            --neon-green: #2ecc71;
-        }
-        /* Keep existing variable definitions */
-        [data-bs-theme="dark"] {
-            --bg-light: #1a1a1a;
-            --card-bg: #2d2d2d;
-            --text-dark: #f1f1f1;
-            --text-muted: #aaaaaa;
-        }
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        html {
-            scroll-behavior: smooth;
-        }
-        
-        .text-blue-neon {
-            color: var(--neon-blue);
-            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-        }
-        
-        .btn-cyan-neon {
-            background: transparent;
-            border: 2px solid var(--neon-blue);
-            color: var(--neon-blue);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
-            transition: all 0.3s;
-        }
-        .btn-cyan-neon:hover {
-            background: var(--neon-blue);
-            color: black;
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
-            transform: translateY(-2px);
-        }
-        
-        .btn-buy-card {
-            background: transparent;
-            border: 1px solid var(--neon-blue);
-            color: var(--neon-blue);
-            font-size: 0.8rem;
-            padding: 5px 12px;
-            border-radius: 20px;
-            transition: 0.3s;
-            cursor: pointer;
-            text-transform: uppercase;
-            font-weight: 700;
-        }
-        .btn-buy-card:hover {
-            background: var(--neon-blue);
-            color: black;
-            box-shadow: 0 0 10px var(--neon-blue);
-        }
-    </style>
+<style>
+    :root {
+        --green: #2ecc71;
+        --gold: #FFD700;
+        --black: #111;
+        --white: #fff;
+        --acrylic-dark: rgba(20, 20, 20, 0.85);
+        --acrylic-light: rgba(255, 255, 255, 0.1);
+    }
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--white);
+        color: var(--black);
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+    }
+
+    /* Utility */
+    .section-title {
+        font-weight: 800;
+        text-transform: uppercase;
+        margin-bottom: 20px;
+        position: relative;
+        display: inline-block;
+        border-bottom: 3px solid var(--gold);
+        padding-bottom: 5px;
+    }
+
+    /* Horizontal Scroll Sections */
+    .horizontal-scroll-container {
+        display: flex;
+        overflow-x: auto;
+        gap: 20px;
+        padding: 20px 0;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+    }
+    .horizontal-scroll-container::-webkit-scrollbar {
+        height: 8px;
+    }
+    .horizontal-scroll-container::-webkit-scrollbar-thumb {
+        background: var(--green);
+        border-radius: 4px;
+    }
+
+    .person-card {
+        min-width: 250px;
+        height: 350px;
+        background: var(--black);
+        color: white;
+        border-radius: 10px;
+        overflow: hidden;
+        scroll-snap-align: center;
+        position: relative;
+        transition: transform 0.3s;
+        cursor: pointer;
+    }
+    .person-card:hover {
+        transform: translateY(-10px);
+    }
+    .person-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 0.8;
+        transition: 0.3s;
+    }
+    .person-card:hover .person-img { opacity: 1; }
+
+    .person-info {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: linear-gradient(transparent, black);
+        padding: 20px;
+    }
+    .person-name { font-weight: 700; font-size: 1.2rem; text-transform: uppercase; color: var(--gold); }
+    .person-role { font-size: 0.9rem; color: #ccc; }
+
+    /* Calendar / Agenda Style */
+    .calendar-container {
+        background: var(--bg-light);
+        padding: 40px;
+        border-radius: 8px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .countdown-timer {
+        font-size: 3rem;
+        font-weight: 800;
+        color: var(--green);
+        text-align: center;
+        margin: 20px 0;
+        font-family: monospace;
+    }
+
+    .agenda-card-barca {
+        display: flex;
+        background: white;
+        border: 1px solid #eee;
+        margin-bottom: 15px;
+        transition: 0.3s;
+    }
+    .agenda-card-barca:hover { transform: translateX(10px); border-left: 5px solid var(--gold); }
+    .agenda-img { width: 100px; height: 100px; object-fit: cover; background: #333; }
+    .agenda-details { padding: 15px; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+    .agenda-date { color: var(--green); font-weight: 700; font-size: 0.8rem; text-transform: uppercase; }
+    .agenda-title { font-weight: 800; font-size: 1.2rem; }
+
+    /* Modal Overlay */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.8);
+        backdrop-filter: blur(10px);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+    }
+    .modal-content-custom {
+        background: white;
+        padding: 40px;
+        border-radius: 10px;
+        max-width: 600px;
+        width: 90%;
+        text-align: center;
+        position: relative;
+    }
+
+    /* Admin UI */
+    .edit-btn {
+        position: absolute;
+        top: 10px; right: 10px;
+        background: var(--gold);
+        border: none;
+        border-radius: 4px;
+        padding: 5px 10px;
+        cursor: pointer;
+        z-index: 10;
+    }
+</style>
 """
 
 HTML_UR_FC = """
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TAHFIZH KILAT FC</title>
+    <title>TAHFIZH KILAT FC - Official Site</title>
     <link rel="shortcut icon" href="{{ url_for('static', filename='logo-tahkil-fc.png') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     {{ styles|safe }}
-    <style>
-        body {
-            background-color: #FFFFFF;
-            background-image: url("{{ url_for('static', filename='logo-tahkil-fc.png') }}");
-            background-size: contain;
-            background-attachment: fixed;
-            background-position: center;
-            background-repeat: no-repeat;
-            color: #333333; /* Dark text for readability on white bg */
-        }
-        .acrylic-overlay-page {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(255, 255, 255, 0.3);
-            backdrop-filter: blur(20px);
-            z-index: -1;
-        }
-        
-        /* Hero Section */
-        .hero-section {
-            padding: 80px 20px;
-            position: relative;
-        }
-        .hero-title {
-            font-size: 2.5rem;
-            font-weight: 800;
-            line-height: 1.2;
-            text-shadow: 0 4px 20px rgba(0,0,0,0.8);
-            font-style: italic;
-        }
-        /* Responsive Font for Quote */
-        @media (max-width: 768px) {
-            .hero-title {
-                font-size: 1.5rem; /* Ideal size for mobile */
-                line-height: 1.4;
-            }
-        }
-        
-        /* Section Header */
-        .section-header h2 {
-            font-size: 2rem;
-            margin-bottom: 20px;
-            display: inline-block;
-        }
-        @media (max-width: 768px) {
-            .section-header h2 {
-                font-size: 1.5rem; /* Reduced font size for mobile to prevent wrap */
-            }
-        }
-
-        /* Grid Layout */
-        .games-grid {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 20px;
-            margin-bottom: 40px;
-        }
-        
-        @media (max-width: 1400px) { .games-grid { grid-template-columns: repeat(4, 1fr); } }
-        @media (max-width: 992px) { .games-grid { grid-template-columns: repeat(3, 1fr); } }
-        @media (max-width: 768px) { .games-grid { grid-template-columns: repeat(2, 1fr); } }
-        
-        /* Mini Card */
-        .mini-card {
-            /* Dark card to maintain neon aesthetic contrast */
-            background: rgba(20, 20, 20, 0.85);
-            color: white; /* Force white text inside cards */
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            overflow: hidden;
-            transition: transform 0.2s, box-shadow 0.2s;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-        }
-        .mini-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            border-color: rgba(255, 255, 255, 0.3);
-        }
-        .mini-poster {
-            width: 100%;
-            aspect-ratio: 1/1;
-            object-fit: cover;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .mini-info {
-            padding: 12px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-        .mini-title {
-            font-size: 0.9rem;
-            font-weight: 600;
-            margin-bottom: 5px;
-            line-height: 1.2;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .mini-status {
-            font-size: 0.75rem;
-            margin-bottom: 8px;
-        }
-        .status-avail { color: #4cd137; }
-        
-        .card-bottom-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .mini-price {
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: rgba(255,255,255,0.9);
-        }
-        
-        /* Add Card Button Style */
-        .add-card-btn {
-            background: rgba(46, 204, 113, 0.1);
-            border: 2px dashed #2ecc71;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #2ecc71;
-            font-size: 2rem;
-            cursor: pointer;
-            transition: 0.3s;
-            min-height: 300px; /* Match typical card height */
-            border-radius: 12px;
-        }
-        .add-card-btn:hover {
-            background: rgba(46, 204, 113, 0.2);
-            box-shadow: 0 0 20px rgba(46, 204, 113, 0.3);
-        }
-        
-        .btn-add-green {
-            color: #2ecc71;
-            border: 1px solid #2ecc71;
-            background: transparent;
-            padding: 8px 20px;
-            border-radius: 5px;
-            transition: 0.3s;
-        }
-        .btn-add-green:hover {
-            background: #2ecc71;
-            color: white;
-            box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
-        }
-
-        /* Modal Overlay */
-        .game-modal-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(25px); 
-            -webkit-backdrop-filter: blur(25px);
-            z-index: 2000;
-            display: none;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        .game-modal-overlay.active {
-            display: flex;
-            opacity: 1;
-        }
-        .modal-card {
-            background: rgba(20, 20, 20, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 20px;
-            width: 90%;
-            max-width: 1000px;
-            max-height: 90vh;
-            display: flex;
-            flex-direction: row; 
-            overflow: hidden;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
-            position: relative;
-        }
-        @media (max-width: 992px) {
-            .modal-card { flex-direction: column; overflow-y: auto; }
-        }
-        
-        .modal-poster-container {
-            width: 40%;
-            position: relative;
-            background: black;
-        }
-        @media (max-width: 992px) { .modal-poster-container { width: 100%; height: 300px; } }
-        
-        .modal-poster {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        .modal-info {
-            width: 60%;
-            padding: 40px;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-        }
-        @media (max-width: 992px) { .modal-info { width: 100%; padding: 25px; } }
-
-        .modal-title {
-            font-size: 2.5rem;
-            font-weight: 800;
-            margin-bottom: 20px;
-            text-shadow: 0 0 10px rgba(0,0,0,0.5);
-            color: #FFFFFF !important;
-        }
-        .modal-desc {
-            font-size: 1rem;
-            line-height: 1.7;
-            color: rgba(255,255,255,0.85);
-            font-weight: 300;
-            margin-bottom: 30px;
-        }
-        .modal-desc p { margin-bottom: 15px; }
-        
-        .modal-price {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #4cd137;
-            margin-top: auto;
-            text-align: right;
-        }
-        
-        .close-modal-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.5);
-            border: none;
-            color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: 0.2s;
-            z-index: 10;
-        }
-        .close-modal-btn:hover { background: rgba(255,255,255,0.2); }
-        
-        .upload-btn-modal {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            transition: 0.2s;
-        }
-        .upload-btn-modal:hover { background: var(--brand-color); }
-
-        /* Footer Styling */
-        footer.acrylic-footer {
-            margin-top: 80px; 
-            color: rgba(255,255,255,0.6);
-            background: rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 40px 0;
-            text-align: center;
-        }
-        .footer-logo {
-            font-weight: 800;
-            font-size: 1.5rem;
-            color: white;
-            margin-bottom: 10px;
-        }
-        .footer-logo span {
-            color: #FFD700;
-            text-shadow: 0 0 5px #FFD700, 0 0 10px #FFD700, 0 0 20px #FFD700;
-            font-style: italic;
-            font-family: 'Inter', sans-serif;
-        }
-        .social-icons {
-            margin-top: 20px;
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-        }
-        .social-icon {
-            color: rgba(255,255,255,0.6);
-            font-size: 1.5rem;
-            transition: 0.3s;
-            cursor: pointer;
-        }
-        .social-icon:hover { color: white; transform: scale(1.1); text-shadow: 0 0 10px white; }
-
-        /* Editable Styles */
-        [contenteditable="true"] {
-            outline: 1px dashed rgba(255, 255, 255, 0.2);
-            transition: outline 0.2s;
-            min-width: 50px;
-            display: inline-block;
-        }
-        [contenteditable="true"]:focus {
-            outline: 1px solid #FFD700;
-            background: rgba(255, 215, 0, 0.1);
-        }
-        
-        /* Language Toggle Classes */
-        .lang-id, .lang-en { display: none; }
-        body.lang-mode-id div.lang-id, body.lang-mode-id span.lang-id, body.lang-mode-id h1.lang-id { display: block; }
-        body.lang-mode-id span.lang-id { display: inline; }
-        body.lang-mode-en div.lang-en, body.lang-mode-en span.lang-en, body.lang-mode-en h1.lang-en { display: block; }
-        body.lang-mode-en span.lang-en { display: inline; }
-    </style>
 </head>
-<body class="lang-mode-id">
-    <div class="acrylic-overlay-page"></div>
-    
+<body>
     {{ navbar|safe }}
 
-    <div class="container container-xl py-5">
-        
-        <!-- HERO SECTION -->
-        <div class="hero-section text-center mb-5">
-            <h1 class="hero-title lang-id">"Sepak bola adalah permainan tentang kesalahan. Tim yang paling sedikit membuat kesalahan akan jadi pemenang" – Johan Cruyff</h1>
-            <h1 class="hero-title lang-en">"Football is a game of mistakes. Whoever makes the fewest mistakes wins" – Johan Cruyff</h1>
-            
-            <button class="btn btn-cyan-neon mt-4 px-5 py-2 rounded-pill" onclick="scrollToPopular()">
-                <span class="lang-id">Lihat Agenda Kami</span>
-                <span class="lang-en">View Our Agenda</span>
-            </button>
-        </div>
+    <!-- HERO SECTION -->
+    <div class="container py-5" id="hero">
+        <div class="row">
+            <!-- Main News (Left/Top) -->
+            <div class="col-lg-8 mb-4 position-relative">
+                <div class="position-relative" style="height: 500px; overflow: hidden; border-radius: 10px; background: black;">
+                    {% set hero = data['news']['hero'] %}
+                    <img src="{{ '/uploads/' + hero.image_path if hero.image_path else url_for('static', filename='logo-tahkil-fc.png') }}"
+                         style="width: 100%; height: 100%; object-fit: cover; opacity: 0.7;">
 
-        <!-- SECTION 1: AGENDA LATIHAN -->
-        <div class="section-header mb-4" id="popular-games">
-            <h2 class="fw-bold">
-                <span class="lang-id">Agenda Latihan <span class="text-blue-neon" style="border-bottom: 3px solid #FFD700;">TAHKIL FC</span></span>
-                <span class="lang-en">Training Agenda <span class="text-blue-neon" style="border-bottom: 3px solid #FFD700;">TAHKIL FC</span></span>
-            </h2>
-        </div>
+                    {% if admin %}
+                    <form action="/upload/news/hero" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-0 p-2">
+                        <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="hero-upload">
+                        <label for="hero-upload" class="btn btn-sm btn-warning"><i class="fas fa-camera"></i></label>
+                    </form>
+                    {% endif %}
 
-        <div class="games-grid" id="grid-agenda-latihan">
-            {% for item in agenda1 %}
-            <div class="mini-card" onclick="openModal('{{ item.id }}')">
-                {% if game_images[item.id] %}
-                    <img src="/uploads/{{ game_images[item.id] }}" class="mini-poster" alt="Agenda">
-                {% else %}
-                    <!-- Empty/Placeholder as requested -->
-                    <div class="mini-poster" style="background: #1e1e1e; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.1); font-size:2rem;">
-                         <i class="fas fa-camera"></i>
-                    </div>
-                {% endif %}
-                <div class="mini-info">
-                    <div class="mini-title" id="title-{{ item.id }}" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_title')">{{ item.title }}</div>
-                    <div class="mini-status">
-                        <span class="status-avail" id="status-{{ item.id }}" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_status')"><i class="fas fa-check-circle me-1"></i> {{ item.status_text }}</span>
-                    </div>
-                    <div class="card-bottom-row">
-                        <div class="mini-price" id="price-{{ item.id }}" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_price')">{{ item.price }}</div>
+                    <div class="position-absolute bottom-0 start-0 w-100 p-4" style="background: linear-gradient(transparent, black);">
+                        <span class="badge bg-warning text-dark mb-2">FIRST TEAM</span>
+                        <h1 class="text-white fw-bold fst-italic text-decoration-underline"
+                            contenteditable="{{ 'true' if admin else 'false' }}"
+                            onblur="saveText('news_content', 'hero', 'title', this)">
+                            {{ hero.title }}
+                        </h1>
+                        <p class="text-white-50"
+                           contenteditable="{{ 'true' if admin else 'false' }}"
+                           onblur="saveText('news_content', 'hero', 'subtitle', this)">
+                           {{ hero.subtitle }}
+                        </p>
+                        <div class="text-warning small"><i class="far fa-clock"></i> <span id="last-updated">2 Hours Ago</span></div>
                     </div>
                 </div>
             </div>
-            {% endfor %}
-            <!-- JS will append dynamic cards here -->
-        </div>
-        
-        <!-- Add Card Button for Section 1 -->
-        <div class="d-flex justify-content-end mb-5">
-            <button class="btn btn-add-green" onclick="addCard('grid-agenda-latihan', 'agenda1_dynamic')">+ Tambah Card Agenda</button>
-        </div>
-        
-        <!-- SECTION 2: NEXT AGENDA -->
-        <div class="section-header mt-5 mb-4" id="next-agenda">
-            <h2 class="fw-bold">
-                <span class="lang-id">Next <span class="text-blue-neon" style="border-bottom: 3px solid #FFD700;">Agenda</span></span>
-                <span class="lang-en">Next <span class="text-blue-neon" style="border-bottom: 3px solid #FFD700;">Agenda</span></span>
-            </h2>
-        </div>
-        <div class="games-grid" id="grid-next-agenda">
-            {% for item in agenda2 %}
-             <div class="mini-card" onclick="openModal('{{ item.id }}')">
-                {% if game_images[item.id] %}
-                    <img src="/uploads/{{ game_images[item.id] }}" class="mini-poster" alt="Agenda">
-                {% else %}
-                    <div class="mini-poster" style="background: #1e1e1e; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.1); font-size:2rem;">
-                         <i class="fas fa-camera"></i>
+
+            <!-- Sub News (Right/Side) -->
+            <div class="col-lg-4">
+                <div class="row">
+                    {% for i in range(1, 5) %}
+                    {% set news_item = data['news']['news_' ~ i] %}
+                    <div class="col-6 col-lg-12 mb-3">
+                        <div class="d-flex align-items-center bg-light rounded p-2 shadow-sm sub-news-card" style="transition:0.3s;">
+                            <div style="width: 80px; height: 60px; background: #333; border-radius: 5px; overflow: hidden; flex-shrink: 0; position: relative;">
+                                <img src="{{ '/uploads/' + news_item.image_path if news_item.image_path else '' }}" style="width:100%; height:100%; object-fit:cover;">
+                                {% if admin %}
+                                <form action="/upload/news/news_{{ i }}" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-0">
+                                    <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="news-up-{{ i }}">
+                                    <label for="news-up-{{ i }}" class="badge bg-warning" style="cursor:pointer;">+</label>
+                                </form>
+                                {% endif %}
+                            </div>
+                            <div class="ms-3 flex-grow-1">
+                                <small class="text-success fw-bold">FIRST TEAM</small>
+                                <h6 class="mb-0 fw-bold" style="font-size: 0.9rem;"
+                                    contenteditable="{{ 'true' if admin else 'false' }}"
+                                    onblur="saveText('news_content', 'news_{{ i }}', 'title', this)">
+                                    {{ news_item.title }}
+                                </h6>
+                            </div>
+                        </div>
                     </div>
-                {% endif %}
-                <div class="mini-info">
-                    <div class="mini-title" id="title-{{ item.id }}" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_title')">{{ item.title }}</div>
-                    <div class="mini-status">
-                        <span class="status-avail" id="status-{{ item.id }}" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_status')"><i class="fas fa-check-circle me-1"></i> {{ item.status_text }}</span>
-                    </div>
-                    <div class="card-bottom-row">
-                        <div class="mini-price" id="price-{{ item.id }}" contenteditable="true" onclick="event.stopPropagation()" oninput="saveText(this, '{{ item.id }}_price')">{{ item.price }}</div>
-                    </div>
+                    {% endfor %}
                 </div>
             </div>
-            {% endfor %}
-            <!-- JS will append dynamic cards here -->
         </div>
         
-        <!-- Add Card Button for Section 2 -->
-        <div class="d-flex justify-content-end mb-5">
-            <button class="btn btn-add-green" onclick="addCard('grid-next-agenda', 'agenda2_dynamic')">+ Tambah Card Agenda</button>
-        </div>
-
-        <footer class="acrylic-footer" id="footer-social">
-            <div class="container">
-                <div class="footer-logo">TAHFIZH <span>KILAT FC</span></div>
-                <p>&copy; 2026 TAHKIL FC. All rights reserved.</p>
-                <div class="social-icons">
-                    <!-- WA: Direct to number -->
-                    <a href="https://wa.me/6281528455350" target="_blank" style="text-decoration:none;"><i class="fab fa-whatsapp social-icon"></i></a>
-                    
-                    <!-- Maps -->
-                    <a href="https://maps.app.goo.gl/uWsamfYCzcMXiq6e6" target="_blank" style="text-decoration:none;"><i class="fas fa-map-marker-alt social-icon"></i></a>
-                    
-                    <!-- IG -->
-                    <a href="https://www.instagram.com/adihidayatofficial?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" style="text-decoration:none;"><i class="fab fa-instagram social-icon"></i></a>
-                </div>
-            </div>
-        </footer>
-    </div>
-
-    <!-- LOGO POPUP MODAL -->
-    <div id="logo-modal" onclick="closeLogoModal()">
-        <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" alt="Full Logo" onclick="event.stopPropagation()">
-    </div>
-
-    <!-- DETAIL POPUP -->
-    <div id="modal-overlay" class="game-modal-overlay">
-        <div class="modal-card" onclick="event.stopPropagation()">
-            <button class="close-modal-btn" onclick="closeModal()"><i class="fas fa-times"></i></button>
-            
-            <div class="modal-poster-container">
-                <img id="m-poster" src="" class="modal-poster">
-                <form id="m-upload-form" method="post" enctype="multipart/form-data" style="display:none">
-                    <input type="file" name="game_image" id="m-file-input" onchange="this.form.submit()" accept="image/*">
+        <!-- Sponsors -->
+        <div class="row mt-4 justify-content-center text-center" id="sponsors">
+            {% for sponsor in data['sponsors'] %}
+            <div class="col-3 col-md-2 position-relative">
+                <img src="{{ '/uploads/' + sponsor.image_path if sponsor.image_path else 'https://via.placeholder.com/150x50?text=SPONSOR' }}"
+                     class="img-fluid" style="filter: grayscale(100%); opacity: 0.6; transition: 0.3s;" onmouseover="this.style.filter='none'; this.style.opacity='1'" onmouseout="this.style.filter='grayscale(100%)'; this.style.opacity='0.6'">
+                {% if admin %}
+                <form action="/upload/sponsor/{{ sponsor.id }}" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-50">
+                    <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="sp-{{ sponsor.id }}">
+                    <label for="sp-{{ sponsor.id }}" class="badge bg-secondary"><i class="fas fa-edit"></i></label>
                 </form>
-                <div class="upload-btn-modal" onclick="triggerUpload()">
-                    <i class="fas fa-camera me-1"></i> Change Cover
-                </div>
+                {% endif %}
             </div>
-            
-            <div class="modal-info">
-                <h2 class="modal-title" id="m-title">Title</h2>
-                <div class="modal-desc">
-                    <p>Masih menunggu pengembangan</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- PLAYERS SECTION -->
+    <div class="container-fluid py-5 bg-light" id="players">
+        <div class="container">
+            <h2 class="section-title">Pemain TAHKIL FC</h2>
+            <div class="horizontal-scroll-container">
+                {% for player in data['personnel']['player'] %}
+                <div class="person-card" onclick="openPersonModal('{{ player.id }}', '{{ player.name }}', '{{ player.position }}', '{{ '/uploads/' + player.image_path if player.image_path else '' }}')">
+                    {% if player.image_path %}
+                        <img src="/uploads/{{ player.image_path }}" class="person-img">
+                    {% else %}
+                        <div class="person-img d-flex align-items-center justify-content-center bg-secondary"><i class="fas fa-user fa-3x text-white-50"></i></div>
+                    {% endif %}
+                    
+                    <div class="person-info">
+                        <div class="person-name">{{ player.name }}</div>
+                        <div class="person-role">{{ player.position }}</div>
+                    </div>
+                    
+                    {% if admin %}
+                    <form action="/upload/personnel/{{ player.id }}" method="post" enctype="multipart/form-data" class="edit-btn" onclick="event.stopPropagation()">
+                         <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="pl-{{ player.id }}">
+                         <input type="hidden" name="role" value="player">
+                         <label for="pl-{{ player.id }}"><i class="fas fa-camera"></i></label>
+                    </form>
+                    {% endif %}
                 </div>
-                <div class="modal-price" id="m-price">Price</div>
+                {% endfor %}
+                {% if admin %}
+                <div class="person-card d-flex align-items-center justify-content-center" onclick="addPerson('player')">
+                    <i class="fas fa-plus fa-3x text-success"></i>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
+
+    <!-- COACHES SECTION -->
+    <div class="container-fluid py-5" id="coaches">
+        <div class="container">
+            <h2 class="section-title">Pelatih TAHKIL FC</h2>
+            <div class="horizontal-scroll-container">
+                {% for coach in data['personnel']['coach'] %}
+                <div class="person-card" onclick="openPersonModal('{{ coach.id }}', '{{ coach.name }}', '{{ coach.position }}', '{{ '/uploads/' + coach.image_path if coach.image_path else '' }}')">
+                    <img src="{{ '/uploads/' + coach.image_path if coach.image_path else '' }}" class="person-img" style="background:#333">
+                    <div class="person-info">
+                        <div class="person-name">{{ coach.name }}</div>
+                        <div class="person-role">{{ coach.position }}</div>
+                    </div>
+                     {% if admin %}
+                    <form action="/upload/personnel/{{ coach.id }}" method="post" enctype="multipart/form-data" class="edit-btn" onclick="event.stopPropagation()">
+                         <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="co-{{ coach.id }}">
+                         <input type="hidden" name="role" value="coach">
+                         <label for="co-{{ coach.id }}"><i class="fas fa-camera"></i></label>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- MVP SECTION -->
+    <div class="container-fluid py-5 bg-light" id="mvp">
+        <div class="container">
+            <h2 class="section-title">Pemain MVP TAHKIL FC</h2>
+            <div class="horizontal-scroll-container">
+                {% for mvp in data['personnel']['mvp'] %}
+                <div class="person-card" onclick="openPersonModal('{{ mvp.id }}', '{{ mvp.name }}', '{{ mvp.position }}', '{{ '/uploads/' + mvp.image_path if mvp.image_path else '' }}')">
+                    <img src="{{ '/uploads/' + mvp.image_path if mvp.image_path else '' }}" class="person-img" style="background:#333">
+                    <div class="person-info">
+                        <div class="person-name">{{ mvp.name }}</div>
+                        <div class="person-role">{{ mvp.position }}</div>
+                    </div>
+                     {% if admin %}
+                    <form action="/upload/personnel/{{ mvp.id }}" method="post" enctype="multipart/form-data" class="edit-btn" onclick="event.stopPropagation()">
+                         <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="mv-{{ mvp.id }}">
+                         <input type="hidden" name="role" value="mvp">
+                         <label for="mv-{{ mvp.id }}"><i class="fas fa-camera"></i></label>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                 {% if admin %}
+                <div class="person-card d-flex align-items-center justify-content-center" onclick="addPerson('mvp')">
+                    <i class="fas fa-plus fa-3x text-warning"></i>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- AGENDA LATIHAN (CALENDAR STYLE) -->
+    <div class="container py-5" id="agenda-latihan">
+        <div class="row">
+            <div class="col-lg-12">
+                <h2 class="section-title">Agenda Latihan TAHKIL FC</h2>
+                <div class="calendar-container">
+                    <div class="text-center mb-4">
+                        <h4 class="text-uppercase fw-bold">Next Match Countdown</h4>
+                        <div class="countdown-timer" id="countdown">00:00:00:00</div>
+                        {% if admin %}
+                        <input type="datetime-local" class="form-control w-25 mx-auto" onchange="saveText('site_settings', 'next_match_time', 'value', this)" value="{{ data['settings']['next_match_time'] }}">
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        {% for item in agenda_latihan %}
+                        <div class="col-md-4">
+                            <div class="agenda-card-barca">
+                                <div class="agenda-img" style="position:relative;">
+                                    <!-- Use existing upload mechanism for agenda images via JS logic if needed, or simple placeholder -->
+                                    <img src="{{ '/uploads/' + item.id + '.jpg' }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
+                                </div>
+                                <div class="agenda-details">
+                                    <div class="agenda-date" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'price', this)">{{ item.price }}</div>
+                                    <div class="agenda-title" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'title', this)">{{ item.title }}</div>
+                                    <small class="text-muted" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'status', this)">{{ item.status }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                     {% if admin %}
+                    <button class="btn btn-outline-success mt-3" onclick="addCard('agenda', 1)">+ Add Agenda Item</button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TURNAMEN (NEXT AGENDA) -->
+    <div class="container py-5" id="turnamen">
+        <h2 class="section-title">Turnamen</h2>
+        <div class="row">
+             {% for item in turnamen %}
+            <div class="col-md-4">
+                <div class="agenda-card-barca">
+                    <div class="agenda-img">
+                         <img src="{{ '/uploads/' + item.id + '.jpg' }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
+                    </div>
+                    <div class="agenda-details">
+                        <div class="agenda-date" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'price', this)">{{ item.price }}</div>
+                        <div class="agenda-title" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'title', this)">{{ item.title }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+         {% if admin %}
+        <button class="btn btn-outline-success mt-3" onclick="addCard('agenda', 2)">+ Add Tournament Item</button>
+        {% endif %}
+    </div>
+
+    <!-- PERSON MODAL -->
+    <div id="person-modal" class="modal-overlay" onclick="this.style.display='none'">
+        <div class="modal-content-custom" onclick="event.stopPropagation()">
+            <img id="pm-img" src="" style="width:150px; height:150px; border-radius:50%; object-fit:cover; margin-bottom:20px;">
+            <h2 id="pm-name" contenteditable="{{ 'true' if admin else 'false' }}" onblur="updatePersonDetail('name')">Name</h2>
+            <h4 id="pm-role" class="text-muted" contenteditable="{{ 'true' if admin else 'false' }}" onblur="updatePersonDetail('position')">Position</h4>
+            <div class="mt-4 text-start">
+                <p><strong>Nationality:</strong> Indonesia</p>
+                <p><strong>Joined:</strong> 2024</p>
+                <p><strong>Matches:</strong> 10</p>
+                <p><strong>Goals:</strong> 5</p>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-black text-white py-5 text-center mt-5">
+        <div class="container">
+            <h3 class="fw-bold mb-3">TAHFIZH <span class="text-warning">KILAT FC</span></h3>
+            <p>&copy; 2026 TAHKIL FC. All rights reserved.</p>
+        </div>
+    </footer>
 
     <script>
-        const gamesData = {{ games|tojson }};
-        const gameImages = {{ game_images|tojson }};
-
-        function openModal(id) {
-            const game = gamesData.find(g => g.id === id);
-            
-            // Fetch directly from DOM to sync with user edits
-            const titleEl = document.getElementById('title-' + id);
-            const priceEl = document.getElementById('price-' + id);
-            
-            const currentTitle = titleEl ? titleEl.innerText : (localStorage.getItem(id + '_title') || game.title);
-            const currentPrice = priceEl ? priceEl.innerText : (localStorage.getItem(id + '_price') || game.price);
-
-            document.getElementById('m-title').innerText = currentTitle;
-            document.getElementById('m-price').innerText = currentPrice;
-            
-            const imgPath = gameImages[id] ? '/uploads/' + gameImages[id] : '';
-            const posterImg = document.getElementById('m-poster');
-            if (imgPath) {
-                posterImg.src = imgPath;
-                posterImg.style.display = 'block';
-            } else {
-                posterImg.src = '';
-                posterImg.style.background = '#1e1e1e';
-            }
-            
-            // Setup Upload Form
-            const form = document.getElementById('m-upload-form');
-            form.action = '/upload-agenda-image/' + id;
-            
-            const overlay = document.getElementById('modal-overlay');
-            overlay.classList.add('active');
-            
-            // Re-apply language
-            toggleLanguage(true);
-        }
-
-        function closeModal() {
-            const overlay = document.getElementById('modal-overlay');
-            overlay.classList.remove('active');
-        }
-
-        // Logo Modal Functions
-        function viewLogo() {
-            const modal = document.getElementById('logo-modal');
-            modal.classList.add('active');
-        }
-        
-        function closeLogoModal() {
-            const modal = document.getElementById('logo-modal');
-            modal.classList.remove('active');
-        }
-
-        function scrollToPopular() {
-            const el = document.getElementById('popular-games');
-            if(el) {
-                el.scrollIntoView({ behavior: 'smooth' });
-            }
-        }
-        document.getElementById('modal-overlay').addEventListener('click', closeModal);
-
-        function triggerUpload() {
-            document.getElementById('m-file-input').click();
-        }
-
-        // Save editable text to localStorage
-        function saveText(el, key) {
-            localStorage.setItem(key, el.innerText);
-        }
-
-        // --- DYNAMIC CARD LOGIC ---
-        function addCard(gridId, sectionKey) {
-            // Determine section integer
-            const section = (sectionKey === 'agenda1_dynamic') ? 1 : 2;
-            
-            fetch('/api/add-agenda-card', {
+        // API Interactions
+        function saveText(table, id, field, el) {
+            let value = el.innerText || el.value;
+            fetch('/api/update-text', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ section: section })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if(data.success) {
-                    location.reload(); // Reload to render new card from server
-                } else {
-                    alert('Error adding card');
-                }
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ table, id, field, value })
             });
         }
+
+        function addPerson(role) {
+            fetch('/api/add-card', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ type: 'personnel', role })
+            }).then(() => location.reload());
+        }
         
-        let debounceTimer;
-        // Save editable text to Server (Universal Persistence)
-        function saveText(el, key) {
-            // Key format: "agendaID_field" e.g., "agenda1_title"
-            clearTimeout(debounceTimer);
-            
-            const parts = key.split('_');
-            const field = parts.pop(); // 'title', 'status', 'price'
-            const id = parts.join('_'); // 'agenda1' or 'agenda_dynamic_123'
-            
-            debounceTimer = setTimeout(() => {
-                const payload = { id: id };
-                payload[field] = el.innerText;
-                
-                // Find parent card
-                const card = el.closest('.mini-card');
-                if(!card) return;
-                
-                // Extract current values from DOM
-                const titleVal = card.querySelector('.mini-title').innerText;
-                const statusVal = card.querySelector('.status-avail').innerText.replace(' Tersedia', '').trim(); // Remove icon text if needed, or just save raw
-                const priceVal = card.querySelector('.mini-price').innerText;
-                
-                const fullPayload = {
-                    id: id,
-                    title: titleVal,
-                    status: statusVal, 
-                    price: priceVal
-                };
-                
-                fetch('/api/update-agenda-text', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(fullPayload)
-                });
-            }, 500); // 500ms debounce
+        function addCard(type, section) {
+             fetch('/api/add-card', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ type, section })
+            }).then(() => location.reload());
         }
 
-        // Language Toggle Logic (Disabled/Removed as per request, keeping function stub to prevent errors if called)
-        function toggleLanguage(retainState = false) {
-            // No-op
+        // Modals
+        let currentPersonId = null;
+        function openPersonModal(id, name, role, img) {
+            currentPersonId = id;
+            document.getElementById('pm-name').innerText = name;
+            document.getElementById('pm-role').innerText = role;
+            document.getElementById('pm-img').src = img || '{{ url_for("static", filename="logo-tahkil-fc.png") }}';
+            document.getElementById('person-modal').style.display = 'flex';
         }
+
+        function updatePersonDetail(field) {
+            if(!currentPersonId) return;
+            const el = field === 'name' ? document.getElementById('pm-name') : document.getElementById('pm-role');
+            saveText('personnel', currentPersonId, field, el);
+        }
+
+        function openHistoryModal() {
+            document.getElementById('history-modal').style.display = 'flex';
+            // Here you would fetch specific history text if needed
+            document.getElementById('history-text').innerText = "{{ data['settings']['history_text'] }}";
+        }
+
+        // Countdown Logic
+        const targetDate = new Date("{{ data['settings']['next_match_time'] }}").getTime();
+        
+        setInterval(() => {
+            const now = new Date().getTime();
+            const distance = targetDate - now;
+            
+            if (distance < 0) {
+                document.getElementById("countdown").innerHTML = "MATCH DAY!";
+                return;
+            }
+            
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            document.getElementById("countdown").innerHTML = days + "d " + hours + "h " + minutes + "m " + seconds + "s ";
+        }, 1000);
+
+        // Hover effects for news cards (Animation)
+        document.querySelectorAll('.sub-news-card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'scale(1.05)';
+                card.style.zIndex = '10';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'scale(1)';
+                card.style.zIndex = '1';
+            });
+        });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
