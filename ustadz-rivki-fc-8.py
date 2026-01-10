@@ -401,12 +401,13 @@ NAVBAR_HTML = """
         position: absolute;
         left: 5%;
         top: -15px; /* Overlap upwards */
-        z-index: 1031;
+        z-index: 2000; /* Requirement: Top most layer */
     }
     .navbar-logo-img {
         height: 85px;
         transition: 0.3s;
         filter: drop-shadow(0 2px 5px rgba(0,0,0,0.2));
+        cursor: pointer;
     }
     .navbar-links {
         margin-left: 120px; /* Space for logo */
@@ -458,9 +459,14 @@ NAVBAR_HTML = """
         {% endif %}
         
         <a href="#" class="history-btn" onclick="openHistoryModal()">
-            <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}">
+            <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="monochrome-icon">
             Lihat Sejarah
         </a>
+        <div class="d-none d-lg-flex gap-3 align-items-center">
+            <a href="https://chat.whatsapp.com/invite/placeholder" class="social-icon-link" target="_blank"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://maps.google.com" class="social-icon-link" target="_blank"><i class="fas fa-map-marker-alt"></i></a>
+            <a href="https://instagram.com" class="social-icon-link" target="_blank"><i class="fab fa-instagram"></i></a>
+        </div>
         <a href="https://chat.whatsapp.com/invite/placeholder" class="wa-btn-circle" target="_blank">
             <i class="fab fa-whatsapp"></i>
         </a>
@@ -469,8 +475,8 @@ NAVBAR_HTML = """
 
 <!-- Main Navbar -->
 <div class="main-navbar">
-    <div class="navbar-logo-container">
-        <a href="/">
+    <div class="navbar-logo-container" onclick="toggleLogoPopup()">
+        <a href="javascript:void(0)">
             <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="navbar-logo-img" alt="TAHKIL FC">
         </a>
     </div>
@@ -483,7 +489,33 @@ NAVBAR_HTML = """
         <a href="#sponsors" class="nav-item-custom">Sponsors</a>
     </div>
     <!-- Mobile Toggler -->
-    <button class="d-lg-none btn border-0" onclick="alert('Mobile menu coming soon')"><i class="fas fa-bars fa-2x"></i></button>
+    <button class="d-lg-none btn border-0" onclick="toggleMobileMenu()"><i class="fas fa-bars fa-2x"></i></button>
+    <div class="navbar-split-border"></div>
+</div>
+
+<!-- Mobile Menu Container -->
+<div id="mobile-menu" class="mobile-menu-container">
+    <div class="mobile-next-match">Next Match: TAHKIL FC (Jan 2026)</div>
+    <a href="#hero" class="mobile-nav-link" onclick="toggleMobileMenu()">Home</a>
+    <a href="#agenda-latihan" class="mobile-nav-link" onclick="toggleMobileMenu()">Agenda</a>
+    <a href="#agenda-latihan" class="mobile-nav-link" onclick="toggleMobileMenu()">Latihan</a>
+    <a href="#turnamen" class="mobile-nav-link" onclick="toggleMobileMenu()">Turnamen</a>
+    <a href="#players" class="mobile-nav-link" onclick="toggleMobileMenu()">Pemain</a>
+    <a href="#coaches" class="mobile-nav-link" onclick="toggleMobileMenu()">Pelatih</a>
+    <a href="#sponsors" class="mobile-nav-link" onclick="toggleMobileMenu()">Sponsors</a>
+
+    <div class="mt-auto d-flex flex-column gap-3">
+        <a href="#" class="history-btn justify-content-center" onclick="openHistoryModal(); toggleMobileMenu();">
+            <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="monochrome-icon">
+            Lihat Sejarah
+        </a>
+        <button onclick="document.getElementById('login-modal').style.display='flex'; toggleMobileMenu();" class="btn btn-outline-dark w-100">Admin Login</button>
+        <div class="d-flex justify-content-center gap-4 mt-2">
+            <a href="https://chat.whatsapp.com/invite/placeholder" class="text-dark h4"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://maps.google.com" class="text-dark h4"><i class="fas fa-map-marker-alt"></i></a>
+            <a href="https://instagram.com" class="text-dark h4"><i class="fab fa-instagram"></i></a>
+        </div>
+    </div>
 </div>
 
 <!-- Login Modal -->
@@ -654,6 +686,124 @@ STYLES_HTML = """
         cursor: pointer;
         z-index: 10;
     }
+
+    /* NEW FEATURES CSS */
+    .navbar-split-border {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(90deg, #2ecc71 50%, #FFD700 50%);
+        z-index: 1025;
+    }
+
+    .monochrome-icon {
+        filter: grayscale(100%) contrast(1.2);
+    }
+
+    /* Hero Full Width */
+    .hero-full-width-container {
+        width: 100vw;
+        margin-left: calc(-50vw + 50%);
+        position: relative;
+        overflow: hidden;
+    }
+    .hero-main-img-wrapper {
+        position: relative;
+        width: 100%;
+        height: 60vh; /* Adjust as needed */
+    }
+    .hero-main-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .hero-overlay-gradient {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 50%;
+        background: linear-gradient(to bottom, transparent, #000);
+        pointer-events: none;
+    }
+
+    /* Logo Popup */
+    .logo-popup-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(20, 20, 20, 0.6); /* Acrylic dark base */
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        z-index: 99999;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+    }
+    .logo-popup-img {
+        max-width: 80%;
+        max-height: 80%;
+        filter: drop-shadow(0 10px 30px rgba(0,0,0,0.5));
+        transition: transform 0.3s;
+    }
+    .logo-popup-img:hover { transform: scale(1.05); }
+
+    /* Mobile Menu */
+    .mobile-menu-container {
+        position: fixed;
+        top: 70px; /* Below navbar */
+        right: -100%;
+        width: 80%;
+        max-width: 300px;
+        height: calc(100vh - 70px);
+        background: white;
+        z-index: 1040;
+        transition: right 0.3s ease-in-out;
+        box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        overflow-y: auto;
+    }
+    .mobile-menu-container.active {
+        right: 0;
+    }
+    .mobile-nav-link {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #333;
+        text-decoration: none;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+    }
+    .mobile-next-match {
+        background: var(--green);
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        font-weight: 600;
+        text-align: center;
+        margin-bottom: 10px;
+    }
+
+    /* Sponsors */
+    .sponsor-logo-small {
+        max-height: 60px;
+        width: auto;
+        margin: 10px;
+        transition: 0.3s;
+    }
+
+    /* Social Icons in Navbar */
+    .social-icon-link {
+        color: white;
+        font-size: 1.2rem;
+        transition: 0.2s;
+    }
+    .social-icon-link:hover { color: var(--gold); }
 </style>
 """
 
@@ -673,77 +823,76 @@ HTML_UR_FC = """
 <body>
     {{ navbar|safe }}
     
-    <!-- HERO SECTION -->
-    <div class="container py-5" id="hero">
-        <div class="row">
-            <!-- Main News (Left/Top) -->
-            <div class="col-lg-8 mb-4 position-relative">
-                <div class="position-relative" style="height: 500px; overflow: hidden; border-radius: 10px; background: black;">
-                    {% set hero = data['news']['hero'] %}
-                    <img src="{{ '/uploads/' + hero.image_path if hero.image_path else url_for('static', filename='logo-tahkil-fc.png') }}" 
-                         style="width: 100%; height: 100%; object-fit: cover; opacity: 0.7;">
-                    
-                    {% if admin %}
-                    <form action="/upload/news/hero" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-0 p-2">
-                        <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="hero-upload">
-                        <label for="hero-upload" class="btn btn-sm btn-warning"><i class="fas fa-camera"></i></label>
-                    </form>
-                    {% endif %}
+    <!-- HERO SECTION (Updated) -->
+    <div class="container-fluid p-0 mb-4" id="hero">
+         {% set hero = data['news']['hero'] %}
+         <div class="hero-full-width-container">
+             <div class="hero-main-img-wrapper">
+                 <img src="{{ '/uploads/' + hero.image_path if hero.image_path else url_for('static', filename='logo-tahkil-fc.png') }}"
+                      class="hero-main-img">
+                 <div class="hero-overlay-gradient"></div>
 
-                    <div class="position-absolute bottom-0 start-0 w-100 p-4" style="background: linear-gradient(transparent, black);">
-                        <span class="badge bg-warning text-dark mb-2">FIRST TEAM</span>
-                        <h1 class="text-white fw-bold fst-italic text-decoration-underline" 
+                 <div class="position-absolute bottom-0 start-0 w-100 p-5 container">
+                    <span class="badge bg-warning text-dark mb-2">FIRST TEAM</span>
+                    <h1 class="text-white fw-bold fst-italic text-decoration-underline display-4"
+                        style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);"
+                        contenteditable="{{ 'true' if admin else 'false' }}"
+                        onblur="saveText('news_content', 'hero', 'title', this)">
+                        {{ hero.title }}
+                    </h1>
+                    <p class="text-white h5"
+                       style="text-shadow: 1px 1px 3px rgba(0,0,0,0.8);"
+                       contenteditable="{{ 'true' if admin else 'false' }}"
+                       onblur="saveText('news_content', 'hero', 'subtitle', this)">
+                       {{ hero.subtitle }}
+                    </p>
+                 </div>
+
+                 {% if admin %}
+                 <form action="/upload/news/hero" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-0 p-2">
+                     <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="hero-upload">
+                     <label for="hero-upload" class="btn btn-sm btn-warning"><i class="fas fa-camera"></i> Change Hero Image</label>
+                 </form>
+                 {% endif %}
+             </div>
+         </div>
+    </div>
+
+    <div class="container mb-5">
+        <!-- Sub News Row -->
+        <div class="row">
+            {% for i in range(1, 5) %}
+            {% set news_item = data['news']['news_' ~ i] %}
+            <div class="col-md-3 col-6 mb-3">
+                <div class="d-flex flex-column bg-light rounded shadow-sm sub-news-card h-100" style="transition:0.3s; overflow:hidden;">
+                    <div style="width: 100%; height: 150px; background: #333; position: relative;">
+                        <img src="{{ '/uploads/' + news_item.image_path if news_item.image_path else '' }}" style="width:100%; height:100%; object-fit:cover;">
+                        {% if admin %}
+                        <form action="/upload/news/news_{{ i }}" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-0 p-1">
+                            <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="news-up-{{ i }}">
+                            <label for="news-up-{{ i }}" class="badge bg-warning" style="cursor:pointer;">+</label>
+                        </form>
+                        {% endif %}
+                    </div>
+                    <div class="p-3 flex-grow-1">
+                        <small class="text-success fw-bold d-block mb-1">FIRST TEAM</small>
+                        <h6 class="mb-0 fw-bold"
                             contenteditable="{{ 'true' if admin else 'false' }}"
-                            onblur="saveText('news_content', 'hero', 'title', this)">
-                            {{ hero.title }}
-                        </h1>
-                        <p class="text-white-50" 
-                           contenteditable="{{ 'true' if admin else 'false' }}"
-                           onblur="saveText('news_content', 'hero', 'subtitle', this)">
-                           {{ hero.subtitle }}
-                        </p>
-                        <div class="text-warning small"><i class="far fa-clock"></i> <span id="last-updated">2 Hours Ago</span></div>
+                            onblur="saveText('news_content', 'news_{{ i }}', 'title', this)">
+                            {{ news_item.title }}
+                        </h6>
                     </div>
                 </div>
             </div>
-            
-            <!-- Sub News (Right/Side) -->
-            <div class="col-lg-4">
-                <div class="row">
-                    {% for i in range(1, 5) %}
-                    {% set news_item = data['news']['news_' ~ i] %}
-                    <div class="col-6 col-lg-12 mb-3">
-                        <div class="d-flex align-items-center bg-light rounded p-2 shadow-sm sub-news-card" style="transition:0.3s;">
-                            <div style="width: 80px; height: 60px; background: #333; border-radius: 5px; overflow: hidden; flex-shrink: 0; position: relative;">
-                                <img src="{{ '/uploads/' + news_item.image_path if news_item.image_path else '' }}" style="width:100%; height:100%; object-fit:cover;">
-                                {% if admin %}
-                                <form action="/upload/news/news_{{ i }}" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-0">
-                                    <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="news-up-{{ i }}">
-                                    <label for="news-up-{{ i }}" class="badge bg-warning" style="cursor:pointer;">+</label>
-                                </form>
-                                {% endif %}
-                            </div>
-                            <div class="ms-3 flex-grow-1">
-                                <small class="text-success fw-bold">FIRST TEAM</small>
-                                <h6 class="mb-0 fw-bold" style="font-size: 0.9rem;"
-                                    contenteditable="{{ 'true' if admin else 'false' }}"
-                                    onblur="saveText('news_content', 'news_{{ i }}', 'title', this)">
-                                    {{ news_item.title }}
-                                </h6>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
+            {% endfor %}
         </div>
         
         <!-- Sponsors -->
-        <div class="row mt-4 justify-content-center text-center" id="sponsors">
+        <div class="row mt-5 justify-content-center text-center align-items-center" id="sponsors">
             {% for sponsor in data['sponsors'] %}
             <div class="col-3 col-md-2 position-relative">
                 <img src="{{ '/uploads/' + sponsor.image_path if sponsor.image_path else 'https://via.placeholder.com/150x50?text=SPONSOR' }}" 
-                     class="img-fluid" style="filter: grayscale(100%); opacity: 0.6; transition: 0.3s;" onmouseover="this.style.filter='none'; this.style.opacity='1'" onmouseout="this.style.filter='grayscale(100%)'; this.style.opacity='0.6'">
+                     class="sponsor-logo-small" style="filter: grayscale(100%); opacity: 0.6; transition: 0.3s;" onmouseover="this.style.filter='none'; this.style.opacity='1'" onmouseout="this.style.filter='grayscale(100%)'; this.style.opacity='0.6'">
                 {% if admin %}
                 <form action="/upload/sponsor/{{ sponsor.id }}" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-50">
                     <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="sp-{{ sponsor.id }}">
@@ -923,6 +1072,11 @@ HTML_UR_FC = """
         </div>
     </div>
     
+    <!-- LOGO POPUP -->
+    <div id="logo-popup" class="logo-popup-overlay" onclick="toggleLogoPopup()">
+        <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="logo-popup-img">
+    </div>
+
     <footer class="bg-black text-white py-5 text-center mt-5">
         <div class="container">
             <h3 class="fw-bold mb-3">TAHFIZH <span class="text-warning">KILAT FC</span></h3>
@@ -931,6 +1085,17 @@ HTML_UR_FC = """
     </footer>
 
     <script>
+        // UI Interactions
+        function toggleMobileMenu() {
+            document.getElementById('mobile-menu').classList.toggle('active');
+        }
+
+        function toggleLogoPopup() {
+            const popup = document.getElementById('logo-popup');
+            if(popup.style.display === 'flex') popup.style.display = 'none';
+            else popup.style.display = 'flex';
+        }
+
         // API Interactions
         function saveText(table, id, field, el) {
             let value = el.innerText || el.value;
