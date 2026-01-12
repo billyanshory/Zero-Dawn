@@ -25,7 +25,8 @@ def init_db():
                     id TEXT PRIMARY KEY,
                     title TEXT,
                     status TEXT,
-                    price TEXT
+                    price TEXT,
+                    event_date TEXT
                 )''')
     c.execute('''CREATE TABLE IF NOT EXISTS agenda_list (
                     id TEXT PRIMARY KEY,
@@ -69,6 +70,8 @@ def init_db():
     try: c.execute("ALTER TABLE personnel ADD COLUMN goals TEXT DEFAULT '0'")
     except: pass
     try: c.execute("ALTER TABLE news_content ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    except: pass
+    try: c.execute("ALTER TABLE agenda_content ADD COLUMN event_date TEXT")
     except: pass
 
     # Sponsors
@@ -153,16 +156,31 @@ def index():
         items = []
         for i in range(1, 4): 
             id = f"{id_prefix}{i}"
-            content = data['agenda_content'].get(id, {'title': 'Judul Agenda', 'status': 'Tersedia', 'price': 'Waktu/Tempat'})
+            content = data['agenda_content'].get(id, {'title': 'Judul Agenda', 'status': 'Tersedia', 'price': 'Waktu/Tempat', 'event_date': ''})
             items.append({**content, 'id': id, 'is_dynamic': False})
         for item in data['agenda_list']:
             if item['section'] == dynamic_section_id:
-                content = data['agenda_content'].get(item['id'], {'title': 'New Agenda', 'status': 'Tersedia', 'price': 'Rp 0'})
+                content = data['agenda_content'].get(item['id'], {'title': 'New Agenda', 'status': 'Tersedia', 'price': 'Rp 0', 'event_date': ''})
                 items.append({**content, 'id': item['id'], 'is_dynamic': True})
         return items
 
     agenda_latihan = process_agenda("agenda", 1)
     turnamen = process_agenda("turnamen", 2)
+
+    # Determine Countdown Target
+    now_str = datetime.datetime.now().isoformat()
+    target_countdown_time = data['settings'].get('next_match_time', now_str)
+
+    # Filter for future agenda items
+    future_agendas = []
+    for item in agenda_latihan:
+        ed = item.get('event_date')
+        if ed and ed > now_str:
+            future_agendas.append(ed)
+
+    if future_agendas:
+        future_agendas.sort()
+        target_countdown_time = future_agendas[0]
 
     # Placeholders
     if not data['personnel']['player']:
@@ -175,14 +193,11 @@ def index():
         for i in range(3):
             data['personnel']['mvp'].append({'id': f'mvp_placeholder_{i}', 'name': 'Nama MVP', 'position': 'Tournament X', 'role': 'mvp', 'nationality':'Indonesia', 'joined':'2024', 'matches':'0', 'goals':'0', 'image_path': None})
     
-    # Sponsors (Allow dynamic, but show at least some placeholders if totally empty and no DB entries)
-    if not data['sponsors'] and not session.get('admin'):
-        pass # If empty, stays empty or seeds handled in init_db
-
     return render_page(HTML_UR_FC, 
                        data=data, 
                        agenda_latihan=agenda_latihan, 
-                       turnamen=turnamen, 
+                       turnamen=turnamen,
+                       target_countdown_time=target_countdown_time,
                        admin=session.get('admin', False))
 
 @app.route('/login', methods=['POST'])
@@ -245,7 +260,7 @@ def api_update_text():
     value = data.get('value')
 
     allowed_tables = ['news_content', 'personnel', 'agenda_content', 'sponsors', 'site_settings']
-    allowed_fields = ['title', 'subtitle', 'category', 'name', 'position', 'role', 'status', 'price', 'value', 'nationality', 'joined', 'matches', 'goals']
+    allowed_fields = ['title', 'subtitle', 'category', 'name', 'position', 'role', 'status', 'price', 'value', 'nationality', 'joined', 'matches', 'goals', 'event_date']
 
     if table not in allowed_tables:
         return jsonify({'error': 'Invalid table'}), 400
@@ -318,12 +333,10 @@ NAVBAR_HTML = """
         color: white;
         padding: 5px 15px;
         border-radius: 4px;
-        cursor: pointer;
         font-weight: 600;
         transition: 0.2s;
         margin-left: 150px;
     }
-    .next-match-mini:hover { background: rgba(0,0,0,0.4); }
     
     .history-btn {
         background: #FFD700;
@@ -378,7 +391,7 @@ NAVBAR_HTML = """
 
 <div class="top-bar">
     <div class="top-bar-left">
-        <div class="next-match-mini" onclick="openNextMatchModal()">
+        <div class="next-match-mini" {% if admin %}style="cursor: pointer;" onclick="openNextMatchModal()"{% else %}style="cursor: default;"{% endif %}>
             <span id="next-match-display">{{ data['settings'].get('next_match_text', 'Next Match: TAHKIL FC (Jan 2026)') }}</span>
         </div>
     </div>
@@ -573,7 +586,7 @@ STYLES_HTML = """
     }
     .modal-content-custom {
         background: white; padding: 40px; border-radius: 10px;
-        max-width: 600px; width: 90%; text-align: center; position: relative;
+        max-width: 800px; width: 90%; text-align: center; position: relative;
     }
     .modal-btn {
         padding: 8px 20px; border: none; border-radius: 5px; font-weight: 700; cursor: pointer; margin: 5px;
@@ -641,6 +654,19 @@ STYLES_HTML = """
     .hover-underline:hover:after { width: 100%; }
     
     .no-scroll { overflow: hidden; }
+
+    /* History Modal specific fixes */
+    #history-text-view {
+        text-align: justify;
+        text-indent: 2em;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        word-wrap: break-word;
+    }
+    #history-modal .modal-content-custom {
+        max-height: 80vh;
+        overflow-y: auto;
+    }
 </style>
 """
 
@@ -672,7 +698,7 @@ HTML_UR_FC = """
                     <span class="badge bg-warning text-dark mb-2">FIRST TEAM</span>
                     <h1 class="text-white fw-bold fst-italic hover-underline display-4" 
                         style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);"
-                        onclick="openNewsModal('{{ hero.title }}', '{{ hero.subtitle }}', '{{ '/uploads/' + hero.image_path if hero.image_path else '' }}')">
+                        onclick="openNewsModal('{{ hero.title }}', '{{ hero.subtitle }}', '{{ '/uploads/' + hero.image_path if hero.image_path else '' }}', '{{ hero.updated_at }}')">
                         {{ hero.title }}
                     </h1>
                     {% if admin %}
@@ -701,7 +727,7 @@ HTML_UR_FC = """
             <div class="col-md-3 col-6 mb-3">
                 <div class="d-flex flex-column bg-light rounded shadow-sm sub-news-card h-100" 
                      style="transition:0.3s; overflow:hidden; cursor:pointer;"
-                     onclick="openNewsModal('{{ news_item.title }}', '{{ news_item.subtitle }}', '{{ '/uploads/' + news_item.image_path if news_item.image_path else '' }}')">
+                     onclick="openNewsModal('{{ news_item.title }}', '{{ news_item.subtitle }}', '{{ '/uploads/' + news_item.image_path if news_item.image_path else '' }}', '{{ news_item.updated_at }}')">
                     
                     <div style="width: 100%; height: 150px; background: #333; position: relative;">
                         <img src="{{ '/uploads/' + news_item.image_path if news_item.image_path else '' }}" style="width:100%; height:100%; object-fit:cover;">
@@ -868,8 +894,9 @@ HTML_UR_FC = """
                 <div class="calendar-container">
                     <div class="text-center mb-4">
                         <h4 class="text-uppercase fw-bold">Next Match Countdown</h4>
-                        <div class="countdown-timer" id="countdown">00:00:00:00</div>
+                        <div class="countdown-timer" id="countdown">0h 0j 0m 0d</div>
                         {% if admin %}
+                        <p class="text-muted small">Auto-targets first agenda with future date. Fallback:</p>
                         <input type="datetime-local" class="form-control w-25 mx-auto" onchange="saveText('site_settings', 'next_match_time', 'value', this)" value="{{ data['settings']['next_match_time'] }}">
                         {% endif %}
                     </div>
@@ -882,9 +909,13 @@ HTML_UR_FC = """
                                     <img src="{{ '/uploads/' + item.id + '.jpg' }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
                                 </div>
                                 <div class="agenda-details">
-                                    <div class="agenda-date" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'price', this)">{{ item.price }}</div>
+                                    {% if admin %}
+                                    <input type="datetime-local" class="form-control form-control-sm mb-1" value="{{ item.event_date }}" onchange="saveText('agenda_content', '{{ item.id }}', 'event_date', this)">
+                                    {% else %}
+                                    <div class="agenda-date">{{ item.event_date | replace('T', ' ') if item.event_date else 'Date TBD' }}</div>
+                                    {% endif %}
                                     <div class="agenda-title" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'title', this)">{{ item.title }}</div>
-                                    <small class="text-muted" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'status', this)">{{ item.status }}</small>
+                                    <small class="text-muted" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'price', this)">{{ item.price }}</small>
                                 </div>
                             </div>
                         </div>
@@ -926,37 +957,59 @@ HTML_UR_FC = """
     <!-- PERSON MODAL -->
     <div id="person-modal" class="modal-overlay" onclick="closePersonModal()">
         <div class="modal-content-custom" onclick="event.stopPropagation()">
-            <img id="pm-img" src="" style="width:150px; height:150px; border-radius:50%; object-fit:cover; margin-bottom:20px;">
-            
-            {% if admin %}
-            <div class="mb-3">
-                <label>Name:</label>
-                <input type="text" id="pm-name-input" class="form-control text-center fw-bold">
+            <div class="row">
+                <!-- Image Column (Right on desktop, Top on mobile) -->
+                <div class="col-md-5 order-md-2 mb-3 mb-md-0 d-flex justify-content-center align-items-center">
+                    <img id="pm-img" src="" style="width:100%; height:300px; object-fit:cover; border-radius:10px; box-shadow:0 5px 15px rgba(0,0,0,0.2);">
+                </div>
+
+                <!-- Info Column (Left on desktop, Bottom on mobile) -->
+                <div class="col-md-7 order-md-1 text-start d-flex flex-column justify-content-center">
+                     {% if admin %}
+                    <div class="mb-3">
+                        <label>Name:</label>
+                        <input type="text" id="pm-name-input" class="form-control fw-bold">
+                    </div>
+                    <div class="mb-3">
+                        <label>Position:</label>
+                        <input type="text" id="pm-pos-input" class="form-control text-muted">
+                    </div>
+                    <div class="row text-start mt-2">
+                        <div class="col-6 mb-2"><strong>Nationality:</strong> <input type="text" id="pm-nat-input" class="form-control form-control-sm"></div>
+                        <div class="col-6 mb-2"><strong>Joined:</strong> <input type="text" id="pm-join-input" class="form-control form-control-sm"></div>
+                        <div class="col-6 mb-2"><strong>Matches:</strong> <input type="text" id="pm-match-input" class="form-control form-control-sm"></div>
+                        <div class="col-6 mb-2"><strong>Goals:</strong> <input type="text" id="pm-goal-input" class="form-control form-control-sm"></div>
+                    </div>
+                    <div class="mt-4">
+                        <button class="modal-btn btn-cancel" onclick="closePersonModal()">Cancel</button>
+                        <button class="modal-btn btn-save" onclick="savePersonFull()">Save</button>
+                    </div>
+                    {% else %}
+                    <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" style="width:60px; margin-bottom:15px;">
+                    <h2 id="pm-name" class="fw-bold text-uppercase">Name</h2>
+                    <h4 id="pm-role" class="text-muted mb-4">Position</h4>
+
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <small class="text-muted d-block text-uppercase">Nationality</small>
+                            <span id="pm-nat" class="fw-bold">Indonesia</span>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted d-block text-uppercase">Joined</small>
+                            <span id="pm-join" class="fw-bold">2024</span>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted d-block text-uppercase">Matches</small>
+                            <span id="pm-match" class="fw-bold">10</span>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted d-block text-uppercase">Goals</small>
+                            <span id="pm-goal" class="fw-bold">5</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
-            <div class="mb-3">
-                <label>Position:</label>
-                <input type="text" id="pm-pos-input" class="form-control text-center text-muted">
-            </div>
-            <div class="row text-start mt-4">
-                <div class="col-6 mb-2"><strong>Nationality:</strong> <input type="text" id="pm-nat-input" class="form-control form-control-sm"></div>
-                <div class="col-6 mb-2"><strong>Joined:</strong> <input type="text" id="pm-join-input" class="form-control form-control-sm"></div>
-                <div class="col-6 mb-2"><strong>Matches:</strong> <input type="text" id="pm-match-input" class="form-control form-control-sm"></div>
-                <div class="col-6 mb-2"><strong>Goals:</strong> <input type="text" id="pm-goal-input" class="form-control form-control-sm"></div>
-            </div>
-            <div class="mt-4">
-                <button class="modal-btn btn-cancel" onclick="closePersonModal()">Cancel</button>
-                <button class="modal-btn btn-save" onclick="savePersonFull()">Save</button>
-            </div>
-            {% else %}
-            <h2 id="pm-name">Name</h2>
-            <h4 id="pm-role" class="text-muted">Position</h4>
-            <div class="mt-4 text-start">
-                <p><strong>Nationality:</strong> <span id="pm-nat">Indonesia</span></p>
-                <p><strong>Joined:</strong> <span id="pm-join">2024</span></p>
-                <p><strong>Matches:</strong> <span id="pm-match">10</span></p>
-                <p><strong>Goals:</strong> <span id="pm-goal">5</span></p>
-            </div>
-            {% endif %}
         </div>
     </div>
 
@@ -971,6 +1024,7 @@ HTML_UR_FC = """
                 <button class="modal-btn btn-save" onclick="saveNextMatch()">Save</button>
             </div>
             {% else %}
+            <!-- View Mode Disabled per request, but modal html kept for admin usage -->
             <p id="next-match-view" class="fs-4 fw-bold"></p>
             {% endif %}
         </div>
@@ -983,13 +1037,13 @@ HTML_UR_FC = """
             <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" style="width:150px; display:block; margin:20px auto;">
             
             {% if admin %}
-            <textarea id="history-text-input" class="form-control mb-3" rows="6"></textarea>
+            <textarea id="history-text-input" class="form-control mb-3" rows="10"></textarea>
             <div>
                 <button class="modal-btn btn-cancel" onclick="closeHistoryModal()">Cancel</button>
                 <button class="modal-btn btn-save" onclick="saveHistory()">Save</button>
             </div>
             {% else %}
-            <p id="history-text-view" style="white-space: pre-line;">{{ data['settings'].get('history_text', '') }}</p>
+            <div id="history-text-view" style="white-space: pre-wrap;">{{ data['settings'].get('history_text', '') }}</div>
             {% endif %}
         </div>
     </div>
@@ -997,8 +1051,9 @@ HTML_UR_FC = """
     <!-- NEWS DETAIL MODAL -->
     <div id="news-modal" class="modal-overlay" onclick="document.getElementById('news-modal').style.display='none'">
         <div class="modal-content-custom" onclick="event.stopPropagation()" style="text-align:left;">
-            <img id="news-modal-img" src="" style="width:100%; height:250px; object-fit:cover; border-radius:8px; mb-3;">
-            <h3 id="news-modal-title" class="fw-bold mt-3 text-uppercase" style="color:var(--green)"></h3>
+            <div id="news-modal-date" class="text-uppercase text-muted fw-bold mb-2" style="font-size:0.8rem;"></div>
+            <img id="news-modal-img" src="" style="width:100%; height:250px; object-fit:cover; border-radius:8px; margin-bottom:15px;">
+            <h3 id="news-modal-title" class="fw-bold mt-2 text-uppercase" style="color:var(--green)"></h3>
             <p id="news-modal-subtitle" class="lead text-muted"></p>
             <hr>
             <p class="text-muted small">Full news content would go here...</p>
@@ -1126,7 +1181,7 @@ HTML_UR_FC = """
             if(!currentPersonId) return;
             // Simple sequential saves
             ['name', 'position', 'nationality', 'joined', 'matches', 'goals'].forEach(field => {
-                let suffix = (field === 'name' || field === 'position') ? '-input' : '-input'; // correction: IDs use short codes
+                let suffix = (field === 'name' || field === 'position') ? '-input' : '-input';
                 let idMap = {'name':'pm-name-input', 'position':'pm-pos-input', 'nationality':'pm-nat-input', 'joined':'pm-join-input', 'matches':'pm-match-input', 'goals':'pm-goal-input'};
                 let val = document.getElementById(idMap[field]).value;
                 saveText('personnel', currentPersonId, field, {value: val});
@@ -1156,13 +1211,6 @@ HTML_UR_FC = """
         // History
         function openHistoryModal() {
             document.getElementById('history-modal').style.display = 'flex';
-            // Value is pre-rendered in hidden variable or pulled from DOM? 
-            // Better to pull from settings object exposed to JS
-            // But we can just use the rendered view text if not admin
-            
-            // For admin, we want the raw value.
-            // A simple hack: we use the value passed in JS or render it into a hidden div.
-            // Let's grab it from a JS variable injection.
              const val = `{{ data['settings'].get('history_text', '') | safe }}`;
              if (document.getElementById('history-text-input')) {
                 document.getElementById('history-text-input').value = val;
@@ -1178,27 +1226,46 @@ HTML_UR_FC = """
         }
 
         // News Modal
-        function openNewsModal(title, subtitle, img) {
+        function openNewsModal(title, subtitle, img, updatedAt) {
             document.getElementById('news-modal-title').innerText = title;
             document.getElementById('news-modal-subtitle').innerText = subtitle;
             document.getElementById('news-modal-img').src = img || '{{ url_for("static", filename="logo-tahkil-fc.png") }}';
+
+            // Date Formatting
+            if (updatedAt && updatedAt !== 'None') {
+                const date = new Date(updatedAt.replace(" ", "T") + "Z"); // Assume UTC
+                // Format: 12 Januari 2026, 10:43 WITA
+                // WITA is UTC+8. We can use toLocaleString with Asia/Makassar
+                const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' };
+                const dateStr = date.toLocaleString('id-ID', options);
+                document.getElementById('news-modal-date').innerText = `BERITA DIUPDATE TERAKHIR : ${dateStr} WITA`;
+            } else {
+                document.getElementById('news-modal-date').innerText = "";
+            }
+
             document.getElementById('news-modal').style.display = 'flex';
         }
 
         // Countdown
-        const targetDate = new Date("{{ data['settings']['next_match_time'] }}").getTime();
+        // Logic: Python passes target_countdown_time (ISO string)
+        const targetStr = "{{ target_countdown_time }}";
+        const targetDate = new Date(targetStr).getTime();
+
         setInterval(() => {
             const now = new Date().getTime();
             const distance = targetDate - now;
             if (distance < 0) {
-                document.getElementById("countdown").innerHTML = "MATCH DAY!";
+                document.getElementById("countdown").innerHTML = "MATCH DAY / EVENT STARTED!";
                 return;
             }
             const days = Math.floor(distance / (1000 * 60 * 60 * 24));
             const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-            document.getElementById("countdown").innerHTML = days + "d " + hours + "h " + minutes + "m " + seconds + "s ";
+
+            // Format: (angka)h (angka)j (angka)m (angka)d
+            // h=Hari, j=Jam, m=Menit, d=Detik
+            document.getElementById("countdown").innerHTML = days + "h " + hours + "j " + minutes + "m " + seconds + "d ";
         }, 1000);
 
         // Hover Animation
