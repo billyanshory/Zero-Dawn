@@ -407,6 +407,7 @@ NAVBAR_HTML = """
             <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="navbar-logo-img" alt="TAHKIL FC">
         </a>
     </div>
+    <div class="d-lg-none fw-bold fs-4 position-absolute start-50 translate-middle-x" style="white-space: nowrap;">TAHFIZH KILAT FC</div>
     <div class="navbar-links d-none d-lg-flex">
         <a href="#hero" class="nav-item-custom">Home</a>
         <a href="#players" class="nav-item-custom">Pemain</a>
@@ -422,20 +423,20 @@ NAVBAR_HTML = """
 
 <div id="mobile-menu" class="mobile-menu-container">
     <div class="mobile-next-match">{{ data['settings'].get('next_match_text', 'Next Match: TAHKIL FC (Jan 2026)') }}</div>
-    <a href="#hero" class="mobile-nav-link" onclick="toggleMobileMenu()">Home</a>
-    <a href="#players" class="mobile-nav-link" onclick="toggleMobileMenu()">Pemain</a>
-    <a href="#coaches" class="mobile-nav-link" onclick="toggleMobileMenu()">Pelatih</a>
-    <a href="#mvp" class="mobile-nav-link" onclick="toggleMobileMenu()">MVP</a>
-    <a href="#agenda-latihan" class="mobile-nav-link" onclick="toggleMobileMenu()">Agenda Latihan</a>
-    <a href="#turnamen" class="mobile-nav-link" onclick="toggleMobileMenu()">Turnamen</a>
-    <a href="#sponsors" class="mobile-nav-link" onclick="toggleMobileMenu()">Sponsors</a>
+    <a href="#hero" class="mobile-nav-link">Home</a>
+    <a href="#players" class="mobile-nav-link">Pemain</a>
+    <a href="#coaches" class="mobile-nav-link">Pelatih</a>
+    <a href="#mvp" class="mobile-nav-link">MVP</a>
+    <a href="#agenda-latihan" class="mobile-nav-link">Agenda Latihan</a>
+    <a href="#turnamen" class="mobile-nav-link">Turnamen</a>
+    <a href="#sponsors" class="mobile-nav-link">Sponsors</a>
     
     <div class="mt-auto d-flex flex-column gap-3">
-        <div class="history-btn justify-content-center" onclick="openHistoryModal(); toggleMobileMenu();">
+        <div class="history-btn justify-content-center" onclick="openHistoryModal()">
             <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="monochrome-icon">
             Lihat Sejarah
         </div>
-        <button onclick="document.getElementById('login-modal').style.display='flex'; toggleMobileMenu();" class="btn btn-outline-dark w-100">Admin Login</button>
+        <button onclick="document.getElementById('login-modal').style.display='flex'" class="btn btn-outline-dark w-100">Admin Login</button>
         <div class="d-flex justify-content-center gap-4 mt-2">
             <a href="https://wa.me/6281528455350" class="text-dark h4"><i class="fab fa-whatsapp"></i></a>
             <a href="https://maps.app.goo.gl/4deg1ha8WaxWKdPC9" class="text-dark h4"><i class="fas fa-map-marker-alt"></i></a>
@@ -643,6 +644,8 @@ STYLES_HTML = """
         background: var(--white); transition: all 0.3s; transform: translateX(-50%);
     }
     .hover-underline:hover:after { width: 100%; }
+
+    .no-scroll { overflow: hidden; }
 </style>
 """
 
@@ -1026,7 +1029,10 @@ HTML_UR_FC = """
 
     <script>
         // --- UI UTILS ---
-        function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('active'); }
+        function toggleMobileMenu() {
+            document.getElementById('mobile-menu').classList.toggle('active');
+            document.body.classList.toggle('no-scroll');
+        }
         function toggleLogoPopup() {
             const popup = document.getElementById('logo-popup');
             popup.style.display = (popup.style.display === 'flex') ? 'none' : 'flex';
