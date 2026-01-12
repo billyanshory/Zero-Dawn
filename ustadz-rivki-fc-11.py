@@ -321,6 +321,7 @@ NAVBAR_HTML = """
         cursor: pointer;
         font-weight: 600;
         transition: 0.2s;
+        margin-left: 150px;
     }
     .next-match-mini:hover { background: rgba(0,0,0,0.4); }
     
@@ -353,7 +354,7 @@ NAVBAR_HTML = """
         box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         position: sticky;
         top: 0;
-        z-index: 1020;
+        z-index: 1040;
     }
     .navbar-logo-container { position: absolute; left: 5%; top: -15px; z-index: 2000; }
     .navbar-logo-img { height: 85px; transition: 0.3s; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.2)); cursor: pointer; }
@@ -487,7 +488,49 @@ STYLES_HTML = """
         gap: 20px;
         padding: 20px 0;
         scroll-snap-type: x mandatory;
+        scrollbar-width: thin;
+        scrollbar-color: var(--green) rgba(0,0,0,0.1);
     }
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.1);
+    }
+    ::-webkit-scrollbar-thumb {
+        background: var(--green);
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #004d40;
+    }
+    .scroll-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--green);
+        color: white;
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 10;
+        opacity: 0.9;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .scroll-btn:hover {
+        background: #ffd700;
+        color: black;
+        transform: translateY(-50%) scale(1.1);
+    }
+    .scroll-left { left: 10px; }
+    .scroll-right { right: 10px; }
     .person-card {
         min-width: 250px;
         height: 350px;
@@ -549,7 +592,7 @@ STYLES_HTML = """
     .monochrome-icon { filter: grayscale(100%) contrast(1.2); }
     
     .hero-full-width-container {
-        width: 100vw; margin-left: calc(-50vw + 50%); position: relative; overflow: hidden;
+        width: 100%; margin: 0; position: relative; overflow: hidden;
     }
     .hero-main-img-wrapper { position: relative; width: 100%; height: 60vh; }
     .hero-main-img { width: 100%; height: 100%; object-fit: cover; }
@@ -627,7 +670,7 @@ HTML_UR_FC = """
                  <img src="{{ '/uploads/' + hero.image_path if hero.image_path else url_for('static', filename='logo-tahkil-fc.png') }}" class="hero-main-img">
                  <div class="hero-overlay-gradient"></div>
                  
-                 <div class="position-absolute bottom-0 start-0 w-100 p-5 container text-center">
+                 <div class="position-absolute bottom-0 start-0 w-100 p-5 d-flex flex-column align-items-center justify-content-end text-center">
                     <span class="badge bg-warning text-dark mb-2">FIRST TEAM</span>
                     <h1 class="text-white fw-bold fst-italic hover-underline display-4" 
                         style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);"
@@ -719,8 +762,9 @@ HTML_UR_FC = """
     
     <!-- PLAYERS SECTION -->
     <div class="container-fluid py-5 bg-light" id="players">
-        <div class="container">
+        <div class="container position-relative">
             <h2 class="section-title">Pemain TAHKIL FC</h2>
+            <button class="scroll-btn scroll-left" onclick="scrollHorizontally(this, -1)"><i class="fas fa-chevron-left"></i></button>
             <div class="horizontal-scroll-container">
                 {% for player in data['personnel']['player'] %}
                 <div class="person-card" onclick="openPersonModal('{{ player.id }}', '{{ player.name }}', '{{ player.position }}', '{{ '/uploads/' + player.image_path if player.image_path else '' }}', '{{ player.nationality }}', '{{ player.joined }}', '{{ player.matches }}', '{{ player.goals }}')">
@@ -750,13 +794,15 @@ HTML_UR_FC = """
                 </div>
                 {% endif %}
             </div>
+            <button class="scroll-btn scroll-right" onclick="scrollHorizontally(this, 1)"><i class="fas fa-chevron-right"></i></button>
         </div>
     </div>
     
     <!-- COACHES SECTION -->
     <div class="container-fluid py-5" id="coaches">
-        <div class="container">
+        <div class="container position-relative">
             <h2 class="section-title">Pelatih TAHKIL FC</h2>
+            <button class="scroll-btn scroll-left" onclick="scrollHorizontally(this, -1)"><i class="fas fa-chevron-left"></i></button>
             <div class="horizontal-scroll-container">
                 {% for coach in data['personnel']['coach'] %}
                 <div class="person-card" onclick="openPersonModal('{{ coach.id }}', '{{ coach.name }}', '{{ coach.position }}', '{{ '/uploads/' + coach.image_path if coach.image_path else '' }}', '{{ coach.nationality }}', '{{ coach.joined }}', '{{ coach.matches }}', '{{ coach.goals }}')">
@@ -780,13 +826,15 @@ HTML_UR_FC = """
                 </div>
                 {% endif %}
             </div>
+            <button class="scroll-btn scroll-right" onclick="scrollHorizontally(this, 1)"><i class="fas fa-chevron-right"></i></button>
         </div>
     </div>
 
     <!-- MVP SECTION -->
     <div class="container-fluid py-5 bg-light" id="mvp">
-        <div class="container">
+        <div class="container position-relative">
             <h2 class="section-title">Pemain MVP TAHKIL FC</h2>
+            <button class="scroll-btn scroll-left" onclick="scrollHorizontally(this, -1)"><i class="fas fa-chevron-left"></i></button>
             <div class="horizontal-scroll-container">
                 {% for mvp in data['personnel']['mvp'] %}
                 <div class="person-card" onclick="openPersonModal('{{ mvp.id }}', '{{ mvp.name }}', '{{ mvp.position }}', '{{ '/uploads/' + mvp.image_path if mvp.image_path else '' }}', '{{ mvp.nationality }}', '{{ mvp.joined }}', '{{ mvp.matches }}', '{{ mvp.goals }}')">
@@ -810,6 +858,7 @@ HTML_UR_FC = """
                 </div>
                 {% endif %}
             </div>
+            <button class="scroll-btn scroll-right" onclick="scrollHorizontally(this, 1)"><i class="fas fa-chevron-right"></i></button>
         </div>
     </div>
     
@@ -981,6 +1030,12 @@ HTML_UR_FC = """
         function toggleLogoPopup() {
             const popup = document.getElementById('logo-popup');
             popup.style.display = (popup.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function scrollHorizontally(btn, dir) {
+            const container = btn.parentElement.querySelector('.horizontal-scroll-container');
+            const scrollAmount = 300;
+            container.scrollBy({ left: dir * scrollAmount, behavior: 'smooth' });
         }
 
         // --- TIME AGO LOGIC ---
