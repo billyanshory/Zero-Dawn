@@ -627,8 +627,8 @@ STYLES_HTML = """
     }
     
     .sponsor-logo-small {
-        width: 100px; height: 100px; object-fit: contain; border-radius: 50%;
-        background: white; padding: 10px; margin: 10px; transition: 0.3s; filter: grayscale(100%);
+        width: 80px; height: 80px; object-fit: contain; border-radius: 50%;
+        background: white; padding: 5px; margin: 5px; transition: 0.3s; filter: grayscale(100%);
     }
     .sponsor-logo-small:hover { filter: none; transform: scale(1.1); }
     
@@ -739,24 +739,30 @@ HTML_UR_FC = """
         </div>
         
         <!-- Sponsors -->
-        <div class="row mt-5 justify-content-center text-center align-items-center" id="sponsors">
-            {% for sponsor in data['sponsors'] %}
-            <div class="col-6 col-md-3 position-relative">
-                <img src="{{ '/uploads/' + sponsor.image_path if sponsor.image_path else 'https://via.placeholder.com/100x100?text=SPONSOR' }}" 
-                     class="sponsor-logo-small">
+        <div class="d-flex flex-column flex-md-row align-items-center justify-content-center mt-5" id="sponsors">
+            <div class="d-flex align-items-center mb-3 mb-md-0 me-md-4">
+                <span class="fw-bold text-uppercase me-3" style="font-size: 1.1rem; letter-spacing: 1px;">Main Partners</span>
+                <span class="fs-4 text-muted">|</span>
+            </div>
+            <div class="d-flex flex-wrap justify-content-center align-items-center gap-2">
+                {% for sponsor in data['sponsors'] %}
+                <div class="position-relative">
+                    <img src="{{ '/uploads/' + sponsor.image_path if sponsor.image_path else 'https://via.placeholder.com/100x100?text=SPONSOR' }}"
+                         class="sponsor-logo-small">
+                    {% if admin %}
+                    <form action="/upload/sponsor/{{ sponsor.id }}" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-50 translate-middle-x">
+                        <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="sp-{{ sponsor.id }}">
+                        <label for="sp-{{ sponsor.id }}" class="badge bg-secondary"><i class="fas fa-edit"></i></label>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
                 {% if admin %}
-                <form action="/upload/sponsor/{{ sponsor.id }}" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-50">
-                    <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="sp-{{ sponsor.id }}">
-                    <label for="sp-{{ sponsor.id }}" class="badge bg-secondary"><i class="fas fa-edit"></i></label>
-                </form>
+                <div>
+                    <button class="btn btn-outline-warning btn-sm" onclick="addCard('sponsor')">+</button>
+                </div>
                 {% endif %}
             </div>
-            {% endfor %}
-            {% if admin %}
-            <div class="col-6 col-md-3 d-flex justify-content-center align-items-center">
-                <button class="btn btn-outline-warning" onclick="addCard('sponsor')">+ Add Sponsor</button>
-            </div>
-            {% endif %}
         </div>
     </div>
     
@@ -764,7 +770,6 @@ HTML_UR_FC = """
     <div class="container-fluid py-5 bg-light" id="players">
         <div class="container position-relative">
             <h2 class="section-title">Pemain TAHKIL FC</h2>
-            <button class="scroll-btn scroll-left" onclick="scrollHorizontally(this, -1)"><i class="fas fa-chevron-left"></i></button>
             <div class="horizontal-scroll-container">
                 {% for player in data['personnel']['player'] %}
                 <div class="person-card" onclick="openPersonModal('{{ player.id }}', '{{ player.name }}', '{{ player.position }}', '{{ '/uploads/' + player.image_path if player.image_path else '' }}', '{{ player.nationality }}', '{{ player.joined }}', '{{ player.matches }}', '{{ player.goals }}')">
@@ -794,7 +799,6 @@ HTML_UR_FC = """
                 </div>
                 {% endif %}
             </div>
-            <button class="scroll-btn scroll-right" onclick="scrollHorizontally(this, 1)"><i class="fas fa-chevron-right"></i></button>
         </div>
     </div>
     
@@ -802,7 +806,6 @@ HTML_UR_FC = """
     <div class="container-fluid py-5" id="coaches">
         <div class="container position-relative">
             <h2 class="section-title">Pelatih TAHKIL FC</h2>
-            <button class="scroll-btn scroll-left" onclick="scrollHorizontally(this, -1)"><i class="fas fa-chevron-left"></i></button>
             <div class="horizontal-scroll-container">
                 {% for coach in data['personnel']['coach'] %}
                 <div class="person-card" onclick="openPersonModal('{{ coach.id }}', '{{ coach.name }}', '{{ coach.position }}', '{{ '/uploads/' + coach.image_path if coach.image_path else '' }}', '{{ coach.nationality }}', '{{ coach.joined }}', '{{ coach.matches }}', '{{ coach.goals }}')">
@@ -826,7 +829,6 @@ HTML_UR_FC = """
                 </div>
                 {% endif %}
             </div>
-            <button class="scroll-btn scroll-right" onclick="scrollHorizontally(this, 1)"><i class="fas fa-chevron-right"></i></button>
         </div>
     </div>
 
@@ -834,7 +836,6 @@ HTML_UR_FC = """
     <div class="container-fluid py-5 bg-light" id="mvp">
         <div class="container position-relative">
             <h2 class="section-title">Pemain MVP TAHKIL FC</h2>
-            <button class="scroll-btn scroll-left" onclick="scrollHorizontally(this, -1)"><i class="fas fa-chevron-left"></i></button>
             <div class="horizontal-scroll-container">
                 {% for mvp in data['personnel']['mvp'] %}
                 <div class="person-card" onclick="openPersonModal('{{ mvp.id }}', '{{ mvp.name }}', '{{ mvp.position }}', '{{ '/uploads/' + mvp.image_path if mvp.image_path else '' }}', '{{ mvp.nationality }}', '{{ mvp.joined }}', '{{ mvp.matches }}', '{{ mvp.goals }}')">
@@ -858,7 +859,6 @@ HTML_UR_FC = """
                 </div>
                 {% endif %}
             </div>
-            <button class="scroll-btn scroll-right" onclick="scrollHorizontally(this, 1)"><i class="fas fa-chevron-right"></i></button>
         </div>
     </div>
     
