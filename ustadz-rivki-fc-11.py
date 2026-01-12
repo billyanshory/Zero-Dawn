@@ -437,11 +437,6 @@ NAVBAR_HTML = """
             Lihat Sejarah
         </div>
         <button onclick="document.getElementById('login-modal').style.display='flex'" class="btn btn-outline-dark w-100">Admin Login</button>
-        <div class="d-flex justify-content-center gap-4 mt-2">
-            <a href="https://wa.me/6281528455350" class="text-dark h4"><i class="fab fa-whatsapp"></i></a>
-            <a href="https://maps.app.goo.gl/4deg1ha8WaxWKdPC9" class="text-dark h4"><i class="fas fa-map-marker-alt"></i></a>
-            <a href="https://www.instagram.com/rivkycahyahakikiori/" class="text-dark h4"><i class="fab fa-instagram"></i></a>
-        </div>
     </div>
 </div>
 
@@ -1024,6 +1019,11 @@ HTML_UR_FC = """
             <p contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('site_settings', 'footer_text', 'value', this)">
                 {{ data['settings'].get('footer_text', '© 2026 TAHKIL FC. All rights reserved.') }}
             </p>
+            <div class="d-lg-none d-flex justify-content-center gap-4 mt-3">
+                <a href="https://wa.me/6281528455350" class="social-icon-link" target="_blank"><i class="fab fa-whatsapp"></i></a>
+                <a href="https://maps.app.goo.gl/4deg1ha8WaxWKdPC9" class="social-icon-link" target="_blank"><i class="fas fa-map-marker-alt"></i></a>
+                <a href="https://www.instagram.com/rivkycahyahakikiori/" class="social-icon-link" target="_blank"><i class="fab fa-instagram"></i></a>
+            </div>
         </div>
     </footer>
 
