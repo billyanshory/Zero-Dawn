@@ -718,6 +718,22 @@ HTML_UR_FC = """
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     {{ styles|safe }}
+    {% if admin %}
+    <style>
+        #news-modal-details {
+            text-align: justify !important;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            white-space: pre-wrap;
+        }
+        #news-modal .modal-content-custom {
+            max-height: 90vh !important;
+            overflow-y: auto !important;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+    {% endif %}
 </head>
 <body>
     {{ navbar|safe }}
@@ -857,13 +873,15 @@ HTML_UR_FC = """
                         <div class="person-role">{{ coach.position }}</div>
                     </div>
                      {% if admin %}
-                    <div class="position-absolute top-0 end-0 p-2 d-flex gap-2" onclick="event.stopPropagation()">
+                    <div class="position-absolute top-0 end-0 p-2 d-flex gap-2" onclick="event.stopPropagation()" style="z-index: 10;">
                         <form action="/upload/personnel/{{ coach.id }}" method="post" enctype="multipart/form-data">
                              <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="co-{{ coach.id }}">
                              <input type="hidden" name="role" value="coach">
                              <label for="co-{{ coach.id }}" class="btn btn-sm btn-light"><i class="fas fa-camera"></i></label>
                         </form>
+                        {% if 'placeholder' not in coach.id %}
                         <button class="btn btn-sm btn-danger" onclick="deleteItem('personnel', '{{ coach.id }}')"><i class="fas fa-trash"></i></button>
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
