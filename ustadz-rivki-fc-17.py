@@ -734,6 +734,20 @@ HTML_UR_FC = """
         }
     </style>
     {% endif %}
+    {% if not admin %}
+    <style>
+        #news-modal-details {
+            text-align: justify !important;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            white-space: pre-wrap;
+        }
+        #news-modal .modal-content-custom {
+            max-height: 80vh !important;
+            overflow-y: auto !important;
+        }
+    </style>
+    {% endif %}
 </head>
 <body>
     {{ navbar|safe }}
@@ -879,9 +893,7 @@ HTML_UR_FC = """
                              <input type="hidden" name="role" value="coach">
                              <label for="co-{{ coach.id }}" class="btn btn-sm btn-light"><i class="fas fa-camera"></i></label>
                         </form>
-                        {% if 'placeholder' not in coach.id %}
                         <button class="btn btn-sm btn-danger" onclick="deleteItem('personnel', '{{ coach.id }}')"><i class="fas fa-trash"></i></button>
-                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
