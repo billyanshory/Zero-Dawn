@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Data Tabel{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h2>Data Kependudukan</h2>
+        <p>Tabulasi data warga RT. 53.</p>
+    </div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Kembali</a>
+</div>
+
+{% if is_admin %}
+<div class="card" style="margin-bottom: 2rem;">
+    <h3>Tambah / Edit Data</h3>
+    <form method="POST" action="{{ url_for('save_data') }}">
+        {{ form.hidden_tag() }}
+        <input type="hidden" name="data_id" value="{{ edit_data.id if edit_data else '' }}">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+                <label>Nomor KK</label>
+                {{ form.nomor_kk(class="form-control", value=edit_data.nomor_kk if edit_data else '') }}
+            </div>
+            <div class="form-group">
+                <label>Kepala Keluarga</label>
+                {{ form.kepala_keluarga(class="form-control", value=edit_data.kepala_keluarga if edit_data else '') }}
+            </div>
+            <div class="form-group">
+                <label>Alamat</label>
+                {{ form.alamat(class="form-control", value=edit_data.alamat if edit_data else '') }}
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 1rem;">
+            <button type="submit" class="btn btn-primary">{{ 'Simpan Perubahan' if edit_data else 'Tambah Data' }}</button>
+            {% if edit_data %}
+                <a href="{{ url_for('data_table') }}" class="btn btn-secondary">Batal</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endif %}
+
+<div class="table-responsive">
+    <table>
+        <thead>
+            <tr>
+                <th>No.</th>
+                <th>Nomor KK</th>
+                <th>Kepala Keluarga</th>
+                <th>Alamat</th>
+                <th>Update Terakhir</th>
+                {% if is_admin %}
+                <th style="width: 150px;">Aksi</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in data %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ item.nomor_kk }}</td>
+                <td>{{ item.kepala_keluarga }}</td>
+                <td>{{ item.alamat }}</td>
+                <td>{{ item.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                {% if is_admin %}
+                <td>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="{{ url_for('data_table', edit_id=item.id) }}" class="btn btn-secondary btn-sm" style="background: #333; color: white;">Edit</a>
+                        <form method="POST" action="{{ url_for('delete_data', data_id=item.id) }}" onsubmit="return confirm('Hapus data ini?');" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" class="btn btn-danger btn-sm" style="background: #E5322D;">Hapus</button>
+                        </form>
+                    </div>
+                </td>
+                {% endif %}
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="{{ 6 if is_admin else 5 }}" style="text-align: center;">Belum ada data tabel.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

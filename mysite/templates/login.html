@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="login-wrapper">
+    <div class="login-box card">
+        <h2>Selamat Datang</h2>
+        <p>Pilih mode akses untuk melanjutkan ke Bank Data.</p>
+
+        <div class="role-selector">
+            <div class="role-card" onclick="selectRole('warga')" id="card-warga">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">👥</div>
+                <strong>Warga Biasa</strong>
+                <p style="font-size: 0.8rem; margin:0;">Hanya Melihat</p>
+            </div>
+            <div class="role-card" onclick="selectRole('admin')" id="card-admin">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">🛡️</div>
+                <strong>Ketua RT. 53</strong>
+                <p style="font-size: 0.8rem; margin:0;">Akses Penuh</p>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('login') }}" id="login-form">
+            {{ form.hidden_tag() }}
+            <input type="hidden" name="role" id="role-input" value="">
+
+            <div id="admin-fields" style="display: none; text-align: left;">
+                <div class="form-group">
+                    <label>ID Pengguna</label>
+                    {{ form.username(class="form-control", placeholder="Masukkan ID...") }}
+                </div>
+                <div class="form-group">
+                    <label>Kata Sandi</label>
+                    {{ form.password(class="form-control", placeholder="Masukkan Password...") }}
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;" id="login-btn" disabled>Pilih Akses</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function selectRole(role) {
+        // Visual updates
+        document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
+        document.getElementById('card-' + role).classList.add('active');
+
+        // Logic updates
+        document.getElementById('role-input').value = role;
+        const adminFields = document.getElementById('admin-fields');
+        const loginBtn = document.getElementById('login-btn');
+
+        loginBtn.disabled = false;
+
+        if (role === 'admin') {
+            adminFields.style.display = 'block';
+            loginBtn.innerText = 'Masuk sebagai Ketua RT';
+        } else {
+            adminFields.style.display = 'none';
+            loginBtn.innerText = 'Masuk sebagai Warga';
+        }
+    }
+</script>
+{% endblock %}
