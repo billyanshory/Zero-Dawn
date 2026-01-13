@@ -43,6 +43,7 @@ def init_db():
                     timestamp TEXT,
                     image_path TEXT,
                     type TEXT,
+                    details TEXT,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
     
@@ -70,6 +71,8 @@ def init_db():
     try: c.execute("ALTER TABLE personnel ADD COLUMN goals TEXT DEFAULT '0'")
     except: pass
     try: c.execute("ALTER TABLE news_content ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    except: pass
+    try: c.execute("ALTER TABLE news_content ADD COLUMN details TEXT")
     except: pass
     try: c.execute("ALTER TABLE agenda_content ADD COLUMN event_date TEXT")
     except: pass
@@ -244,6 +247,8 @@ def upload_image(type, id):
         elif type == 'sponsor':
             c.execute("INSERT OR IGNORE INTO sponsors (id) VALUES (?)", (id,))
             c.execute("UPDATE sponsors SET image_path = ? WHERE id = ?", (filename, id))
+        elif type == 'history':
+            c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", ('history_image', filename))
             
         conn.commit()
         conn.close()
@@ -260,7 +265,7 @@ def api_update_text():
     value = data.get('value')
 
     allowed_tables = ['news_content', 'personnel', 'agenda_content', 'sponsors', 'site_settings']
-    allowed_fields = ['title', 'subtitle', 'category', 'name', 'position', 'role', 'status', 'price', 'value', 'nationality', 'joined', 'matches', 'goals', 'event_date']
+    allowed_fields = ['title', 'subtitle', 'category', 'name', 'position', 'role', 'status', 'price', 'value', 'nationality', 'joined', 'matches', 'goals', 'event_date', 'details']
 
     if table not in allowed_tables:
         return jsonify({'error': 'Invalid table'}), 400
@@ -312,6 +317,30 @@ def api_add_card():
     conn.commit()
     conn.close()
     return jsonify({'success': True, 'id': new_id})
+
+@app.route('/api/delete-item', methods=['POST'])
+def api_delete_item():
+    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    data = request.json
+    table = data.get('table')
+    id = data.get('id')
+
+    if table not in ['personnel', 'sponsors', 'agenda_content', 'agenda_list']:
+        return jsonify({'error': 'Invalid table'}), 400
+
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    if table == 'agenda_content':
+        # Also delete from list
+        c.execute("DELETE FROM agenda_list WHERE id = ?", (id,))
+        c.execute("DELETE FROM agenda_content WHERE id = ?", (id,))
+    else:
+        c.execute(f"DELETE FROM {table} WHERE id = ?", (id,))
+
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
 
 # --- FRONTEND ASSETS ---
 
@@ -572,6 +601,7 @@ STYLES_HTML = """
     }
     .agenda-card-barca {
         display: flex; background: white; border: 1px solid #eee; margin-bottom: 15px; transition: 0.3s;
+        position: relative;
     }
     .agenda-card-barca:hover { transform: translateX(10px); border-left: 5px solid var(--gold); }
     .agenda-img { width: 100px; height: 100px; object-fit: cover; background: #333; }
@@ -667,6 +697,12 @@ STYLES_HTML = """
         max-height: 80vh;
         overflow-y: auto;
     }
+
+    .trash-btn {
+        background: red; color: white; border: none; border-radius: 50%; width: 25px; height: 25px;
+        display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.8rem;
+    }
+    .trash-btn:hover { background: darkred; }
 </style>
 """
 
@@ -698,23 +734,11 @@ HTML_UR_FC = """
                     <span class="badge bg-warning text-dark mb-2">FIRST TEAM</span>
                     <h1 class="text-white fw-bold fst-italic hover-underline display-4" 
                         style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);"
-                        onclick="openNewsModal('{{ hero.title }}', '{{ hero.subtitle }}', '{{ '/uploads/' + hero.image_path if hero.image_path else '' }}', '{{ hero.updated_at }}')">
+                        onclick="openNewsModal('hero', 'hero')">
                         {{ hero.title }}
                     </h1>
-                    {% if admin %}
-                    <div contenteditable="true" onblur="saveText('news_content', 'hero', 'title', this)" class="text-white bg-dark d-inline-block px-2">Edit Title</div>
-                    <div contenteditable="true" onblur="saveText('news_content', 'hero', 'subtitle', this)" class="text-white bg-dark d-inline-block px-2">Edit Subtitle</div>
-                    {% else %}
                     <p class="text-white h5" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.8);">{{ hero.subtitle }}</p>
-                    {% endif %}
                  </div>
-                 
-                 {% if admin %}
-                 <form action="/upload/news/hero" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-0 p-2">
-                     <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="hero-upload">
-                     <label for="hero-upload" class="btn btn-sm btn-warning"><i class="fas fa-camera"></i> Change Hero Image</label>
-                 </form>
-                 {% endif %}
              </div>
          </div>
     </div>
@@ -727,29 +751,17 @@ HTML_UR_FC = """
             <div class="col-md-3 col-6 mb-3">
                 <div class="d-flex flex-column bg-light rounded shadow-sm sub-news-card h-100" 
                      style="transition:0.3s; overflow:hidden; cursor:pointer;"
-                     onclick="openNewsModal('{{ news_item.title }}', '{{ news_item.subtitle }}', '{{ '/uploads/' + news_item.image_path if news_item.image_path else '' }}', '{{ news_item.updated_at }}')">
+                     onclick="openNewsModal('news_{{ i }}', 'sub')">
                     
                     <div style="width: 100%; height: 150px; background: #333; position: relative;">
                         <img src="{{ '/uploads/' + news_item.image_path if news_item.image_path else '' }}" style="width:100%; height:100%; object-fit:cover;">
-                        {% if admin %}
-                        <form action="/upload/news/news_{{ i }}" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-0 p-1" onclick="event.stopPropagation()">
-                            <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="news-up-{{ i }}">
-                            <label for="news-up-{{ i }}" class="badge bg-warning" style="cursor:pointer;">+</label>
-                        </form>
-                        {% endif %}
                     </div>
                     <div class="p-3 flex-grow-1">
-                        <span class="text-success fw-bold d-block mb-1 fs-5" 
-                              contenteditable="{{ 'true' if admin else 'false' }}"
-                              onclick="event.stopPropagation()"
-                              onblur="saveText('news_content', 'news_{{ i }}', 'title', this)">
+                        <span class="text-success fw-bold d-block mb-1 fs-5">
                               {{ news_item.title }}
-                        </span> <!-- Title as Category/First Team -->
+                        </span>
                         
-                        <small class="text-muted d-block fw-normal" 
-                               contenteditable="{{ 'true' if admin else 'false' }}"
-                               onclick="event.stopPropagation()"
-                               onblur="saveText('news_content', 'news_{{ i }}', 'subtitle', this)">
+                        <small class="text-muted d-block fw-normal">
                                {{ news_item.subtitle }}
                         </small>
                         
@@ -770,14 +782,17 @@ HTML_UR_FC = """
             </div>
             <div class="d-flex flex-wrap justify-content-center align-items-center gap-2">
                 {% for sponsor in data['sponsors'] %}
-                <div class="position-relative">
+                <div class="position-relative d-flex align-items-center">
                     <img src="{{ '/uploads/' + sponsor.image_path if sponsor.image_path else 'https://via.placeholder.com/100x100?text=SPONSOR' }}" 
                          class="sponsor-logo-small">
                     {% if admin %}
-                    <form action="/upload/sponsor/{{ sponsor.id }}" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-50 translate-middle-x">
-                        <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="sp-{{ sponsor.id }}">
-                        <label for="sp-{{ sponsor.id }}" class="badge bg-secondary"><i class="fas fa-edit"></i></label>
-                    </form>
+                    <div class="position-absolute top-0 start-50 translate-middle-x d-flex gap-1">
+                        <form action="/upload/sponsor/{{ sponsor.id }}" method="post" enctype="multipart/form-data">
+                            <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="sp-{{ sponsor.id }}">
+                            <label for="sp-{{ sponsor.id }}" class="badge bg-secondary cursor-pointer"><i class="fas fa-edit"></i></label>
+                        </form>
+                        <button class="trash-btn" onclick="deleteItem('sponsors', '{{ sponsor.id }}')"><i class="fas fa-trash"></i></button>
+                    </div>
                     {% endif %}
                 </div>
                 {% endfor %}
@@ -809,11 +824,14 @@ HTML_UR_FC = """
                     </div>
                     
                     {% if admin %}
-                    <form action="/upload/personnel/{{ player.id }}" method="post" enctype="multipart/form-data" class="edit-btn" onclick="event.stopPropagation()">
-                         <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="pl-{{ player.id }}">
-                         <input type="hidden" name="role" value="player">
-                         <label for="pl-{{ player.id }}"><i class="fas fa-camera"></i></label>
-                    </form>
+                    <div class="position-absolute top-0 end-0 p-2 d-flex gap-2" onclick="event.stopPropagation()">
+                        <form action="/upload/personnel/{{ player.id }}" method="post" enctype="multipart/form-data">
+                             <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="pl-{{ player.id }}">
+                             <input type="hidden" name="role" value="player">
+                             <label for="pl-{{ player.id }}" class="btn btn-sm btn-light"><i class="fas fa-camera"></i></label>
+                        </form>
+                        <button class="btn btn-sm btn-danger" onclick="deleteItem('personnel', '{{ player.id }}')"><i class="fas fa-trash"></i></button>
+                    </div>
                     {% endif %}
                 </div>
                 {% endfor %}
@@ -839,11 +857,14 @@ HTML_UR_FC = """
                         <div class="person-role">{{ coach.position }}</div>
                     </div>
                      {% if admin %}
-                    <form action="/upload/personnel/{{ coach.id }}" method="post" enctype="multipart/form-data" class="edit-btn" onclick="event.stopPropagation()">
-                         <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="co-{{ coach.id }}">
-                         <input type="hidden" name="role" value="coach">
-                         <label for="co-{{ coach.id }}"><i class="fas fa-camera"></i></label>
-                    </form>
+                    <div class="position-absolute top-0 end-0 p-2 d-flex gap-2" onclick="event.stopPropagation()">
+                        <form action="/upload/personnel/{{ coach.id }}" method="post" enctype="multipart/form-data">
+                             <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="co-{{ coach.id }}">
+                             <input type="hidden" name="role" value="coach">
+                             <label for="co-{{ coach.id }}" class="btn btn-sm btn-light"><i class="fas fa-camera"></i></label>
+                        </form>
+                        <button class="btn btn-sm btn-danger" onclick="deleteItem('personnel', '{{ coach.id }}')"><i class="fas fa-trash"></i></button>
+                    </div>
                     {% endif %}
                 </div>
                 {% endfor %}
@@ -869,11 +890,14 @@ HTML_UR_FC = """
                         <div class="person-role">{{ mvp.position }}</div>
                     </div>
                      {% if admin %}
-                    <form action="/upload/personnel/{{ mvp.id }}" method="post" enctype="multipart/form-data" class="edit-btn" onclick="event.stopPropagation()">
-                         <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="mv-{{ mvp.id }}">
-                         <input type="hidden" name="role" value="mvp">
-                         <label for="mv-{{ mvp.id }}"><i class="fas fa-camera"></i></label>
-                    </form>
+                    <div class="position-absolute top-0 end-0 p-2 d-flex gap-2" onclick="event.stopPropagation()">
+                        <form action="/upload/personnel/{{ mvp.id }}" method="post" enctype="multipart/form-data">
+                             <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="mv-{{ mvp.id }}">
+                             <input type="hidden" name="role" value="mvp">
+                             <label for="mv-{{ mvp.id }}" class="btn btn-sm btn-light"><i class="fas fa-camera"></i></label>
+                        </form>
+                        <button class="btn btn-sm btn-danger" onclick="deleteItem('personnel', '{{ mvp.id }}')"><i class="fas fa-trash"></i></button>
+                    </div>
                     {% endif %}
                 </div>
                 {% endfor %}
@@ -897,7 +921,10 @@ HTML_UR_FC = """
                         <div class="countdown-timer" id="countdown">0h 0j 0m 0d</div>
                         {% if admin %}
                         <p class="text-muted small">Auto-targets first agenda with future date. Fallback:</p>
-                        <input type="datetime-local" class="form-control w-25 mx-auto" onchange="saveText('site_settings', 'next_match_time', 'value', this)" value="{{ data['settings']['next_match_time'] }}">
+                        <div class="d-flex justify-content-center align-items-center gap-2">
+                            <input type="datetime-local" class="form-control w-25" id="countdown-picker" value="{{ data['settings']['next_match_time'] }}">
+                            <button class="btn btn-success" onclick="saveText('site_settings', 'next_match_time', 'value', document.getElementById('countdown-picker'))">Mulai Count Down</button>
+                        </div>
                         {% endif %}
                     </div>
                     
@@ -917,6 +944,9 @@ HTML_UR_FC = """
                                     <div class="agenda-title" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'title', this)">{{ item.title }}</div>
                                     <small class="text-muted" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'price', this)">{{ item.price }}</small>
                                 </div>
+                                {% if admin %}
+                                <button class="position-absolute top-0 end-0 btn btn-sm btn-danger m-1" style="z-index:5;" onclick="deleteItem('agenda_content', '{{ item.id }}')"><i class="fas fa-trash"></i></button>
+                                {% endif %}
                             </div>
                         </div>
                         {% endfor %}
@@ -943,6 +973,9 @@ HTML_UR_FC = """
                         <div class="agenda-date" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'price', this)">{{ item.price }}</div>
                         <div class="agenda-title" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'title', this)">{{ item.title }}</div>
                     </div>
+                    {% if admin %}
+                    <button class="position-absolute top-0 end-0 btn btn-sm btn-danger m-1" style="z-index:5;" onclick="deleteItem('agenda_content', '{{ item.id }}')"><i class="fas fa-trash"></i></button>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -1024,7 +1057,6 @@ HTML_UR_FC = """
                 <button class="modal-btn btn-save" onclick="saveNextMatch()">Save</button>
             </div>
             {% else %}
-            <!-- View Mode Disabled per request, but modal html kept for admin usage -->
             <p id="next-match-view" class="fs-4 fw-bold"></p>
             {% endif %}
         </div>
@@ -1034,7 +1066,19 @@ HTML_UR_FC = """
     <div id="history-modal" class="modal-overlay" onclick="closeHistoryModal()">
         <div class="modal-content-custom" onclick="event.stopPropagation()">
             <h2 style="color:var(--gold);">Sejarah TAHKIL FC</h2>
-            <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" style="width:150px; display:block; margin:20px auto;">
+
+            <!-- History Image Container 16:9 -->
+            <div style="width:100%; aspect-ratio:16/9; background:#eee; margin-bottom:20px; position:relative; overflow:hidden;">
+                {% set history_img = data['settings'].get('history_image') %}
+                <img id="history-main-img" src="{{ '/uploads/' + history_img if history_img else url_for('static', filename='logo-tahkil-fc.png') }}" style="width:100%; height:100%; object-fit:cover;">
+
+                {% if admin %}
+                <form action="/upload/history/main" method="post" enctype="multipart/form-data" class="position-absolute bottom-0 end-0 p-2">
+                    <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="history-upload">
+                    <label for="history-upload" class="btn btn-sm btn-warning"><i class="fas fa-camera"></i> Change Image</label>
+                </form>
+                {% endif %}
+            </div>
             
             {% if admin %}
             <textarea id="history-text-input" class="form-control mb-3" rows="10"></textarea>
@@ -1050,16 +1094,45 @@ HTML_UR_FC = """
 
     <!-- NEWS DETAIL MODAL -->
     <div id="news-modal" class="modal-overlay" onclick="document.getElementById('news-modal').style.display='none'">
-        <div class="modal-content-custom" onclick="event.stopPropagation()" style="text-align:left;">
+        <div class="modal-content-custom" onclick="event.stopPropagation()" style="text-align:left; max-width:900px;">
             <div id="news-modal-date" class="text-uppercase text-muted fw-bold mb-2" style="font-size:0.8rem;"></div>
-            <img id="news-modal-img" src="" style="width:100%; height:250px; object-fit:cover; border-radius:8px; margin-bottom:15px;">
+
+            <div style="position:relative;">
+                <img id="news-modal-img" src="" style="width:100%; height:300px; object-fit:cover; border-radius:8px; margin-bottom:15px;">
+                {% if admin %}
+                <form id="news-upload-form" method="post" enctype="multipart/form-data" class="position-absolute bottom-0 end-0 p-2">
+                    <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="news-modal-upload">
+                    <label for="news-modal-upload" class="btn btn-sm btn-warning"><i class="fas fa-camera"></i> Change Image</label>
+                </form>
+                {% endif %}
+            </div>
+
+            {% if admin %}
+            <div class="mb-2">
+                <label>Title:</label>
+                <input type="text" id="news-modal-title-input" class="form-control fw-bold">
+            </div>
+            <div class="mb-2">
+                <label>Subtitle (Ringkasan):</label>
+                <textarea id="news-modal-subtitle-input" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="mb-2">
+                <label>Full Content:</label>
+                <textarea id="news-modal-details-input" class="form-control" rows="5"></textarea>
+            </div>
+            <div class="text-end mt-3">
+                <button class="btn btn-danger me-2" onclick="document.getElementById('news-modal').style.display='none'">Cancel</button>
+                <button class="btn btn-success" onclick="saveNewsModal()">Save</button>
+            </div>
+            {% else %}
             <h3 id="news-modal-title" class="fw-bold mt-2 text-uppercase" style="color:var(--green)"></h3>
             <p id="news-modal-subtitle" class="lead text-muted"></p>
             <hr>
-            <p class="text-muted small">Full news content would go here...</p>
+            <div id="news-modal-details" class="text-muted small" style="white-space: pre-wrap;"></div>
             <div class="text-center mt-3">
                 <button class="btn btn-secondary" onclick="document.getElementById('news-modal').style.display='none'">Close</button>
             </div>
+            {% endif %}
         </div>
     </div>
     
@@ -1081,6 +1154,11 @@ HTML_UR_FC = """
             </div>
         </div>
     </footer>
+
+    <!-- DATA INJECTION FOR JS -->
+    <script>
+        const newsData = {{ data['news'] | tojson }};
+    </script>
 
     <script>
         // --- UI UTILS ---
@@ -1136,6 +1214,8 @@ HTML_UR_FC = """
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ table, id, field, value })
+            }).then(() => {
+                if(table === 'site_settings' && id === 'next_match_time') location.reload();
             });
         }
         
@@ -1148,6 +1228,15 @@ HTML_UR_FC = """
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(body)
+            }).then(() => location.reload());
+        }
+
+        function deleteItem(table, id) {
+            if(!confirm("Are you sure you want to delete this item?")) return;
+            fetch('/api/delete-item', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ table, id })
             }).then(() => location.reload());
         }
 
@@ -1226,16 +1315,18 @@ HTML_UR_FC = """
         }
 
         // News Modal
-        function openNewsModal(title, subtitle, img, updatedAt) {
-            document.getElementById('news-modal-title').innerText = title;
-            document.getElementById('news-modal-subtitle').innerText = subtitle;
-            document.getElementById('news-modal-img').src = img || '{{ url_for("static", filename="logo-tahkil-fc.png") }}';
+        let currentNewsId = null;
+        function openNewsModal(newsId, type) {
+            currentNewsId = newsId;
+            const item = newsData[newsId];
+            const imgPath = item.image_path ? '/uploads/' + item.image_path : '';
+
+            document.getElementById('news-modal-img').src = imgPath || '{{ url_for("static", filename="logo-tahkil-fc.png") }}';
 
             // Date Formatting
-            if (updatedAt && updatedAt !== 'None') {
-                const date = new Date(updatedAt.replace(" ", "T") + "Z"); // Assume UTC
+            if (item.updated_at && item.updated_at !== 'None') {
+                const date = new Date(item.updated_at.replace(" ", "T") + "Z"); // Assume UTC
                 // Format: 12 Januari 2026, 10:43 WITA
-                // WITA is UTC+8. We can use toLocaleString with Asia/Makassar
                 const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' };
                 const dateStr = date.toLocaleString('id-ID', options);
                 document.getElementById('news-modal-date').innerText = `BERITA DIUPDATE TERAKHIR : ${dateStr} WITA`;
@@ -1243,7 +1334,32 @@ HTML_UR_FC = """
                 document.getElementById('news-modal-date').innerText = "";
             }
 
+            if (document.getElementById('news-modal-title-input')) { // Admin Mode
+                document.getElementById('news-modal-title-input').value = item.title;
+                document.getElementById('news-modal-subtitle-input').value = item.subtitle;
+                document.getElementById('news-modal-details-input').value = item.details || '';
+                document.getElementById('news-upload-form').action = '/upload/news/' + newsId;
+            } else { // View Mode
+                document.getElementById('news-modal-title').innerText = item.title;
+                document.getElementById('news-modal-subtitle').innerText = item.subtitle;
+                document.getElementById('news-modal-details').innerText = item.details || "Full news content...";
+            }
+
             document.getElementById('news-modal').style.display = 'flex';
+        }
+
+        function saveNewsModal() {
+            if(!currentNewsId) return;
+            const title = document.getElementById('news-modal-title-input').value;
+            const subtitle = document.getElementById('news-modal-subtitle-input').value;
+            const details = document.getElementById('news-modal-details-input').value;
+
+            // Chain promises for updates
+            Promise.all([
+                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'news_content', id: currentNewsId, field: 'title', value: title }) }),
+                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'news_content', id: currentNewsId, field: 'subtitle', value: subtitle }) }),
+                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'news_content', id: currentNewsId, field: 'details', value: details }) })
+            ]).then(() => location.reload());
         }
 
         // Countdown
