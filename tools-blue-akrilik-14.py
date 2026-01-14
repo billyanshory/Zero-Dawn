@@ -1005,9 +1005,13 @@ HTML_WALLPAPER = """
                     const btn = document.getElementById('btn-vibration');
                     if (isVibrationEnabled) {
                         btn.style.background = 'rgba(229, 50, 45, 0.4)'; // Highlight active
-                        if (navigator.vibrate) navigator.vibrate(50); // Test
+                        // FORCE VIBRATION: Strong pulse to wake up the motor and confirm permission
+                        if (navigator.vibrate) {
+                            try { navigator.vibrate(200); } catch(e) { console.error(e); }
+                        }
                     } else {
                         btn.style.background = ''; // Reset
+                        if (navigator.vibrate) navigator.vibrate(0); // Stop immediately
                     }
                 }
 
@@ -1015,8 +1019,9 @@ HTML_WALLPAPER = """
                     if (!isVibrationEnabled || !navigator.vibrate) return;
 
                     const now = Date.now();
-                    // Throttle: Max 10 updates per second to be smooth but not overwhelming
-                    if (now - lastVibrationTime < 100) return;
+                    // Throttle: Increased frequency for smoother "texture" (20Hz approx)
+                    // If we vibrate(50) every 50ms, it's continuous.
+                    if (now - lastVibrationTime < 50) return;
 
                     // Calculate average amplitude deviation from 128 (silence)
                     let sum = 0;
@@ -1026,13 +1031,15 @@ HTML_WALLPAPER = """
                     }
                     const average = sum / len;
 
-                    // Threshold:
-                    // average can go up to ~128.
-                    // Let's set a low threshold to catch beats.
-                    if (average > 5) {
-                        // Duration proportional to intensity?
-                        // Just a short pulse for the "beat"
-                        navigator.vibrate(30);
+                    // Threshold: Lowered to 3 to catch more audio detail
+                    // "Brute force" the tactile feel by keeping it responsive
+                    if (average > 3) {
+                        try {
+                            // 50ms pulse matches the throttle for continuity if loud
+                            navigator.vibrate(50);
+                        } catch(e) {
+                            // Ignore errors to keep loop running
+                        }
                         lastVibrationTime = now;
                     }
                 }
