@@ -2,10 +2,11 @@ import os
 import sqlite3
 import time
 import datetime
+import json
 from flask import Flask, request, send_from_directory, redirect, url_for, render_template_string, jsonify, session
 from werkzeug.utils import secure_filename
 
-# --- KONFIGURASI FLASK ---
+# --- FLASK CONFIGURATION ---
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB Limit
 app.secret_key = "supersecretkey"
@@ -32,50 +33,44 @@ def init_db():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
     
-    # New Tables for Barca-style Layout
     # News/Hero Content
     c.execute('''CREATE TABLE IF NOT EXISTS news_content (
                     id TEXT PRIMARY KEY,
                     title TEXT,
                     subtitle TEXT,
-                    category TEXT, -- 'First Team', etc.
+                    category TEXT,
                     timestamp TEXT,
                     image_path TEXT,
-                    type TEXT -- 'hero', 'sub_1', 'sub_2', 'sub_3', 'sub_4'
+                    type TEXT,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
     
-    # Personnel (Players, Coaches, MVP)
+    # Personnel
     c.execute('''CREATE TABLE IF NOT EXISTS personnel (
                     id TEXT PRIMARY KEY,
                     name TEXT,
-                    role TEXT, -- 'player', 'coach', 'mvp'
-                    position TEXT, -- e.g. 'Forward', 'Head Coach'
+                    role TEXT,
+                    position TEXT,
                     nationality TEXT DEFAULT 'Indonesia',
                     joined TEXT DEFAULT '2024',
                     matches TEXT DEFAULT '0',
                     goals TEXT DEFAULT '0',
-                    details TEXT, -- JSON or text blob
+                    details TEXT,
                     image_path TEXT
                 )''')
     
-    # Migration for existing personnel table
-    try:
-        c.execute("ALTER TABLE personnel ADD COLUMN nationality TEXT DEFAULT 'Indonesia'")
-    except sqlite3.OperationalError:
-        pass
-    try:
-        c.execute("ALTER TABLE personnel ADD COLUMN joined TEXT DEFAULT '2024'")
-    except sqlite3.OperationalError:
-        pass
-    try:
-        c.execute("ALTER TABLE personnel ADD COLUMN matches TEXT DEFAULT '0'")
-    except sqlite3.OperationalError:
-        pass
-    try:
-        c.execute("ALTER TABLE personnel ADD COLUMN goals TEXT DEFAULT '0'")
-    except sqlite3.OperationalError:
-        pass
-    
+    # Migrations
+    try: c.execute("ALTER TABLE personnel ADD COLUMN nationality TEXT DEFAULT 'Indonesia'")
+    except: pass
+    try: c.execute("ALTER TABLE personnel ADD COLUMN joined TEXT DEFAULT '2024'")
+    except: pass
+    try: c.execute("ALTER TABLE personnel ADD COLUMN matches TEXT DEFAULT '0'")
+    except: pass
+    try: c.execute("ALTER TABLE personnel ADD COLUMN goals TEXT DEFAULT '0'")
+    except: pass
+    try: c.execute("ALTER TABLE news_content ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    except: pass
+
     # Sponsors
     c.execute('''CREATE TABLE IF NOT EXISTS sponsors (
                     id TEXT PRIMARY KEY,
@@ -83,28 +78,27 @@ def init_db():
                     image_path TEXT
                 )''')
     
-    # General Site Settings (Next Match Time, etc)
+    # Site Settings
     c.execute('''CREATE TABLE IF NOT EXISTS site_settings (
                     key TEXT PRIMARY KEY,
                     value TEXT
                 )''')
 
-    # Seed Initial Data if empty
-    # Hero
+    # Seed Data
     c.execute("INSERT OR IGNORE INTO news_content (id, title, subtitle, category, type) VALUES ('hero', 'VICTORY IN THE DERBY', 'A stunning performance secures the win', 'FIRST TEAM', 'hero')")
     for i in range(1, 5):
-        c.execute(f"INSERT OR IGNORE INTO news_content (id, title, category, type) VALUES ('news_{i}', 'Breaking News Headline {i}', 'CLUB', 'sub_{i}')")
+        c.execute(f"INSERT OR IGNORE INTO news_content (id, title, subtitle, category, type) VALUES ('news_{i}', 'Headlines {i}', 'Breaking News Headline 2', 'FIRST TEAM', 'sub_{i}')")
     
-    # Next Match Default
     c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES ('next_match_time', '2026-02-01T20:00:00')")
     c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES ('history_text', 'Sejarah TAHKIL FC bermula pada tahun...')")
+    c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES ('footer_text', '© 2026 TAHKIL FC. All rights reserved.')")
 
     conn.commit()
     conn.close()
 
 init_db()
 
-# --- DATA HELPER ---
+# --- DATA HELPERS ---
 def get_db_connection():
     conn = sqlite3.connect('data.db')
     conn.row_factory = sqlite3.Row
@@ -114,28 +108,23 @@ def get_all_data():
     conn = get_db_connection()
     c = conn.cursor()
     
-    # Agenda Data (Existing)
     c.execute("SELECT * FROM agenda_content")
     agenda_content = {row['id']: dict(row) for row in c.fetchall()}
     c.execute("SELECT * FROM agenda_list ORDER BY created_at ASC")
     agenda_list = [dict(row) for row in c.fetchall()]
     
-    # News Data
     c.execute("SELECT * FROM news_content")
     news_data = {row['id']: dict(row) for row in c.fetchall()}
     
-    # Personnel
     c.execute("SELECT * FROM personnel")
     personnel_rows = [dict(row) for row in c.fetchall()]
     personnel = {'player': [], 'coach': [], 'mvp': []}
     for p in personnel_rows:
         personnel[p['role']].append(p)
     
-    # Sponsors
     c.execute("SELECT * FROM sponsors")
     sponsors = [dict(row) for row in c.fetchall()]
     
-    # Settings
     c.execute("SELECT * FROM site_settings")
     settings = {row['key']: row['value'] for row in c.fetchall()}
     
@@ -160,20 +149,12 @@ def render_page(content, **kwargs):
 def index():
     data = get_all_data()
     
-    # Construct Agenda Lists
-    # Combine static (agenda1..3) and dynamic for the "Calendar" view
-    # Limit to 3 for display as per request, but load all
-    
-    # Process Agenda Items for display
     def process_agenda(id_prefix, dynamic_section_id):
         items = []
-        # Check static slots (limiting to 3 for the new layout initial view)
         for i in range(1, 4): 
             id = f"{id_prefix}{i}"
             content = data['agenda_content'].get(id, {'title': 'Judul Agenda', 'status': 'Tersedia', 'price': 'Waktu/Tempat'})
             items.append({**content, 'id': id, 'is_dynamic': False})
-            
-        # Add dynamic
         for item in data['agenda_list']:
             if item['section'] == dynamic_section_id:
                 content = data['agenda_content'].get(item['id'], {'title': 'New Agenda', 'status': 'Tersedia', 'price': 'Rp 0'})
@@ -181,23 +162,22 @@ def index():
         return items
 
     agenda_latihan = process_agenda("agenda", 1)
-    turnamen = process_agenda("turnamen", 2) # Renamed from Next Agenda
+    turnamen = process_agenda("turnamen", 2)
 
-    # Ensure Personnel lists have at least some placeholders if empty
+    # Placeholders
     if not data['personnel']['player']:
         for i in range(11):
-            data['personnel']['player'].append({'id': f'player_placeholder_{i}', 'name': 'Nama Pemain', 'position': 'Posisi', 'role': 'player', 'image_path': None})
+            data['personnel']['player'].append({'id': f'player_placeholder_{i}', 'name': 'Nama Pemain', 'position': 'Posisi', 'role': 'player', 'nationality':'Indonesia', 'joined':'2024', 'matches':'0', 'goals':'0', 'image_path': None})
     if not data['personnel']['coach']:
         for i in range(3):
-            data['personnel']['coach'].append({'id': f'coach_placeholder_{i}', 'name': 'Nama Pelatih', 'position': 'Head Coach', 'role': 'coach', 'image_path': None})
+            data['personnel']['coach'].append({'id': f'coach_placeholder_{i}', 'name': 'Nama Pelatih', 'position': 'Head Coach', 'role': 'coach', 'nationality':'Indonesia', 'joined':'2024', 'matches':'0', 'goals':'0', 'image_path': None})
     if not data['personnel']['mvp']:
         for i in range(3):
-            data['personnel']['mvp'].append({'id': f'mvp_placeholder_{i}', 'name': 'Nama MVP', 'position': 'Tournament X', 'role': 'mvp', 'image_path': None})
+            data['personnel']['mvp'].append({'id': f'mvp_placeholder_{i}', 'name': 'Nama MVP', 'position': 'Tournament X', 'role': 'mvp', 'nationality':'Indonesia', 'joined':'2024', 'matches':'0', 'goals':'0', 'image_path': None})
 
-    # Ensure Sponsors
-    if not data['sponsors']:
-        for i in range(4):
-            data['sponsors'].append({'id': f'sponsor_{i}', 'name': 'Sponsor', 'image_path': None})
+    # Sponsors (Allow dynamic, but show at least some placeholders if totally empty and no DB entries)
+    if not data['sponsors'] and not session.get('admin'):
+        pass # If empty, stays empty or seeds handled in init_db
 
     return render_page(HTML_UR_FC, 
                        data=data, 
@@ -212,7 +192,7 @@ def login():
     if uid == 'adminwebsite' and pwd == '4dm1nw3bs1t3':
         session['admin'] = True
         return redirect(url_for('index'))
-    return redirect(url_for('index')) # Silent fail or redirect back
+    return redirect(url_for('index'))
 
 @app.route('/logout')
 def logout():
@@ -222,8 +202,6 @@ def logout():
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-# --- UPLOAD & API HANDLERS ---
 
 @app.route('/upload/<type>/<id>', methods=['POST'])
 def upload_image(type, id):
@@ -242,16 +220,12 @@ def upload_image(type, id):
         
         if type == 'news':
             c.execute("INSERT OR IGNORE INTO news_content (id) VALUES (?)", (id,))
-            c.execute("UPDATE news_content SET image_path = ? WHERE id = ?", (filename, id))
+            c.execute("UPDATE news_content SET image_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (filename, id))
         elif type == 'personnel':
-            # Check if exists, if not create (for dynamic adds)
             c.execute("SELECT id FROM personnel WHERE id = ?", (id,))
             if not c.fetchone():
                 c.execute("INSERT INTO personnel (id, role, name) VALUES (?, ?, ?)", (id, request.form.get('role', 'player'), 'New Person'))
             c.execute("UPDATE personnel SET image_path = ? WHERE id = ?", (filename, id))
-        elif type == 'agenda':
-            # agenda logic handled separately usually but can unify
-            pass 
         elif type == 'sponsor':
             c.execute("INSERT OR IGNORE INTO sponsors (id) VALUES (?)", (id,))
             c.execute("UPDATE sponsors SET image_path = ? WHERE id = ?", (filename, id))
@@ -270,13 +244,11 @@ def api_update_text():
     field = data.get('field')
     value = data.get('value')
 
-    # Security: Whitelist allowed tables and fields to prevent SQL Injection
     allowed_tables = ['news_content', 'personnel', 'agenda_content', 'sponsors', 'site_settings']
     allowed_fields = ['title', 'subtitle', 'category', 'name', 'position', 'role', 'status', 'price', 'value', 'nationality', 'joined', 'matches', 'goals']
 
     if table not in allowed_tables:
         return jsonify({'error': 'Invalid table'}), 400
-    
     if table != 'site_settings' and field not in allowed_fields:
         return jsonify({'error': 'Invalid field'}), 400
     
@@ -286,18 +258,19 @@ def api_update_text():
     if table == 'site_settings':
         c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", (id, value))
     else:
-        # Ensure row exists
         c.execute(f"SELECT id FROM {table} WHERE id = ?", (id,))
         if not c.fetchone():
-            # Minimal insert if missing
             if table == 'personnel':
                 c.execute(f"INSERT INTO {table} (id, role) VALUES (?, ?)", (id, data.get('role', 'player')))
             else:
                 c.execute(f"INSERT INTO {table} (id) VALUES (?)", (id,))
         
-        # Use formatting for column name (safe because validated against whitelist)
         c.execute(f"UPDATE {table} SET {field} = ? WHERE id = ?", (value, id))
         
+        # Update timestamp for news
+        if table == 'news_content':
+            c.execute("UPDATE news_content SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (id,))
+
     conn.commit()
     conn.close()
     return jsonify({'success': True})
@@ -305,7 +278,7 @@ def api_update_text():
 @app.route('/api/add-card', methods=['POST'])
 def api_add_card():
     if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
-    type = request.json.get('type') # personnel, agenda
+    type = request.json.get('type')
     
     conn = get_db_connection()
     c = conn.cursor()
@@ -325,14 +298,12 @@ def api_add_card():
     conn.close()
     return jsonify({'success': True, 'id': new_id})
 
-
-# --- FRONTEND ---
+# --- FRONTEND ASSETS ---
 
 NAVBAR_HTML = """
 <style>
-    /* Top Bar */
     .top-bar {
-        background-color: #2ecc71; /* Green */
+        background-color: #2ecc71;
         height: 50px;
         display: flex;
         align-items: center;
@@ -341,10 +312,6 @@ NAVBAR_HTML = """
         font-size: 0.9rem;
         position: relative;
         z-index: 1030;
-    }
-    .top-bar-left {
-        display: flex;
-        align-items: center;
     }
     .next-match-mini {
         background: rgba(0,0,0,0.2);
@@ -357,29 +324,10 @@ NAVBAR_HTML = """
     }
     .next-match-mini:hover { background: rgba(0,0,0,0.4); }
     
-    .top-bar-right {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-    }
-    
-    /* Login Button */
-    .admin-login-btn {
-        background: transparent;
-        border: 1px solid white;
-        color: white;
-        padding: 2px 10px;
-        font-size: 0.8rem;
-        border-radius: 4px;
-        text-transform: uppercase;
-        text-decoration: none;
-    }
-    
-    /* History Button */
     .history-btn {
-        background: #FFD700; /* Gold */
+        background: #FFD700;
         color: black;
-        border-radius: 20px 4px 20px 4px; /* Tumpul style */
+        border-radius: 20px 4px 20px 4px;
         padding: 5px 15px;
         display: flex;
         align-items: center;
@@ -388,28 +336,14 @@ NAVBAR_HTML = """
         text-decoration: none;
         transition: 0.3s;
         box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        cursor: pointer;
     }
-    .history-btn img { height: 20px; filter: brightness(0) invert(1); } /* White sketch style */
+    .history-btn img { height: 20px; filter: brightness(0) invert(1); }
     .history-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 10px rgba(0,0,0,0.2); color: black; }
     
-    /* WA Button */
-    .wa-btn-circle {
-        background: #25D366;
-        color: white;
-        width: 35px;
-        height: 35px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
-        text-decoration: none;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        transition: 0.3s;
-    }
-    .wa-btn-circle:hover { transform: scale(1.1); color: white; }
+    .social-icon-link { color: white; font-size: 1.2rem; transition: 0.2s; }
+    .social-icon-link:hover { color: var(--gold); }
 
-    /* Main Navbar (Bottom) */
     .main-navbar {
         background-color: white;
         height: 70px;
@@ -421,83 +355,51 @@ NAVBAR_HTML = """
         top: 0;
         z-index: 1020;
     }
-    .navbar-logo-container {
-        position: absolute;
-        left: 5%;
-        top: -15px; /* Overlap upwards */
-        z-index: 2000; /* Requirement: Top most layer */
-    }
-    .navbar-logo-img {
-        height: 85px;
-        transition: 0.3s;
-        filter: drop-shadow(0 2px 5px rgba(0,0,0,0.2));
-        cursor: pointer;
-    }
-    .navbar-links {
-        margin-left: 120px; /* Space for logo */
-        display: flex;
-        gap: 30px;
-    }
+    .navbar-logo-container { position: absolute; left: 5%; top: -15px; z-index: 2000; }
+    .navbar-logo-img { height: 85px; transition: 0.3s; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.2)); cursor: pointer; }
+    .navbar-links { margin-left: 120px; display: flex; gap: 30px; }
     .nav-item-custom {
-        color: #333;
-        text-transform: uppercase;
-        font-weight: 700;
-        text-decoration: none;
-        font-size: 0.9rem;
-        position: relative;
+        color: #333; text-transform: uppercase; font-weight: 700; text-decoration: none; font-size: 0.9rem; position: relative;
     }
     .nav-item-custom:after {
-        content: '';
-        position: absolute;
-        width: 0;
-        height: 3px;
-        bottom: -24px; /* Align with bottom of navbar */
-        left: 0;
-        background-color: #FFD700;
-        transition: width 0.3s;
+        content: ''; position: absolute; width: 0; height: 3px; bottom: -24px; left: 0; background-color: #FFD700; transition: width 0.3s;
     }
     .nav-item-custom:hover:after { width: 100%; }
     
-    /* Mobile Responsive */
     @media (max-width: 992px) {
-        .top-bar { display: none; } /* Simplify for mobile or adjust */
+        .top-bar { display: none; }
         .main-navbar { justify-content: space-between; padding: 0 20px; }
         .navbar-logo-container { position: static; transform: none; }
         .navbar-logo-img { height: 50px; }
-        .navbar-links { display: none; } /* Hide for now or hamburger */
+        .navbar-links { display: none; }
     }
 </style>
 
-<!-- Top Bar -->
 <div class="top-bar">
     <div class="top-bar-left">
         <div class="next-match-mini" onclick="openNextMatchModal()">
             <span id="next-match-display">{{ data['settings'].get('next_match_text', 'Next Match: TAHKIL FC (Jan 2026)') }}</span>
         </div>
     </div>
-    <div class="top-bar-right">
+    <div class="top-bar-right d-flex align-items-center gap-3">
         {% if not admin %}
-        <button onclick="document.getElementById('login-modal').style.display='flex'" class="admin-login-btn">Admin Login</button>
+        <button onclick="document.getElementById('login-modal').style.display='flex'" class="btn btn-outline-light btn-sm">Admin Login</button>
         {% else %}
-        <a href="/logout" class="admin-login-btn" style="background:red; border:none;">Logout</a>
+        <a href="/logout" class="btn btn-danger btn-sm">Logout</a>
         {% endif %}
         
-        <a href="#" class="history-btn" onclick="openHistoryModal()">
+        <div class="history-btn" onclick="openHistoryModal()">
             <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="monochrome-icon">
             Lihat Sejarah
-        </a>
-        <div class="d-none d-lg-flex gap-3 align-items-center">
-            <a href="https://chat.whatsapp.com/invite/placeholder" class="social-icon-link" target="_blank"><i class="fab fa-whatsapp"></i></a>
-            <a href="https://maps.google.com" class="social-icon-link" target="_blank"><i class="fas fa-map-marker-alt"></i></a>
-            <a href="https://instagram.com" class="social-icon-link" target="_blank"><i class="fab fa-instagram"></i></a>
         </div>
-        <a href="https://chat.whatsapp.com/invite/placeholder" class="wa-btn-circle" target="_blank">
-            <i class="fab fa-whatsapp"></i>
-        </a>
+        <div class="d-none d-lg-flex gap-3 align-items-center">
+            <a href="https://wa.me/6281528455350" class="social-icon-link" target="_blank"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://maps.app.goo.gl/4deg1ha8WaxWKdPC9" class="social-icon-link" target="_blank"><i class="fas fa-map-marker-alt"></i></a>
+            <a href="https://www.instagram.com/rivkycahyahakikiori/" class="social-icon-link" target="_blank"><i class="fab fa-instagram"></i></a>
+        </div>
     </div>
 </div>
 
-<!-- Main Navbar -->
 <div class="main-navbar">
     <div class="navbar-logo-container" onclick="toggleLogoPopup()">
         <a href="javascript:void(0)">
@@ -513,12 +415,10 @@ NAVBAR_HTML = """
         <a href="#turnamen" class="nav-item-custom">Turnamen</a>
         <a href="#sponsors" class="nav-item-custom">Sponsors</a>
     </div>
-    <!-- Mobile Toggler -->
     <button class="d-lg-none btn border-0" onclick="toggleMobileMenu()"><i class="fas fa-bars fa-2x"></i></button>
     <div class="navbar-split-border"></div>
 </div>
 
-<!-- Mobile Menu Container -->
 <div id="mobile-menu" class="mobile-menu-container">
     <div class="mobile-next-match">{{ data['settings'].get('next_match_text', 'Next Match: TAHKIL FC (Jan 2026)') }}</div>
     <a href="#hero" class="mobile-nav-link" onclick="toggleMobileMenu()">Home</a>
@@ -530,20 +430,19 @@ NAVBAR_HTML = """
     <a href="#sponsors" class="mobile-nav-link" onclick="toggleMobileMenu()">Sponsors</a>
     
     <div class="mt-auto d-flex flex-column gap-3">
-        <a href="#" class="history-btn justify-content-center" onclick="openHistoryModal(); toggleMobileMenu();">
+        <div class="history-btn justify-content-center" onclick="openHistoryModal(); toggleMobileMenu();">
             <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="monochrome-icon">
             Lihat Sejarah
-        </a>
+        </div>
         <button onclick="document.getElementById('login-modal').style.display='flex'; toggleMobileMenu();" class="btn btn-outline-dark w-100">Admin Login</button>
         <div class="d-flex justify-content-center gap-4 mt-2">
-            <a href="https://chat.whatsapp.com/invite/placeholder" class="text-dark h4"><i class="fab fa-whatsapp"></i></a>
-            <a href="https://maps.google.com" class="text-dark h4"><i class="fas fa-map-marker-alt"></i></a>
-            <a href="https://instagram.com" class="text-dark h4"><i class="fab fa-instagram"></i></a>
+            <a href="https://wa.me/6281528455350" class="text-dark h4"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://maps.app.goo.gl/4deg1ha8WaxWKdPC9" class="text-dark h4"><i class="fas fa-map-marker-alt"></i></a>
+            <a href="https://www.instagram.com/rivkycahyahakikiori/" class="text-dark h4"><i class="fab fa-instagram"></i></a>
         </div>
     </div>
 </div>
 
-<!-- Login Modal -->
 <div id="login-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center;">
     <div style="background:white; padding:30px; border-radius:10px; width:300px;">
         <h3 class="text-center mb-3">Admin Login</h3>
@@ -555,17 +454,6 @@ NAVBAR_HTML = """
         <button onclick="document.getElementById('login-modal').style.display='none'" class="btn btn-link w-100 mt-2">Cancel</button>
     </div>
 </div>
-
-<!-- History Modal -->
-<div id="history-modal" class="modal-overlay" onclick="this.style.display='none'">
-    <div class="modal-content-custom" onclick="event.stopPropagation()">
-        <h2 style="color:var(--gold);">Sejarah TAHKIL FC</h2>
-        <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" style="width:150px; display:block; margin:20px auto;">
-        <p id="history-text" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('site_settings', 'history_text', 'value', this)">
-            {{ history_text_placeholder }}
-        </p>
-    </div>
-</div>
 """
 
 STYLES_HTML = """
@@ -575,8 +463,6 @@ STYLES_HTML = """
         --gold: #FFD700;
         --black: #111;
         --white: #fff;
-        --acrylic-dark: rgba(20, 20, 20, 0.85);
-        --acrylic-light: rgba(255, 255, 255, 0.1);
     }
     body {
         font-family: 'Inter', sans-serif;
@@ -586,8 +472,6 @@ STYLES_HTML = """
         padding: 0;
         overflow-x: hidden;
     }
-    
-    /* Utility */
     .section-title {
         font-weight: 800;
         text-transform: uppercase;
@@ -597,24 +481,13 @@ STYLES_HTML = """
         border-bottom: 3px solid var(--gold);
         padding-bottom: 5px;
     }
-    
-    /* Horizontal Scroll Sections */
     .horizontal-scroll-container {
         display: flex;
         overflow-x: auto;
         gap: 20px;
         padding: 20px 0;
         scroll-snap-type: x mandatory;
-        -webkit-overflow-scrolling: touch;
     }
-    .horizontal-scroll-container::-webkit-scrollbar {
-        height: 8px;
-    }
-    .horizontal-scroll-container::-webkit-scrollbar-thumb {
-        background: var(--green);
-        border-radius: 4px;
-    }
-    
     .person-card {
         min-width: 250px;
         height: 350px;
@@ -627,51 +500,26 @@ STYLES_HTML = """
         transition: transform 0.3s;
         cursor: pointer;
     }
-    .person-card:hover {
-        transform: translateY(-10px);
-    }
-    .person-img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        opacity: 0.8;
-        transition: 0.3s;
-    }
+    .person-card:hover { transform: translateY(-10px); }
+    .person-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; transition: 0.3s; }
     .person-card:hover .person-img { opacity: 1; }
-    
     .person-info {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background: linear-gradient(transparent, black);
-        padding: 20px;
+        position: absolute; bottom: 0; left: 0; width: 100%;
+        background: linear-gradient(transparent, black); padding: 20px;
     }
     .person-name { font-weight: 700; font-size: 1.2rem; text-transform: uppercase; color: var(--gold); }
     .person-role { font-size: 0.9rem; color: #ccc; }
     
-    /* Calendar / Agenda Style */
     .calendar-container {
-        background: var(--bg-light);
-        padding: 40px;
-        border-radius: 8px;
+        background: #f8f9fa; padding: 40px; border-radius: 8px;
         box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
     .countdown-timer {
-        font-size: 3rem;
-        font-weight: 800;
-        color: var(--green);
-        text-align: center;
-        margin: 20px 0;
-        font-family: monospace;
+        font-size: 3rem; font-weight: 800; color: var(--green);
+        text-align: center; margin: 20px 0; font-family: monospace;
     }
-    
     .agenda-card-barca {
-        display: flex;
-        background: white;
-        border: 1px solid #eee;
-        margin-bottom: 15px;
-        transition: 0.3s;
+        display: flex; background: white; border: 1px solid #eee; margin-bottom: 15px; transition: 0.3s;
     }
     .agenda-card-barca:hover { transform: translateX(10px); border-left: 5px solid var(--gold); }
     .agenda-img { width: 100px; height: 100px; object-fit: cover; background: #333; }
@@ -679,175 +527,79 @@ STYLES_HTML = """
     .agenda-date { color: var(--green); font-weight: 700; font-size: 0.8rem; text-transform: uppercase; }
     .agenda-title { font-weight: 800; font-size: 1.2rem; }
     
-    /* Modal Overlay */
     .modal-overlay {
-        display: none;
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.8);
-        backdrop-filter: blur(10px);
-        z-index: 9999;
-        justify-content: center;
-        align-items: center;
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 9999;
+        justify-content: center; align-items: center;
     }
     .modal-content-custom {
-        background: white;
-        padding: 40px;
-        border-radius: 10px;
-        max-width: 600px;
-        width: 90%;
-        text-align: center;
-        position: relative;
-    }
-    
-    /* Admin UI */
-    .edit-btn {
-        position: absolute;
-        top: 10px; right: 10px;
-        background: var(--gold);
-        border: none;
-        border-radius: 4px;
-        padding: 5px 10px;
-        cursor: pointer;
-        z-index: 10;
+        background: white; padding: 40px; border-radius: 10px;
+        max-width: 600px; width: 90%; text-align: center; position: relative;
     }
     .modal-btn {
-        padding: 8px 20px;
-        border: none;
-        border-radius: 5px;
-        font-weight: 700;
-        cursor: pointer;
-        margin: 5px;
+        padding: 8px 20px; border: none; border-radius: 5px; font-weight: 700; cursor: pointer; margin: 5px;
     }
     .btn-save { background: var(--green); color: white; }
     .btn-cancel { background: #e74c3c; color: white; }
     
-    /* NEW FEATURES CSS */
     .navbar-split-border {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 3px;
-        background: linear-gradient(90deg, #2ecc71 50%, #FFD700 50%);
-        z-index: 1025;
+        position: absolute; bottom: 0; left: 0; width: 100%; height: 3px;
+        background: linear-gradient(90deg, #2ecc71 50%, #FFD700 50%); z-index: 1025;
     }
+    .monochrome-icon { filter: grayscale(100%) contrast(1.2); }
     
-    .monochrome-icon {
-        filter: grayscale(100%) contrast(1.2);
-    }
-    
-    /* Hero Full Width */
     .hero-full-width-container {
-        width: 100vw;
-        margin-left: calc(-50vw + 50%);
-        position: relative;
-        overflow: hidden;
+        width: 100vw; margin-left: calc(-50vw + 50%); position: relative; overflow: hidden;
     }
-    .hero-main-img-wrapper {
-        position: relative;
-        width: 100%;
-        height: 60vh; /* Adjust as needed */
-    }
-    .hero-main-img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
+    .hero-main-img-wrapper { position: relative; width: 100%; height: 60vh; }
+    .hero-main-img { width: 100%; height: 100%; object-fit: cover; }
     .hero-overlay-gradient {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 50%;
-        background: linear-gradient(to bottom, transparent, #000);
-        pointer-events: none;
+        position: absolute; bottom: 0; left: 0; width: 100%; height: 50%;
+        background: linear-gradient(to bottom, transparent, #000); pointer-events: none;
     }
     
-    /* Logo Popup */
     .logo-popup-overlay {
-        display: none;
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(20, 20, 20, 0.6); /* Acrylic dark base */
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        z-index: 99999;
-        justify-content: center;
-        align-items: center;
-        cursor: pointer;
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(20, 20, 20, 0.6); backdrop-filter: blur(20px);
+        z-index: 99999; justify-content: center; align-items: center; cursor: pointer;
     }
     .logo-popup-img {
-        max-width: 80%;
-        max-height: 80%;
-        filter: drop-shadow(0 10px 30px rgba(0,0,0,0.5));
+        max-width: 80%; max-height: 80%; filter: drop-shadow(0 10px 30px rgba(0,0,0,0.5));
         transition: transform 0.3s;
     }
     .logo-popup-img:hover { transform: scale(1.05); }
     
-    /* Mobile Menu */
     .mobile-menu-container {
-        position: fixed;
-        top: 70px; /* Below navbar */
-        right: -100%;
-        width: 80%;
-        max-width: 300px;
-        height: calc(100vh - 70px);
-        background: white;
-        z-index: 1040;
-        transition: right 0.3s ease-in-out;
-        box-shadow: -5px 0 15px rgba(0,0,0,0.1);
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        overflow-y: auto;
+        position: fixed; top: 70px; right: -100%; width: 80%; max-width: 300px;
+        height: calc(100vh - 70px); background: white; z-index: 1040;
+        transition: right 0.3s ease-in-out; box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+        padding: 20px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto;
     }
-    .mobile-menu-container.active {
-        right: 0;
-    }
+    .mobile-menu-container.active { right: 0; }
     .mobile-nav-link {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: #333;
-        text-decoration: none;
-        padding: 10px 0;
-        border-bottom: 1px solid #eee;
+        font-size: 1.1rem; font-weight: 700; color: #333; text-decoration: none; padding: 10px 0; border-bottom: 1px solid #eee;
     }
     .mobile-next-match {
-        background: var(--green);
-        color: white;
-        padding: 10px;
-        border-radius: 5px;
-        font-weight: 600;
-        text-align: center;
-        margin-bottom: 10px;
+        background: var(--green); color: white; padding: 10px; border-radius: 5px; font-weight: 600; text-align: center;
     }
     
-    /* Sponsors */
     .sponsor-logo-small {
-        width: 100px;
-        height: 100px;
-        object-fit: contain;
-        border-radius: 50%;
-        background: white;
-        padding: 10px;
-        margin: 10px;
-        transition: 0.3s;
-        filter: grayscale(100%);
+        width: 100px; height: 100px; object-fit: contain; border-radius: 50%;
+        background: white; padding: 10px; margin: 10px; transition: 0.3s; filter: grayscale(100%);
     }
-    .sponsor-logo-small:hover {
-        filter: none;
-        transform: scale(1.1);
-    }
+    .sponsor-logo-small:hover { filter: none; transform: scale(1.1); }
     
-    /* Social Icons in Navbar */
-    .social-icon-link {
-        color: white;
-        font-size: 1.2rem;
-        transition: 0.2s;
+    /* Hover Underline & Center Hero */
+    .hover-underline {
+        text-decoration: none !important;
+        position: relative;
+        cursor: pointer;
     }
-    .social-icon-link:hover { color: var(--gold); }
+    .hover-underline:after {
+        content: ''; position: absolute; width: 0; height: 3px; bottom: 0; left: 50%;
+        background: var(--white); transition: all 0.3s; transform: translateX(-50%);
+    }
+    .hover-underline:hover:after { width: 100%; }
 </style>
 """
 
@@ -867,29 +619,27 @@ HTML_UR_FC = """
 <body>
     {{ navbar|safe }}
     
-    <!-- HERO SECTION (Updated) -->
+    <!-- HERO SECTION -->
     <div class="container-fluid p-0 mb-4" id="hero">
          {% set hero = data['news']['hero'] %}
          <div class="hero-full-width-container">
              <div class="hero-main-img-wrapper">
-                 <img src="{{ '/uploads/' + hero.image_path if hero.image_path else url_for('static', filename='logo-tahkil-fc.png') }}" 
-                      class="hero-main-img">
+                 <img src="{{ '/uploads/' + hero.image_path if hero.image_path else url_for('static', filename='logo-tahkil-fc.png') }}" class="hero-main-img">
                  <div class="hero-overlay-gradient"></div>
                  
-                 <div class="position-absolute bottom-0 start-0 w-100 p-5 container">
+                 <div class="position-absolute bottom-0 start-0 w-100 p-5 container text-center">
                     <span class="badge bg-warning text-dark mb-2">FIRST TEAM</span>
-                    <h1 class="text-white fw-bold fst-italic text-decoration-underline display-4" 
+                    <h1 class="text-white fw-bold fst-italic hover-underline display-4"
                         style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);"
-                        contenteditable="{{ 'true' if admin else 'false' }}"
-                        onblur="saveText('news_content', 'hero', 'title', this)">
+                        onclick="openNewsModal('{{ hero.title }}', '{{ hero.subtitle }}', '{{ '/uploads/' + hero.image_path if hero.image_path else '' }}')">
                         {{ hero.title }}
                     </h1>
-                    <p class="text-white h5" 
-                       style="text-shadow: 1px 1px 3px rgba(0,0,0,0.8);"
-                       contenteditable="{{ 'true' if admin else 'false' }}"
-                       onblur="saveText('news_content', 'hero', 'subtitle', this)">
-                       {{ hero.subtitle }}
-                    </p>
+                    {% if admin %}
+                    <div contenteditable="true" onblur="saveText('news_content', 'hero', 'title', this)" class="text-white bg-dark d-inline-block px-2">Edit Title</div>
+                    <div contenteditable="true" onblur="saveText('news_content', 'hero', 'subtitle', this)" class="text-white bg-dark d-inline-block px-2">Edit Subtitle</div>
+                    {% else %}
+                    <p class="text-white h5" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.8);">{{ hero.subtitle }}</p>
+                    {% endif %}
                  </div>
                  
                  {% if admin %}
@@ -908,23 +658,37 @@ HTML_UR_FC = """
             {% for i in range(1, 5) %}
             {% set news_item = data['news']['news_' ~ i] %}
             <div class="col-md-3 col-6 mb-3">
-                <div class="d-flex flex-column bg-light rounded shadow-sm sub-news-card h-100" style="transition:0.3s; overflow:hidden;">
+                <div class="d-flex flex-column bg-light rounded shadow-sm sub-news-card h-100"
+                     style="transition:0.3s; overflow:hidden; cursor:pointer;"
+                     onclick="openNewsModal('{{ news_item.title }}', '{{ news_item.subtitle }}', '{{ '/uploads/' + news_item.image_path if news_item.image_path else '' }}')">
+
                     <div style="width: 100%; height: 150px; background: #333; position: relative;">
                         <img src="{{ '/uploads/' + news_item.image_path if news_item.image_path else '' }}" style="width:100%; height:100%; object-fit:cover;">
                         {% if admin %}
-                        <form action="/upload/news/news_{{ i }}" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-0 p-1">
+                        <form action="/upload/news/news_{{ i }}" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-0 p-1" onclick="event.stopPropagation()">
                             <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="news-up-{{ i }}">
                             <label for="news-up-{{ i }}" class="badge bg-warning" style="cursor:pointer;">+</label>
                         </form>
                         {% endif %}
                     </div>
                     <div class="p-3 flex-grow-1">
-                        <small class="text-success fw-bold d-block mb-1">FIRST TEAM</small>
-                        <h6 class="mb-0 fw-bold" 
-                            contenteditable="{{ 'true' if admin else 'false' }}"
-                            onblur="saveText('news_content', 'news_{{ i }}', 'title', this)">
-                            {{ news_item.title }}
-                        </h6>
+                        <span class="text-success fw-bold d-block mb-1 fs-5"
+                              contenteditable="{{ 'true' if admin else 'false' }}"
+                              onclick="event.stopPropagation()"
+                              onblur="saveText('news_content', 'news_{{ i }}', 'title', this)">
+                              {{ news_item.title }}
+                        </span> <!-- Title as Category/First Team -->
+
+                        <small class="text-muted d-block fw-normal"
+                               contenteditable="{{ 'true' if admin else 'false' }}"
+                               onclick="event.stopPropagation()"
+                               onblur="saveText('news_content', 'news_{{ i }}', 'subtitle', this)">
+                               {{ news_item.subtitle }}
+                        </small>
+
+                        <div class="mt-2 text-end text-muted" style="font-size:0.7rem;" data-updated="{{ news_item.updated_at }}">
+                            <!-- Time ago loaded via JS -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -959,7 +723,7 @@ HTML_UR_FC = """
             <h2 class="section-title">Pemain TAHKIL FC</h2>
             <div class="horizontal-scroll-container">
                 {% for player in data['personnel']['player'] %}
-                <div class="person-card" onclick="openPersonModal('{{ player.id }}', '{{ player.name }}', '{{ player.position }}', '{{ '/uploads/' + player.image_path if player.image_path else '' }}')">
+                <div class="person-card" onclick="openPersonModal('{{ player.id }}', '{{ player.name }}', '{{ player.position }}', '{{ '/uploads/' + player.image_path if player.image_path else '' }}', '{{ player.nationality }}', '{{ player.joined }}', '{{ player.matches }}', '{{ player.goals }}')">
                     {% if player.image_path %}
                         <img src="/uploads/{{ player.image_path }}" class="person-img">
                     {% else %}
@@ -981,7 +745,7 @@ HTML_UR_FC = """
                 </div>
                 {% endfor %}
                 {% if admin %}
-                <div class="person-card d-flex align-items-center justify-content-center" onclick="addPerson('player')">
+                <div class="person-card d-flex align-items-center justify-content-center" onclick="addCard('personnel', 'player')">
                     <i class="fas fa-plus fa-3x text-success"></i>
                 </div>
                 {% endif %}
@@ -995,7 +759,7 @@ HTML_UR_FC = """
             <h2 class="section-title">Pelatih TAHKIL FC</h2>
             <div class="horizontal-scroll-container">
                 {% for coach in data['personnel']['coach'] %}
-                <div class="person-card" onclick="openPersonModal('{{ coach.id }}', '{{ coach.name }}', '{{ coach.position }}', '{{ '/uploads/' + coach.image_path if coach.image_path else '' }}')">
+                <div class="person-card" onclick="openPersonModal('{{ coach.id }}', '{{ coach.name }}', '{{ coach.position }}', '{{ '/uploads/' + coach.image_path if coach.image_path else '' }}', '{{ coach.nationality }}', '{{ coach.joined }}', '{{ coach.matches }}', '{{ coach.goals }}')">
                     <img src="{{ '/uploads/' + coach.image_path if coach.image_path else '' }}" class="person-img" style="background:#333">
                     <div class="person-info">
                         <div class="person-name">{{ coach.name }}</div>
@@ -1010,6 +774,11 @@ HTML_UR_FC = """
                     {% endif %}
                 </div>
                 {% endfor %}
+                {% if admin %}
+                <div class="person-card d-flex align-items-center justify-content-center" onclick="addCard('personnel', 'coach')">
+                    <i class="fas fa-plus fa-3x text-success"></i>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -1020,7 +789,7 @@ HTML_UR_FC = """
             <h2 class="section-title">Pemain MVP TAHKIL FC</h2>
             <div class="horizontal-scroll-container">
                 {% for mvp in data['personnel']['mvp'] %}
-                <div class="person-card" onclick="openPersonModal('{{ mvp.id }}', '{{ mvp.name }}', '{{ mvp.position }}', '{{ '/uploads/' + mvp.image_path if mvp.image_path else '' }}')">
+                <div class="person-card" onclick="openPersonModal('{{ mvp.id }}', '{{ mvp.name }}', '{{ mvp.position }}', '{{ '/uploads/' + mvp.image_path if mvp.image_path else '' }}', '{{ mvp.nationality }}', '{{ mvp.joined }}', '{{ mvp.matches }}', '{{ mvp.goals }}')">
                     <img src="{{ '/uploads/' + mvp.image_path if mvp.image_path else '' }}" class="person-img" style="background:#333">
                     <div class="person-info">
                         <div class="person-name">{{ mvp.name }}</div>
@@ -1036,7 +805,7 @@ HTML_UR_FC = """
                 </div>
                 {% endfor %}
                  {% if admin %}
-                <div class="person-card d-flex align-items-center justify-content-center" onclick="addPerson('mvp')">
+                <div class="person-card d-flex align-items-center justify-content-center" onclick="addCard('personnel', 'mvp')">
                     <i class="fas fa-plus fa-3x text-warning"></i>
                 </div>
                 {% endif %}
@@ -1044,7 +813,7 @@ HTML_UR_FC = """
         </div>
     </div>
     
-    <!-- AGENDA LATIHAN (CALENDAR STYLE) -->
+    <!-- AGENDA -->
     <div class="container py-5" id="agenda-latihan">
         <div class="row">
             <div class="col-lg-12">
@@ -1063,7 +832,6 @@ HTML_UR_FC = """
                         <div class="col-md-4">
                             <div class="agenda-card-barca">
                                 <div class="agenda-img" style="position:relative;">
-                                    <!-- Use existing upload mechanism for agenda images via JS logic if needed, or simple placeholder -->
                                     <img src="{{ '/uploads/' + item.id + '.jpg' }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
                                 </div>
                                 <div class="agenda-details">
@@ -1083,7 +851,7 @@ HTML_UR_FC = """
         </div>
     </div>
     
-    <!-- TURNAMEN (NEXT AGENDA) -->
+    <!-- TURNAMEN -->
     <div class="container py-5" id="turnamen">
         <h2 class="section-title">Turnamen</h2>
         <div class="row">
@@ -1105,6 +873,8 @@ HTML_UR_FC = """
         <button class="btn btn-outline-success mt-3" onclick="addCard('agenda', 2)">+ Add Tournament Item</button>
         {% endif %}
     </div>
+
+    <!-- MODALS -->
 
     <!-- PERSON MODAL -->
     <div id="person-modal" class="modal-overlay" onclick="closePersonModal()">
@@ -1154,8 +924,40 @@ HTML_UR_FC = """
                 <button class="modal-btn btn-save" onclick="saveNextMatch()">Save</button>
             </div>
             {% else %}
-            <p id="next-match-view" class="fs-4"></p>
+            <p id="next-match-view" class="fs-4 fw-bold"></p>
             {% endif %}
+        </div>
+    </div>
+
+    <!-- HISTORY MODAL -->
+    <div id="history-modal" class="modal-overlay" onclick="closeHistoryModal()">
+        <div class="modal-content-custom" onclick="event.stopPropagation()">
+            <h2 style="color:var(--gold);">Sejarah TAHKIL FC</h2>
+            <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" style="width:150px; display:block; margin:20px auto;">
+
+            {% if admin %}
+            <textarea id="history-text-input" class="form-control mb-3" rows="6"></textarea>
+            <div>
+                <button class="modal-btn btn-cancel" onclick="closeHistoryModal()">Cancel</button>
+                <button class="modal-btn btn-save" onclick="saveHistory()">Save</button>
+            </div>
+            {% else %}
+            <p id="history-text-view" style="white-space: pre-line;">{{ data['settings'].get('history_text', '') }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- NEWS DETAIL MODAL -->
+    <div id="news-modal" class="modal-overlay" onclick="document.getElementById('news-modal').style.display='none'">
+        <div class="modal-content-custom" onclick="event.stopPropagation()" style="text-align:left;">
+            <img id="news-modal-img" src="" style="width:100%; height:250px; object-fit:cover; border-radius:8px; mb-3;">
+            <h3 id="news-modal-title" class="fw-bold mt-3 text-uppercase" style="color:var(--green)"></h3>
+            <p id="news-modal-subtitle" class="lead text-muted"></p>
+            <hr>
+            <p class="text-muted small">Full news content would go here...</p>
+            <div class="text-center mt-3">
+                <button class="btn btn-secondary" onclick="document.getElementById('news-modal').style.display='none'">Close</button>
+            </div>
         </div>
     </div>
     
@@ -1167,25 +969,53 @@ HTML_UR_FC = """
     <footer class="bg-black text-white py-5 text-center mt-5">
         <div class="container">
             <h3 class="fw-bold mb-3">TAHFIZH <span class="text-warning">KILAT FC</span></h3>
-            <p>&copy; 2026 TAHKIL FC. All rights reserved.</p>
+            <p contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('site_settings', 'footer_text', 'value', this)">
+                {{ data['settings'].get('footer_text', '© 2026 TAHKIL FC. All rights reserved.') }}
+            </p>
         </div>
     </footer>
 
     <script>
-        // UI Interactions
-        function toggleMobileMenu() {
-            document.getElementById('mobile-menu').classList.toggle('active');
-        }
-        
+        // --- UI UTILS ---
+        function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('active'); }
         function toggleLogoPopup() {
             const popup = document.getElementById('logo-popup');
-            if(popup.style.display === 'flex') popup.style.display = 'none';
-            else popup.style.display = 'flex';
+            popup.style.display = (popup.style.display === 'flex') ? 'none' : 'flex';
         }
 
-        // API Interactions
-        function saveText(table, id, field, el) {
-            let value = el.innerText || el.value;
+        // --- TIME AGO LOGIC ---
+        function timeAgo(dateString) {
+            if (!dateString) return "";
+            const date = new Date(dateString + "Z"); // Assume UTC if not specified
+            const now = new Date();
+            const seconds = Math.floor((now - date) / 1000);
+
+            let interval = seconds / 31536000;
+            if (interval > 1) return Math.floor(interval) + " tahun lalu";
+            interval = seconds / 2592000;
+            if (interval > 1) return Math.floor(interval) + " bulan lalu";
+            interval = seconds / 86400;
+            if (interval > 3) return date.toLocaleDateString(); // > 3 days, show date
+            if (interval > 1) return Math.floor(interval) + " hari lalu";
+            interval = seconds / 3600;
+            if (interval > 1) return Math.floor(interval) + " jam lalu";
+            interval = seconds / 60;
+            if (interval > 1) return Math.floor(interval) + " menit lalu";
+            return "Baru saja";
+        }
+
+        // Apply Time Ago
+        document.querySelectorAll('[data-updated]').forEach(el => {
+            const ts = el.getAttribute('data-updated');
+            if(ts && ts != 'None') el.innerText = timeAgo(ts.replace(" ", "T"));
+        });
+
+        // --- API & SAVING ---
+        function saveText(table, id, field, el_or_obj) {
+            let value;
+            if (el_or_obj.value !== undefined) value = el_or_obj.value;
+            else value = el_or_obj.innerText;
+
             fetch('/api/update-text', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -1193,179 +1023,127 @@ HTML_UR_FC = """
             });
         }
         
-        function addPerson(role) {
-            fetch('/api/add-card', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ type: 'personnel', role })
-            }).then(() => location.reload());
-        }
-        
-        function addCard(type, section) {
+        function addCard(type, sectionOrRole) {
+             let body = { type };
+             if (type === 'agenda') body.section = sectionOrRole;
+             else if (type === 'personnel') body.role = sectionOrRole;
+
              fetch('/api/add-card', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ type, section })
+                body: JSON.stringify(body)
             }).then(() => location.reload());
         }
 
-        // Modals & UI Logic
+        // --- MODALS ---
         let currentPersonId = null;
 
-        // --- Person Modal ---
-        function openPersonModal(id, name, position, img) {
+        function openPersonModal(id, name, position, img, nat, joined, matches, goals) {
             currentPersonId = id;
             document.getElementById('pm-img').src = img || '{{ url_for("static", filename="logo-tahkil-fc.png") }}';
             document.getElementById('person-modal').style.display = 'flex';
             
-            // Fetch fresh data for detailed fields (Optional: could preload, but fetch is safer for updates)
-            // For now, we use placeholders or DOM if available, but ideally fetch from server.
-            // Since we don't have a dedicated "get single person" API, we can reload or just assume current DOM state.
-            // However, the requested fields (Nat, Join, etc) are not in the list view DOM.
-            // We'll implemented a quick fetch or just use defaults until saved.
-            // BETTER APPROACH: Pass them in onclick? Too messy. 
-            // LET'S FETCH: We need a small endpoint or just pass generic for now.
-            // Given constraints, I will assume empty defaults for now, admin updates them.
-            
-            // To make it work smoothly without new read-API:
-            // I'll rely on what's available. If admin, they enter new.
-            
-            if (document.getElementById('pm-name-input')) {
-                // Admin Mode
+            if (document.getElementById('pm-name-input')) { // Admin
                 document.getElementById('pm-name-input').value = name;
                 document.getElementById('pm-pos-input').value = position;
-                // These might need to be fetched if not passed. 
-                // Creating a trick: The data IS in the python 'data' object but not fully rendered in the loop attributes.
-                // I will update the 'onclick' in Python to pass these values? 
-                // No, string replacement is fragile.
-                // Alternative: Client side array.
-            } else {
-                // View Mode
+                document.getElementById('pm-nat-input').value = nat || 'Indonesia';
+                document.getElementById('pm-join-input').value = joined || '2024';
+                document.getElementById('pm-match-input').value = matches || '0';
+                document.getElementById('pm-goal-input').value = goals || '0';
+            } else { // View
                 document.getElementById('pm-name').innerText = name;
                 document.getElementById('pm-role').innerText = position;
+                document.getElementById('pm-nat').innerText = nat || 'Indonesia';
+                document.getElementById('pm-join').innerText = joined || '2024';
+                document.getElementById('pm-match').innerText = matches || '0';
+                document.getElementById('pm-goal').innerText = goals || '0';
             }
         }
-        
-        function closePersonModal() {
-            document.getElementById('person-modal').style.display = 'none';
-        }
+        function closePersonModal() { document.getElementById('person-modal').style.display = 'none'; }
 
         function savePersonFull() {
             if(!currentPersonId) return;
-            const name = document.getElementById('pm-name-input').value;
-            const position = document.getElementById('pm-pos-input').value;
-            const nationality = document.getElementById('pm-nat-input').value;
-            const joined = document.getElementById('pm-join-input').value;
-            const matches = document.getElementById('pm-match-input').value;
-            const goals = document.getElementById('pm-goal-input').value;
-            
-            // Chain promises or use multiple fetches (Simple)
-            saveText('personnel', currentPersonId, 'name', {value: name}); // adapter
-            saveText('personnel', currentPersonId, 'position', {value: position});
-            saveText('personnel', currentPersonId, 'nationality', {value: nationality});
-            saveText('personnel', currentPersonId, 'joined', {value: joined});
-            saveText('personnel', currentPersonId, 'matches', {value: matches});
-            saveText('personnel', currentPersonId, 'goals', {value: goals});
-            
-            setTimeout(() => location.reload(), 500); // Reload to see changes
+            // Simple sequential saves
+            ['name', 'position', 'nationality', 'joined', 'matches', 'goals'].forEach(field => {
+                let suffix = (field === 'name' || field === 'position') ? '-input' : '-input'; // correction: IDs use short codes
+                let idMap = {'name':'pm-name-input', 'position':'pm-pos-input', 'nationality':'pm-nat-input', 'joined':'pm-join-input', 'matches':'pm-match-input', 'goals':'pm-goal-input'};
+                let val = document.getElementById(idMap[field]).value;
+                saveText('personnel', currentPersonId, field, {value: val});
+            });
+            setTimeout(() => location.reload(), 500);
         }
 
-        // --- Next Match Modal ---
+        // Next Match
         function openNextMatchModal() {
             const currentText = document.getElementById('next-match-display').innerText;
-            const modal = document.getElementById('next-match-modal');
-            modal.style.display = 'flex';
-            
+            document.getElementById('next-match-modal').style.display = 'flex';
             if (document.getElementById('next-match-input')) {
                 document.getElementById('next-match-input').value = currentText;
             } else {
                 document.getElementById('next-match-view').innerText = currentText;
             }
         }
-        
-        function closeNextMatchModal() {
-            document.getElementById('next-match-modal').style.display = 'none';
-        }
-        
+        function closeNextMatchModal() { document.getElementById('next-match-modal').style.display = 'none'; }
         function saveNextMatch() {
             const val = document.getElementById('next-match-input').value;
-            // Saving to 'site_settings' with key 'next_match_text'
-            // NOTE: The Python code uses 'next_match_time' for the countdown.
-            // This text is display only.
             fetch('/api/update-text', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ table: 'site_settings', id: 'next_match_text', value: val })
             }).then(() => location.reload());
         }
 
-        // --- History Modal ---
+        // History
         function openHistoryModal() {
             document.getElementById('history-modal').style.display = 'flex';
-            const val = "{{ data['settings'].get('history_text', '') | replace('\n', '\\n') | replace('"', '\\"') }}";
+            // Value is pre-rendered in hidden variable or pulled from DOM?
+            // Better to pull from settings object exposed to JS
+            // But we can just use the rendered view text if not admin
+
+            // For admin, we want the raw value.
+            // A simple hack: we use the value passed in JS or render it into a hidden div.
+            // Let's grab it from a JS variable injection.
+             const val = `{{ data['settings'].get('history_text', '') | safe }}`;
              if (document.getElementById('history-text-input')) {
                 document.getElementById('history-text-input').value = val;
             } 
         }
-        
-        function closeHistoryModal() {
-            document.getElementById('history-modal').style.display = 'none';
-        }
-        
+        function closeHistoryModal() { document.getElementById('history-modal').style.display = 'none'; }
         function saveHistory() {
              const val = document.getElementById('history-text-input').value;
              fetch('/api/update-text', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ table: 'site_settings', id: 'history_text', value: val })
             }).then(() => location.reload());
         }
-        
-        // --- Helper Override ---
-        // Overriding saveText to be more flexible if needed, 
-        // but keeping signature for backward compatibility with inline edits
-        function saveText(table, id, field, el_or_obj) {
-            let value;
-            if (el_or_obj.value !== undefined) value = el_or_obj.value;
-            else value = el_or_obj.innerText;
-            
-            fetch('/api/update-text', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ table, id, field, value })
-            });
+
+        // News Modal
+        function openNewsModal(title, subtitle, img) {
+            document.getElementById('news-modal-title').innerText = title;
+            document.getElementById('news-modal-subtitle').innerText = subtitle;
+            document.getElementById('news-modal-img').src = img || '{{ url_for("static", filename="logo-tahkil-fc.png") }}';
+            document.getElementById('news-modal').style.display = 'flex';
         }
 
-        // Countdown Logic
+        // Countdown
         const targetDate = new Date("{{ data['settings']['next_match_time'] }}").getTime();
-        
         setInterval(() => {
             const now = new Date().getTime();
             const distance = targetDate - now;
-            
             if (distance < 0) {
                 document.getElementById("countdown").innerHTML = "MATCH DAY!";
                 return;
             }
-            
             const days = Math.floor(distance / (1000 * 60 * 60 * 24));
             const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-            
             document.getElementById("countdown").innerHTML = days + "d " + hours + "h " + minutes + "m " + seconds + "s ";
         }, 1000);
-        
-        // Hover effects for news cards (Animation)
+
+        // Hover Animation
         document.querySelectorAll('.sub-news-card').forEach(card => {
-            card.addEventListener('mouseenter', () => {
-                card.style.transform = 'scale(1.05)';
-                card.style.zIndex = '10';
-            });
-            card.addEventListener('mouseleave', () => {
-                card.style.transform = 'scale(1)';
-                card.style.zIndex = '1';
-            });
+            card.addEventListener('mouseenter', () => { card.style.transform = 'scale(1.05)'; card.style.zIndex = '10'; });
+            card.addEventListener('mouseleave', () => { card.style.transform = 'scale(1)'; card.style.zIndex = '1'; });
         });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
