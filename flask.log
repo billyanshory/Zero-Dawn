@@ -1,0 +1,53 @@
+ * Serving Flask app 'tools-blue-akrilik-9'
+ * Debug mode: on
+Address already in use
+Port 5000 is in use by another program. Either identify and stop that program, or start the server with a different port.
+127.0.0.1 - - [03/Jan/2026 22:37:21] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jan/2026 22:37:22] "[33mGET /uploads/default.jpg HTTP/1.1[0m" 404 -
+127.0.0.1 - - [03/Jan/2026 22:38:05] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jan/2026 22:38:05] "GET /uploads/test_audio.mp3 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jan/2026 22:38:05] "[33mGET /uploads/default.jpg HTTP/1.1[0m" 404 -
+ * Detected change in '/app/tools-blue-akrilik-9.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 132-491-319
+127.0.0.1 - - [06/Jan/2026 03:41:48] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 03:41:48] "GET /uploads/test_audio.mp3 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 03:41:48] "[33mGET /uploads/default.jpg HTTP/1.1[0m" 404 -
+127.0.0.1 - - [06/Jan/2026 03:42:11] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 03:42:11] "GET /uploads/test_audio.mp3 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 03:42:11] "[33mGET /uploads/default.jpg HTTP/1.1[0m" 404 -
+ * Detected change in '/app/tools-blue-akrilik-9.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 132-491-319
+127.0.0.1 - - [06/Jan/2026 04:28:04] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 04:28:04] "GET /uploads/test_audio.mp3 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 04:28:04] "[33mGET /uploads/default.jpg HTTP/1.1[0m" 404 -
+127.0.0.1 - - [06/Jan/2026 04:28:23] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 04:28:23] "GET /uploads/test_audio.mp3 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 04:28:23] "[33mGET /uploads/default.jpg HTTP/1.1[0m" 404 -
+ * Detected change in '/app/tools-blue-akrilik-9.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 132-491-319
+127.0.0.1 - - [06/Jan/2026 06:35:19] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 06:35:19] "GET /uploads/test_audio.mp3 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 06:35:19] "[33mGET /uploads/default.jpg HTTP/1.1[0m" 404 -
+127.0.0.1 - - [06/Jan/2026 06:35:35] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 06:35:35] "GET /uploads/test_audio.mp3 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 06:35:35] "[33mGET /uploads/default.jpg HTTP/1.1[0m" 404 -
+ * Detected change in '/app/tools-blue-akrilik-9.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 132-491-319
+127.0.0.1 - - [06/Jan/2026 06:36:04] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 06:36:04] "GET /uploads/test_audio.mp3 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 06:36:04] "[33mGET /uploads/default.jpg HTTP/1.1[0m" 404 -
+ * Detected change in '/app/tools-blue-akrilik-9.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 132-491-319
+127.0.0.1 - - [06/Jan/2026 08:35:16] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 08:35:16] "GET /uploads/test_audio.mp3 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jan/2026 08:35:16] "[33mGET /uploads/default.jpg HTTP/1.1[0m" 404 -
