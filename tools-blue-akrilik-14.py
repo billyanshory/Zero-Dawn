@@ -912,6 +912,11 @@ HTML_WALLPAPER = """
                 <button type="button" class="acrylic-btn" onclick="enterCleanMode()">
                     <i class="fas fa-broom me-2"></i> Set Clean
                 </button>
+
+                <!-- Set Vibration Button -->
+                <button type="button" class="acrylic-btn" onclick="toggleVibration()" id="btn-vibration">
+                    <i class="fas fa-mobile-alt me-2"></i> Vibration
+                </button>
             </div>
             
             {% if audio_file %}
@@ -990,6 +995,47 @@ HTML_WALLPAPER = """
                 const fullscreenBtn = document.getElementById('fullscreen-btn');
                 const fsLockIcon = document.getElementById('fs-lock-icon');
                 const blurPanel = document.getElementById('blur-panel');
+
+                // VIBRATION LOGIC
+                let isVibrationEnabled = false;
+                let lastVibrationTime = 0;
+
+                function toggleVibration() {
+                    isVibrationEnabled = !isVibrationEnabled;
+                    const btn = document.getElementById('btn-vibration');
+                    if (isVibrationEnabled) {
+                        btn.style.background = 'rgba(229, 50, 45, 0.4)'; // Highlight active
+                        if (navigator.vibrate) navigator.vibrate(50); // Test
+                    } else {
+                        btn.style.background = ''; // Reset
+                    }
+                }
+
+                function handleVibration(dataArray) {
+                    if (!isVibrationEnabled || !navigator.vibrate) return;
+
+                    const now = Date.now();
+                    // Throttle: Max 10 updates per second to be smooth but not overwhelming
+                    if (now - lastVibrationTime < 100) return;
+
+                    // Calculate average amplitude deviation from 128 (silence)
+                    let sum = 0;
+                    const len = dataArray.length;
+                    for(let i = 0; i < len; i++) {
+                        sum += Math.abs(dataArray[i] - 128);
+                    }
+                    const average = sum / len;
+
+                    // Threshold:
+                    // average can go up to ~128.
+                    // Let's set a low threshold to catch beats.
+                    if (average > 5) {
+                        // Duration proportional to intensity?
+                        // Just a short pulse for the "beat"
+                        navigator.vibrate(30);
+                        lastVibrationTime = now;
+                    }
+                }
                 
                 // Fullscreen Logic
                 function toggleFullScreen() {
@@ -1183,6 +1229,8 @@ HTML_WALLPAPER = """
                     const dataArray = new Uint8Array(bufferLength);
                     analyser.getByteTimeDomainData(dataArray);
                     
+                    handleVibration(dataArray);
+
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     ctx.lineWidth = 3;
                     ctx.strokeStyle = 'rgba(220, 220, 220, 0.6)';
