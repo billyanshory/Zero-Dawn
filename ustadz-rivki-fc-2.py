@@ -542,8 +542,8 @@ NAVBAR_HTML = """
             text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
         }
         .brand-verse {
-            color: #00f3ff;
-            text-shadow: 0 0 5px #00f3ff, 0 0 10px #00f3ff, 0 0 20px #00f3ff;
+            color: #FFD700;
+            text-shadow: 0 0 5px #FFD700, 0 0 10px #FFD700, 0 0 20px #FFD700;
             font-style: italic;
             font-family: 'Inter', sans-serif; /* Ensuring consistent font */
         }
@@ -558,16 +558,16 @@ NAVBAR_HTML = """
             text-shadow: 0 0 8px rgba(255,255,255,0.5);
         }
         .join-btn {
-            border: 1px solid #00f3ff;
-            color: #00f3ff !important;
+            border: 1px solid #FFD700;
+            color: #FFD700 !important;
             border-radius: 5px;
             padding: 5px 15px;
-            box-shadow: 0 0 5px rgba(0, 243, 255, 0.2);
+            box-shadow: 0 0 5px rgba(255, 215, 0, 0.2);
             transition: all 0.3s;
         }
         .join-btn:hover {
-            background: rgba(0, 243, 255, 0.1);
-            box-shadow: 0 0 15px rgba(0, 243, 255, 0.4);
+            background: rgba(255, 215, 0, 0.1);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
         }
         /* Mobile Menu Toggler White Fix */
         .navbar-toggler {
@@ -593,7 +593,10 @@ NAVBAR_HTML = """
     </style>
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
-            <a class="navbar-brand" href="/">Ustadz <span class="brand-verse">Rivki FC</span></a>
+            <a class="navbar-brand d-flex align-items-center" href="/">
+                <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" alt="Logo" style="height: 50px; margin-right: 10px;">
+                TAHFIZH <span class="brand-verse ps-2">KILAT FC</span>
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
             </button>
@@ -601,8 +604,8 @@ NAVBAR_HTML = """
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="#popular-games" onclick="smoothScroll(event, 'popular-games')">
-                            <span class="lang-id">Agenda Latihan</span>
-                            <span class="lang-en" style="display:none">Practice Agenda</span>
+                            <span class="lang-id">Agenda Latihan TAHKIL FC</span>
+                            <span class="lang-en" style="display:none">Practice Agenda TAHKIL FC</span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -621,8 +624,8 @@ NAVBAR_HTML = """
                 <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item">
                         <a class="nav-link join-btn" href="https://chat.whatsapp.com/invite/placeholder" target="_blank">
-                            <span class="lang-id">Gabung Grup Whatsapp UR FC</span>
-                            <span class="lang-en" style="display:none">Join UR FC WhatsApp Group</span>
+                            <span class="lang-id">Gabung Grup Whatsapp TAHKIL FC</span>
+                            <span class="lang-en" style="display:none">Join TAHKIL FC WhatsApp Group</span>
                         </a>
                     </li>
                 </ul>
@@ -646,14 +649,14 @@ NAVBAR_HTML = """
 STYLES_HTML = """
     <style>
         :root {
-            --brand-color: #E5322D;
-            --brand-hover: #c41b17;
+            --brand-color: #2ecc71;
+            --brand-hover: #27ae60;
             --bg-light: #f4f7fa;
             --card-bg: #ffffff;
             --text-dark: #333333;
             --text-muted: #666666;
-            --neon-blue: #00f3ff;
-            --neon-green: #00ff88;
+            --neon-blue: #FFD700;
+            --neon-green: #2ecc71;
         }
         /* Keep existing variable definitions */
         [data-bs-theme="dark"] {
@@ -671,7 +674,7 @@ STYLES_HTML = """
         
         .text-blue-neon {
             color: var(--neon-blue);
-            text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
         }
         
         .btn-cyan-neon {
@@ -681,13 +684,13 @@ STYLES_HTML = """
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 1px;
-            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
             transition: all 0.3s;
         }
         .btn-cyan-neon:hover {
             background: var(--neon-blue);
             color: black;
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.6);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
             transform: translateY(-2px);
         }
         
@@ -865,7 +868,9 @@ HTML_GAME_LIST = """
         
         /* Mini Card */
         .mini-card {
-            background: rgba(255, 255, 255, 0.05);
+            /* Dark card to maintain neon aesthetic contrast */
+            background: rgba(20, 20, 20, 0.85);
+            color: white; /* Force white text inside cards */
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
@@ -1412,25 +1417,29 @@ HTML_UR_FC = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ustadz Rivki FC</title>
-    <link rel="shortcut icon" href="{{ url_for('static', filename='ikon_rss.ico') }}">
+    <title>TAHFIZH KILAT FC</title>
+    <link rel="shortcut icon" href="{{ url_for('static', filename='logo-tahkil-fc.png') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     {{ styles|safe }}
     <style>
         body {
-            background-color: #050505;
-            background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop');
-            background-size: cover;
+            background-color: #FFFFFF;
+            background-image: url("{{ url_for('static', filename='logo-tahkil-fc.png') }}");
+            background-size: contain;
             background-attachment: fixed;
             background-position: center;
-            color: white;
+            background-repeat: no-repeat;
+            color: #333333; /* Dark text for readability on white bg */
         }
         .acrylic-overlay-page {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
+            /* Lighter overlay for light mode, or keep dark if we want dark mode on white? */
+            /* User asked for White background outside logo. If we put dark overlay, it becomes grey. */
+            /* Let's make it very light to show the white background */
+            background: rgba(255, 255, 255, 0.3);
             backdrop-filter: blur(20px);
             z-index: -1;
         }
@@ -1476,7 +1485,9 @@ HTML_UR_FC = """
         
         /* Mini Card */
         .mini-card {
-            background: rgba(255, 255, 255, 0.05);
+            /* Dark card to maintain neon aesthetic contrast */
+            background: rgba(20, 20, 20, 0.85);
+            color: white; /* Force white text inside cards */
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
@@ -1532,12 +1543,12 @@ HTML_UR_FC = """
         
         /* Add Card Button Style */
         .add-card-btn {
-            background: rgba(0, 243, 255, 0.1);
-            border: 2px dashed #00f3ff;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px dashed #FFD700;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #00f3ff;
+            color: #FFD700;
             font-size: 2rem;
             cursor: pointer;
             transition: 0.3s;
@@ -1545,8 +1556,8 @@ HTML_UR_FC = """
             border-radius: 12px;
         }
         .add-card-btn:hover {
-            background: rgba(0, 243, 255, 0.2);
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
         }
 
         /* Modal Overlay */
@@ -1677,8 +1688,8 @@ HTML_UR_FC = """
             margin-bottom: 10px;
         }
         .footer-logo span {
-            color: #00f3ff;
-            text-shadow: 0 0 5px #00f3ff, 0 0 10px #00f3ff, 0 0 20px #00f3ff;
+            color: #FFD700;
+            text-shadow: 0 0 5px #FFD700, 0 0 10px #FFD700, 0 0 20px #FFD700;
             font-style: italic;
             font-family: 'Inter', sans-serif;
         }
@@ -1704,8 +1715,8 @@ HTML_UR_FC = """
             display: inline-block;
         }
         [contenteditable="true"]:focus {
-            outline: 1px solid #00f3ff;
-            background: rgba(0, 243, 255, 0.1);
+            outline: 1px solid #FFD700;
+            background: rgba(255, 215, 0, 0.1);
         }
         
         /* Language Toggle Classes */
@@ -1737,8 +1748,8 @@ HTML_UR_FC = """
         <!-- SECTION 1: AGENDA LATIHAN -->
         <div class="section-header mb-4" id="popular-games">
             <h2 class="fw-bold">
-                <span class="lang-id">Agenda Latihan <span class="text-blue-neon" style="border-bottom: 3px solid #00f3ff;">UR FC</span></span>
-                <span class="lang-en">Training Agenda <span class="text-blue-neon" style="border-bottom: 3px solid #00f3ff;">UR FC</span></span>
+                <span class="lang-id">Agenda Latihan <span class="text-blue-neon" style="border-bottom: 3px solid #FFD700;">TAHKIL FC</span></span>
+                <span class="lang-en">Training Agenda <span class="text-blue-neon" style="border-bottom: 3px solid #FFD700;">TAHKIL FC</span></span>
             </h2>
         </div>
 
@@ -1775,8 +1786,8 @@ HTML_UR_FC = """
         <!-- SECTION 2: NEXT AGENDA -->
         <div class="section-header mt-5 mb-4" id="next-agenda">
             <h2 class="fw-bold">
-                <span class="lang-id">Next <span class="text-blue-neon" style="border-bottom: 3px solid #00f3ff;">Agenda</span></span>
-                <span class="lang-en">Next <span class="text-blue-neon" style="border-bottom: 3px solid #00f3ff;">Agenda</span></span>
+                <span class="lang-id">Next <span class="text-blue-neon" style="border-bottom: 3px solid #FFD700;">Agenda</span></span>
+                <span class="lang-en">Next <span class="text-blue-neon" style="border-bottom: 3px solid #FFD700;">Agenda</span></span>
             </h2>
         </div>
         <div class="games-grid" id="grid-next-agenda">
@@ -1810,8 +1821,8 @@ HTML_UR_FC = """
 
         <footer class="acrylic-footer" id="footer-social">
             <div class="container">
-                <div class="footer-logo">Ustadz <span>Rivki FC</span></div>
-                <p>&copy; 2026 UR FC. All rights reserved.</p>
+                <div class="footer-logo">TAHFIZH <span>KILAT FC</span></div>
+                <p>&copy; 2026 TAHKIL FC. All rights reserved.</p>
                 <div class="social-icons">
                     <!-- WA: Direct to number -->
                     <a href="https://wa.me/6281528455350" target="_blank" style="text-decoration:none;"><i class="fab fa-whatsapp social-icon"></i></a>
