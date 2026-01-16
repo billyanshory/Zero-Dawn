@@ -76,13 +76,18 @@ def init_db():
     except: pass
     try: c.execute("ALTER TABLE agenda_content ADD COLUMN event_date TEXT")
     except: pass
+    try: c.execute("ALTER TABLE agenda_content ADD COLUMN details TEXT")
+    except: pass
 
     # Sponsors
     c.execute('''CREATE TABLE IF NOT EXISTS sponsors (
                     id TEXT PRIMARY KEY,
                     name TEXT,
-                    image_path TEXT
+                    image_path TEXT,
+                    size INTEGER DEFAULT 80
                 )''')
+    try: c.execute("ALTER TABLE sponsors ADD COLUMN size INTEGER DEFAULT 80")
+    except: pass
     
     # Site Settings
     c.execute('''CREATE TABLE IF NOT EXISTS site_settings (
@@ -249,6 +254,29 @@ def upload_image(type, id):
             c.execute("UPDATE sponsors SET image_path = ? WHERE id = ?", (filename, id))
         elif type == 'history':
             c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", ('history_image', filename))
+        elif type == 'agenda':
+            # agenda or turnamen items
+            c.execute("INSERT OR IGNORE INTO agenda_content (id) VALUES (?)", (id,))
+            # Only update image, create file if not exists
+            # We assume agenda_content stores image implies implicit association or we use file naming
+            # Actually frontend uses /uploads/id.jpg usually.
+            # But the upload_image function saves as type_id_timestamp.
+            # We need to standardize.
+            # The current frontend for agenda uses: '/uploads/' + item.id + '.jpg'
+            # We should update that to use a DB field if we want dynamic uploads with timestamps,
+            # OR we just overwrite the specific file.
+            # The prompt says "buat admin bisa mengupload dan mengganti".
+            # Let's save the filename in a new column 'image_path' for agenda_content OR just rename to ID.jpg to keep it simple with existing code?
+            # Existing code: <img src="{{ '/uploads/' + item.id + '.jpg' }}"
+            # If we change to random filename, we need a column.
+            # Let's add 'image_path' to agenda_content in a migration?
+            # Wait, user said "pertahankan code".
+            # If I add a column, I change logic.
+            # Easiest way: Save as `id.jpg` (overwrite).
+            filename = f"{id}.jpg" # Force filename to ID.jpg for agenda to match existing frontend logic
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            # No DB update needed for image path if we stick to ID.jpg convention
             
         conn.commit()
         conn.close()
@@ -265,7 +293,7 @@ def api_update_text():
     value = data.get('value')
 
     allowed_tables = ['news_content', 'personnel', 'agenda_content', 'sponsors', 'site_settings']
-    allowed_fields = ['title', 'subtitle', 'category', 'name', 'position', 'role', 'status', 'price', 'value', 'nationality', 'joined', 'matches', 'goals', 'event_date', 'details']
+    allowed_fields = ['title', 'subtitle', 'category', 'name', 'position', 'role', 'status', 'price', 'value', 'nationality', 'joined', 'matches', 'goals', 'event_date', 'details', 'size']
 
     if table not in allowed_tables:
         return jsonify({'error': 'Invalid table'}), 400
@@ -456,8 +484,8 @@ NAVBAR_HTML = """
         <a href="#coaches" class="nav-item-custom">Pelatih</a>
         <a href="#mvp" class="nav-item-custom">MVP</a>
         <a href="#agenda-latihan" class="nav-item-custom">Agenda Latihan</a>
-        <a href="#turnamen" class="nav-item-custom">Turnamen</a>
-        <a href="#sponsors" class="nav-item-custom">Sponsors</a>
+        <a href="#main-partners" class="nav-item-custom">Turnamen</a>
+        <a href="#main-partners" class="nav-item-custom">Sponsors</a>
     </div>
     <button class="d-lg-none btn border-0" onclick="toggleMobileMenu()"><i class="fas fa-bars fa-2x"></i></button>
     <div class="navbar-split-border"></div>
@@ -470,8 +498,8 @@ NAVBAR_HTML = """
     <a href="#coaches" class="mobile-nav-link">Pelatih</a>
     <a href="#mvp" class="mobile-nav-link">MVP</a>
     <a href="#agenda-latihan" class="mobile-nav-link">Agenda Latihan</a>
-    <a href="#turnamen" class="mobile-nav-link">Turnamen</a>
-    <a href="#sponsors" class="mobile-nav-link">Sponsors</a>
+    <a href="#main-partners" class="mobile-nav-link">Turnamen</a>
+    <a href="#main-partners" class="mobile-nav-link">Sponsors</a>
     
     <div class="mt-auto d-flex flex-column gap-3">
         <div class="history-btn justify-content-center" onclick="openHistoryModal()">
@@ -666,7 +694,9 @@ STYLES_HTML = """
     }
     
     .sponsor-logo-small {
-        width: 80px; height: 80px; object-fit: contain; border-radius: 50%;
+        /* Default size, but overridden by inline styles */
+        width: 80px; height: 80px;
+        object-fit: contain; border-radius: 50%;
         background: white; padding: 5px; margin: 5px; transition: 0.3s; filter: grayscale(100%);
     }
     .sponsor-logo-small:hover { filter: none; transform: scale(1.1); }
@@ -787,7 +817,7 @@ HTML_UR_FC = """
                         <img src="{{ '/uploads/' + news_item.image_path if news_item.image_path else '' }}" style="width:100%; height:100%; object-fit:cover;">
                     </div>
                     <div class="p-3 flex-grow-1">
-                        <span class="text-success fw-bold d-block mb-1 fs-5">
+                        <span class="text-success fw-bold d-block mb-1" style="font-size: 1rem; line-height: 1.2;">
                               {{ news_item.title }}
                         </span> 
                         
@@ -810,18 +840,23 @@ HTML_UR_FC = """
                 <span class="fw-bold text-uppercase me-3" style="font-size: 1.1rem; letter-spacing: 1px;">Main Partners</span>
                 <span class="fs-4 text-muted">|</span>
             </div>
-            <div class="d-flex flex-wrap justify-content-center align-items-center gap-2">
+            <div class="d-flex flex-wrap justify-content-center align-items-center gap-4">
                 {% for sponsor in data['sponsors'] %}
-                <div class="position-relative d-flex align-items-center">
+                <div class="position-relative d-flex align-items-center flex-column">
+                    {% set size = sponsor.size if sponsor.size else 80 %}
                     <img src="{{ '/uploads/' + sponsor.image_path if sponsor.image_path else 'https://via.placeholder.com/100x100?text=SPONSOR' }}" 
-                         class="sponsor-logo-small">
+                         class="sponsor-logo-small" style="width: {{ size }}px; height: {{ size }}px;">
                     {% if admin %}
-                    <div class="position-absolute top-0 start-50 translate-middle-x d-flex gap-1">
+                    <div class="position-absolute top-0 start-50 translate-middle-x d-flex gap-1" style="z-index: 10;">
                         <form action="/upload/sponsor/{{ sponsor.id }}" method="post" enctype="multipart/form-data">
                             <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="sp-{{ sponsor.id }}">
                             <label for="sp-{{ sponsor.id }}" class="badge bg-secondary cursor-pointer"><i class="fas fa-edit"></i></label>
                         </form>
                         <button class="trash-btn" onclick="deleteItem('sponsors', '{{ sponsor.id }}')"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <div class="mt-2">
+                        <input type="range" class="form-range" min="40" max="200" step="10" value="{{ size }}" style="width: 80px;"
+                               onchange="saveText('sponsors', '{{ sponsor.id }}', 'size', this)">
                     </div>
                     {% endif %}
                 </div>
@@ -961,21 +996,27 @@ HTML_UR_FC = """
                     <div class="row">
                         {% for item in agenda_latihan %}
                         <div class="col-md-4">
-                            <div class="agenda-card-barca">
+                            <div class="agenda-card-barca cursor-pointer" onclick="openAgendaModal('{{ item.id }}', '{{ item.title }}', '{{ item.event_date }}')">
                                 <div class="agenda-img" style="position:relative;">
                                     <img src="{{ '/uploads/' + item.id + '.jpg' }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
+                                    {% if admin %}
+                                    <form action="/upload/agenda/{{ item.id }}" method="post" enctype="multipart/form-data" onclick="event.stopPropagation()">
+                                        <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="ag-{{ item.id }}">
+                                        <label for="ag-{{ item.id }}" class="position-absolute top-0 start-0 m-1 badge bg-success"><i class="fas fa-camera"></i></label>
+                                    </form>
+                                    {% endif %}
                                 </div>
                                 <div class="agenda-details">
                                     {% if admin %}
-                                    <input type="datetime-local" class="form-control form-control-sm mb-1" value="{{ item.event_date }}" onchange="saveText('agenda_content', '{{ item.id }}', 'event_date', this)">
+                                    <input type="datetime-local" class="form-control form-control-sm mb-1" value="{{ item.event_date }}" onchange="saveText('agenda_content', '{{ item.id }}', 'event_date', this); event.stopPropagation();" onclick="event.stopPropagation()">
                                     {% else %}
                                     <div class="agenda-date">{{ item.event_date | replace('T', ' ') if item.event_date else 'Date TBD' }}</div>
                                     {% endif %}
-                                    <div class="agenda-title" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'title', this)">{{ item.title }}</div>
-                                    <small class="text-muted" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'price', this)">{{ item.price }}</small>
+                                    <div class="agenda-title" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'title', this); event.stopPropagation();" onclick="event.stopPropagation()">{{ item.title }}</div>
+                                    <small class="text-muted" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'price', this); event.stopPropagation();" onclick="event.stopPropagation()">{{ item.price }}</small>
                                 </div>
                                 {% if admin %}
-                                <button class="position-absolute top-0 end-0 btn btn-sm btn-danger m-1" style="z-index:5;" onclick="deleteItem('agenda_content', '{{ item.id }}')"><i class="fas fa-trash"></i></button>
+                                <button class="position-absolute top-0 end-0 btn btn-sm btn-danger m-1" style="z-index:5;" onclick="deleteItem('agenda_content', '{{ item.id }}'); event.stopPropagation();"><i class="fas fa-trash"></i></button>
                                 {% endif %}
                             </div>
                         </div>
@@ -989,29 +1030,35 @@ HTML_UR_FC = """
         </div>
     </div>
     
-    <!-- TURNAMEN -->
-    <div class="container py-5" id="turnamen">
-        <h2 class="section-title">Turnamen</h2>
+    <!-- MAIN PARTNERS (Was TURNAMEN) -->
+    <div class="container py-5" id="main-partners">
+        <h2 class="section-title">Main Partners</h2>
         <div class="row">
              {% for item in turnamen %}
             <div class="col-md-4">
-                <div class="agenda-card-barca">
-                    <div class="agenda-img">
+                <div class="agenda-card-barca cursor-pointer" onclick="openPartnerModal('{{ loop.index0 }}', '{{ item.id }}', '{{ item.title }}', '{{ item.details if item.details else '' }}')">
+                    <div class="agenda-img" style="position:relative;">
                          <img src="{{ '/uploads/' + item.id + '.jpg' }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
+                         {% if admin %}
+                         <form action="/upload/agenda/{{ item.id }}" method="post" enctype="multipart/form-data" onclick="event.stopPropagation()">
+                            <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="mp-{{ item.id }}">
+                            <label for="mp-{{ item.id }}" class="position-absolute top-0 start-0 m-1 badge bg-warning"><i class="fas fa-camera"></i></label>
+                         </form>
+                         {% endif %}
                     </div>
                     <div class="agenda-details">
-                        <div class="agenda-date" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'price', this)">{{ item.price }}</div>
-                        <div class="agenda-title" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'title', this)">{{ item.title }}</div>
+                        <div class="agenda-date" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'price', this); event.stopPropagation();" onclick="event.stopPropagation()">{{ item.price }}</div>
+                        <div class="agenda-title" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'title', this); event.stopPropagation();" onclick="event.stopPropagation()">{{ item.title }}</div>
                     </div>
                     {% if admin %}
-                    <button class="position-absolute top-0 end-0 btn btn-sm btn-danger m-1" style="z-index:5;" onclick="deleteItem('agenda_content', '{{ item.id }}')"><i class="fas fa-trash"></i></button>
+                    <button class="position-absolute top-0 end-0 btn btn-sm btn-danger m-1" style="z-index:5;" onclick="deleteItem('agenda_content', '{{ item.id }}'); event.stopPropagation();"><i class="fas fa-trash"></i></button>
                     {% endif %}
                 </div>
             </div>
             {% endfor %}
         </div>
          {% if admin %}
-        <button class="btn btn-outline-success mt-3" onclick="addCard('agenda', 2)">+ Add Tournament Item</button>
+        <button class="btn btn-outline-success mt-3" onclick="addCard('agenda', 2)">+ Add Partner Card</button>
         {% endif %}
     </div>
 
@@ -1089,6 +1136,45 @@ HTML_UR_FC = """
             {% else %}
             <p id="next-match-view" class="fs-4 fw-bold"></p>
             {% endif %}
+        </div>
+    </div>
+
+    <!-- PARTNER MODAL -->
+    <div id="partner-modal" class="modal-overlay" onclick="document.getElementById('partner-modal').style.display='none'">
+        <div class="modal-content-custom" onclick="event.stopPropagation()" style="max-width:600px;">
+            <img id="partner-modal-img" src="" style="width:100%; height:auto; max-height:70vh; object-fit:contain; border-radius:10px; margin-bottom:15px;">
+
+            {% if admin %}
+            <textarea id="partner-modal-input" class="form-control mb-3" rows="3" placeholder="Deskripsi Partner"></textarea>
+            <button class="btn btn-success w-100" onclick="savePartnerDetails()">Save Details</button>
+            {% else %}
+            <div id="partner-modal-details" class="mb-3"></div>
+            {% endif %}
+
+            <div id="partner-social-links"></div>
+        </div>
+    </div>
+
+    <!-- AGENDA MODAL -->
+    <div id="agenda-modal" class="modal-overlay" onclick="document.getElementById('agenda-modal').style.display='none'">
+        <div class="modal-content-custom" onclick="event.stopPropagation()" style="max-width:800px; padding:20px;">
+            <img id="agenda-modal-img" src="" style="width:100%; height:auto; max-height:60vh; object-fit:contain; border-radius:10px; margin-bottom:20px; box-shadow:0 5px 15px rgba(0,0,0,0.2);">
+
+            <div class="d-flex justify-content-between align-items-center mb-3 text-uppercase fw-bold" style="font-size:0.9rem;">
+                <div id="agenda-modal-now" class="text-start text-muted"></div>
+                <div class="text-center">
+                    <div id="agenda-modal-countdown" class="display-6 fw-bold text-danger mb-1" style="font-family:monospace; letter-spacing:-1px;"></div>
+                    <i class="fas fa-arrow-right fa-2x text-warning"></i>
+                </div>
+                <div id="agenda-modal-event" class="text-end text-success"></div>
+            </div>
+
+            <div class="text-center mt-4">
+                <small class="d-block mb-1 text-muted fst-italic fw-bold">klik ini untuk ke lokasi latihan <i class="fas fa-arrow-down"></i></small>
+                <a href="https://maps.app.goo.gl/pKfSE3Ewm1RPCDiy9" target="_blank" class="btn btn-lg btn-outline-primary rounded-circle shadow-sm" style="width:60px; height:60px; display:inline-flex; align-items:center; justify-content:center;">
+                    <i class="fas fa-map-marker-alt fa-2x"></i>
+                </a>
+            </div>
         </div>
     </div>
 
@@ -1191,6 +1277,108 @@ HTML_UR_FC = """
     </script>
 
     <script>
+        // --- MAIN PARTNERS (Was Turnamen) ---
+        function openPartnerModal(index, id, title, details) {
+            index = parseInt(index);
+            const modal = document.getElementById('partner-modal');
+            document.getElementById('partner-modal-img').src = '/uploads/' + id + '.jpg';
+            document.getElementById('partner-modal-img').onerror = function() { this.src = '{{ url_for("static", filename="logo-tahkil-fc.png") }}'; };
+
+            // Set details
+            const detailContainer = document.getElementById('partner-modal-details');
+            if (document.getElementById('partner-modal-input')) {
+                document.getElementById('partner-modal-input').value = details;
+                document.getElementById('partner-modal-input').setAttribute('data-id', id);
+            } else {
+                detailContainer.innerText = details || "Keterangan...";
+            }
+
+            // Social Logic
+            const socialContainer = document.getElementById('partner-social-links');
+            socialContainer.innerHTML = '';
+
+            let linksHTML = '';
+            if (index === 0) {
+                linksHTML = `
+                    <div class="text-center mt-3">
+                        <small class="d-block mb-1 text-muted fst-italic">klik ini untuk ke sosmednya <i class="fas fa-arrow-down"></i></small>
+                        <a href="instagram://user?username=tahfidzkilatsamarinda" class="btn btn-lg btn-outline-danger rounded-circle m-1"><i class="fab fa-instagram"></i></a>
+                    </div>`;
+            } else if (index === 1) {
+                linksHTML = `
+                    <div class="text-center mt-3">
+                        <small class="d-block mb-1 text-muted fst-italic">klik ini untuk ke sosmednya <i class="fas fa-arrow-down"></i></small>
+                        <a href="instagram://user?username=dapurarabiansmd" class="btn btn-lg btn-outline-danger rounded-circle m-1"><i class="fab fa-instagram"></i></a>
+                        <a href="whatsapp://send?phone=6281528455350" class="btn btn-lg btn-outline-success rounded-circle m-1"><i class="fab fa-whatsapp"></i></a>
+                    </div>`;
+            } else if (index === 2) {
+                linksHTML = `
+                    <div class="text-center mt-3">
+                        <small class="d-block mb-1 text-muted fst-italic">klik ini untuk ke sosmednya <i class="fas fa-arrow-down"></i></small>
+                        <a href="instagram://user?username=daycareqa" class="btn btn-lg btn-outline-danger rounded-circle m-1"><i class="fab fa-instagram"></i></a>
+                    </div>`;
+            }
+            socialContainer.innerHTML = linksHTML;
+
+            modal.style.display = 'flex';
+        }
+
+        function savePartnerDetails() {
+            const input = document.getElementById('partner-modal-input');
+            const id = input.getAttribute('data-id');
+            const val = input.value;
+            saveText('agenda_content', id, 'details', {value: val});
+            document.getElementById('partner-modal').style.display = 'none';
+            setTimeout(() => location.reload(), 500);
+        }
+
+        // --- AGENDA MODAL & COUNTDOWN ---
+        let agendaInterval = null;
+
+        function openAgendaModal(id, title, eventDate) {
+            const modal = document.getElementById('agenda-modal');
+            document.getElementById('agenda-modal-img').src = '/uploads/' + id + '.jpg';
+            document.getElementById('agenda-modal-img').onerror = function() { this.src = '{{ url_for("static", filename="logo-tahkil-fc.png") }}'; };
+
+            // Set Dates
+            const now = new Date();
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('agenda-modal-now').innerText = now.toLocaleDateString('id-ID', options);
+
+            if (eventDate) {
+                const eDate = new Date(eventDate);
+                // Format: 16 Januari 2026, 23:51 WITA
+                const datePart = eDate.toLocaleDateString('id-ID', options);
+                const timePart = eDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                document.getElementById('agenda-modal-event').innerText = `${datePart}, ${timePart} WITA`;
+
+                // Start Countdown
+                if(agendaInterval) clearInterval(agendaInterval);
+                const updateCountdown = () => {
+                    const diff = eDate - new Date();
+                    if (diff < 0) {
+                        document.getElementById('agenda-modal-countdown').innerText = "EVENT STARTED";
+                        return;
+                    }
+                    const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const s = Math.floor((diff % (1000 * 60)) / 1000);
+                    // Format: 1h 8j 7m 48d (User requested non-standard chars: h=hari? j=jam? m=menit? d=detik?)
+                    // Prompt said: "1h 8j 7m 48d" (h for days?, j for hours?)
+                    // Let's assume h=days, j=hours as requested.
+                    document.getElementById('agenda-modal-countdown').innerText = `${d}h ${h}j ${m}m ${s}d`;
+                };
+                updateCountdown();
+                agendaInterval = setInterval(updateCountdown, 1000);
+            } else {
+                document.getElementById('agenda-modal-event').innerText = "Date TBD";
+                document.getElementById('agenda-modal-countdown').innerText = "--";
+            }
+
+            modal.style.display = 'flex';
+        }
+
         // --- UI UTILS ---
         function toggleMobileMenu() { 
             document.getElementById('mobile-menu').classList.toggle('active');
