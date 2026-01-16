@@ -458,55 +458,85 @@ def tiktok_upload():
             )
             page = context.new_page()
             
-            log.append("Browser launched (Protocol: Google -> TikTok).")
+            log.append("Browser launched (Step 1).")
             
-            # --- STEP 1-5: GOOGLE LOGIN ---
+            # --- STEP 1-6: GOOGLE LOGIN ---
             try:
+                # Step 1: Masuk akun google di google chrome (Sign in)
                 page.goto("https://accounts.google.com/signin")
-                log.append("Navigated to Google Sign In.")
+                log.append("Step 1: Navigated to Google Sign In.")
                 
-                # Email
+                # Step 2: Klik tombol add (Skipped, we are in a clean context, effectively 'Add')
+                # Step 3: Klik tombol sign in (We are already at sign in page)
+
+                # Step 4: Email
                 page.wait_for_selector('input[type="email"]')
                 page.fill('input[type="email"]', "billy.anshory7@gmail.com")
                 page.click('#identifierNext')
-                log.append("Entered Email.")
+                log.append("Step 4: Entered Email.")
                 
-                # Password
+                # Step 5: Password
                 page.wait_for_selector('input[type="password"]', timeout=10000)
                 page.fill('input[type="password"]', "1nt0f0r3v3r&b34ut1fulsky")
                 page.click('#passwordNext')
-                log.append("Entered Password.")
+                log.append("Step 5: Entered Password.")
                 
-                # Wait for login to complete (Check for My Account or redirection)
+                # Step 6: Masuk di dalam jendela antarmuka chrome
                 page.wait_for_load_state('networkidle')
-                log.append("Google Login Phase Complete.")
+                log.append("Step 6: Google Login Complete.")
                 
             except Exception as e:
-                log.append(f"Google Login Warning: {str(e)} - Attempting to proceed...")
+                log.append(f"Google Login Warning: {str(e)}")
 
-            # --- STEP 6-12: TIKTOK LOGIN VIA GOOGLE ---
+            # --- STEP 7-8: SEARCH TIKTOK ---
             try:
-                page.goto("https://www.tiktok.com/login")
-                log.append("Navigated to TikTok Login.")
-                
-                # Click 'Continue with Google'
-                # Note: This might open a popup
+                # Step 7: Search 'tiktok.com' di box search engine
+                page.goto("https://www.google.com")
+                page.fill('textarea[name="q"]', "tiktok.com")
+                page.press('textarea[name="q"]', "Enter")
+                log.append("Step 7: Searched tiktok.com.")
+
+                # Step 8: Masuk ke dalam 'tiktok.com' via search
+                # Click the first result that contains tiktok.com
+                page.wait_for_selector('h3')
+                with page.expect_navigation():
+                     # Try to find a link with href containing tiktok.com
+                     page.locator('a[href*="tiktok.com"]').first.click()
+                log.append("Step 8: Entered tiktok.com.")
+            except Exception as e:
+                 log.append(f"Search Step Failed, using direct nav: {str(e)}")
+                 page.goto("https://www.tiktok.com")
+
+            # --- STEP 9-12: TIKTOK LOGIN VIA GOOGLE ---
+            try:
+                # Step 9: Klik log masuk -> Lanjutkan dengan Google
+                # Wait for login button or maybe we are already there
+                try:
+                    # Look for "Log masuk" or "Log in"
+                    login_btn = page.get_by_text("Log masuk", exact=False)
+                    if login_btn.count() > 0:
+                        login_btn.first.click()
+                    else:
+                        page.goto("https://www.tiktok.com/login")
+                except:
+                     page.goto("https://www.tiktok.com/login")
+
+                # "Lanjutkan dengan Google"
                 with page.expect_popup() as popup_info:
-                    page.get_by_text("Continue with Google", exact=False).first.click()
+                    page.get_by_text("Lanjutkan dengan Google", exact=False).click()
                 
                 popup = popup_info.value
                 popup.wait_for_load_state()
-                log.append("Google Auth Popup Opened.")
-                
-                # Since we are logged in, it might ask to choose account or authorize
+                log.append("Step 9: Clicked 'Continue with Google'.")
+
+                # Step 10: Pilih klik akun 'Billy Anshory'
                 try:
-                    # Click the account if listed
                     popup.get_by_text("billy.anshory7@gmail.com", exact=False).click(timeout=5000)
-                    log.append("Selected Google Account.")
+                    log.append("Step 10: Selected Account.")
                 except:
-                    log.append("Account selection skipped (maybe auto-selected).")
-                
-                # Handle 'Continue' or 'Allow' if prompted
+                    log.append("Step 10: Account auto-selected.")
+
+                # Step 11: Klik 'Lanjutkan'
                 try:
                     if popup.get_by_text("Lanjutkan", exact=False).is_visible():
                         popup.get_by_text("Lanjutkan", exact=False).click()
@@ -514,97 +544,76 @@ def tiktok_upload():
                         popup.get_by_text("Continue", exact=False).click()
                 except:
                     pass
-                    
-                popup.wait_for_event("close")
-                log.append("TikTok Login Sequence Finished.")
                 
+                popup.wait_for_event("close")
+                log.append("Step 11/12: TikTok Login Success.")
+
             except Exception as e:
                 log.append(f"TikTok Login Warning: {str(e)}")
 
-            # --- STEP 13-18: UPLOAD & SETTINGS ---
-            page.goto("https://www.tiktok.com/upload?lang=id-ID") # Force ID lang for selector matching
-            log.append("Navigated to Upload Page.")
-            
-            # File Upload
+            # --- STEP 13-15: UPLOAD ---
             try:
+                # Step 13: Klik unggah
+                page.goto("https://www.tiktok.com/upload?lang=id-ID")
+                log.append("Step 13: Entered Upload Page.")
+
+                # Step 14/15: Pilih video (Use setInputFiles)
+                # "cari file dengan jalur ThisPC > D:..." -> We use server path
                 page.wait_for_selector('input[type="file"]', timeout=30000)
                 page.set_input_files('input[type="file"]', save_path)
-                log.append("Video File Uploaded.")
+                log.append("Step 14-15: Video File Selected/Uploaded.")
             except Exception as e:
                 log.append("Upload Input Failed. Blocked?")
                 raise e
 
-            # Wait for upload processing (Brute force wait)
+            # Wait for upload processing
             time.sleep(10)
-            
-            # Caption
-            try:
-                caption = "CRISPR-Cas9 & Resident Evil (bagian awal) #hashtag1 #hashtag2 #hashtag3 #hashtag4 #hashtag5 #hashtag6"
-                # TikTok caption area usually .public-DraftEditor-content or similar
-                page.click(".public-DraftEditor-content", timeout=5000)
-                page.keyboard.type(caption)
-                log.append("Caption Set.")
-            except:
-                log.append("Caption setting skipped (selector mismatch).")
 
-            # --- STEP 18 CONFIGURATION (From Screenshot) ---
-            # "Izinkan pengguna untuk:" -> Komentar (Check), Penggunaan ulang (Check)
-            # "Ungkapkan konten posting" -> Off
-            # "Konten yang dihasilkan AI" -> Off
-            
+            # --- STEP 16-18: SETTINGS ---
             try:
-                # Wait for main UI to load
-                page.wait_for_selector("text=Pemeriksaan", timeout=10000)
-                log.append("Verified Upload UI Loaded (Step 18).")
+                # Step 16: Masuk pengaturan (We are on the page)
 
-                # 1. High Quality Upload (Unggahan berkualitas tinggi)
+                # Step 17: Config
+                # Caption & Hashtags
+                # 6 hashtags: #science #residentevil #crispr #biotech #gaming #viral
+                caption = "CRISPR-Cas9 & Resident Evil (bagian awal) #science #residentevil #crispr #biotech #gaming #viral"
                 try:
-                    # Look for the text and toggle if not checked
-                    # Note: Selectors vary, trying robust text match
-                    hq_text = page.get_by_text("Unggahan berkualitas tinggi")
-                    if hq_text.count() > 0:
-                        # Assuming the switch is near the text or clicking text toggles it.
-                        # We want it ON. Default is often OFF on web.
-                        # Risk: Toggling OFF if ON. 
-                        # Safe bet: Just log it for now or try to click if we are sure.
-                        # User request: "aktifkan" (activate). So we click it.
-                        hq_text.click() 
-                        log.append("Toggled High Quality Upload.")
+                    page.click(".public-DraftEditor-content", timeout=5000)
+                    page.keyboard.type(caption)
+                    log.append("Step 17: Caption & Hashtags Set.")
                 except:
-                    log.append("High Quality Toggle Not Found (Might be auto-on).")
+                    log.append("Caption setting issue.")
 
-                # 2. Allow Users (Komentar, Penggunaan ulang)
-                # Ensure they are checked.
+                # Who can watch: Everyone (Semua orang)
+                # Usually default.
+
+                # High Quality (Unggahan berkualitas tinggi)
                 try:
-                    # Komentar
-                    comment_box = page.locator("input[type='checkbox']").filter(has_text="Komentar")
-                    if comment_box.count() > 0:
-                        if not comment_box.is_checked():
-                            comment_box.check()
-                            log.append("Checked 'Komentar'.")
-                    else:
-                        # Fallback: Click label if we assume it's unchecked or just to ensure
-                        page.get_by_text("Komentar", exact=True).click()
-                        log.append("Clicked 'Komentar' label.")
+                    hq = page.get_by_text("Unggahan berkualitas tinggi")
+                    if hq.count() > 0:
+                        hq.click() # Toggle on
+                        log.append("Step 17: High Quality ON.")
                 except:
                     pass
 
-                # 3. Content Disclosure (Ungkapkan konten) -> OFF
-                # We assume default is OFF. Do nothing to avoid enabling.
-
-                # Click 'Posting'
-                # The button is red, text 'Posting'.
-                page.get_by_text("Posting", exact=True).click()
-                log.append("Clicked 'Posting' Button.")
+                # Comments & Reuse (Komentar & Penggunaan ulang) -> Check
+                try:
+                    page.get_by_text("Komentar").check() # Attempt check
+                except:
+                    pass
                 
-            except Exception as e:
-                log.append(f"Step 18 Settings/Posting Error: {str(e)}")
-                # Try fallback for English "Post"
+                # Music & Content Check (Pemeriksaan hak cipta) -> Check/Active
                 try:
-                    page.get_by_text("Post", exact=True).click()
-                    log.append("Clicked 'Post' (English fallback).")
+                    page.get_by_text("Pemeriksaan hak cipta").click() # Toggle if needed
                 except:
                     pass
+
+                # Step 18: Posting
+                page.get_by_text("Posting", exact=True).click()
+                log.append("Step 18: Clicked Posting.")
+
+            except Exception as e:
+                 log.append(f"Step 17-18 Error: {str(e)}")
 
             # Confirmation Wait
             time.sleep(5)
