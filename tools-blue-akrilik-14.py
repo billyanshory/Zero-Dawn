@@ -473,18 +473,34 @@ def tiktok_upload():
                 popup.wait_for_load_state()
                 log.append("Google Login Popup Detected.")
 
-                # Fill Email
-                popup.wait_for_selector('input[type="email"]')
-                popup.fill('input[type="email"]', "billy.anshory7@gmail.com")
-                popup.keyboard.press("Enter")
-                log.append("Email entered.")
+                # ACCOUNT SELECTION (No Password Entry per Request)
+                # Wait for Account Chooser and click specific account
+                log.append("Waiting for Account Chooser...")
+                try:
+                    # Look for the specific account text
+                    account_selector = 'text="billy.anshory7@gmail.com"'
+                    popup.wait_for_selector(account_selector, timeout=10000)
+                    popup.locator(account_selector).first.click()
+                    log.append("Clicked Account: billy.anshory7@gmail.com")
+                except:
+                    log.append("Specific email text not found, trying name 'Billy Anshory'...")
+                    popup.get_by_text("Billy Anshory", exact=False).first.click()
+                    log.append("Clicked Account by Name.")
 
-                # Wait for password field (it animates in)
-                time.sleep(2)
-                popup.wait_for_selector('input[type="password"]', state='visible')
-                popup.fill('input[type="password"]', "1nt0f0r3v3r&b34ut1fulsky")
-                popup.keyboard.press("Enter")
-                log.append("Password entered.")
+                # Handle "Anda login kembali ke TikTok" -> "Lanjutkan"
+                time.sleep(3)
+                log.append("Checking for 'Lanjutkan' confirmation...")
+
+                try:
+                    # Check for Indonesian "Lanjutkan" or English "Continue"
+                    if popup.get_by_text("Lanjutkan", exact=False).is_visible():
+                        popup.get_by_text("Lanjutkan", exact=False).click()
+                        log.append("Clicked 'Lanjutkan'")
+                    elif popup.get_by_text("Continue", exact=False).is_visible():
+                        popup.get_by_text("Continue", exact=False).click()
+                        log.append("Clicked 'Continue'")
+                except:
+                    log.append("No explicit confirmation prompt found (Automatic redirect?).")
 
                 # Wait for login to complete (Popup closes)
                 popup.wait_for_event("close")
