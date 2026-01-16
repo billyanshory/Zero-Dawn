@@ -63,17 +63,9 @@ NAVBAR_HTML = """
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link fw-bold" href="/wallpaper-blur">Wallpaper Blur Akrilik</a></li>
-                    <li class="nav-item"><a class="nav-link fw-bold" href="/horizon-zero-dawn">Horizon Zero Dawn</a></li>
-                    <li class="nav-item"><a class="nav-link fw-bold" href="/otomatis-upload">Otomatis Upload</a></li>
-                </ul>
-                <ul class="navbar-nav ms-auto align-items-center">
-                    <li class="nav-item me-3">
-                        <div class="btn-group" role="group">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTheme('light')"><i class="fas fa-sun"></i></button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTheme('dark')"><i class="fas fa-moon"></i></button>
-                        </div>
-                    </li>
+                    <li class="nav-item"><a class="nav-link fw-bold" href="/wallpaper-blur" style="color: white !important;">Wallpaper Blur Akrilik</a></li>
+                    <li class="nav-item"><a class="nav-link fw-bold" href="/horizon-zero-dawn" style="color: white !important;">Horizon Zero Dawn</a></li>
+                    <li class="nav-item"><a class="nav-link fw-bold" href="/otomatis-upload" style="color: white !important;">Otomatis Upload</a></li>
                 </ul>
             </div>
         </div>
@@ -465,7 +457,7 @@ def tiktok_upload():
                 # Step 1: Masuk akun google di google chrome (Sign in)
                 page.goto("https://accounts.google.com/signin")
                 log.append("Step 1: Navigated to Google Sign In.")
-                
+
                 # Step 2: Klik tombol add (Skipped, we are in a clean context, effectively 'Add')
                 # Step 3: Klik tombol sign in (We are already at sign in page)
 
@@ -1993,17 +1985,6 @@ HTML_WALLPAPER = """
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Minimal theme logic for navbar compatibility
-        function setTheme(theme) {
-            document.documentElement.setAttribute('data-bs-theme', theme);
-            localStorage.setItem('theme', theme);
-        }
-        (function() {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-bs-theme', savedTheme);
-        })();
-    </script>
 </body>
 </html>
 """
