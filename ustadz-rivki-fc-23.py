@@ -243,26 +243,8 @@ def upload_image(type, id):
         conn = get_db_connection()
         c = conn.cursor()
         
-        if type == 'news':
-            c.execute("INSERT OR IGNORE INTO news_content (id) VALUES (?)", (id,))
-            c.execute("UPDATE news_content SET image_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (filename, id))
-        elif type == 'personnel':
-            c.execute("SELECT id FROM personnel WHERE id = ?", (id,))
-            if not c.fetchone():
-                c.execute("INSERT INTO personnel (id, role, name) VALUES (?, ?, ?)", (id, request.form.get('role', 'player'), 'New Person'))
-            c.execute("UPDATE personnel SET image_path = ? WHERE id = ?", (filename, id))
-        elif type == 'sponsor':
-            c.execute("INSERT OR IGNORE INTO sponsors (id) VALUES (?)", (id,))
-            c.execute("UPDATE sponsors SET image_path = ? WHERE id = ?", (filename, id))
-        elif type == 'history':
+        if type == 'history':
             c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", ('history_image', filename))
-        elif type == 'agenda':
-            # agenda or turnamen items
-            c.execute("INSERT OR IGNORE INTO agenda_content (id) VALUES (?)", (id,))
-            filename = f"{id}.jpg" # Force filename to ID.jpg for agenda to match existing frontend logic
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            # Remove old file if exists to ensure clean write? not needed, os handles overwrite.
-            file.save(filepath)
             
         conn.commit()
         conn.close()
@@ -883,10 +865,6 @@ HTML_UR_FC = """
                          class="sponsor-logo-small" style="width: {{ size }}px; height: {{ size }}px;">
                     {% if admin %}
                     <div class="position-absolute top-0 start-50 translate-middle-x d-flex gap-1" style="z-index: 10;">
-                        <form action="/upload/sponsor/{{ sponsor.id }}" method="post" enctype="multipart/form-data">
-                            <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="sp-{{ sponsor.id }}">
-                            <label for="sp-{{ sponsor.id }}" class="badge bg-secondary cursor-pointer"><i class="fas fa-edit"></i></label>
-                        </form>
                         <button class="trash-btn" onclick="deleteItem('sponsors', '{{ sponsor.id }}')"><i class="fas fa-trash"></i></button>
                     </div>
                     <div class="mt-2">
@@ -926,11 +904,6 @@ HTML_UR_FC = """
                     
                     {% if admin %}
                     <div class="position-absolute top-0 end-0 p-2 d-flex gap-2" onclick="event.stopPropagation()">
-                        <form action="/upload/personnel/{{ player.id }}" method="post" enctype="multipart/form-data">
-                             <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="pl-{{ player.id }}">
-                             <input type="hidden" name="role" value="player">
-                             <label for="pl-{{ player.id }}" class="btn btn-sm btn-light"><i class="fas fa-camera"></i></label>
-                        </form>
                         <button class="btn btn-sm btn-danger" onclick="deleteItem('personnel', '{{ player.id }}')"><i class="fas fa-trash"></i></button>
                     </div>
                     {% endif %}
@@ -959,11 +932,6 @@ HTML_UR_FC = """
                     </div>
                      {% if admin %}
                     <div class="position-absolute top-0 end-0 p-2 d-flex gap-2" onclick="event.stopPropagation()" style="z-index: 10;">
-                        <form action="/upload/personnel/{{ coach.id }}" method="post" enctype="multipart/form-data">
-                             <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="co-{{ coach.id }}">
-                             <input type="hidden" name="role" value="coach">
-                             <label for="co-{{ coach.id }}" class="btn btn-sm btn-light"><i class="fas fa-camera"></i></label>
-                        </form>
                         <button class="btn btn-sm btn-danger" onclick="deleteItem('personnel', '{{ coach.id }}')"><i class="fas fa-trash"></i></button>
                     </div>
                     {% endif %}
@@ -992,11 +960,6 @@ HTML_UR_FC = """
                     </div>
                      {% if admin %}
                     <div class="position-absolute top-0 end-0 p-2 d-flex gap-2" onclick="event.stopPropagation()">
-                        <form action="/upload/personnel/{{ mvp.id }}" method="post" enctype="multipart/form-data">
-                             <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="mv-{{ mvp.id }}">
-                             <input type="hidden" name="role" value="mvp">
-                             <label for="mv-{{ mvp.id }}" class="btn btn-sm btn-light"><i class="fas fa-camera"></i></label>
-                        </form>
                         <button class="btn btn-sm btn-danger" onclick="deleteItem('personnel', '{{ mvp.id }}')"><i class="fas fa-trash"></i></button>
                     </div>
                     {% endif %}
@@ -1225,12 +1188,6 @@ HTML_UR_FC = """
             
             <div style="position:relative;">
                 <img id="news-modal-img" src="" style="width:100%; height:300px; object-fit:cover; border-radius:8px; margin-bottom:15px;">
-                {% if admin %}
-                <form id="news-upload-form" method="post" enctype="multipart/form-data" class="position-absolute bottom-0 end-0 p-2">
-                    <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="news-modal-upload">
-                    <label for="news-modal-upload" class="btn btn-sm btn-warning"><i class="fas fa-camera"></i> Change Image</label>
-                </form>
-                {% endif %}
             </div>
 
             {% if admin %}
@@ -1310,14 +1267,7 @@ HTML_UR_FC = """
             if (isAdmin) {
                 // --- ADMIN EDIT MODE ---
                 
-                // 1. Inject Camera Button on Image
-                const camBtn = document.createElement('button');
-                camBtn.className = 'camera-btn';
-                camBtn.innerHTML = '<i class="fas fa-camera"></i>';
-                camBtn.onclick = function() { document.getElementById('pm-file-input').click(); };
-                imgWrapper.appendChild(camBtn);
-                
-                // 2. Build Form
+                // Build Form
                 const formHtml = `
                     <div class="mb-2 mt-3">
                         <label>Judul Partner:</label>
@@ -1327,11 +1277,6 @@ HTML_UR_FC = """
                         <label>Deskripsi/Detail:</label>
                         <textarea id="pm-details-input" class="form-control" rows="3">${details || ''}</textarea>
                     </div>
-                    
-                    <!-- Hidden File Input -->
-                    <form id="partner-upload-form" action="/upload/agenda/${id}" method="post" enctype="multipart/form-data" style="display:none;">
-                        <input type="file" name="image" class="form-control" id="pm-file-input">
-                    </form>
                     
                     <div class="d-flex gap-2 justify-content-end mt-3">
                         <button class="btn btn-danger" onclick="document.getElementById('partner-modal').style.display='none'">Cancel</button>
@@ -1387,17 +1332,12 @@ HTML_UR_FC = """
         function savePartnerFull(id) {
             const title = document.getElementById('pm-title-input').value;
             const details = document.getElementById('pm-details-input').value;
-            const fileInput = document.getElementById('pm-file-input');
 
             Promise.all([
                 fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'title', value: title }) }),
                 fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'details', value: details }) })
             ]).then(() => {
-                if (fileInput.files.length > 0) {
-                    document.getElementById('partner-upload-form').submit();
-                } else {
-                    location.reload();
-                }
+                location.reload();
             });
         }
 
@@ -1425,14 +1365,7 @@ HTML_UR_FC = """
             if (isAdmin) {
                 // --- ADMIN MODE ---
                 
-                // 1. Inject Camera Button
-                const camBtn = document.createElement('button');
-                camBtn.className = 'camera-btn';
-                camBtn.innerHTML = '<i class="fas fa-camera"></i>';
-                camBtn.onclick = function() { document.getElementById('ag-file-input').click(); };
-                imgContainer.appendChild(camBtn);
-
-                // 2. Build Form Inputs
+                // Build Form Inputs
                 const formHtml = `
                     <div class="mb-3">
                         <label>Judul Agenda:</label>
@@ -1447,11 +1380,6 @@ HTML_UR_FC = """
                         <input type="text" id="ag-price-input" class="form-control" value="${price || ''}">
                     </div>
                     
-                    <!-- Hidden File Input -->
-                    <form id="agenda-upload-form" action="/upload/agenda/${id}" method="post" enctype="multipart/form-data" style="display:none;">
-                        <input type="file" name="image" id="ag-file-input">
-                    </form>
-
                     <div class="d-flex gap-2 justify-content-end">
                         <button class="btn btn-danger" onclick="document.getElementById('agenda-modal').style.display='none'">Cancel</button>
                         <button class="btn btn-success" onclick="saveAgendaFull('${id}')">Save</button>
@@ -1541,7 +1469,6 @@ HTML_UR_FC = """
             const title = document.getElementById('ag-title-input').value;
             const date = document.getElementById('ag-date-input').value;
             const price = document.getElementById('ag-price-input').value;
-            const fileInput = document.getElementById('ag-file-input');
 
             // Save text
             Promise.all([
@@ -1549,12 +1476,7 @@ HTML_UR_FC = """
                 fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'event_date', value: date }) }),
                 fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'price', value: price }) })
             ]).then(() => {
-                // Upload Image if present
-                if (fileInput.files.length > 0) {
-                    document.getElementById('agenda-upload-form').submit();
-                } else {
-                    location.reload();
-                }
+                location.reload();
             });
         }
 
@@ -1743,7 +1665,6 @@ HTML_UR_FC = """
                 document.getElementById('news-modal-title-input').value = item.title;
                 document.getElementById('news-modal-subtitle-input').value = item.subtitle;
                 document.getElementById('news-modal-details-input').value = item.details || '';
-                document.getElementById('news-upload-form').action = '/upload/news/' + newsId;
             } else { // View Mode
                 document.getElementById('news-modal-title').innerText = item.title;
                 document.getElementById('news-modal-subtitle').innerText = item.subtitle;
