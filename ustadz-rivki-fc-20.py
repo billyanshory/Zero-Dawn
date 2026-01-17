@@ -1298,7 +1298,7 @@ HTML_UR_FC = """
             
             const detailContainer = document.getElementById('partner-modal-details');
             const socialContainer = document.getElementById('partner-social-links');
-            socialContainer.innerHTML = ''; // Clear old overlay logic if any, but we use map overlay style now
+            socialContainer.innerHTML = '';
 
             // Social Logic (Overlay)
             let linksHTML = '';
@@ -1342,40 +1342,46 @@ HTML_UR_FC = """
                     </a>`;
             }
 
-            // Wrap image in container if not already (it is in HTML, but we need to inject overlay)
-            // HTML: <img id="partner-modal-img" ...>
-            // We need to inject the overlay *after* the image, but inside the container.
-            // The container is modal-content-custom.
-            // Actually, we should probably wrap the image in a relative div in HTML or JS.
-            // Let's use JS to wrap if needed, or better, update HTML structure in next step?
-            // No, I can't update HTML easily in this step (JS block).
-            // But wait, the Agenda Modal has a wrapper div `position:relative`. Partner modal has `img` directly in `modal-content`.
-            // I should update the Partner Modal HTML structure in the JS to wrap it?
-            // Or just inject the overlay absolute to `modal-content-custom` (which has `position: relative`).
-            // Yes, `modal-content-custom` has `position: relative`.
-
-            // Remove old overlay if any
+            // Remove old overlays
             const oldOverlay = document.getElementById('partner-overlay');
             if(oldOverlay) oldOverlay.remove();
 
             const overlayDiv = document.createElement('div');
             overlayDiv.id = 'partner-overlay';
             overlayDiv.innerHTML = linksHTML;
-            // The overlay classes (agenda-modal-map-overlay) use `position: absolute; top: 10px; left: 10px;`.
-            // This will position it relative to `modal-content-custom`.
-            // However, `modal-content-custom` has padding.
-            // If I append it to modal, it will be at top-left of padding box? No, padding box is inside border box.
-            // `top: 10px` inside a relative container works.
 
-            // But wait, the image is the first child.
-            // Let's insert before image? Order doesn't matter for absolute.
-            modal.querySelector('.modal-content-custom').appendChild(overlayDiv);
-
+            // Reset image wrapper if needed (from admin view)
+            if (img.parentNode.id === 'partner-img-wrapper') {
+                 // Unwrap: get img out, remove wrapper
+                 const wrapper = img.parentNode;
+                 wrapper.parentNode.insertBefore(img, wrapper);
+                 wrapper.remove();
+            }
 
             if (isAdmin) {
                 // Admin Mode: Inputs
-                // Clear detail container text if it was set
                 detailContainer.innerHTML = '';
+
+                // Wrapper for Image + Camera Button
+                const wrapper = document.createElement('div');
+                wrapper.id = 'partner-img-wrapper';
+                wrapper.style.position = 'relative';
+                wrapper.style.width = '100%';
+                wrapper.style.marginBottom = '15px';
+
+                img.parentNode.insertBefore(wrapper, img);
+                wrapper.appendChild(img);
+
+                // Inject Camera Button
+                const camBtn = document.createElement('div');
+                camBtn.className = 'btn btn-light rounded-circle shadow';
+                camBtn.innerHTML = '<i class="fas fa-camera text-dark"></i>';
+                camBtn.style.position = 'absolute';
+                camBtn.style.bottom = '10px';
+                camBtn.style.right = '10px';
+                camBtn.style.cursor = 'pointer';
+                camBtn.onclick = function() { document.getElementById('pm-file-input').click(); };
+                wrapper.appendChild(camBtn);
 
                 // Form HTML
                 const formHtml = `
@@ -1387,33 +1393,30 @@ HTML_UR_FC = """
                         <label>Deskripsi/Detail:</label>
                         <textarea id="pm-details-input" class="form-control" rows="3">${details || ''}</textarea>
                     </div>
-                    <div class="mb-3">
-                        <label>Upload Gambar Baru:</label>
-                        <form id="partner-upload-form" action="/upload/agenda/${id}" method="post" enctype="multipart/form-data">
-                            <input type="file" name="image" class="form-control" id="pm-file-input">
-                        </form>
-                    </div>
-                    <div class="d-flex gap-2 justify-content-end">
+                    <form id="partner-upload-form" action="/upload/agenda/${id}" method="post" enctype="multipart/form-data" style="display:none;">
+                        <input type="file" name="image" id="pm-file-input">
+                    </form>
+                    <div class="d-flex gap-2 justify-content-end mt-3">
                         <button class="btn btn-danger" onclick="document.getElementById('partner-modal').style.display='none'">Cancel</button>
                         <button class="btn btn-success" onclick="savePartnerFull('${id}')">Save</button>
                     </div>
                 `;
-                // Rebuild content
 
-                // Helper to clear below image
-                while (img.nextSibling) {
-                    img.nextSibling.remove();
+                // Clear below wrapper
+                while (wrapper.nextSibling) {
+                    wrapper.nextSibling.remove();
                 }
 
                 const contentDiv = document.createElement('div');
                 contentDiv.innerHTML = formHtml;
                 modal.querySelector('.modal-content-custom').appendChild(contentDiv);
-                // Re-append overlay (it's absolute, so it can be anywhere, but let's keep it safe)
+
+                // Re-append overlay (it positions absolute relative to modal-content-custom)
                 modal.querySelector('.modal-content-custom').appendChild(overlayDiv);
 
             } else {
                 // View Mode
-                // Clear below image
+                // Clear below image (which is now unwrapped or original)
                 while (img.nextSibling) {
                     img.nextSibling.remove();
                 }
@@ -1459,8 +1462,29 @@ HTML_UR_FC = """
             const wrapper = document.getElementById('agenda-time-wrapper');
             wrapper.innerHTML = '';
 
+            // Cleanup existing camera button if any
+            const oldCam = document.getElementById('agenda-camera-btn');
+            if(oldCam) oldCam.remove();
+
             if (isAdmin) {
                 // Admin Mode: Inputs and File Upload
+
+                // Inject Camera Button into image container
+                const imgContainer = modal.querySelector('.modal-content-custom > div:first-child');
+
+                const camBtn = document.createElement('div');
+                camBtn.id = 'agenda-camera-btn';
+                camBtn.className = 'btn btn-light rounded-circle shadow';
+                camBtn.innerHTML = '<i class="fas fa-camera text-dark"></i>';
+                camBtn.style.position = 'absolute';
+                camBtn.style.bottom = '10px';
+                camBtn.style.right = '10px';
+                camBtn.style.cursor = 'pointer';
+                camBtn.style.zIndex = '20';
+                camBtn.onclick = function() { document.getElementById('ag-file-input').click(); };
+
+                imgContainer.appendChild(camBtn);
+
                 const formHtml = `
                     <div class="mb-3">
                         <label>Judul Agenda:</label>
@@ -1474,12 +1498,9 @@ HTML_UR_FC = """
                         <label>Keterangan/Tempat (Subtitle):</label>
                         <input type="text" id="ag-price-input" class="form-control" value="${price || ''}">
                     </div>
-                    <div class="mb-3">
-                        <label>Upload Gambar Baru:</label>
-                        <form id="agenda-upload-form" action="/upload/agenda/${id}" method="post" enctype="multipart/form-data">
-                            <input type="file" name="image" class="form-control" id="ag-file-input">
-                        </form>
-                    </div>
+                    <form id="agenda-upload-form" action="/upload/agenda/${id}" method="post" enctype="multipart/form-data" style="display:none;">
+                        <input type="file" name="image" id="ag-file-input">
+                    </form>
                     <div class="d-flex gap-2 justify-content-end">
                         <button class="btn btn-danger" onclick="document.getElementById('agenda-modal').style.display='none'">Cancel</button>
                         <button class="btn btn-success" onclick="saveAgendaFull('${id}')">Save</button>
