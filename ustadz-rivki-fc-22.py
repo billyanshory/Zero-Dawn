@@ -259,26 +259,10 @@ def upload_image(type, id):
         elif type == 'agenda':
             # agenda or turnamen items
             c.execute("INSERT OR IGNORE INTO agenda_content (id) VALUES (?)", (id,))
-            # Only update image, create file if not exists
-            # We assume agenda_content stores image implies implicit association or we use file naming
-            # Actually frontend uses /uploads/id.jpg usually. 
-            # But the upload_image function saves as type_id_timestamp.
-            # We need to standardize. 
-            # The current frontend for agenda uses: '/uploads/' + item.id + '.jpg'
-            # We should update that to use a DB field if we want dynamic uploads with timestamps, 
-            # OR we just overwrite the specific file.
-            # The prompt says "buat admin bisa mengupload dan mengganti".
-            # Let's save the filename in a new column 'image_path' for agenda_content OR just rename to ID.jpg to keep it simple with existing code?
-            # Existing code: <img src="{{ '/uploads/' + item.id + '.jpg' }}"
-            # If we change to random filename, we need a column.
-            # Let's add 'image_path' to agenda_content in a migration?
-            # Wait, user said "pertahankan code".
-            # If I add a column, I change logic.
-            # Easiest way: Save as `id.jpg` (overwrite).
             filename = f"{id}.jpg" # Force filename to ID.jpg for agenda to match existing frontend logic
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            # Remove old file if exists to ensure clean write? not needed, os handles overwrite.
             file.save(filepath)
-            # No DB update needed for image path if we stick to ID.jpg convention
             
         conn.commit()
         conn.close()
@@ -765,6 +749,25 @@ STYLES_HTML = """
     .custom-range-slider::-webkit-slider-thumb {
         margin-top: -5px; /* Adjust thumb position */
     }
+
+    /* Agenda Desktop Fix & Camera Button */
+    @media (min-width: 992px) {
+        #agenda-modal-img {
+            max-height: 55vh !important;
+            width: auto !important;
+            max-width: 100% !important;
+            display: block;
+            margin: 0 auto;
+        }
+    }
+    .camera-btn {
+        position: absolute; bottom: 10px; right: 10px;
+        background: rgba(255, 215, 0, 0.9); color: black;
+        border: none; border-radius: 50%; width: 40px; height: 40px;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: 0.3s; z-index: 20;
+    }
+    .camera-btn:hover { transform: scale(1.1); background: #fff; }
 </style>
 """
 
@@ -1159,25 +1162,22 @@ HTML_UR_FC = """
     <!-- PARTNER MODAL -->
     <div id="partner-modal" class="modal-overlay" onclick="document.getElementById('partner-modal').style.display='none'">
         <div class="modal-content-custom" onclick="event.stopPropagation()" style="max-width:600px;">
-            <img id="partner-modal-img" src="" style="width:100%; height:auto; max-height:70vh; object-fit:contain; border-radius:10px; margin-bottom:15px;">
+            <div style="position:relative; margin-bottom:15px;" id="partner-img-wrapper">
+                <img id="partner-modal-img" src="" style="width:100%; height:auto; max-height:70vh; object-fit:contain; border-radius:10px;">
+            </div>
             
-            {% if admin %}
-            <textarea id="partner-modal-input" class="form-control mb-3" rows="3" placeholder="Deskripsi Partner"></textarea>
-            <button class="btn btn-success w-100" onclick="savePartnerDetails()">Save Details</button>
-            {% else %}
-            <div id="partner-modal-details" class="mb-3"></div>
-            {% endif %}
-            
-            <div id="partner-social-links"></div>
+            <div id="partner-modal-body">
+                <!-- Dynamic Content Here -->
+            </div>
         </div>
     </div>
 
     <!-- AGENDA MODAL -->
     <div id="agenda-modal" class="modal-overlay" onclick="document.getElementById('agenda-modal').style.display='none'">
         <div class="modal-content-custom" onclick="event.stopPropagation()" style="max-width:800px; padding:20px;">
-            <div style="position:relative; width:100%; margin-bottom:20px;">
+            <div id="agenda-img-container" style="position:relative; width:100%; margin-bottom:20px;">
                 <img id="agenda-modal-img" src="" style="width:100%; height:auto; max-height:60vh; object-fit:contain; border-radius:10px; box-shadow:0 5px 15px rgba(0,0,0,0.2);">
-                <a href="https://maps.app.goo.gl/pKfSE3Ewm1RPCDiy9" target="_blank" class="agenda-modal-map-overlay">
+                <a href="https://maps.app.goo.gl/pKfSE3Ewm1RPCDiy9" target="_blank" class="agenda-modal-map-overlay" id="agenda-map-link">
                     klik ini untuk ke lokasi latihan <i class="fas fa-arrow-right"></i> <i class="fas fa-map-marker-alt fa-lg text-danger"></i>
                 </a>
             </div>
@@ -1293,91 +1293,31 @@ HTML_UR_FC = """
             index = parseInt(index);
             const modal = document.getElementById('partner-modal');
             const img = document.getElementById('partner-modal-img');
+            const body = document.getElementById('partner-modal-body');
+            const imgWrapper = document.getElementById('partner-img-wrapper');
+
+            // Set Image
             img.src = '/uploads/' + id + '.jpg?t=' + new Date().getTime();
             img.onerror = function() { this.src = '{{ url_for("static", filename="logo-tahkil-fc.png") }}'; };
             
-            const detailContainer = document.getElementById('partner-modal-details');
-            const socialContainer = document.getElementById('partner-social-links');
-            socialContainer.innerHTML = ''; // Clear old overlay logic if any, but we use map overlay style now
-
-            // Social Logic (Overlay)
-            let linksHTML = '';
-            if (index === 0) { // Card 1
-                linksHTML = `
-                    <a href="instagram://user?username=tahfidzkilatsamarinda" class="agenda-modal-map-overlay" target="_blank" style="text-decoration:none;">
-                        klik ini untuk ke sosmednya <i class="fas fa-arrow-right"></i> <i class="fab fa-instagram fa-lg text-danger"></i>
-                    </a>`;
-            } else if (index === 1) { // Card 2
-                linksHTML = `
-                    <div class="position-absolute top-0 start-0 m-2 d-flex gap-2">
-                        <a href="instagram://user?username=dapurarabiansmd" class="agenda-modal-map-overlay" target="_blank" style="position:static; margin:0;">
-                            IG <i class="fab fa-instagram text-danger"></i>
-                        </a>
-                        <a href="whatsapp://send?phone=6281528455350" class="agenda-modal-map-overlay" target="_blank" style="position:static; margin:0;">
-                            WA <i class="fab fa-whatsapp text-success"></i>
-                        </a>
-                    </div>`;
-                // Adjust text slightly for multiple buttons or keep simple
-                linksHTML = `
-                    <div class="position-absolute top-0 start-0 m-2 d-flex flex-column gap-1 align-items-start">
-                         <div style="background:rgba(255,255,255,0.9); padding:5px 10px; border-radius:15px; font-size:0.8rem; font-weight:bold; margin-bottom:5px;">klik ini untuk ke sosmednya <i class="fas fa-arrow-down"></i></div>
-                         <div class="d-flex gap-2">
-                            <a href="instagram://user?username=dapurarabiansmd" class="btn btn-light rounded-circle shadow-sm"><i class="fab fa-instagram text-danger"></i></a>
-                            <a href="whatsapp://send?phone=6281528455350" class="btn btn-light rounded-circle shadow-sm"><i class="fab fa-whatsapp text-success"></i></a>
-                         </div>
-                    </div>
-                `;
-                // Wait, user wants "klik ini untuk ke sosmednya -> [Icons]" at top-left.
-                linksHTML = `
-                    <div class="agenda-modal-map-overlay" style="cursor:default;">
-                        klik ini untuk ke sosmednya <i class="fas fa-arrow-right"></i> 
-                        <a href="instagram://user?username=dapurarabiansmd"><i class="fab fa-instagram fa-lg text-danger ms-2"></i></a>
-                        <a href="whatsapp://send?phone=6281528455350"><i class="fab fa-whatsapp fa-lg text-success ms-2"></i></a>
-                    </div>
-                `;
-            } else if (index === 2) { // Card 3
-                linksHTML = `
-                    <a href="instagram://user?username=daycareqa" class="agenda-modal-map-overlay" target="_blank" style="text-decoration:none;">
-                        klik ini untuk ke sosmednya <i class="fas fa-arrow-right"></i> <i class="fab fa-instagram fa-lg text-danger"></i>
-                    </a>`;
-            }
-
-            // Wrap image in container if not already (it is in HTML, but we need to inject overlay)
-            // HTML: <img id="partner-modal-img" ...> 
-            // We need to inject the overlay *after* the image, but inside the container.
-            // The container is modal-content-custom.
-            // Actually, we should probably wrap the image in a relative div in HTML or JS.
-            // Let's use JS to wrap if needed, or better, update HTML structure in next step? 
-            // No, I can't update HTML easily in this step (JS block).
-            // But wait, the Agenda Modal has a wrapper div `position:relative`. Partner modal has `img` directly in `modal-content`.
-            // I should update the Partner Modal HTML structure in the JS to wrap it? 
-            // Or just inject the overlay absolute to `modal-content-custom` (which has `position: relative`).
-            // Yes, `modal-content-custom` has `position: relative`.
+            // Reset Layout
+            body.innerHTML = '';
             
-            // Remove old overlay if any
-            const oldOverlay = document.getElementById('partner-overlay');
-            if(oldOverlay) oldOverlay.remove();
-
-            const overlayDiv = document.createElement('div');
-            overlayDiv.id = 'partner-overlay';
-            overlayDiv.innerHTML = linksHTML;
-            // The overlay classes (agenda-modal-map-overlay) use `position: absolute; top: 10px; left: 10px;`.
-            // This will position it relative to `modal-content-custom`. 
-            // However, `modal-content-custom` has padding. 
-            // If I append it to modal, it will be at top-left of padding box? No, padding box is inside border box.
-            // `top: 10px` inside a relative container works.
-            
-            // But wait, the image is the first child.
-            // Let's insert before image? Order doesn't matter for absolute.
-            modal.querySelector('.modal-content-custom').appendChild(overlayDiv);
-
+            // Remove any injected buttons in wrapper (from previous opens)
+            const oldBtns = imgWrapper.querySelectorAll('.camera-btn, .agenda-modal-map-overlay');
+            oldBtns.forEach(b => b.remove());
 
             if (isAdmin) {
-                // Admin Mode: Inputs
-                // Clear detail container text if it was set
-                detailContainer.innerHTML = '';
+                // --- ADMIN EDIT MODE ---
                 
-                // Form HTML
+                // 1. Inject Camera Button on Image
+                const camBtn = document.createElement('button');
+                camBtn.className = 'camera-btn';
+                camBtn.innerHTML = '<i class="fas fa-camera"></i>';
+                camBtn.onclick = function() { document.getElementById('pm-file-input').click(); };
+                imgWrapper.appendChild(camBtn);
+
+                // 2. Build Form
                 const formHtml = `
                     <div class="mb-2 mt-3">
                         <label>Judul Partner:</label>
@@ -1387,43 +1327,58 @@ HTML_UR_FC = """
                         <label>Deskripsi/Detail:</label>
                         <textarea id="pm-details-input" class="form-control" rows="3">${details || ''}</textarea>
                     </div>
-                    <div class="mb-3">
-                        <label>Upload Gambar Baru:</label>
-                        <form id="partner-upload-form" action="/upload/agenda/${id}" method="post" enctype="multipart/form-data">
-                            <input type="file" name="image" class="form-control" id="pm-file-input">
-                        </form>
-                    </div>
-                    <div class="d-flex gap-2 justify-content-end">
+
+                    <!-- Hidden File Input -->
+                    <form id="partner-upload-form" action="/upload/agenda/${id}" method="post" enctype="multipart/form-data" style="display:none;">
+                        <input type="file" name="image" class="form-control" id="pm-file-input">
+                    </form>
+
+                    <div class="d-flex gap-2 justify-content-end mt-3">
                         <button class="btn btn-danger" onclick="document.getElementById('partner-modal').style.display='none'">Cancel</button>
                         <button class="btn btn-success" onclick="savePartnerFull('${id}')">Save</button>
                     </div>
                 `;
-                // Rebuild content
+                body.innerHTML = formHtml;
                 
-                // Helper to clear below image
-                while (img.nextSibling) {
-                    img.nextSibling.remove();
-                }
-                
-                const contentDiv = document.createElement('div');
-                contentDiv.innerHTML = formHtml;
-                modal.querySelector('.modal-content-custom').appendChild(contentDiv);
-                // Re-append overlay (it's absolute, so it can be anywhere, but let's keep it safe)
-                modal.querySelector('.modal-content-custom').appendChild(overlayDiv);
-
             } else {
-                // View Mode
-                // Clear below image
-                while (img.nextSibling) {
-                    img.nextSibling.remove();
+                // --- VIEW MODE ---
+
+                // 1. Social Links Overlay (Logic from previous, but cleaner)
+                let linksHTML = '';
+                if (index === 0) {
+                    linksHTML = `
+                        <a href="instagram://user?username=tahfidzkilatsamarinda" class="agenda-modal-map-overlay" target="_blank" style="text-decoration:none;">
+                            klik ini untuk ke sosmednya <i class="fas fa-arrow-right"></i> <i class="fab fa-instagram fa-lg text-danger"></i>
+                        </a>`;
+                } else if (index === 1) {
+                    linksHTML = `
+                        <div class="agenda-modal-map-overlay" style="cursor:default;">
+                            klik ini untuk ke sosmednya <i class="fas fa-arrow-right"></i>
+                            <a href="instagram://user?username=dapurarabiansmd"><i class="fab fa-instagram fa-lg text-danger ms-2"></i></a>
+                            <a href="whatsapp://send?phone=6281528455350"><i class="fab fa-whatsapp fa-lg text-success ms-2"></i></a>
+                        </div>
+                    `;
+                } else if (index === 2) {
+                    linksHTML = `
+                        <a href="instagram://user?username=daycareqa" class="agenda-modal-map-overlay" target="_blank" style="text-decoration:none;">
+                            klik ini untuk ke sosmednya <i class="fas fa-arrow-right"></i> <i class="fab fa-instagram fa-lg text-danger"></i>
+                        </a>`;
                 }
                 
+                // Inject overlay into wrapper
+                if(linksHTML) {
+                    const temp = document.createElement('div');
+                    temp.innerHTML = linksHTML;
+                    // append just the first child (the link or div)
+                    imgWrapper.appendChild(temp.firstElementChild);
+                }
+
+                // 2. Details Text
                 const detailsDiv = document.createElement('div');
-                detailsDiv.id = 'partner-modal-details';
                 detailsDiv.className = 'mb-3 text-muted';
+                detailsDiv.style.textAlign = 'justify';
                 detailsDiv.innerText = details || "Keterangan...";
-                modal.querySelector('.modal-content-custom').appendChild(detailsDiv);
-                modal.querySelector('.modal-content-custom').appendChild(overlayDiv);
+                body.appendChild(detailsDiv);
             }
             
             modal.style.display = 'flex';
@@ -1453,14 +1408,31 @@ HTML_UR_FC = """
         function openAgendaModal(id, title, eventDate, price) {
             const modal = document.getElementById('agenda-modal');
             const img = document.getElementById('agenda-modal-img');
+            const wrapper = document.getElementById('agenda-time-wrapper');
+            const imgContainer = document.getElementById('agenda-img-container');
+
+            // Set Image
             img.src = '/uploads/' + id + '.jpg?t=' + new Date().getTime(); 
             img.onerror = function() { this.src = '{{ url_for("static", filename="logo-tahkil-fc.png") }}'; };
             
-            const wrapper = document.getElementById('agenda-time-wrapper');
+            // Reset Wrapper
             wrapper.innerHTML = ''; 
 
+            // Remove old camera button if exists
+            const oldCam = imgContainer.querySelector('.camera-btn');
+            if(oldCam) oldCam.remove();
+
             if (isAdmin) {
-                // Admin Mode: Inputs and File Upload
+                // --- ADMIN MODE ---
+
+                // 1. Inject Camera Button
+                const camBtn = document.createElement('button');
+                camBtn.className = 'camera-btn';
+                camBtn.innerHTML = '<i class="fas fa-camera"></i>';
+                camBtn.onclick = function() { document.getElementById('ag-file-input').click(); };
+                imgContainer.appendChild(camBtn);
+
+                // 2. Build Form Inputs
                 const formHtml = `
                     <div class="mb-3">
                         <label>Judul Agenda:</label>
@@ -1474,20 +1446,22 @@ HTML_UR_FC = """
                         <label>Keterangan/Tempat (Subtitle):</label>
                         <input type="text" id="ag-price-input" class="form-control" value="${price || ''}">
                     </div>
-                    <div class="mb-3">
-                        <label>Upload Gambar Baru:</label>
-                        <form id="agenda-upload-form" action="/upload/agenda/${id}" method="post" enctype="multipart/form-data">
-                            <input type="file" name="image" class="form-control" id="ag-file-input">
-                        </form>
-                    </div>
+
+                    <!-- Hidden File Input -->
+                    <form id="agenda-upload-form" action="/upload/agenda/${id}" method="post" enctype="multipart/form-data" style="display:none;">
+                        <input type="file" name="image" id="ag-file-input">
+                    </form>
+
                     <div class="d-flex gap-2 justify-content-end">
                         <button class="btn btn-danger" onclick="document.getElementById('agenda-modal').style.display='none'">Cancel</button>
                         <button class="btn btn-success" onclick="saveAgendaFull('${id}')">Save</button>
                     </div>
                 `;
                 wrapper.innerHTML = formHtml;
+
             } else {
-                // View Mode: Display Logic (Realtime, Countdown, Event)
+                // --- VIEW MODE ---
+
                 // 1. Real-time Clock (Top)
                 const boxNow = document.createElement('div');
                 boxNow.className = 'time-box';
