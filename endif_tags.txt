@@ -1,0 +1,26 @@
+453:        <div class="next-match-mini" {% if admin %}style="cursor: pointer;" onclick="openNextMatchModal()"{% else %}style="cursor: default;"{% endif %}>
+462:        {% endif %}
+798:    {% endif %}
+812:    {% endif %}
+894:                    {% endif %}
+901:                {% endif %}
+917:                    {% endif %}
+933:                    {% endif %}
+940:                {% endif %}
+966:                    {% endif %}
+973:                {% endif %}
+999:                    {% endif %}
+1006:                {% endif %}
+1026:                        {% endif %}
+1043:                                {% endif %}
+1050:                    {% endif %}
+1072:                    {% endif %}
+1079:        {% endif %}
+1137:                    {% endif %}
+1155:            {% endif %}
+1169:            {% endif %}
+1206:                {% endif %}
+1217:            {% endif %}
+1233:                {% endif %}
+1261:            {% endif %}
+1410:                // Existing HTML: Image, {% if admin %} textarea, btn {% else %} details {% endif %}, social-links.

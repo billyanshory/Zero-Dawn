@@ -1029,24 +1029,14 @@ HTML_UR_FC = """
                     <div class="row">
                         {% for item in agenda_latihan %}
                         <div class="col-md-4">
-                            <div class="agenda-card-barca cursor-pointer" onclick="openAgendaModal('{{ item.id }}', '{{ item.title }}', '{{ item.event_date }}')">
+                            <div class="agenda-card-barca cursor-pointer" onclick="openAgendaModal('{{ item.id }}', '{{ item.title }}', '{{ item.event_date }}', '{{ item.price }}')">
                                 <div class="agenda-img" style="position:relative;">
                                     <img src="{{ '/uploads/' + item.id + '.jpg' }}?t={{ timestamp }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
-                                    {% if admin %}
-                                    <form action="/upload/agenda/{{ item.id }}" method="post" enctype="multipart/form-data" onclick="event.stopPropagation()">
-                                        <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="ag-{{ item.id }}">
-                                        <label for="ag-{{ item.id }}" class="position-absolute top-0 start-0 m-1 badge bg-success"><i class="fas fa-camera"></i></label>
-                                    </form>
-                                    {% endif %}
                                 </div>
                                 <div class="agenda-details">
-                                    {% if admin %}
-                                    <input type="datetime-local" class="form-control form-control-sm mb-1" value="{{ item.event_date }}" onchange="saveText('agenda_content', '{{ item.id }}', 'event_date', this); event.stopPropagation();" onclick="event.stopPropagation()">
-                                    {% else %}
                                     <div class="agenda-date">{{ item.event_date | replace('T', ' ') if item.event_date else 'Date TBD' }}</div>
-                                    {% endif %}
-                                    <div class="agenda-title" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'title', this); event.stopPropagation();" onclick="event.stopPropagation()">{{ item.title }}</div>
-                                    <small class="text-muted" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'price', this); event.stopPropagation();" onclick="event.stopPropagation()">{{ item.price }}</small>
+                                    <div class="agenda-title">{{ item.title }}</div>
+                                    <small class="text-muted">{{ item.price }}</small>
                                 </div>
                                 {% if admin %}
                                 <button class="position-absolute top-0 end-0 btn btn-sm btn-danger m-1" style="z-index:5;" onclick="deleteItem('agenda_content', '{{ item.id }}'); event.stopPropagation();"><i class="fas fa-trash"></i></button>
@@ -1072,16 +1062,10 @@ HTML_UR_FC = """
                 <div class="agenda-card-barca cursor-pointer" onclick="openPartnerModal('{{ loop.index0 }}', '{{ item.id }}', '{{ item.title }}', '{{ item.details if item.details else '' }}')">
                     <div class="agenda-img" style="position:relative;">
                          <img src="{{ '/uploads/' + item.id + '.jpg' }}?t={{ timestamp }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
-                         {% if admin %}
-                         <form action="/upload/agenda/{{ item.id }}" method="post" enctype="multipart/form-data" onclick="event.stopPropagation()">
-                            <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="mp-{{ item.id }}">
-                            <label for="mp-{{ item.id }}" class="position-absolute top-0 start-0 m-1 badge bg-warning"><i class="fas fa-camera"></i></label>
-                         </form>
-                         {% endif %}
                     </div>
                     <div class="agenda-details">
-                        <div class="agenda-date" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'price', this); event.stopPropagation();" onclick="event.stopPropagation()">{{ item.price }}</div>
-                        <div class="agenda-title" contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('agenda_content', '{{ item.id }}', 'title', this); event.stopPropagation();" onclick="event.stopPropagation()">{{ item.title }}</div>
+                        <div class="agenda-date">{{ item.price }}</div>
+                        <div class="agenda-title">{{ item.title }}</div>
                     </div>
                     {% if admin %}
                     <button class="position-absolute top-0 end-0 btn btn-sm btn-danger m-1" style="z-index:5;" onclick="deleteItem('agenda_content', '{{ item.id }}'); event.stopPropagation();"><i class="fas fa-trash"></i></button>
@@ -1300,6 +1284,7 @@ HTML_UR_FC = """
     <!-- DATA INJECTION FOR JS -->
     <script>
         const newsData = {{ data['news'] | tojson }};
+        const isAdmin = {{ 'true' if admin else 'false' }};
     </script>
 
     <script>
@@ -1307,62 +1292,165 @@ HTML_UR_FC = """
         function openPartnerModal(index, id, title, details) {
             index = parseInt(index);
             const modal = document.getElementById('partner-modal');
-            document.getElementById('partner-modal-img').src = '/uploads/' + id + '.jpg';
-            document.getElementById('partner-modal-img').onerror = function() { this.src = '{{ url_for("static", filename="logo-tahkil-fc.png") }}'; };
+            const img = document.getElementById('partner-modal-img');
+            img.src = '/uploads/' + id + '.jpg?t=' + new Date().getTime();
+            img.onerror = function() { this.src = '{{ url_for("static", filename="logo-tahkil-fc.png") }}'; };
             
-            // Set details
             const detailContainer = document.getElementById('partner-modal-details');
-            if (document.getElementById('partner-modal-input')) {
-                document.getElementById('partner-modal-input').value = details;
-                document.getElementById('partner-modal-input').setAttribute('data-id', id);
-            } else {
-                detailContainer.innerText = details || "Keterangan...";
+            const socialContainer = document.getElementById('partner-social-links');
+            socialContainer.innerHTML = ''; // Clear old overlay logic if any, but we use map overlay style now
+
+            // Social Logic (Overlay)
+            let linksHTML = '';
+            if (index === 0) { // Card 1
+                linksHTML = `
+                    <a href="instagram://user?username=tahfidzkilatsamarinda" class="agenda-modal-map-overlay" target="_blank" style="text-decoration:none;">
+                        klik ini untuk ke sosmednya <i class="fas fa-arrow-right"></i> <i class="fab fa-instagram fa-lg text-danger"></i>
+                    </a>`;
+            } else if (index === 1) { // Card 2
+                linksHTML = `
+                    <div class="position-absolute top-0 start-0 m-2 d-flex gap-2">
+                        <a href="instagram://user?username=dapurarabiansmd" class="agenda-modal-map-overlay" target="_blank" style="position:static; margin:0;">
+                            IG <i class="fab fa-instagram text-danger"></i>
+                        </a>
+                        <a href="whatsapp://send?phone=6281528455350" class="agenda-modal-map-overlay" target="_blank" style="position:static; margin:0;">
+                            WA <i class="fab fa-whatsapp text-success"></i>
+                        </a>
+                    </div>`;
+                // Adjust text slightly for multiple buttons or keep simple
+                linksHTML = `
+                    <div class="position-absolute top-0 start-0 m-2 d-flex flex-column gap-1 align-items-start">
+                         <div style="background:rgba(255,255,255,0.9); padding:5px 10px; border-radius:15px; font-size:0.8rem; font-weight:bold; margin-bottom:5px;">klik ini untuk ke sosmednya <i class="fas fa-arrow-down"></i></div>
+                         <div class="d-flex gap-2">
+                            <a href="instagram://user?username=dapurarabiansmd" class="btn btn-light rounded-circle shadow-sm"><i class="fab fa-instagram text-danger"></i></a>
+                            <a href="whatsapp://send?phone=6281528455350" class="btn btn-light rounded-circle shadow-sm"><i class="fab fa-whatsapp text-success"></i></a>
+                         </div>
+                    </div>
+                `;
+                // Wait, user wants "klik ini untuk ke sosmednya -> [Icons]" at top-left.
+                linksHTML = `
+                    <div class="agenda-modal-map-overlay" style="cursor:default;">
+                        klik ini untuk ke sosmednya <i class="fas fa-arrow-right"></i>
+                        <a href="instagram://user?username=dapurarabiansmd"><i class="fab fa-instagram fa-lg text-danger ms-2"></i></a>
+                        <a href="whatsapp://send?phone=6281528455350"><i class="fab fa-whatsapp fa-lg text-success ms-2"></i></a>
+                    </div>
+                `;
+            } else if (index === 2) { // Card 3
+                linksHTML = `
+                    <a href="instagram://user?username=daycareqa" class="agenda-modal-map-overlay" target="_blank" style="text-decoration:none;">
+                        klik ini untuk ke sosmednya <i class="fas fa-arrow-right"></i> <i class="fab fa-instagram fa-lg text-danger"></i>
+                    </a>`;
             }
 
-            // Social Logic
-            const socialContainer = document.getElementById('partner-social-links');
-            socialContainer.innerHTML = '';
-            
-            let linksHTML = '';
-            if (index === 0) {
-                linksHTML = `
-                    <div class="text-center mt-3">
-                        <small class="d-block mb-1 text-muted fst-italic">klik ini untuk ke sosmednya <i class="fas fa-arrow-down"></i></small>
-                        <a href="instagram://user?username=tahfidzkilatsamarinda" class="btn btn-lg btn-outline-danger rounded-circle m-1"><i class="fab fa-instagram"></i></a>
-                    </div>`;
-            } else if (index === 1) {
-                linksHTML = `
-                    <div class="text-center mt-3">
-                        <small class="d-block mb-1 text-muted fst-italic">klik ini untuk ke sosmednya <i class="fas fa-arrow-down"></i></small>
-                        <a href="instagram://user?username=dapurarabiansmd" class="btn btn-lg btn-outline-danger rounded-circle m-1"><i class="fab fa-instagram"></i></a>
-                        <a href="whatsapp://send?phone=6281528455350" class="btn btn-lg btn-outline-success rounded-circle m-1"><i class="fab fa-whatsapp"></i></a>
-                    </div>`;
-            } else if (index === 2) {
-                linksHTML = `
-                    <div class="text-center mt-3">
-                        <small class="d-block mb-1 text-muted fst-italic">klik ini untuk ke sosmednya <i class="fas fa-arrow-down"></i></small>
-                        <a href="instagram://user?username=daycareqa" class="btn btn-lg btn-outline-danger rounded-circle m-1"><i class="fab fa-instagram"></i></a>
-                    </div>`;
+            // Wrap image in container if not already (it is in HTML, but we need to inject overlay)
+            // HTML: <img id="partner-modal-img" ...>
+            // We need to inject the overlay *after* the image, but inside the container.
+            // The container is modal-content-custom.
+            // Actually, we should probably wrap the image in a relative div in HTML or JS.
+            // Let's use JS to wrap if needed, or better, update HTML structure in next step?
+            // No, I can't update HTML easily in this step (JS block).
+            // But wait, the Agenda Modal has a wrapper div `position:relative`. Partner modal has `img` directly in `modal-content`.
+            // I should update the Partner Modal HTML structure in the JS to wrap it?
+            // Or just inject the overlay absolute to `modal-content-custom` (which has `position: relative`).
+            // Yes, `modal-content-custom` has `position: relative`.
+
+            // Remove old overlay if any
+            const oldOverlay = document.getElementById('partner-overlay');
+            if(oldOverlay) oldOverlay.remove();
+
+            const overlayDiv = document.createElement('div');
+            overlayDiv.id = 'partner-overlay';
+            overlayDiv.innerHTML = linksHTML;
+            // The overlay classes (agenda-modal-map-overlay) use `position: absolute; top: 10px; left: 10px;`.
+            // This will position it relative to `modal-content-custom`.
+            // However, `modal-content-custom` has padding.
+            // If I append it to modal, it will be at top-left of padding box? No, padding box is inside border box.
+            // `top: 10px` inside a relative container works.
+
+            // But wait, the image is the first child.
+            // Let's insert before image? Order doesn't matter for absolute.
+            modal.querySelector('.modal-content-custom').appendChild(overlayDiv);
+
+
+            if (isAdmin) {
+                // Admin Mode: Inputs
+                // Clear detail container text if it was set
+                detailContainer.innerHTML = '';
+
+                // Form HTML
+                const formHtml = `
+                    <div class="mb-2 mt-3">
+                        <label>Judul Partner:</label>
+                        <input type="text" id="pm-title-input" class="form-control" value="${title}">
+                    </div>
+                    <div class="mb-2">
+                        <label>Deskripsi/Detail:</label>
+                        <textarea id="pm-details-input" class="form-control" rows="3">${details || ''}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label>Upload Gambar Baru:</label>
+                        <form id="partner-upload-form" action="/upload/agenda/${id}" method="post" enctype="multipart/form-data">
+                            <input type="file" name="image" class="form-control" id="pm-file-input">
+                        </form>
+                    </div>
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button class="btn btn-danger" onclick="document.getElementById('partner-modal').style.display='none'">Cancel</button>
+                        <button class="btn btn-success" onclick="savePartnerFull('${id}')">Save</button>
+                    </div>
+                `;
+                // Rebuild content
+
+                // Helper to clear below image
+                while (img.nextSibling) {
+                    img.nextSibling.remove();
+                }
+
+                const contentDiv = document.createElement('div');
+                contentDiv.innerHTML = formHtml;
+                modal.querySelector('.modal-content-custom').appendChild(contentDiv);
+                // Re-append overlay (it's absolute, so it can be anywhere, but let's keep it safe)
+                modal.querySelector('.modal-content-custom').appendChild(overlayDiv);
+
+            } else {
+                // View Mode
+                // Clear below image
+                while (img.nextSibling) {
+                    img.nextSibling.remove();
+                }
+
+                const detailsDiv = document.createElement('div');
+                detailsDiv.id = 'partner-modal-details';
+                detailsDiv.className = 'mb-3 text-muted';
+                detailsDiv.innerText = details || "Keterangan...";
+                modal.querySelector('.modal-content-custom').appendChild(detailsDiv);
+                modal.querySelector('.modal-content-custom').appendChild(overlayDiv);
             }
-            socialContainer.innerHTML = linksHTML;
             
             modal.style.display = 'flex';
         }
         
-        function savePartnerDetails() {
-            const input = document.getElementById('partner-modal-input');
-            const id = input.getAttribute('data-id');
-            const val = input.value;
-            saveText('agenda_content', id, 'details', {value: val});
-            document.getElementById('partner-modal').style.display = 'none';
-            setTimeout(() => location.reload(), 500);
+        function savePartnerFull(id) {
+            const title = document.getElementById('pm-title-input').value;
+            const details = document.getElementById('pm-details-input').value;
+            const fileInput = document.getElementById('pm-file-input');
+
+            Promise.all([
+                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'title', value: title }) }),
+                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'details', value: details }) })
+            ]).then(() => {
+                if (fileInput.files.length > 0) {
+                    document.getElementById('partner-upload-form').submit();
+                } else {
+                    location.reload();
+                }
+            });
         }
 
         // --- AGENDA MODAL & COUNTDOWN ---
         let agendaInterval = null;
         let realTimeInterval = null;
         
-        function openAgendaModal(id, title, eventDate) {
+        function openAgendaModal(id, title, eventDate, price) {
             const modal = document.getElementById('agenda-modal');
             const img = document.getElementById('agenda-modal-img');
             img.src = '/uploads/' + id + '.jpg?t=' + new Date().getTime();
@@ -1371,78 +1459,129 @@ HTML_UR_FC = """
             const wrapper = document.getElementById('agenda-time-wrapper');
             wrapper.innerHTML = '';
 
-            // 1. Real-time Clock (Top)
-            const boxNow = document.createElement('div');
-            boxNow.className = 'time-box';
-            boxNow.innerHTML = `<span>HARI INI:</span> <span id="am-realtime">Loading...</span>`;
-            wrapper.appendChild(boxNow);
-
-            if(realTimeInterval) clearInterval(realTimeInterval);
-            const updateRealTime = () => {
-                const now = new Date();
-                // Format requested: 17 Januari 2026, 08.54 WITA
-                const datePart = now.toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'});
-                const timePart = now.toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit', second: '2-digit'}).replace(/\\./g, ':');
-                document.getElementById('am-realtime').innerText = `${datePart}, ${timePart} WITA`;
-            };
-            updateRealTime();
-            realTimeInterval = setInterval(updateRealTime, 1000);
-
-            // 2. Countdown (Middle)
-            const boxCount = document.createElement('div');
-            boxCount.className = 'time-box';
-            boxCount.style.background = '#e8f5e9';
-            boxCount.innerHTML = `<span>MENUJU ACARA:</span> <span id="am-countdown">--</span>`;
-            wrapper.appendChild(boxCount);
-
-            // 3. Event Date (Bottom)
-            const boxEvent = document.createElement('div');
-            boxEvent.className = 'time-box';
-            boxEvent.style.background = '#fff3cd';
-            
-            if (eventDate) {
-                const eDate = new Date(eventDate);
-                const dateStr = eDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-                const timeStr = eDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(/\\./g, ':');
-                
-                const fullStr = `${dateStr}, ${timeStr} WITA`;
-                const words = fullStr.split(' ');
-                let html = '';
-                words.forEach(w => {
-                    html += `<span class="time-box-mini">${w}</span>`;
-                });
-                boxEvent.innerHTML = `<span>WAKTU ACARA:</span> <div>${html}</div>`;
-                wrapper.appendChild(boxEvent);
-
-                if(agendaInterval) clearInterval(agendaInterval);
-                const updateCountdown = () => {
-                    const diff = eDate - new Date();
-                    if (diff < 0) {
-                        document.getElementById('am-countdown').innerText = "EVENT STARTED";
-                        return;
-                    }
-                    const d = Math.floor(diff / (1000 * 60 * 60 * 24));
-                    const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                    const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                    const s = Math.floor((diff % (1000 * 60)) / 1000);
-
-                    const parts = [`${d}h`, `${h}j`, `${m}m`, `${s}d`];
-                    let cdHtml = '';
-                    parts.forEach(p => {
-                         cdHtml += `<span class="time-box-mini" style="color:red; border-color:red;">${p}</span>`;
-                    });
-                    const cdEl = document.getElementById('am-countdown');
-                    if(cdEl) cdEl.innerHTML = cdHtml;
-                };
-                updateCountdown();
-                agendaInterval = setInterval(updateCountdown, 1000);
+            if (isAdmin) {
+                // Admin Mode: Inputs and File Upload
+                const formHtml = `
+                    <div class="mb-3">
+                        <label>Judul Agenda:</label>
+                        <input type="text" id="ag-title-input" class="form-control" value="${title}">
+                    </div>
+                    <div class="mb-3">
+                        <label>Waktu Acara:</label>
+                        <input type="datetime-local" id="ag-date-input" class="form-control" value="${eventDate || ''}">
+                    </div>
+                    <div class="mb-3">
+                        <label>Keterangan/Tempat (Subtitle):</label>
+                        <input type="text" id="ag-price-input" class="form-control" value="${price || ''}">
+                    </div>
+                    <div class="mb-3">
+                        <label>Upload Gambar Baru:</label>
+                        <form id="agenda-upload-form" action="/upload/agenda/${id}" method="post" enctype="multipart/form-data">
+                            <input type="file" name="image" class="form-control" id="ag-file-input">
+                        </form>
+                    </div>
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button class="btn btn-danger" onclick="document.getElementById('agenda-modal').style.display='none'">Cancel</button>
+                        <button class="btn btn-success" onclick="saveAgendaFull('${id}')">Save</button>
+                    </div>
+                `;
+                wrapper.innerHTML = formHtml;
             } else {
-                boxEvent.innerHTML = `<span>WAKTU ACARA:</span> <span>TBD</span>`;
-                wrapper.appendChild(boxEvent);
-                document.getElementById('am-countdown').innerText = "--";
+                // View Mode: Display Logic (Realtime, Countdown, Event)
+                // 1. Real-time Clock (Top)
+                const boxNow = document.createElement('div');
+                boxNow.className = 'time-box';
+                boxNow.innerHTML = `<span>HARI INI:</span> <span id="am-realtime">Loading...</span>`;
+                wrapper.appendChild(boxNow);
+
+                if(realTimeInterval) clearInterval(realTimeInterval);
+                const updateRealTime = () => {
+                    const now = new Date();
+                    const datePart = now.toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'});
+                    const timePart = now.toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit', second: '2-digit'}).replace(/\\./g, ':');
+                    document.getElementById('am-realtime').innerText = `${datePart}, ${timePart} WITA`;
+                };
+                updateRealTime();
+                realTimeInterval = setInterval(updateRealTime, 1000);
+
+                // 2. Countdown (Middle)
+                const boxCount = document.createElement('div');
+                boxCount.className = 'time-box';
+                boxCount.style.background = '#e8f5e9';
+                boxCount.innerHTML = `<span>MENUJU ACARA:</span> <span id="am-countdown">--</span>`;
+                wrapper.appendChild(boxCount);
+
+                // 3. Event Date (Bottom)
+                const boxEvent = document.createElement('div');
+                boxEvent.className = 'time-box';
+                boxEvent.style.background = '#fff3cd';
+
+                if (eventDate) {
+                    const eDate = new Date(eventDate);
+                    const dateStr = eDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                    const timeStr = eDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(/\\./g, ':');
+
+                    const fullStr = `${dateStr}, ${timeStr} WITA`;
+                    const words = fullStr.split(' ');
+                    let html = '';
+                    words.forEach(w => {
+                        html += `<span class="time-box-mini">${w}</span>`;
+                    });
+                    boxEvent.innerHTML = `<span>WAKTU ACARA:</span> <div>${html}</div>`;
+                    wrapper.appendChild(boxEvent);
+
+                    if(agendaInterval) clearInterval(agendaInterval);
+                    const updateCountdown = () => {
+                        const diff = eDate - new Date();
+                        if (diff < 0) {
+                            const cdEl = document.getElementById('am-countdown');
+                            if(cdEl) cdEl.innerText = "EVENT STARTED";
+                            return;
+                        }
+                        const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+                        const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                        const s = Math.floor((diff % (1000 * 60)) / 1000);
+
+                        const parts = [`${d}h`, `${h}j`, `${m}m`, `${s}d`];
+                        let cdHtml = '';
+                        parts.forEach(p => {
+                             cdHtml += `<span class="time-box-mini" style="color:red; border-color:red;">${p}</span>`;
+                        });
+                        const cdEl = document.getElementById('am-countdown');
+                        if(cdEl) cdEl.innerHTML = cdHtml;
+                    };
+                    updateCountdown();
+                    agendaInterval = setInterval(updateCountdown, 1000);
+                } else {
+                    boxEvent.innerHTML = `<span>WAKTU ACARA:</span> <span>TBD</span>`;
+                    wrapper.appendChild(boxEvent);
+                    document.getElementById('am-countdown').innerText = "--";
+                }
             }
             
             modal.style.display = 'flex';
+        }
+
+        function saveAgendaFull(id) {
+            const title = document.getElementById('ag-title-input').value;
+            const date = document.getElementById('ag-date-input').value;
+            const price = document.getElementById('ag-price-input').value;
+            const fileInput = document.getElementById('ag-file-input');
+
+            // Save text
+            Promise.all([
+                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'title', value: title }) }),
+                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'event_date', value: date }) }),
+                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'price', value: price }) })
+            ]).then(() => {
+                // Upload Image if present
+                if (fileInput.files.length > 0) {
+                    document.getElementById('agenda-upload-form').submit();
+                } else {
+                    location.reload();
+                }
+            });
         }
 
         function previewResize(id, size) {

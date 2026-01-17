@@ -1,0 +1,29 @@
+453:        <div class="next-match-mini" {% if admin %}style="cursor: pointer;" onclick="openNextMatchModal()"{% else %}style="cursor: default;"{% endif %}>
+458:        {% if not admin %}
+783:    {% if admin %}
+799:    {% if not admin %}
+881:                    {% if admin %}
+897:                {% if admin %}
+913:                    {% if player.image_path %}
+924:                    {% if admin %}
+936:                {% if admin %}
+957:                     {% if admin %}
+969:                {% if admin %}
+990:                     {% if admin %}
+1002:                 {% if admin %}
+1020:                        {% if admin %}
+1041:                                {% if admin %}
+1048:                     {% if admin %}
+1070:                    {% if admin %}
+1077:         {% if admin %}
+1095:                     {% if admin %}
+1147:            {% if admin %}
+1164:            {% if admin %}
+1201:                {% if admin %}
+1209:            {% if admin %}
+1228:                {% if admin %}
+1236:            {% if admin %}
+1403:                // Wait, previous code had {% if admin %} block in HTML.
+1404:                // I removed contenteditable from card face, but the modal HTML still has {% if admin %}.
+1406:                // But I can't easily change the static HTML {% if admin %} inside the modal without a separate step or Replace.
+1410:                // Existing HTML: Image, {% if admin %} textarea, btn {% else %} details {% endif %}, social-links.
