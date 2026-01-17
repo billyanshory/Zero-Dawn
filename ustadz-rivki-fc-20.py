@@ -154,6 +154,8 @@ def get_all_data():
 def render_page(content, **kwargs):
     content = content.replace('{{ styles|safe }}', STYLES_HTML)
     content = content.replace('{{ navbar|safe }}', NAVBAR_HTML)
+    if 'timestamp' not in kwargs:
+        kwargs['timestamp'] = int(time.time())
     return render_template_string(content, **kwargs)
 
 @app.route('/')
@@ -483,8 +485,7 @@ NAVBAR_HTML = """
         <a href="#players" class="nav-item-custom">Pemain</a>
         <a href="#coaches" class="nav-item-custom">Pelatih</a>
         <a href="#mvp" class="nav-item-custom">MVP</a>
-        <a href="#agenda-latihan" class="nav-item-custom">Agenda Latihan</a>
-        <a href="#main-partners" class="nav-item-custom">Turnamen</a>
+        <a href="#agenda-latihan" class="nav-item-custom">Agenda</a>
         <a href="#main-partners" class="nav-item-custom">Sponsors</a>
     </div>
     <button class="d-lg-none btn border-0" onclick="toggleMobileMenu()"><i class="fas fa-bars fa-2x"></i></button>
@@ -497,8 +498,7 @@ NAVBAR_HTML = """
     <a href="#players" class="mobile-nav-link">Pemain</a>
     <a href="#coaches" class="mobile-nav-link">Pelatih</a>
     <a href="#mvp" class="mobile-nav-link">MVP</a>
-    <a href="#agenda-latihan" class="mobile-nav-link">Agenda Latihan</a>
-    <a href="#main-partners" class="mobile-nav-link">Turnamen</a>
+    <a href="#agenda-latihan" class="mobile-nav-link">Agenda</a>
     <a href="#main-partners" class="mobile-nav-link">Sponsors</a>
     
     <div class="mt-auto d-flex flex-column gap-3">
@@ -683,7 +683,7 @@ STYLES_HTML = """
         position: fixed; top: 70px; right: -100%; width: 80%; max-width: 300px;
         height: calc(100vh - 70px); background: white; z-index: 1040;
         transition: right 0.3s ease-in-out; box-shadow: -5px 0 15px rgba(0,0,0,0.1);
-        padding: 20px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto;
+        padding: 20px; padding-bottom: 100px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto;
     }
     .mobile-menu-container.active { right: 0; }
     .mobile-nav-link {
@@ -733,6 +733,38 @@ STYLES_HTML = """
         display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.8rem;
     }
     .trash-btn:hover { background: darkred; }
+
+    .time-box-wrapper {
+        display: flex; flex-direction: column; gap: 8px; width: 100%; margin-bottom: 20px;
+    }
+    .time-box {
+        background: #f8f9fa; border-left: 5px solid var(--gold); padding: 10px 15px;
+        font-weight: 700; color: #333; text-transform: uppercase;
+        display: flex; justify-content: space-between; align-items: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-size: 0.9rem;
+    }
+    .time-box-mini {
+        background: white; padding: 4px 8px; border-radius: 4px; margin: 0 2px;
+        border: 1px solid #ddd; display: inline-block;
+    }
+    .agenda-modal-map-overlay {
+        position: absolute; top: 10px; left: 10px; z-index: 10;
+        background: rgba(255, 255, 255, 0.9); padding: 8px 15px; border-radius: 30px;
+        display: flex; align-items: center; gap: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        font-weight: 700; font-size: 0.8rem; cursor: pointer; text-decoration: none; color: black;
+        transition: 0.3s;
+    }
+    .agenda-modal-map-overlay:hover { background: var(--gold); transform: scale(1.05); }
+
+    .custom-range-slider::-webkit-slider-runnable-track {
+        background: #e0f7fa;
+        box-shadow: 0 0 8px rgba(135, 206, 250, 0.8);
+        border-radius: 5px;
+        height: 6px;
+    }
+    .custom-range-slider::-webkit-slider-thumb {
+        margin-top: -5px; /* Adjust thumb position */
+    }
 </style>
 """
 
@@ -844,7 +876,7 @@ HTML_UR_FC = """
                 {% for sponsor in data['sponsors'] %}
                 <div class="position-relative d-flex align-items-center flex-column">
                     {% set size = sponsor.size if sponsor.size else 80 %}
-                    <img src="{{ '/uploads/' + sponsor.image_path if sponsor.image_path else 'https://via.placeholder.com/100x100?text=SPONSOR' }}" 
+                    <img id="sp-img-{{ sponsor.id }}" src="{{ '/uploads/' + sponsor.image_path if sponsor.image_path else 'https://via.placeholder.com/100x100?text=SPONSOR' }}?t={{ timestamp }}"
                          class="sponsor-logo-small" style="width: {{ size }}px; height: {{ size }}px;">
                     {% if admin %}
                     <div class="position-absolute top-0 start-50 translate-middle-x d-flex gap-1" style="z-index: 10;">
@@ -855,7 +887,8 @@ HTML_UR_FC = """
                         <button class="trash-btn" onclick="deleteItem('sponsors', '{{ sponsor.id }}')"><i class="fas fa-trash"></i></button>
                     </div>
                     <div class="mt-2">
-                        <input type="range" class="form-range" min="40" max="200" step="10" value="{{ size }}" style="width: 80px;" 
+                        <input type="range" class="form-range custom-range-slider" min="40" max="200" step="5" value="{{ size }}" style="width: 100px;"
+                               oninput="previewResize('{{ sponsor.id }}', this.value)"
                                onchange="saveText('sponsors', '{{ sponsor.id }}', 'size', this)">
                     </div>
                     {% endif %}
@@ -979,7 +1012,7 @@ HTML_UR_FC = """
     <div class="container py-5" id="agenda-latihan">
         <div class="row">
             <div class="col-lg-12">
-                <h2 class="section-title">Agenda Latihan TAHKIL FC</h2>
+                <h2 class="section-title" style="white-space: nowrap; font-size: calc(1.3rem + .6vw);">Agenda Latihan & Turnamen</h2>
                 <div class="calendar-container">
                     <div class="text-center mb-4">
                         <h4 class="text-uppercase fw-bold">Next Match Countdown</h4>
@@ -998,7 +1031,7 @@ HTML_UR_FC = """
                         <div class="col-md-4">
                             <div class="agenda-card-barca cursor-pointer" onclick="openAgendaModal('{{ item.id }}', '{{ item.title }}', '{{ item.event_date }}')">
                                 <div class="agenda-img" style="position:relative;">
-                                    <img src="{{ '/uploads/' + item.id + '.jpg' }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
+                                    <img src="{{ '/uploads/' + item.id + '.jpg' }}?t={{ timestamp }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
                                     {% if admin %}
                                     <form action="/upload/agenda/{{ item.id }}" method="post" enctype="multipart/form-data" onclick="event.stopPropagation()">
                                         <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="ag-{{ item.id }}">
@@ -1038,7 +1071,7 @@ HTML_UR_FC = """
             <div class="col-md-4">
                 <div class="agenda-card-barca cursor-pointer" onclick="openPartnerModal('{{ loop.index0 }}', '{{ item.id }}', '{{ item.title }}', '{{ item.details if item.details else '' }}')">
                     <div class="agenda-img" style="position:relative;">
-                         <img src="{{ '/uploads/' + item.id + '.jpg' }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
+                         <img src="{{ '/uploads/' + item.id + '.jpg' }}?t={{ timestamp }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
                          {% if admin %}
                          <form action="/upload/agenda/{{ item.id }}" method="post" enctype="multipart/form-data" onclick="event.stopPropagation()">
                             <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="mp-{{ item.id }}">
@@ -1158,22 +1191,15 @@ HTML_UR_FC = """
     <!-- AGENDA MODAL -->
     <div id="agenda-modal" class="modal-overlay" onclick="document.getElementById('agenda-modal').style.display='none'">
         <div class="modal-content-custom" onclick="event.stopPropagation()" style="max-width:800px; padding:20px;">
-            <img id="agenda-modal-img" src="" style="width:100%; height:auto; max-height:60vh; object-fit:contain; border-radius:10px; margin-bottom:20px; box-shadow:0 5px 15px rgba(0,0,0,0.2);">
-            
-            <div class="d-flex justify-content-between align-items-center mb-3 text-uppercase fw-bold" style="font-size:0.9rem;">
-                <div id="agenda-modal-now" class="text-start text-muted"></div>
-                <div class="text-center">
-                    <div id="agenda-modal-countdown" class="display-6 fw-bold text-danger mb-1" style="font-family:monospace; letter-spacing:-1px;"></div>
-                    <i class="fas fa-arrow-right fa-2x text-warning"></i>
-                </div>
-                <div id="agenda-modal-event" class="text-end text-success"></div>
+            <div style="position:relative; width:100%; margin-bottom:20px;">
+                <img id="agenda-modal-img" src="" style="width:100%; height:auto; max-height:60vh; object-fit:contain; border-radius:10px; box-shadow:0 5px 15px rgba(0,0,0,0.2);">
+                <a href="https://maps.app.goo.gl/pKfSE3Ewm1RPCDiy9" target="_blank" class="agenda-modal-map-overlay">
+                    klik ini untuk ke lokasi latihan <i class="fas fa-arrow-right"></i> <i class="fas fa-map-marker-alt fa-lg text-danger"></i>
+                </a>
             </div>
             
-            <div class="text-center mt-4">
-                <small class="d-block mb-1 text-muted fst-italic fw-bold">klik ini untuk ke lokasi latihan <i class="fas fa-arrow-down"></i></small>
-                <a href="https://maps.app.goo.gl/pKfSE3Ewm1RPCDiy9" target="_blank" class="btn btn-lg btn-outline-primary rounded-circle shadow-sm" style="width:60px; height:60px; display:inline-flex; align-items:center; justify-content:center;">
-                    <i class="fas fa-map-marker-alt fa-2x"></i>
-                </a>
+            <div class="time-box-wrapper" id="agenda-time-wrapper">
+                <!-- Injected via JS -->
             </div>
         </div>
     </div>
@@ -1334,49 +1360,97 @@ HTML_UR_FC = """
 
         // --- AGENDA MODAL & COUNTDOWN ---
         let agendaInterval = null;
+        let realTimeInterval = null;
         
         function openAgendaModal(id, title, eventDate) {
             const modal = document.getElementById('agenda-modal');
-            document.getElementById('agenda-modal-img').src = '/uploads/' + id + '.jpg';
-            document.getElementById('agenda-modal-img').onerror = function() { this.src = '{{ url_for("static", filename="logo-tahkil-fc.png") }}'; };
+            const img = document.getElementById('agenda-modal-img');
+            img.src = '/uploads/' + id + '.jpg?t=' + new Date().getTime();
+            img.onerror = function() { this.src = '{{ url_for("static", filename="logo-tahkil-fc.png") }}'; };
             
-            // Set Dates
-            const now = new Date();
-            const options = { year: 'numeric', month: 'long', day: 'numeric' };
-            document.getElementById('agenda-modal-now').innerText = now.toLocaleDateString('id-ID', options);
+            const wrapper = document.getElementById('agenda-time-wrapper');
+            wrapper.innerHTML = '';
+
+            // 1. Real-time Clock (Top)
+            const boxNow = document.createElement('div');
+            boxNow.className = 'time-box';
+            boxNow.innerHTML = `<span>HARI INI:</span> <span id="am-realtime">Loading...</span>`;
+            wrapper.appendChild(boxNow);
+
+            if(realTimeInterval) clearInterval(realTimeInterval);
+            const updateRealTime = () => {
+                const now = new Date();
+                // Format requested: 17 Januari 2026, 08.54 WITA
+                const datePart = now.toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'});
+                const timePart = now.toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit', second: '2-digit'}).replace(/\\./g, ':');
+                document.getElementById('am-realtime').innerText = `${datePart}, ${timePart} WITA`;
+            };
+            updateRealTime();
+            realTimeInterval = setInterval(updateRealTime, 1000);
+
+            // 2. Countdown (Middle)
+            const boxCount = document.createElement('div');
+            boxCount.className = 'time-box';
+            boxCount.style.background = '#e8f5e9';
+            boxCount.innerHTML = `<span>MENUJU ACARA:</span> <span id="am-countdown">--</span>`;
+            wrapper.appendChild(boxCount);
+
+            // 3. Event Date (Bottom)
+            const boxEvent = document.createElement('div');
+            boxEvent.className = 'time-box';
+            boxEvent.style.background = '#fff3cd';
             
             if (eventDate) {
                 const eDate = new Date(eventDate);
-                // Format: 16 Januari 2026, 23:51 WITA
-                const datePart = eDate.toLocaleDateString('id-ID', options);
-                const timePart = eDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                document.getElementById('agenda-modal-event').innerText = `${datePart}, ${timePart} WITA`;
+                const dateStr = eDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                const timeStr = eDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(/\\./g, ':');
                 
-                // Start Countdown
+                const fullStr = `${dateStr}, ${timeStr} WITA`;
+                const words = fullStr.split(' ');
+                let html = '';
+                words.forEach(w => {
+                    html += `<span class="time-box-mini">${w}</span>`;
+                });
+                boxEvent.innerHTML = `<span>WAKTU ACARA:</span> <div>${html}</div>`;
+                wrapper.appendChild(boxEvent);
+
                 if(agendaInterval) clearInterval(agendaInterval);
                 const updateCountdown = () => {
                     const diff = eDate - new Date();
                     if (diff < 0) {
-                        document.getElementById('agenda-modal-countdown').innerText = "EVENT STARTED";
+                        document.getElementById('am-countdown').innerText = "EVENT STARTED";
                         return;
                     }
                     const d = Math.floor(diff / (1000 * 60 * 60 * 24));
                     const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                     const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                     const s = Math.floor((diff % (1000 * 60)) / 1000);
-                    // Format: 1h 8j 7m 48d (User requested non-standard chars: h=hari? j=jam? m=menit? d=detik?)
-                    // Prompt said: "1h 8j 7m 48d" (h for days?, j for hours?)
-                    // Let's assume h=days, j=hours as requested.
-                    document.getElementById('agenda-modal-countdown').innerText = `${d}h ${h}j ${m}m ${s}d`;
+
+                    const parts = [`${d}h`, `${h}j`, `${m}m`, `${s}d`];
+                    let cdHtml = '';
+                    parts.forEach(p => {
+                         cdHtml += `<span class="time-box-mini" style="color:red; border-color:red;">${p}</span>`;
+                    });
+                    const cdEl = document.getElementById('am-countdown');
+                    if(cdEl) cdEl.innerHTML = cdHtml;
                 };
                 updateCountdown();
                 agendaInterval = setInterval(updateCountdown, 1000);
             } else {
-                document.getElementById('agenda-modal-event').innerText = "Date TBD";
-                document.getElementById('agenda-modal-countdown').innerText = "--";
+                boxEvent.innerHTML = `<span>WAKTU ACARA:</span> <span>TBD</span>`;
+                wrapper.appendChild(boxEvent);
+                document.getElementById('am-countdown').innerText = "--";
             }
             
             modal.style.display = 'flex';
+        }
+
+        function previewResize(id, size) {
+            const img = document.getElementById('sp-img-' + id);
+            if(img) {
+                img.style.width = size + 'px';
+                img.style.height = size + 'px';
+            }
         }
 
         // --- UI UTILS ---
