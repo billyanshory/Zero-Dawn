@@ -483,9 +483,8 @@ NAVBAR_HTML = """
         <a href="#players" class="nav-item-custom">Pemain</a>
         <a href="#coaches" class="nav-item-custom">Pelatih</a>
         <a href="#mvp" class="nav-item-custom">MVP</a>
-        <a href="#agenda-latihan" class="nav-item-custom">Agenda Latihan</a>
-        <a href="#main-partners" class="nav-item-custom">Turnamen</a>
-        <a href="#main-partners" class="nav-item-custom">Sponsors</a>
+        <a href="#agenda-latihan" class="nav-item-custom">Agenda</a>
+        <a href="#main-partners" class="nav-item-custom">Main Partners</a>
     </div>
     <button class="d-lg-none btn border-0" onclick="toggleMobileMenu()"><i class="fas fa-bars fa-2x"></i></button>
     <div class="navbar-split-border"></div>
@@ -497,9 +496,8 @@ NAVBAR_HTML = """
     <a href="#players" class="mobile-nav-link">Pemain</a>
     <a href="#coaches" class="mobile-nav-link">Pelatih</a>
     <a href="#mvp" class="mobile-nav-link">MVP</a>
-    <a href="#agenda-latihan" class="mobile-nav-link">Agenda Latihan</a>
-    <a href="#main-partners" class="mobile-nav-link">Turnamen</a>
-    <a href="#main-partners" class="mobile-nav-link">Sponsors</a>
+    <a href="#agenda-latihan" class="mobile-nav-link">Agenda</a>
+    <a href="#main-partners" class="mobile-nav-link">Main Partners</a>
     
     <div class="mt-auto d-flex flex-column gap-3">
         <div class="history-btn justify-content-center" onclick="openHistoryModal()">
@@ -684,6 +682,7 @@ STYLES_HTML = """
         height: calc(100vh - 70px); background: white; z-index: 1040;
         transition: right 0.3s ease-in-out; box-shadow: -5px 0 15px rgba(0,0,0,0.1);
         padding: 20px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto;
+        -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
     }
     .mobile-menu-container.active { right: 0; }
     .mobile-nav-link {
@@ -706,6 +705,12 @@ STYLES_HTML = """
         text-decoration: none !important;
         position: relative;
         cursor: pointer;
+    }
+
+    input[type=range]::-webkit-slider-runnable-track {
+        background: #e0f7fa; /* Light blue background track */
+        height: 6px;
+        border-radius: 3px;
     }
     .hover-underline:after {
         content: ''; position: absolute; width: 0; height: 3px; bottom: 0; left: 50%;
@@ -855,7 +860,8 @@ HTML_UR_FC = """
                         <button class="trash-btn" onclick="deleteItem('sponsors', '{{ sponsor.id }}')"><i class="fas fa-trash"></i></button>
                     </div>
                     <div class="mt-2">
-                        <input type="range" class="form-range" min="40" max="200" step="10" value="{{ size }}" style="width: 80px;"
+                        <input type="range" class="form-range" min="40" max="200" step="5" value="{{ size }}" style="width: 80px;"
+                               oninput="this.parentElement.previousElementSibling.previousElementSibling.style.width=this.value+'px'; this.parentElement.previousElementSibling.previousElementSibling.style.height=this.value+'px';"
                                onchange="saveText('sponsors', '{{ sponsor.id }}', 'size', this)">
                     </div>
                     {% endif %}
@@ -979,7 +985,7 @@ HTML_UR_FC = """
     <div class="container py-5" id="agenda-latihan">
         <div class="row">
             <div class="col-lg-12">
-                <h2 class="section-title">Agenda Latihan TAHKIL FC</h2>
+                <h2 class="section-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: block;">Agenda Latihan & Turnamen</h2>
                 <div class="calendar-container">
                     <div class="text-center mb-4">
                         <h4 class="text-uppercase fw-bold">Next Match Countdown</h4>
@@ -1038,7 +1044,7 @@ HTML_UR_FC = """
             <div class="col-md-4">
                 <div class="agenda-card-barca cursor-pointer" onclick="openPartnerModal('{{ loop.index0 }}', '{{ item.id }}', '{{ item.title }}', '{{ item.details if item.details else '' }}')">
                     <div class="agenda-img" style="position:relative;">
-                         <img src="{{ '/uploads/' + item.id + '.jpg' }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
+                         <img src="{{ '/uploads/' + item.id + '.jpg' }}?t={{ range(1, 10000) | random }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
                          {% if admin %}
                          <form action="/upload/agenda/{{ item.id }}" method="post" enctype="multipart/form-data" onclick="event.stopPropagation()">
                             <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="mp-{{ item.id }}">
@@ -1157,26 +1163,61 @@ HTML_UR_FC = """
 
     <!-- AGENDA MODAL -->
     <div id="agenda-modal" class="modal-overlay" onclick="document.getElementById('agenda-modal').style.display='none'">
-        <div class="modal-content-custom" onclick="event.stopPropagation()" style="max-width:800px; padding:20px;">
-            <img id="agenda-modal-img" src="" style="width:100%; height:auto; max-height:60vh; object-fit:contain; border-radius:10px; margin-bottom:20px; box-shadow:0 5px 15px rgba(0,0,0,0.2);">
-
-            <div class="d-flex justify-content-between align-items-center mb-3 text-uppercase fw-bold" style="font-size:0.9rem;">
-                <div id="agenda-modal-now" class="text-start text-muted"></div>
-                <div class="text-center">
-                    <div id="agenda-modal-countdown" class="display-6 fw-bold text-danger mb-1" style="font-family:monospace; letter-spacing:-1px;"></div>
-                    <i class="fas fa-arrow-right fa-2x text-warning"></i>
+        <div class="modal-content-custom" onclick="event.stopPropagation()" style="max-width:800px; padding:0; position:relative; overflow:hidden;">
+            <!-- Maps Link Top Left Overlay -->
+            <div class="position-absolute top-0 start-0 m-3 p-2 bg-white rounded shadow-sm d-flex align-items-center gap-2" style="z-index:10; opacity:0.9; cursor:pointer;" onclick="window.open('https://maps.app.goo.gl/pKfSE3Ewm1RPCDiy9', '_blank')">
+                <div class="text-start" style="line-height:1.1;">
+                    <small class="d-block text-muted fst-italic fw-bold" style="font-size:0.7rem;">klik ini untuk<br>ke lokasi latihan</small>
                 </div>
-                <div id="agenda-modal-event" class="text-end text-success"></div>
+                <i class="fas fa-arrow-right text-primary"></i>
+                <div class="btn btn-outline-primary rounded-circle shadow-sm p-0 d-flex align-items-center justify-content-center" style="width:40px; height:40px;">
+                    <i class="fas fa-map-marker-alt"></i>
+                </div>
             </div>
 
-            <div class="text-center mt-4">
-                <small class="d-block mb-1 text-muted fst-italic fw-bold">klik ini untuk ke lokasi latihan <i class="fas fa-arrow-down"></i></small>
-                <a href="https://maps.app.goo.gl/pKfSE3Ewm1RPCDiy9" target="_blank" class="btn btn-lg btn-outline-primary rounded-circle shadow-sm" style="width:60px; height:60px; display:inline-flex; align-items:center; justify-content:center;">
-                    <i class="fas fa-map-marker-alt fa-2x"></i>
-                </a>
+            <img id="agenda-modal-img" src="" style="width:100%; height:auto; max-height:60vh; object-fit:cover; display:block;">
+
+            <div class="p-4 bg-light">
+                <!-- Vertical Time Stack with Mini Boxes -->
+                <div class="d-flex flex-column gap-3 align-items-center text-uppercase fw-bold" style="font-size:0.9rem;">
+
+                    <!-- Today -->
+                    <div class="w-100 d-flex justify-content-between align-items-center mini-box-container" id="agenda-modal-now-container">
+                        <!-- JS populates spans here -->
+                    </div>
+
+                    <!-- Countdown -->
+                    <div class="w-100 d-flex justify-content-center">
+                        <div id="agenda-modal-countdown" class="display-6 fw-bold text-danger text-center" style="font-family:monospace; letter-spacing:-1px; border: 2px solid #ddd; padding: 10px 20px; border-radius: 8px; background: white; width: 100%;">--</div>
+                    </div>
+
+                    <!-- Event Time -->
+                    <div class="w-100 d-flex justify-content-between align-items-center mini-box-container" id="agenda-modal-event-container">
+                        <!-- JS populates spans here -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
+
+    <style>
+        .mini-box-span {
+            flex: 1;
+            text-align: center;
+            border: 1px solid #ddd;
+            background: white;
+            padding: 8px 5px;
+            margin: 0 2px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .mini-box-container {
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+    </style>
 
     <!-- HISTORY MODAL -->
     <div id="history-modal" class="modal-overlay" onclick="closeHistoryModal()">
@@ -1334,23 +1375,49 @@ HTML_UR_FC = """
 
         // --- AGENDA MODAL & COUNTDOWN ---
         let agendaInterval = null;
+        let realtimeInterval = null;
 
         function openAgendaModal(id, title, eventDate) {
             const modal = document.getElementById('agenda-modal');
-            document.getElementById('agenda-modal-img').src = '/uploads/' + id + '.jpg';
+            // Cache bust for immediate update check
+            document.getElementById('agenda-modal-img').src = '/uploads/' + id + '.jpg?t=' + new Date().getTime();
             document.getElementById('agenda-modal-img').onerror = function() { this.src = '{{ url_for("static", filename="logo-tahkil-fc.png") }}'; };
 
-            // Set Dates
-            const now = new Date();
-            const options = { year: 'numeric', month: 'long', day: 'numeric' };
-            document.getElementById('agenda-modal-now').innerText = now.toLocaleDateString('id-ID', options);
+            // Helper to split text into mini boxes
+            const renderMiniBoxes = (text, containerId) => {
+                const container = document.getElementById(containerId);
+                container.innerHTML = '';
+                // Split by spaces, comma, or dash but keep logic simple: split by space/punctuation boundaries?
+                // Request: "17 - Januari - 2026, 08.51 WITA" -> [17][Januari][2026,][08.51][WITA]
+                // Let's split by space.
+                const parts = text.split(' ');
+                parts.forEach(part => {
+                    const span = document.createElement('div');
+                    span.className = 'mini-box-span';
+                    span.innerText = part;
+                    container.appendChild(span);
+                });
+            };
+
+            // Realtime Clock
+            if (realtimeInterval) clearInterval(realtimeInterval);
+            const updateRealtime = () => {
+                const now = new Date();
+                const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                const dateStr = now.toLocaleDateString('id-ID', options);
+                const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + " WITA"; // Mock WITA logic, just appending
+                renderMiniBoxes(`${dateStr}, ${timeStr}`, 'agenda-modal-now-container');
+            };
+            updateRealtime();
+            realtimeInterval = setInterval(updateRealtime, 1000);
 
             if (eventDate) {
                 const eDate = new Date(eventDate);
-                // Format: 16 Januari 2026, 23:51 WITA
+                const options = { year: 'numeric', month: 'long', day: 'numeric' };
                 const datePart = eDate.toLocaleDateString('id-ID', options);
                 const timePart = eDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                document.getElementById('agenda-modal-event').innerText = `${datePart}, ${timePart} WITA`;
+                const fullEventStr = `${datePart}, ${timePart} WITA`;
+                renderMiniBoxes(fullEventStr, 'agenda-modal-event-container');
 
                 // Start Countdown
                 if(agendaInterval) clearInterval(agendaInterval);
@@ -1364,15 +1431,12 @@ HTML_UR_FC = """
                     const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                     const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                     const s = Math.floor((diff % (1000 * 60)) / 1000);
-                    // Format: 1h 8j 7m 48d (User requested non-standard chars: h=hari? j=jam? m=menit? d=detik?)
-                    // Prompt said: "1h 8j 7m 48d" (h for days?, j for hours?)
-                    // Let's assume h=days, j=hours as requested.
                     document.getElementById('agenda-modal-countdown').innerText = `${d}h ${h}j ${m}m ${s}d`;
                 };
                 updateCountdown();
                 agendaInterval = setInterval(updateCountdown, 1000);
             } else {
-                document.getElementById('agenda-modal-event').innerText = "Date TBD";
+                renderMiniBoxes("Date TBD", 'agenda-modal-event-container');
                 document.getElementById('agenda-modal-countdown').innerText = "--";
             }
 
