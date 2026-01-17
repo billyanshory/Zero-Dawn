@@ -78,6 +78,8 @@ def init_db():
     except: pass
     try: c.execute("ALTER TABLE agenda_content ADD COLUMN details TEXT")
     except: pass
+    try: c.execute("ALTER TABLE agenda_content ADD COLUMN image_path TEXT")
+    except: pass
 
     # Sponsors
     c.execute('''CREATE TABLE IF NOT EXISTS sponsors (
@@ -245,6 +247,14 @@ def upload_image(type, id):
         
         if type == 'history':
             c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", ('history_image', filename))
+        elif type == 'news':
+            c.execute("UPDATE news_content SET image_path = ? WHERE id = ?", (filename, id))
+        elif type == 'personnel':
+            c.execute("UPDATE personnel SET image_path = ? WHERE id = ?", (filename, id))
+        elif type == 'sponsor':
+            c.execute("UPDATE sponsors SET image_path = ? WHERE id = ?", (filename, id))
+        elif type == 'agenda':
+            c.execute("UPDATE agenda_content SET image_path = ? WHERE id = ?", (filename, id))
             
         conn.commit()
         conn.close()
@@ -867,6 +877,10 @@ HTML_UR_FC = """
                     <div class="position-absolute top-0 start-50 translate-middle-x d-flex gap-1" style="z-index: 10;">
                         <button class="trash-btn" onclick="deleteItem('sponsors', '{{ sponsor.id }}')"><i class="fas fa-trash"></i></button>
                     </div>
+                    <form action="/upload/sponsor/{{ sponsor.id }}" method="post" enctype="multipart/form-data" class="position-absolute bottom-0 end-0">
+                        <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="sp-upload-{{ sponsor.id }}">
+                        <label for="sp-upload-{{ sponsor.id }}" class="btn btn-sm btn-light border rounded-circle p-1" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><i class="fas fa-camera text-primary"></i></label>
+                    </form>
                     <div class="mt-2">
                         <input type="range" class="form-range custom-range-slider" min="40" max="200" step="5" value="{{ size }}" style="width: 100px;" 
                                oninput="previewResize('{{ sponsor.id }}', this.value)"
@@ -995,9 +1009,9 @@ HTML_UR_FC = """
                     <div class="row">
                         {% for item in agenda_latihan %}
                         <div class="col-md-4">
-                            <div class="agenda-card-barca cursor-pointer" onclick="openAgendaModal('{{ item.id }}', '{{ item.title }}', '{{ item.event_date }}', '{{ item.price }}')">
+                            <div class="agenda-card-barca cursor-pointer" onclick="openAgendaModal('{{ item.id }}', '{{ item.title }}', '{{ item.event_date }}', '{{ item.price }}', '{{ item.image_path if item.image_path else '' }}')">
                                 <div class="agenda-img" style="position:relative;">
-                                    <img src="{{ '/uploads/' + item.id + '.jpg' }}?t={{ timestamp }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
+                                    <img src="{{ '/uploads/' + item.image_path if item.image_path else url_for('static', filename='logo-tahkil-fc.png') }}?t={{ timestamp }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
                                 </div>
                                 <div class="agenda-details">
                                     <div class="agenda-date">{{ item.event_date | replace('T', ' ') if item.event_date else 'Date TBD' }}</div>
@@ -1025,9 +1039,9 @@ HTML_UR_FC = """
         <div class="row">
              {% for item in turnamen %}
             <div class="col-md-4">
-                <div class="agenda-card-barca cursor-pointer" onclick="openPartnerModal('{{ loop.index0 }}', '{{ item.id }}', '{{ item.title }}', '{{ item.details if item.details else '' }}')">
+                <div class="agenda-card-barca cursor-pointer" onclick="openPartnerModal('{{ loop.index0 }}', '{{ item.id }}', '{{ item.title }}', '{{ item.details if item.details else '' }}', '{{ item.image_path if item.image_path else '' }}')">
                     <div class="agenda-img" style="position:relative;">
-                         <img src="{{ '/uploads/' + item.id + '.jpg' }}?t={{ timestamp }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
+                         <img src="{{ '/uploads/' + item.image_path if item.image_path else url_for('static', filename='logo-tahkil-fc.png') }}?t={{ timestamp }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
                     </div>
                     <div class="agenda-details">
                         <div class="agenda-date">{{ item.price }}</div>
@@ -1052,8 +1066,14 @@ HTML_UR_FC = """
         <div class="modal-content-custom" onclick="event.stopPropagation()">
             <div class="row">
                 <!-- Image Column (Right on desktop, Top on mobile) -->
-                <div class="col-md-5 order-md-2 mb-3 mb-md-0 d-flex justify-content-center align-items-center">
+                <div class="col-md-5 order-md-2 mb-3 mb-md-0 d-flex justify-content-center align-items-center position-relative">
                     <img id="pm-img" src="" style="width:100%; height:300px; object-fit:cover; border-radius:10px; box-shadow:0 5px 15px rgba(0,0,0,0.2);">
+                    {% if admin %}
+                    <form id="pm-upload-form" method="post" enctype="multipart/form-data" class="position-absolute bottom-0 end-0 m-3">
+                         <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="pm-upload">
+                         <label for="pm-upload" class="btn btn-warning shadow"><i class="fas fa-camera"></i></label>
+                    </form>
+                    {% endif %}
                 </div>
                 
                 <!-- Info Column (Left on desktop, Bottom on mobile) -->
@@ -1188,6 +1208,12 @@ HTML_UR_FC = """
             
             <div style="position:relative;">
                 <img id="news-modal-img" src="" style="width:100%; height:300px; object-fit:cover; border-radius:8px; margin-bottom:15px;">
+                {% if admin %}
+                <form id="news-upload-form" method="post" enctype="multipart/form-data" class="position-absolute bottom-0 end-0 m-3">
+                     <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="news-upload">
+                     <label for="news-upload" class="btn btn-warning shadow"><i class="fas fa-camera"></i></label>
+                </form>
+                {% endif %}
             </div>
 
             {% if admin %}
@@ -1246,7 +1272,7 @@ HTML_UR_FC = """
 
     <script>
         // --- MAIN PARTNERS (Was Turnamen) ---
-        function openPartnerModal(index, id, title, details) {
+        function openPartnerModal(index, id, title, details, imagePath) {
             index = parseInt(index);
             const modal = document.getElementById('partner-modal');
             const img = document.getElementById('partner-modal-img');
@@ -1254,8 +1280,8 @@ HTML_UR_FC = """
             const imgWrapper = document.getElementById('partner-img-wrapper');
             
             // Set Image
-            img.src = '/uploads/' + id + '.jpg?t=' + new Date().getTime();
-            img.onerror = function() { this.src = '{{ url_for("static", filename="logo-tahkil-fc.png") }}'; };
+            const imgSrc = imagePath ? '/uploads/' + imagePath : '{{ url_for("static", filename="logo-tahkil-fc.png") }}';
+            img.src = imgSrc + '?t=' + new Date().getTime();
             
             // Reset Layout
             body.innerHTML = '';
@@ -1267,6 +1293,12 @@ HTML_UR_FC = """
             if (isAdmin) {
                 // --- ADMIN EDIT MODE ---
                 
+                // Inject Upload Button
+                const uploadBtn = document.createElement('div');
+                uploadBtn.className = 'camera-btn';
+                uploadBtn.innerHTML = `<form action="/upload/agenda/${id}" method="post" enctype="multipart/form-data"><label for="p-up-${id}" style="cursor:pointer;width:100%;height:100%;display:flex;align-items:center;justify-content:center;"><i class="fas fa-camera"></i></label><input type="file" id="p-up-${id}" name="image" style="display:none;" onchange="this.form.submit()"></form>`;
+                imgWrapper.appendChild(uploadBtn);
+
                 // Build Form
                 const formHtml = `
                     <div class="mb-2 mt-3">
@@ -1345,15 +1377,15 @@ HTML_UR_FC = """
         let agendaInterval = null;
         let realTimeInterval = null;
         
-        function openAgendaModal(id, title, eventDate, price) {
+        function openAgendaModal(id, title, eventDate, price, imagePath) {
             const modal = document.getElementById('agenda-modal');
             const img = document.getElementById('agenda-modal-img');
             const wrapper = document.getElementById('agenda-time-wrapper');
             const imgContainer = document.getElementById('agenda-img-container');
             
             // Set Image
-            img.src = '/uploads/' + id + '.jpg?t=' + new Date().getTime(); 
-            img.onerror = function() { this.src = '{{ url_for("static", filename="logo-tahkil-fc.png") }}'; };
+            const imgSrc = imagePath ? '/uploads/' + imagePath : '{{ url_for("static", filename="logo-tahkil-fc.png") }}';
+            img.src = imgSrc + '?t=' + new Date().getTime();
             
             // Reset Wrapper
             wrapper.innerHTML = ''; 
@@ -1365,6 +1397,12 @@ HTML_UR_FC = """
             if (isAdmin) {
                 // --- ADMIN MODE ---
                 
+                // Inject Upload Button
+                const uploadBtn = document.createElement('div');
+                uploadBtn.className = 'camera-btn';
+                uploadBtn.innerHTML = `<form action="/upload/agenda/${id}" method="post" enctype="multipart/form-data"><label for="ag-up-${id}" style="cursor:pointer;width:100%;height:100%;display:flex;align-items:center;justify-content:center;"><i class="fas fa-camera"></i></label><input type="file" id="ag-up-${id}" name="image" style="display:none;" onchange="this.form.submit()"></form>`;
+                imgContainer.appendChild(uploadBtn);
+
                 // Build Form Inputs
                 const formHtml = `
                     <div class="mb-3">
@@ -1576,6 +1614,7 @@ HTML_UR_FC = """
             document.getElementById('person-modal').style.display = 'flex';
             
             if (document.getElementById('pm-name-input')) { // Admin
+                document.getElementById('pm-upload-form').action = '/upload/personnel/' + id;
                 document.getElementById('pm-name-input').value = name;
                 document.getElementById('pm-pos-input').value = position;
                 document.getElementById('pm-nat-input').value = nat || 'Indonesia';
@@ -1662,6 +1701,7 @@ HTML_UR_FC = """
             }
 
             if (document.getElementById('news-modal-title-input')) { // Admin Mode
+                document.getElementById('news-upload-form').action = '/upload/news/' + newsId;
                 document.getElementById('news-modal-title-input').value = item.title;
                 document.getElementById('news-modal-subtitle-input').value = item.subtitle;
                 document.getElementById('news-modal-details-input').value = item.details || '';
