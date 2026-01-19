@@ -478,6 +478,10 @@ NAVBAR_HTML = """
     <a href="#main-partners" class="mobile-nav-link">Sponsors</a>
     
     <div class="mt-auto d-flex flex-column gap-3">
+        <div class="history-btn justify-content-center d-lg-none" onclick="toggleFullScreen()" style="background: #111; color: #FFD700;">
+            <i class="fas fa-expand"></i>
+            Layar Penuh
+        </div>
         <div class="history-btn justify-content-center" onclick="openHistoryModal()">
             <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="monochrome-icon">
             Lihat Sejarah
@@ -1761,6 +1765,21 @@ HTML_UR_FC = """
             card.addEventListener('mouseenter', () => { card.style.transform = 'scale(1.05)'; card.style.zIndex = '10'; });
             card.addEventListener('mouseleave', () => { card.style.transform = 'scale(1)'; card.style.zIndex = '1'; });
         });
+
+        // Full Screen Toggle
+        function toggleFullScreen() {
+            var doc = window.document;
+            var docEl = doc.documentElement;
+
+            var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+            var cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+
+            if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+                requestFullScreen.call(docEl);
+            } else {
+                cancelFullScreen.call(doc);
+            }
+        }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
