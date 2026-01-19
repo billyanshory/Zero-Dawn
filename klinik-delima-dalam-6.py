@@ -975,7 +975,9 @@ HTML_QUEUE = """
         body { 
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); 
             font-family: 'Segoe UI', sans-serif; 
-            min-height: 100vh; 
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         .glass-panel-custom {
             background: rgba(255, 255, 255, 0.8);
@@ -984,7 +986,6 @@ HTML_QUEUE = """
             padding: 30px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.05);
             border: 1px solid rgba(255, 255, 255, 0.5);
-            height: 100%;
         }
         .big-number { font-size: 6rem; font-weight: 800; color: #2ecc71; line-height: 1; }
         .section-label { font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: #999; letter-spacing: 1px; margin-bottom: 15px; }
@@ -1000,7 +1001,7 @@ HTML_QUEUE = """
     <div class="container py-5">
         <div class="row g-4">
             <div class="col-lg-6">
-                <div class="glass-panel-custom text-center d-flex flex-column justify-content-center">
+                <div class="glass-panel-custom h-100 text-center d-flex flex-column justify-content-center">
                     <div class="section-label">Sedang Diperiksa</div>
                     <div class="big-number mb-3" id="current-num">--</div>
                     <h3 class="fw-bold mb-0" id="current-name">Menunggu Dokter...</h3>
@@ -1008,7 +1009,7 @@ HTML_QUEUE = """
             </div>
             
             <div class="col-lg-3 col-6">
-                <div class="glass-panel-custom text-center">
+                <div class="glass-panel-custom h-100 text-center">
                     <div class="section-label">Antrean Menunggu</div>
                     <div class="display-1 fw-bold text-muted" id="waiting-count">0</div>
                     <small class="text-muted">PASIEN</small>
@@ -1016,7 +1017,7 @@ HTML_QUEUE = """
             </div>
             
             <div class="col-lg-3 col-6">
-                <div class="glass-panel-custom text-center d-flex align-items-center justify-content-center bg-white">
+                <div class="glass-panel-custom h-100 text-center d-flex align-items-center justify-content-center bg-white">
                     <div>
                         <div class="section-label">Estimasi Waktu</div>
                         <div class="fs-2 fw-bold text-warning">~15</div>
@@ -1119,6 +1120,8 @@ HTML_DOCTOR_REKAM = """
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); 
             font-family: 'Segoe UI', sans-serif; 
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         .glass-panel-custom {
             background: rgba(255, 255, 255, 0.9);
@@ -1126,8 +1129,8 @@ HTML_DOCTOR_REKAM = """
             border-radius: 15px;
             padding: 20px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            height: 100%;
             border: 1px solid rgba(255,255,255,0.5);
+            transition: all 0.3s ease;
         }
         .section-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: #7f8c8d; margin-bottom: 15px; letter-spacing: 1px; }
         .queue-card { 
@@ -1173,7 +1176,7 @@ HTML_DOCTOR_REKAM = """
             
             <!-- LEFT: WAITING LIST -->
             <div class="col-lg-5">
-                <div class="glass-panel-custom">
+                <div class="glass-panel-custom h-100">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="section-label mb-0"><i class="fas fa-user-clock me-2"></i> Antrean Menunggu</div>
                         <span class="badge bg-primary rounded-pill" id="waiting-count-badge">0</span>
@@ -1419,6 +1422,8 @@ HTML_DOCTOR_STOCK = """
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); 
             font-family: 'Segoe UI', sans-serif; 
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         .glass-panel-custom {
             background: rgba(255, 255, 255, 0.9);
