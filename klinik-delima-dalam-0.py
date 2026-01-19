@@ -198,14 +198,12 @@ def antrean_page():
 
 @app.route('/rekam-medis')
 def rekam_medis_page():
-    if not session.get('admin'): 
-         return '<script>alert("Akses Khusus Dokter. Silakan Login."); window.location.href="/profil-klinik";</script>'
+    # Admin check removed for development
     return render_template_string(HTML_DOCTOR_REKAM)
 
 @app.route('/stok-obat')
 def stok_obat_page():
-    if not session.get('admin'): 
-         return '<script>alert("Akses Khusus Dokter. Silakan Login."); window.location.href="/profil-klinik";</script>'
+    # Admin check removed for development
     return render_template_string(HTML_DOCTOR_STOCK)
 
 # --- CLINIC API ---
@@ -294,7 +292,7 @@ def api_queue_status():
 
 @app.route('/api/queue/action', methods=['POST'])
 def api_queue_action():
-    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    # if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
     action = data.get('action')
     id = data.get('id')
@@ -328,7 +326,7 @@ def api_stock_list():
 
 @app.route('/api/stock/update', methods=['POST'])
 def api_stock_update():
-    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    # if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
     action = data.get('action')
     
@@ -635,6 +633,28 @@ HTML_LANDING = """
             z-index: 9999;
         }
         .wa-float:hover { transform: scale(1.1); color: white; }
+        .lock-screen-btn {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 15px;
+            width: 70px;
+            height: 70px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            z-index: 9999;
+            color: #333;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+        .lock-screen-btn i { font-size: 1.5rem; margin-bottom: 5px; color: #333; }
+        .lock-screen-btn span { font-size: 0.65rem; font-weight: bold; line-height: 1; color: #333; }
+        @media (min-width: 992px) { .lock-screen-btn { display: none; } }
     </style>
 </head>
 <body>
@@ -663,13 +683,11 @@ HTML_LANDING = """
             <a href="/rekam-medis" class="main-btn">
                 <i class="fas fa-notes-medical"></i>
                 REKAM MEDIS
-                {% if not admin %}<small class="d-block text-muted" style="font-size:0.7rem">(Admin)</small>{% endif %}
             </a>
             
             <a href="/stok-obat" class="main-btn">
                 <i class="fas fa-capsules"></i>
                 STOK OBAT
-                {% if not admin %}<small class="d-block text-muted" style="font-size:0.7rem">(Admin)</small>{% endif %}
             </a>
 
             <a href="/profil-klinik" class="main-btn">
@@ -682,6 +700,11 @@ HTML_LANDING = """
     <a href="https://wa.me/6281528455350?text=Halo%20Dokter,%20saya%20ingin%20konsultasi%20darurat." class="wa-float" target="_blank">
         <i class="fab fa-whatsapp"></i>
     </a>
+
+    <button onclick="toggleFullScreen()" class="lock-screen-btn">
+        <i class="fas fa-expand"></i>
+        <span>Layar Penuh</span>
+    </button>
 
     <script>
         function updateStatus() {
@@ -697,6 +720,19 @@ HTML_LANDING = """
         
         function toggleClinicStatus() {
             fetch('/api/clinic/status', { method: 'POST' }).then(() => updateStatus());
+        }
+
+        function toggleFullScreen() {
+            var doc = window.document;
+            var docEl = doc.documentElement;
+            var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+            var cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+
+            if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+                requestFullScreen.call(docEl);
+            } else {
+                cancelFullScreen.call(doc);
+            }
         }
         
         updateStatus();
