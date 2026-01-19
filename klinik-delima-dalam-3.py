@@ -190,7 +190,7 @@ def landing_page():
     conn.close()
     
     # Render
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-clinic-medical').replace('{{ page_title }}', 'HOME')
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-clinic-medical').replace('{{ page_title }}', 'KLINIK KESEHATAN')
     return render_template_string(HTML_LANDING.replace('{{ navbar|safe }}', navbar), admin=session.get('admin', False))
 
 @app.route('/antrean')
@@ -276,7 +276,7 @@ def api_queue_status():
         waiting_list = [dict(r) for r in c.fetchall()]
         
         today = datetime.date.today().isoformat()
-        c.execute("SELECT * FROM queue WHERE status='done' AND created_at LIKE ? ORDER BY created_at DESC", (f"{today}%",))
+        c.execute("SELECT * FROM queue WHERE status='done' AND created_at LIKE ? ORDER BY created_at ASC", (f"{today}%",))
         history_list = [dict(r) for r in c.fetchall()]
         
         conn.close()
@@ -780,7 +780,7 @@ HTML_LANDING = """
 <body>
     {{ navbar|safe }}
     <div class="glass-panel">
-        <h1 class="mb-4 fw-bold">KLINIK TAHFIZH KILAT</h1>
+        <h1 class="mb-4 fw-bold">KLINIK KESEHATAN</h1>
         
         <div id="status-container">
             <!-- Loaded via JS -->
@@ -853,6 +853,10 @@ HTML_LANDING = """
         
         updateStatus();
     </script>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -992,6 +996,10 @@ HTML_QUEUE = """
         setInterval(refreshStatus, 3000);
         refreshStatus();
     </script>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -1194,7 +1202,7 @@ HTML_DOCTOR_REKAM = """
                     hist.innerHTML += `
                         <tr>
                             <td class="fw-bold text-center">${p.number}</td>
-                            <td>${escapeHtml(p.name)}</td>
+                    <td style="white-space:nowrap">${escapeHtml(p.name)}</td>
                             <td>${escapeHtml(p.diagnosis)}</td>
                             <td>${escapeHtml(p.prescription)}</td>
                             <td>${escapeHtml(p.medical_action)}</td>
@@ -1237,6 +1245,10 @@ HTML_DOCTOR_REKAM = """
         setInterval(loadData, 5000);
         loadData();
     </script>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -1398,6 +1410,10 @@ HTML_DOCTOR_STOCK = """
         
         loadStock();
     </script>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
