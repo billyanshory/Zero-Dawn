@@ -108,9 +108,12 @@ def init_db():
                     diagnosis TEXT,
                     prescription TEXT,
                     medical_action TEXT,
+                    cancellation_reason TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
     try: c.execute("ALTER TABLE queue ADD COLUMN medical_action TEXT")
+    except: pass
+    try: c.execute("ALTER TABLE queue ADD COLUMN cancellation_reason TEXT")
     except: pass
     
     # Medicine Stock
@@ -284,13 +287,17 @@ def api_queue_status():
         today = datetime.date.today().isoformat()
         c.execute("SELECT * FROM queue WHERE status='done' AND created_at LIKE ? ORDER BY created_at ASC", (f"{today}%",))
         history_list = [dict(r) for r in c.fetchall()]
+
+        c.execute("SELECT * FROM queue WHERE status='cancelled' AND created_at LIKE ? ORDER BY created_at DESC", (f"{today}%",))
+        cancelled_list = [dict(r) for r in c.fetchall()]
         
         conn.close()
         return jsonify({
             'current': current_data,
             'waiting_count': waiting_count,
             'waiting': waiting_list,
-            'history': history_list
+            'history': history_list,
+            'cancelled': cancelled_list
         })
         
     conn.close()
@@ -322,6 +329,10 @@ def api_queue_action():
         med_action = data.get('medical_action')
         c.execute("UPDATE queue SET status='done', diagnosis=?, prescription=?, medical_action=? WHERE id=?", (diag, presc, med_action, id))
         
+    elif action == 'cancel':
+        reason = data.get('reason')
+        c.execute("UPDATE queue SET status='cancelled', cancellation_reason=? WHERE id=?", (reason, id))
+
     conn.commit()
     conn.close()
     return jsonify({'success': True})
@@ -772,13 +783,19 @@ HTML_LANDING = """
             max-height: 0;
             opacity: 0;
             overflow: hidden;
-            transition: all 0.5s ease-in-out;
-            transform: translateY(-20px);
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            transform: translateY(-20px) scale(0.9);
         }
         .status-options-visible {
-            max-height: 200px;
+            max-height: 300px;
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
         }
         
         .status-option-btn {
@@ -792,8 +809,19 @@ HTML_LANDING = """
             align-items: center;
             min-width: 140px;
             transition: 0.3s;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
         }
+        .status-option-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: 0.5s;
+        }
+        .status-option-btn:hover::before { left: 100%; }
         .status-option-btn:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
         .btn-open { background: linear-gradient(135deg, #2ecc71, #27ae60); }
         .btn-close { background: linear-gradient(135deg, #e74c3c, #c0392b); }
@@ -1158,7 +1186,7 @@ HTML_DOCTOR_REKAM = """
 
             <!-- RIGHT: HISTORY -->
             <div class="col-lg-7">
-                <div class="glass-panel-custom">
+                <div class="glass-panel-custom mb-4">
                     <div class="section-label"><i class="fas fa-history me-2"></i> Riwayat Pemeriksaan (Hari Ini)</div>
                     <div class="table-responsive custom-scrollbar">
                         <table class="table table-hover align-middle" style="min-width: 600px;">
@@ -1166,12 +1194,31 @@ HTML_DOCTOR_REKAM = """
                                 <tr>
                                     <th>No</th>
                                     <th style="white-space:nowrap">Nama Pasien</th>
+                                    <th>Keluhan</th>
                                     <th>Diagnosa</th>
                                     <th>Resep Obat</th>
                                     <th>Tindakan</th>
+                                    <th>Aksi</th>
                                 </tr>
                             </thead>
                             <tbody id="history-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- DELETED PATIENTS -->
+                <div class="glass-panel-custom bg-light border-danger">
+                    <div class="section-label text-danger"><i class="fas fa-trash-alt me-2"></i> DATA PASIEN YANG DIHAPUS</div>
+                    <div class="table-responsive custom-scrollbar" style="max-height: 200px;">
+                        <table class="table table-sm table-hover align-middle">
+                            <thead class="table-danger">
+                                <tr>
+                                    <th>No</th>
+                                    <th>Nama Pasien</th>
+                                    <th>Alasan Batal</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deleted-table"></tbody>
                         </table>
                     </div>
                 </div>
@@ -1275,15 +1322,47 @@ HTML_DOCTOR_REKAM = """
                     hist.innerHTML += `
                         <tr>
                             <td class="fw-bold text-center">${p.number}</td>
-                    <td style="white-space:nowrap">${escapeHtml(p.name)}</td>
+                            <td style="white-space:nowrap">${escapeHtml(p.name)}</td>
+                            <td>${escapeHtml(p.complaint)}</td>
                             <td>${escapeHtml(p.diagnosis)}</td>
                             <td>${escapeHtml(p.prescription)}</td>
                             <td>${escapeHtml(p.medical_action)}</td>
+                            <td>
+                                <button class="btn btn-sm btn-danger rounded-circle" onclick="deletePatient(${p.id})">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </td>
                         </tr>`;
                 });
+
+                // Deleted
+                const del = document.getElementById('deleted-table');
+                if(del) {
+                    del.innerHTML = '';
+                    if(data.cancelled) {
+                        data.cancelled.forEach(p => {
+                            del.innerHTML += `
+                                <tr>
+                                    <td class="fw-bold text-center">${p.number}</td>
+                                    <td class="fw-bold">${escapeHtml(p.name)}</td>
+                                    <td class="text-danger">${escapeHtml(p.cancellation_reason)}</td>
+                                </tr>`;
+                        });
+                    }
+                }
             });
         }
         
+        function deletePatient(id) {
+            const reason = prompt("Masukkan Alasan Pembatalan/Penghapusan:");
+            if (reason) {
+                fetch('/api/queue/action', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ action: 'cancel', id: id, reason: reason })
+                }).then(() => loadData());
+            }
+        }
+
         function callPatient(id) {
             fetch('/api/queue/action', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -1437,12 +1516,14 @@ HTML_DOCTOR_STOCK = """
                                 </span>
                             </td>
                             <td class="text-center text-muted text-uppercase small fw-bold">${escapeHtml(item.unit)}</td>
-                            <td class="text-end">
-                                <div class="btn-group" role="group">
-                                    <button class="btn btn-sm btn-outline-danger" onclick="updateStock(${item.id}, -1)"><i class="fas fa-minus"></i></button>
-                                    <button class="btn btn-sm btn-outline-success" onclick="updateStock(${item.id}, 1)"><i class="fas fa-plus"></i></button>
+        <td class="text-end" style="white-space: nowrap;">
+            <div class="d-flex justify-content-end align-items-center gap-2">
+                <div class="btn-group" role="group">
+                    <button class="btn btn-sm btn-outline-danger" onclick="updateStock(${item.id}, -1)"><i class="fas fa-minus"></i></button>
+                    <button class="btn btn-sm btn-outline-success" onclick="updateStock(${item.id}, 1)"><i class="fas fa-plus"></i></button>
+                </div>
+                <button class="btn btn-sm btn-light text-danger" onclick="deleteStock(${item.id})" title="Hapus"><i class="fas fa-trash-alt"></i></button>
                                 </div>
-                                <button class="btn btn-sm btn-light text-danger ms-3" onclick="deleteStock(${item.id})" title="Hapus"><i class="fas fa-trash-alt"></i></button>
                             </td>
                         </tr>
                     `;
@@ -2928,4 +3009,4 @@ HTML_UR_FC = """
 """
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=False, port=5000)
