@@ -1039,7 +1039,7 @@ HTML_UR_FC = """
         <div class="row">
              {% for item in turnamen %}
             <div class="col-md-4">
-                <div class="agenda-card-barca cursor-pointer" onclick="openPartnerModal('{{ loop.index0 }}', '{{ item.id }}', '{{ item.title }}', '{{ item.details if item.details else '' }}', '{{ item.image_path if item.image_path else '' }}')">
+                <div class="agenda-card-barca cursor-pointer" onclick="openPartnerModal('{{ loop.index0 }}', '{{ item.id }}', '{{ item.title }}', '{{ item.details if item.details else '' }}', '{{ item.image_path if item.image_path else '' }}', '{{ item.price if item.price else '' }}')">
                     <div class="agenda-img" style="position:relative;">
                          <img src="{{ '/uploads/' + item.image_path if item.image_path else url_for('static', filename='logo-tahkil-fc.png') }}?t={{ timestamp }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
                     </div>
@@ -1272,7 +1272,7 @@ HTML_UR_FC = """
 
     <script>
         // --- MAIN PARTNERS (Was Turnamen) ---
-        function openPartnerModal(index, id, title, details, imagePath) {
+        function openPartnerModal(index, id, title, details, imagePath, price) {
             index = parseInt(index);
             const modal = document.getElementById('partner-modal');
             const img = document.getElementById('partner-modal-img');
@@ -1302,6 +1302,10 @@ HTML_UR_FC = """
                 // Build Form
                 const formHtml = `
                     <div class="mb-2 mt-3">
+                        <label>Nomor Partner:</label>
+                        <input type="text" id="pm-price-input" class="form-control" value="${price || ''}">
+                    </div>
+                    <div class="mb-2">
                         <label>Judul Partner:</label>
                         <input type="text" id="pm-title-input" class="form-control" value="${title}">
                     </div>
@@ -1364,10 +1368,12 @@ HTML_UR_FC = """
         function savePartnerFull(id) {
             const title = document.getElementById('pm-title-input').value;
             const details = document.getElementById('pm-details-input').value;
+            const price = document.getElementById('pm-price-input').value;
 
             Promise.all([
                 fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'title', value: title }) }),
-                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'details', value: details }) })
+                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'details', value: details }) }),
+                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'price', value: price }) })
             ]).then(() => {
                 location.reload();
             });
