@@ -1681,7 +1681,7 @@ HTML_WALLPAPER = """
                     dustCanvas.height = window.innerHeight;
 
                     dustParticles = [];
-                    const count = 100; // Particle count
+                    const count = 300; // Particle count
                     for (let i = 0; i < count; i++) {
                         dustParticles.push(createDustParticle());
                     }
@@ -1691,8 +1691,8 @@ HTML_WALLPAPER = """
 
                 function createDustParticle() {
                     return {
-                        x: (Math.random() - 0.5) * window.innerWidth * 3, // Wide spread for depth
-                        y: (Math.random() - 0.5) * window.innerHeight * 3,
+                        x: (Math.random() - 0.5) * window.innerWidth * 4, // Wide spread for depth
+                        y: (Math.random() - 0.5) * window.innerHeight * 4,
                         z: Math.random() * window.innerWidth, // Depth
                         vz: Math.random() * 2 + 1, // Velocity towards screen
                         size: Math.random() * 2,
@@ -1718,8 +1718,8 @@ HTML_WALLPAPER = """
                         // Reset if passed screen
                         if (p.z <= 0) {
                             p.z = window.innerWidth;
-                            p.x = (Math.random() - 0.5) * window.innerWidth * 3;
-                            p.y = (Math.random() - 0.5) * window.innerHeight * 3;
+                            p.x = (Math.random() - 0.5) * window.innerWidth * 4;
+                            p.y = (Math.random() - 0.5) * window.innerHeight * 4;
                             p.vz = Math.random() * 2 + 1;
                         }
 
