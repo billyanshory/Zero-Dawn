@@ -307,6 +307,23 @@ def api_queue_status():
         'waiting_count': waiting_count
     })
 
+@app.route('/api/queue/archive')
+def api_queue_archive():
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM queue WHERE status IN ('done', 'cancelled') ORDER BY created_at DESC")
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+
+    grouped = {}
+    for r in rows:
+        date_str = r['created_at'].split(' ')[0] if r['created_at'] else 'Unknown'
+        if date_str not in grouped:
+            grouped[date_str] = []
+        grouped[date_str].append(r)
+
+    return jsonify(grouped)
+
 @app.route('/api/queue/action', methods=['POST'])
 def api_queue_action():
     # if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
@@ -709,7 +726,8 @@ HTML_LANDING = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Klinik Tahfizh Kilat</title>
+    <title>Klinik Kesehatan</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -969,6 +987,7 @@ HTML_QUEUE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Antrean Klinik</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -1113,6 +1132,7 @@ HTML_DOCTOR_REKAM = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dokter - Rekam Medis</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -1190,7 +1210,10 @@ HTML_DOCTOR_REKAM = """
             <!-- RIGHT: HISTORY -->
             <div class="col-lg-7">
                 <div class="glass-panel-custom mb-4">
-                    <div class="section-label"><i class="fas fa-history me-2"></i> Riwayat Pemeriksaan (Hari Ini)</div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="section-label mb-0"><i class="fas fa-history me-2"></i> Riwayat Pemeriksaan (Hari Ini)</div>
+                        <button class="btn btn-sm btn-outline-success fw-bold" onclick="openArchive()"><i class="fas fa-database me-2"></i> Database</button>
+                    </div>
                     <div class="table-responsive custom-scrollbar">
                         <table class="table table-hover align-middle" style="min-width: 600px;">
                             <thead class="table-light">
@@ -1211,7 +1234,10 @@ HTML_DOCTOR_REKAM = """
 
                 <!-- DELETED PATIENTS -->
                 <div class="glass-panel-custom bg-light border-danger">
-                    <div class="section-label text-danger"><i class="fas fa-trash-alt me-2"></i> DATA PASIEN YANG DIHAPUS</div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="section-label text-danger mb-0"><i class="fas fa-trash-alt me-2"></i> DATA PASIEN YANG DIHAPUS</div>
+                        <button class="btn btn-sm btn-outline-danger fw-bold" onclick="openArchive()"><i class="fas fa-database me-2"></i> Database</button>
+                    </div>
                     <div class="table-responsive custom-scrollbar" style="max-height: 200px;">
                         <table class="table table-sm table-hover align-middle">
                             <thead class="table-danger">
@@ -1400,6 +1426,108 @@ HTML_DOCTOR_REKAM = """
         setInterval(loadData, 5000);
         loadData();
     </script>
+
+    <style>
+    .archive-modal {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: white; z-index: 9999;
+        transform-origin: left;
+        transform: perspective(2000px) rotateY(-90deg);
+        opacity: 0; pointer-events: none;
+        transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .archive-modal.archive-visible {
+        transform: perspective(2000px) rotateY(0deg);
+        opacity: 1; pointer-events: auto;
+    }
+    .date-header {
+        background: #e8f5e9; padding: 15px; border-left: 5px solid #2ecc71;
+        margin-bottom: 10px; cursor: pointer; font-weight: bold; font-size: 1.1rem;
+        display: flex; justify-content: space-between; align-items: center;
+        border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .date-header:hover { background: #d0e9d4; }
+    .date-content { display: none; padding: 15px; border: 1px solid #eee; margin-bottom: 20px; animation: slideDown 0.3s; border-radius: 5px; }
+    .date-content.show { display: block; }
+    @keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+    </style>
+
+    <div id="archive-modal" class="archive-modal">
+        <div class="container-fluid h-100 p-0">
+            <div class="row h-100 g-0">
+                <div class="col-12 h-100">
+                    <div class="glass-panel-custom h-100 m-0" style="border-radius:0; overflow-y:auto; border:none;">
+                        <div class="d-flex justify-content-between align-items-center mb-4 sticky-top bg-white p-3 shadow-sm">
+                            <h3 class="fw-bold text-success m-0"><i class="fas fa-database me-2"></i> Arsip Data Pasien</h3>
+                            <button class="btn btn-danger rounded-circle shadow-sm" onclick="closeArchive()"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div id="archive-content" class="container py-3">
+                            <div class="text-center text-muted"><i class="fas fa-circle-notch fa-spin fa-2x"></i><br>Loading Database...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function openArchive() {
+        document.getElementById('archive-modal').classList.add('archive-visible');
+        fetch('/api/queue/archive').then(r=>r.json()).then(data => {
+            const container = document.getElementById('archive-content');
+            container.innerHTML = '';
+            const dates = Object.keys(data).sort().reverse();
+            if(dates.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted mt-5"><h5>Belum ada data arsip.</h5></div>';
+                return;
+            }
+            dates.forEach(date => {
+                const rows = data[date];
+                let html = `<div class="date-header" onclick="toggleDate('${date}')">
+                                <span><i class="far fa-calendar-alt me-2"></i> ${date}</span>
+                                <span class="badge bg-success rounded-pill">${rows.length} Pasien</span>
+                            </div>
+                            <div id="date-${date}" class="date-content">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-hover align-middle">
+                                        <thead class="table-success">
+                                            <tr>
+                                                <th>No</th>
+                                                <th>Nama</th>
+                                                <th>Status</th>
+                                                <th>Diagnosa</th>
+                                                <th>Resep</th>
+                                                <th>Tindakan</th>
+                                                <th>Waktu</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>`;
+                rows.forEach(r => {
+                    const badge = r.status==='done' ? '<span class="badge bg-primary">Selesai</span>' : '<span class="badge bg-danger">Batal</span>';
+                    const time = r.created_at ? r.created_at.split(' ')[1] : '-';
+                    html += `<tr>
+                                <td class="text-center fw-bold">${r.number}</td>
+                                <td>${escapeHtml(r.name)}</td>
+                                <td>${badge}</td>
+                                <td>${escapeHtml(r.diagnosis || '-')}</td>
+                                <td>${escapeHtml(r.prescription || '-')}</td>
+                                <td>${escapeHtml(r.medical_action || '-')}</td>
+                                <td class="text-center">${time}</td>
+                             </tr>`;
+                });
+                html += `</tbody></table></div></div>`;
+                container.innerHTML += html;
+            });
+        });
+    }
+    function closeArchive() {
+        document.getElementById('archive-modal').classList.remove('archive-visible');
+    }
+    function toggleDate(id) {
+        const el = document.getElementById('date-'+id);
+        el.classList.toggle('show');
+    }
+    </script>
     <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
@@ -1415,6 +1543,7 @@ HTML_DOCTOR_STOCK = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stok Obat</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
