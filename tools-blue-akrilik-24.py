@@ -1405,6 +1405,7 @@ HTML_WALLPAPER = """
 <body>
     <div class="wallpaper-bg"></div>
     <div class="acrylic-overlay"></div>
+    <canvas id="snow-canvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:9000; display:none;"></canvas>
 
     <div class="content-wrapper">
         {{ navbar|safe }}
@@ -1472,6 +1473,11 @@ HTML_WALLPAPER = """
                 <!-- Set Vibration Button -->
                 <button type="button" class="acrylic-btn" onclick="toggleVibration()" id="btn-vibration">
                     <i class="fas fa-mobile-alt me-2"></i> Vibration
+                </button>
+
+                <!-- Let it Snow Button -->
+                <button type="button" class="acrylic-btn" onclick="toggleSnow()" id="btn-snow">
+                    <i class="fas fa-snowflake me-2"></i> Let it Snow
                 </button>
             </div>
             
@@ -1551,6 +1557,90 @@ HTML_WALLPAPER = """
                 const fullscreenBtn = document.getElementById('fullscreen-btn');
                 const fsLockIcon = document.getElementById('fs-lock-icon');
                 const blurPanel = document.getElementById('blur-panel');
+
+                // SNOW LOGIC
+                let snowActive = false;
+                let snowCanvas, snowCtx;
+                let snowflakes = [];
+                let snowAnimFrame;
+
+                function toggleSnow() {
+                    snowActive = !snowActive;
+                    const btn = document.getElementById('btn-snow');
+                    const canvas = document.getElementById('snow-canvas');
+
+                    if (snowActive) {
+                        btn.style.background = 'rgba(255, 255, 255, 0.3)'; // Highlight
+                        canvas.style.display = 'block';
+                        initSnow();
+                    } else {
+                        btn.style.background = '';
+                        canvas.style.display = 'none';
+                        cancelAnimationFrame(snowAnimFrame);
+                    }
+                }
+
+                function initSnow() {
+                    snowCanvas = document.getElementById('snow-canvas');
+                    snowCtx = snowCanvas.getContext('2d');
+                    snowCanvas.width = window.innerWidth;
+                    snowCanvas.height = window.innerHeight;
+
+                    snowflakes = [];
+                    const count = 150; // Particle count
+                    for (let i = 0; i < count; i++) {
+                        snowflakes.push(createSnowflake());
+                    }
+
+                    loopSnow();
+                }
+
+                function createSnowflake() {
+                    return {
+                        x: Math.random() * window.innerWidth,
+                        y: Math.random() * window.innerHeight,
+                        radius: Math.random() * 3 + 1,
+                        speed: Math.random() * 2 + 0.5,
+                        opacity: Math.random() * 0.5 + 0.3,
+                        drift: Math.random() * 1 - 0.5
+                    };
+                }
+
+                function loopSnow() {
+                    if (!snowActive) return;
+
+                    snowCtx.clearRect(0, 0, snowCanvas.width, snowCanvas.height);
+
+                    for (let i = 0; i < snowflakes.length; i++) {
+                        let p = snowflakes[i];
+
+                        snowCtx.beginPath();
+                        snowCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                        snowCtx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
+                        snowCtx.fill();
+
+                        // Update
+                        p.y += p.speed;
+                        p.x += p.drift;
+
+                        // Reset if out of view
+                        if (p.y > window.innerHeight) {
+                            p.y = -5;
+                            p.x = Math.random() * window.innerWidth;
+                        }
+                        if (p.x > window.innerWidth) p.x = 0;
+                        if (p.x < 0) p.x = window.innerWidth;
+                    }
+
+                    snowAnimFrame = requestAnimationFrame(loopSnow);
+                }
+
+                window.addEventListener('resize', () => {
+                    if (snowActive && snowCanvas) {
+                        snowCanvas.width = window.innerWidth;
+                        snowCanvas.height = window.innerHeight;
+                    }
+                });
 
                 // VIBRATION LOGIC
                 let isVibrationEnabled = false;
