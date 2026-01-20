@@ -1406,6 +1406,7 @@ HTML_WALLPAPER = """
     <div class="wallpaper-bg"></div>
     <div class="acrylic-overlay"></div>
     <canvas id="snow-canvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:9000; display:none;"></canvas>
+    <canvas id="dust-canvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:9001; display:none;"></canvas>
 
     <div class="content-wrapper">
         {{ navbar|safe }}
@@ -1478,6 +1479,11 @@ HTML_WALLPAPER = """
                 <!-- Let it Snow Button -->
                 <button type="button" class="acrylic-btn" onclick="toggleSnow()" id="btn-snow">
                     <i class="fas fa-snowflake me-2"></i> Let it Snow
+                </button>
+
+                <!-- Let it Dust Button -->
+                <button type="button" class="acrylic-btn" onclick="toggleDust()" id="btn-dust">
+                    <i class="fas fa-wind me-2"></i> Let it Dust
                 </button>
             </div>
             
@@ -1640,7 +1646,102 @@ HTML_WALLPAPER = """
                         snowCanvas.width = window.innerWidth;
                         snowCanvas.height = window.innerHeight;
                     }
+                    if (dustActive && dustCanvas) {
+                        dustCanvas.width = window.innerWidth;
+                        dustCanvas.height = window.innerHeight;
+                    }
                 });
+
+                // DUST LOGIC
+                let dustActive = false;
+                let dustCanvas, dustCtx;
+                let dustParticles = [];
+                let dustAnimFrame;
+
+                function toggleDust() {
+                    dustActive = !dustActive;
+                    const btn = document.getElementById('btn-dust');
+                    const canvas = document.getElementById('dust-canvas');
+
+                    if (dustActive) {
+                        btn.style.background = 'rgba(255, 255, 255, 0.3)'; // Highlight
+                        canvas.style.display = 'block';
+                        initDust();
+                    } else {
+                        btn.style.background = '';
+                        canvas.style.display = 'none';
+                        cancelAnimationFrame(dustAnimFrame);
+                    }
+                }
+
+                function initDust() {
+                    dustCanvas = document.getElementById('dust-canvas');
+                    dustCtx = dustCanvas.getContext('2d');
+                    dustCanvas.width = window.innerWidth;
+                    dustCanvas.height = window.innerHeight;
+
+                    dustParticles = [];
+                    const count = 100; // Particle count
+                    for (let i = 0; i < count; i++) {
+                        dustParticles.push(createDustParticle());
+                    }
+
+                    loopDust();
+                }
+
+                function createDustParticle() {
+                    return {
+                        x: (Math.random() - 0.5) * window.innerWidth * 3, // Wide spread for depth
+                        y: (Math.random() - 0.5) * window.innerHeight * 3,
+                        z: Math.random() * window.innerWidth, // Depth
+                        vz: Math.random() * 2 + 1, // Velocity towards screen
+                        size: Math.random() * 2,
+                        opacity: Math.random() * 0.5 + 0.2
+                    };
+                }
+
+                function loopDust() {
+                    if (!dustActive) return;
+
+                    dustCtx.clearRect(0, 0, dustCanvas.width, dustCanvas.height);
+
+                    const cx = dustCanvas.width / 2;
+                    const cy = dustCanvas.height / 2;
+                    const fov = 500; // Field of view
+
+                    for (let i = 0; i < dustParticles.length; i++) {
+                        let p = dustParticles[i];
+
+                        // Update Z (move towards screen)
+                        p.z -= p.vz;
+
+                        // Reset if passed screen
+                        if (p.z <= 0) {
+                            p.z = window.innerWidth;
+                            p.x = (Math.random() - 0.5) * window.innerWidth * 3;
+                            p.y = (Math.random() - 0.5) * window.innerHeight * 3;
+                            p.vz = Math.random() * 2 + 1;
+                        }
+
+                        // Perspective projection
+                        const scale = fov / (fov + p.z);
+                        const x2d = cx + p.x * scale;
+                        const y2d = cy + p.y * scale;
+                        const size2d = p.size * scale;
+
+                        // Draw only if on screen
+                        if (x2d >= 0 && x2d <= dustCanvas.width && y2d >= 0 && y2d <= dustCanvas.height) {
+                            dustCtx.beginPath();
+                            dustCtx.arc(x2d, y2d, Math.max(0, size2d), 0, Math.PI * 2);
+                            // Fade out as it gets super close (optional, or keep it "hitting lens")
+                            // Let's keep it visible to simulate "hitting lens"
+                            dustCtx.fillStyle = `rgba(200, 200, 200, ${p.opacity})`;
+                            dustCtx.fill();
+                        }
+                    }
+
+                    dustAnimFrame = requestAnimationFrame(loopDust);
+                }
 
                 // VIBRATION LOGIC
                 let isVibrationEnabled = false;
