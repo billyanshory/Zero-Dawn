@@ -1400,6 +1400,60 @@ HTML_WALLPAPER = """
         }
         .blur-panel h4 { margin-bottom: 20px; font-weight: 700; }
         .blur-value { font-size: 1.2rem; margin-top: 10px; font-weight: bold; color: var(--brand-color); }
+
+        /* Record Mode HP */
+        body.record-mode-hp {
+            background-color: #000 !important;
+            overflow: hidden !important;
+        }
+
+        /* Center Content in 9:16 Aspect Ratio */
+        body.record-mode-hp .wallpaper-bg,
+        body.record-mode-hp .acrylic-overlay,
+        body.record-mode-hp #snow-canvas,
+        body.record-mode-hp #dust-canvas {
+            width: 56.25vh !important; /* 9/16 aspect ratio */
+            height: 100vh !important;
+            left: 50% !important;
+            top: 0 !important;
+            transform: translateX(-50%) !important;
+            position: fixed !important;
+            object-fit: cover;
+        }
+
+        /* Visualizer Specifics */
+        body.record-mode-hp #visualizer {
+            width: 56.25vh !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            top: 50% !important;
+        }
+
+        /* Subtitle Specifics */
+        body.record-mode-hp #subtitle-overlay {
+            width: 50vh !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            font-size: 1.5rem !important;
+            max-width: 50vh !important;
+            white-space: normal;
+        }
+
+        /* Hide UI Elements */
+        body.record-mode-hp .navbar,
+        body.record-mode-hp .controls-container,
+        body.record-mode-hp .audio-player,
+        body.record-mode-hp .playlist-panel,
+        body.record-mode-hp footer,
+        body.record-mode-hp #fullscreen-btn {
+            display: none !important;
+        }
+
+        /* Ensure Restore Button is visible outside the frame */
+        body.record-mode-hp #restore-btn {
+            display: flex !important;
+            z-index: 9999;
+        }
     </style>
 </head>
 <body>
@@ -1485,24 +1539,306 @@ HTML_WALLPAPER = """
                 <button type="button" class="acrylic-btn" onclick="toggleDust()" id="btn-dust">
                     <i class="fas fa-wind me-2"></i> Let it Dust
                 </button>
+
+                <!-- Record for HP Button -->
+                <button type="button" class="acrylic-btn" onclick="toggleRecordHP()" id="btn-record-hp">
+                    <i class="fas fa-video me-2"></i> Record for HP
+                </button>
             </div>
-            
+
+            <script>
+                // GLOBAL LOGIC (Snow, Dust, UI, RecordHP)
+                let snowActive = false;
+                let snowCanvas, snowCtx;
+                let snowflakes = [];
+                let snowAnimFrame;
+
+                function toggleSnow() {
+                    snowActive = !snowActive;
+                    const btn = document.getElementById('btn-snow');
+                    const canvas = document.getElementById('snow-canvas');
+
+                    if (snowActive) {
+                        btn.style.background = 'rgba(255, 255, 255, 0.3)';
+                        canvas.style.display = 'block';
+                        initSnow();
+                    } else {
+                        btn.style.background = '';
+                        canvas.style.display = 'none';
+                        cancelAnimationFrame(snowAnimFrame);
+                    }
+                }
+
+                function initSnow() {
+                    snowCanvas = document.getElementById('snow-canvas');
+                    snowCtx = snowCanvas.getContext('2d');
+                    snowCanvas.width = getViewportWidth();
+                    snowCanvas.height = window.innerHeight;
+
+                    snowflakes = [];
+                    const count = 150;
+                    for (let i = 0; i < count; i++) {
+                        snowflakes.push(createSnowflake());
+                    }
+
+                    loopSnow();
+                }
+
+                function createSnowflake() {
+                    return {
+                        x: Math.random() * getViewportWidth(),
+                        y: Math.random() * window.innerHeight,
+                        radius: Math.random() * 3 + 1,
+                        speed: Math.random() * 2 + 0.5,
+                        opacity: Math.random() * 0.5 + 0.3,
+                        drift: Math.random() * 1 - 0.5
+                    };
+                }
+
+                function loopSnow() {
+                    if (!snowActive) return;
+
+                    snowCtx.clearRect(0, 0, snowCanvas.width, snowCanvas.height);
+
+                    for (let i = 0; i < snowflakes.length; i++) {
+                        let p = snowflakes[i];
+
+                        snowCtx.beginPath();
+                        snowCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                        snowCtx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
+                        snowCtx.fill();
+
+                        p.y += p.speed;
+                        p.x += p.drift;
+
+                        if (p.y > window.innerHeight) {
+                            p.y = -5;
+                            p.x = Math.random() * getViewportWidth();
+                        }
+                        if (p.x > getViewportWidth()) p.x = 0;
+                        if (p.x < 0) p.x = getViewportWidth();
+                    }
+
+                    snowAnimFrame = requestAnimationFrame(loopSnow);
+                }
+
+                let dustActive = false;
+                let dustCanvas, dustCtx;
+                let dustParticles = [];
+                let dustAnimFrame;
+
+                function toggleDust() {
+                    dustActive = !dustActive;
+                    const btn = document.getElementById('btn-dust');
+                    const canvas = document.getElementById('dust-canvas');
+
+                    if (dustActive) {
+                        btn.style.background = 'rgba(255, 255, 255, 0.3)';
+                        canvas.style.display = 'block';
+                        initDust();
+                    } else {
+                        btn.style.background = '';
+                        canvas.style.display = 'none';
+                        cancelAnimationFrame(dustAnimFrame);
+                    }
+                }
+
+                function initDust() {
+                    dustCanvas = document.getElementById('dust-canvas');
+                    dustCtx = dustCanvas.getContext('2d');
+                    dustCanvas.width = getViewportWidth();
+                    dustCanvas.height = window.innerHeight;
+
+                    dustParticles = [];
+                    const count = 300;
+                    for (let i = 0; i < count; i++) {
+                        dustParticles.push(createDustParticle());
+                    }
+
+                    loopDust();
+                }
+
+                function createDustParticle() {
+                    return {
+                        x: (Math.random() - 0.5) * getViewportWidth() * 4,
+                        y: (Math.random() - 0.5) * window.innerHeight * 4,
+                        z: Math.random() * getViewportWidth(),
+                        vz: Math.random() * 2 + 1,
+                        size: Math.random() * 2,
+                        opacity: Math.random() * 0.5 + 0.2
+                    };
+                }
+
+                function loopDust() {
+                    if (!dustActive) return;
+
+                    dustCtx.clearRect(0, 0, dustCanvas.width, dustCanvas.height);
+
+                    const cx = dustCanvas.width / 2;
+                    const cy = dustCanvas.height / 2;
+                    const fov = 500;
+
+                    for (let i = 0; i < dustParticles.length; i++) {
+                        let p = dustParticles[i];
+
+                        p.z -= p.vz;
+
+                        if (p.z <= 0) {
+                            p.z = getViewportWidth();
+                            p.x = (Math.random() - 0.5) * getViewportWidth() * 4;
+                            p.y = (Math.random() - 0.5) * window.innerHeight * 4;
+                            p.vz = Math.random() * 2 + 1;
+                        }
+
+                        const scale = fov / (fov + p.z);
+                        const x2d = cx + p.x * scale;
+                        const y2d = cy + p.y * scale;
+                        const size2d = p.size * scale;
+
+                        if (x2d >= 0 && x2d <= dustCanvas.width && y2d >= 0 && y2d <= dustCanvas.height) {
+                            dustCtx.beginPath();
+                            dustCtx.arc(x2d, y2d, Math.max(0, size2d), 0, Math.PI * 2);
+                            dustCtx.fillStyle = `rgba(200, 200, 200, ${p.opacity})`;
+                            dustCtx.fill();
+                        }
+                    }
+
+                    dustAnimFrame = requestAnimationFrame(loopDust);
+                }
+
+                let isVibrationEnabled = false;
+                let lastVibrationTime = 0;
+
+                function toggleVibration() {
+                    isVibrationEnabled = !isVibrationEnabled;
+                    const btn = document.getElementById('btn-vibration');
+                    if (isVibrationEnabled) {
+                        btn.style.background = 'rgba(229, 50, 45, 0.4)';
+                        if (navigator.vibrate) {
+                            try { navigator.vibrate(200); } catch(e) { console.error(e); }
+                        }
+                    } else {
+                        btn.style.background = '';
+                        if (navigator.vibrate) navigator.vibrate(0);
+                    }
+                }
+
+                function toggleFullScreen() {
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen().catch(err => {
+                            console.log(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                        });
+                    } else {
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen();
+                        }
+                    }
+                }
+
+                const fullscreenBtn = document.getElementById('fullscreen-btn');
+                const fsLockIcon = document.getElementById('fs-lock-icon');
+                if (fullscreenBtn) {
+                    document.addEventListener('fullscreenchange', () => {
+                        if (!document.fullscreenElement) {
+                            fullscreenBtn.classList.remove('neon-glow');
+                            fsLockIcon.classList.remove('fa-lock');
+                            fsLockIcon.classList.add('fa-lock-open');
+                        } else {
+                             fullscreenBtn.classList.add('neon-glow');
+                             fsLockIcon.classList.remove('fa-lock-open');
+                             fsLockIcon.classList.add('fa-lock');
+                        }
+                    });
+                }
+
+                const blurPanel = document.getElementById('blur-panel');
+                function toggleBlurPanel() {
+                    if(blurPanel) blurPanel.style.display = (blurPanel.style.display === 'block') ? 'none' : 'block';
+                }
+
+                function updateBlur(val) {
+                    val = parseInt(val);
+                    const disp = document.getElementById('blur-value-display');
+                    if(disp) disp.innerText = val;
+
+                    const overlay = document.querySelector('.acrylic-overlay');
+                    if(!overlay) return;
+
+                    let blurPx = 20;
+                    let opacity = 0.47;
+
+                    if (val < 0) {
+                        const ratio = (100 + val) / 100;
+                        blurPx = 20 * ratio;
+                        opacity = 0.47 * ratio;
+                    } else {
+                        const ratio = val / 100;
+                        blurPx = 20 + (40 * ratio);
+                        opacity = 0.47 + (0.38 * ratio);
+                    }
+
+                    overlay.style.backdropFilter = `blur(${blurPx}px) saturate(125%)`;
+                    overlay.style.webkitBackdropFilter = `blur(${blurPx}px) saturate(125%)`;
+                    overlay.style.backgroundColor = `rgba(0, 0, 0, ${opacity})`;
+                }
+
+                function enterCleanMode() {
+                    document.body.classList.add('clean-mode');
+                    // Check if togglePlay exists (Audio script loaded)
+                    if (typeof togglePlay === 'function') {
+                        const audio = document.getElementById('main-audio');
+                        if(audio && audio.paused) togglePlay();
+                    }
+                }
+
+                function exitCleanMode() {
+                    document.body.classList.remove('clean-mode');
+                    document.body.classList.remove('record-mode-hp');
+                    window.dispatchEvent(new Event('resize'));
+                }
+
+                function toggleRecordHP() {
+                    document.body.classList.add('record-mode-hp');
+                    enterCleanMode();
+                    window.dispatchEvent(new Event('resize'));
+                }
+
+                function getViewportWidth() {
+                    if (document.body.classList.contains('record-mode-hp')) {
+                        return window.innerHeight * (9/16);
+                    }
+                    return window.innerWidth;
+                }
+
+                window.addEventListener('resize', () => {
+                    const width = getViewportWidth();
+                    if (snowActive && snowCanvas) {
+                        snowCanvas.width = width;
+                        snowCanvas.height = window.innerHeight;
+                    }
+                    if (dustActive && dustCanvas) {
+                        dustCanvas.width = width;
+                        dustCanvas.height = window.innerHeight;
+                    }
+                });
+            </script>
+
             {% if audio_file %}
             <!-- Visualizer Overlay -->
             <canvas id="visualizer"></canvas>
-            
+
             <div id="subtitle-overlay"></div>
 
             <div class="audio-player">
                 <audio id="main-audio" crossorigin="anonymous">
                     <source src="/uploads/{{ audio_file }}" id="audio-source">
                 </audio>
-                
+
                 <!-- Top Row: Progress -->
                 <div class="player-row-top">
                     <input type="range" id="seek-slider" min="0" max="100" value="0">
                 </div>
-                
+
                 <!-- Bottom Row: Controls -->
                 <div class="player-row-bottom">
                     <!-- Left Section: Time, Shuffle, Repeat -->
@@ -1511,7 +1847,7 @@ HTML_WALLPAPER = """
                         <button class="player-btn" onclick="toggleShuffle()" title="Shuffle" id="btn-shuffle"><i class="fas fa-random"></i></button>
                         <button class="player-btn" onclick="toggleRepeat()" title="Repeat" id="btn-repeat"><i class="fas fa-redo"></i></button>
                     </div>
-                    
+
                     <!-- Center Section: Stop, Prev, PLAY, Next -->
                     <div class="player-center">
                         <button class="player-btn" onclick="stopAudio()" title="Stop"><i class="fas fa-stop"></i></button>
@@ -1519,7 +1855,7 @@ HTML_WALLPAPER = """
                         <button class="player-btn play-btn-large" onclick="togglePlay()"><i class="fas fa-play" id="play-icon"></i></button>
                         <button class="player-btn" onclick="skip(5)"><i class="fas fa-forward"></i></button>
                     </div>
-                    
+
                     <!-- Right Section: Volume, Playlist -->
                     <div class="player-right">
                         <i class="fas fa-volume-up" id="vol-icon" style="color:rgba(255,255,255,0.7)"></i>
@@ -1564,211 +1900,14 @@ HTML_WALLPAPER = """
                 const fsLockIcon = document.getElementById('fs-lock-icon');
                 const blurPanel = document.getElementById('blur-panel');
 
-                // SNOW LOGIC
-                let snowActive = false;
-                let snowCanvas, snowCtx;
-                let snowflakes = [];
-                let snowAnimFrame;
-
-                function toggleSnow() {
-                    snowActive = !snowActive;
-                    const btn = document.getElementById('btn-snow');
-                    const canvas = document.getElementById('snow-canvas');
-
-                    if (snowActive) {
-                        btn.style.background = 'rgba(255, 255, 255, 0.3)'; // Highlight
-                        canvas.style.display = 'block';
-                        initSnow();
-                    } else {
-                        btn.style.background = '';
-                        canvas.style.display = 'none';
-                        cancelAnimationFrame(snowAnimFrame);
-                    }
-                }
-
-                function initSnow() {
-                    snowCanvas = document.getElementById('snow-canvas');
-                    snowCtx = snowCanvas.getContext('2d');
-                    snowCanvas.width = window.innerWidth;
-                    snowCanvas.height = window.innerHeight;
-
-                    snowflakes = [];
-                    const count = 150; // Particle count
-                    for (let i = 0; i < count; i++) {
-                        snowflakes.push(createSnowflake());
-                    }
-
-                    loopSnow();
-                }
-
-                function createSnowflake() {
-                    return {
-                        x: Math.random() * window.innerWidth,
-                        y: Math.random() * window.innerHeight,
-                        radius: Math.random() * 3 + 1,
-                        speed: Math.random() * 2 + 0.5,
-                        opacity: Math.random() * 0.5 + 0.3,
-                        drift: Math.random() * 1 - 0.5
-                    };
-                }
-
-                function loopSnow() {
-                    if (!snowActive) return;
-
-                    snowCtx.clearRect(0, 0, snowCanvas.width, snowCanvas.height);
-
-                    for (let i = 0; i < snowflakes.length; i++) {
-                        let p = snowflakes[i];
-
-                        snowCtx.beginPath();
-                        snowCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                        snowCtx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
-                        snowCtx.fill();
-
-                        // Update
-                        p.y += p.speed;
-                        p.x += p.drift;
-
-                        // Reset if out of view
-                        if (p.y > window.innerHeight) {
-                            p.y = -5;
-                            p.x = Math.random() * window.innerWidth;
-                        }
-                        if (p.x > window.innerWidth) p.x = 0;
-                        if (p.x < 0) p.x = window.innerWidth;
-                    }
-
-                    snowAnimFrame = requestAnimationFrame(loopSnow);
-                }
-
-                window.addEventListener('resize', () => {
-                    if (snowActive && snowCanvas) {
-                        snowCanvas.width = window.innerWidth;
-                        snowCanvas.height = window.innerHeight;
-                    }
-                    if (dustActive && dustCanvas) {
-                        dustCanvas.width = window.innerWidth;
-                        dustCanvas.height = window.innerHeight;
-                    }
-                });
-
-                // DUST LOGIC
-                let dustActive = false;
-                let dustCanvas, dustCtx;
-                let dustParticles = [];
-                let dustAnimFrame;
-
-                function toggleDust() {
-                    dustActive = !dustActive;
-                    const btn = document.getElementById('btn-dust');
-                    const canvas = document.getElementById('dust-canvas');
-
-                    if (dustActive) {
-                        btn.style.background = 'rgba(255, 255, 255, 0.3)'; // Highlight
-                        canvas.style.display = 'block';
-                        initDust();
-                    } else {
-                        btn.style.background = '';
-                        canvas.style.display = 'none';
-                        cancelAnimationFrame(dustAnimFrame);
-                    }
-                }
-
-                function initDust() {
-                    dustCanvas = document.getElementById('dust-canvas');
-                    dustCtx = dustCanvas.getContext('2d');
-                    dustCanvas.width = window.innerWidth;
-                    dustCanvas.height = window.innerHeight;
-
-                    dustParticles = [];
-                    const count = 300; // Particle count
-                    for (let i = 0; i < count; i++) {
-                        dustParticles.push(createDustParticle());
-                    }
-
-                    loopDust();
-                }
-
-                function createDustParticle() {
-                    return {
-                        x: (Math.random() - 0.5) * window.innerWidth * 4, // Wide spread for depth
-                        y: (Math.random() - 0.5) * window.innerHeight * 4,
-                        z: Math.random() * window.innerWidth, // Depth
-                        vz: Math.random() * 2 + 1, // Velocity towards screen
-                        size: Math.random() * 2,
-                        opacity: Math.random() * 0.5 + 0.2
-                    };
-                }
-
-                function loopDust() {
-                    if (!dustActive) return;
-
-                    dustCtx.clearRect(0, 0, dustCanvas.width, dustCanvas.height);
-
-                    const cx = dustCanvas.width / 2;
-                    const cy = dustCanvas.height / 2;
-                    const fov = 500; // Field of view
-
-                    for (let i = 0; i < dustParticles.length; i++) {
-                        let p = dustParticles[i];
-
-                        // Update Z (move towards screen)
-                        p.z -= p.vz;
-
-                        // Reset if passed screen
-                        if (p.z <= 0) {
-                            p.z = window.innerWidth;
-                            p.x = (Math.random() - 0.5) * window.innerWidth * 4;
-                            p.y = (Math.random() - 0.5) * window.innerHeight * 4;
-                            p.vz = Math.random() * 2 + 1;
-                        }
-
-                        // Perspective projection
-                        const scale = fov / (fov + p.z);
-                        const x2d = cx + p.x * scale;
-                        const y2d = cy + p.y * scale;
-                        const size2d = p.size * scale;
-
-                        // Draw only if on screen
-                        if (x2d >= 0 && x2d <= dustCanvas.width && y2d >= 0 && y2d <= dustCanvas.height) {
-                            dustCtx.beginPath();
-                            dustCtx.arc(x2d, y2d, Math.max(0, size2d), 0, Math.PI * 2);
-                            // Fade out as it gets super close (optional, or keep it "hitting lens")
-                            // Let's keep it visible to simulate "hitting lens"
-                            dustCtx.fillStyle = `rgba(200, 200, 200, ${p.opacity})`;
-                            dustCtx.fill();
-                        }
-                    }
-
-                    dustAnimFrame = requestAnimationFrame(loopDust);
-                }
-
-                // VIBRATION LOGIC
-                let isVibrationEnabled = false;
-                let lastVibrationTime = 0;
-
-                function toggleVibration() {
-                    isVibrationEnabled = !isVibrationEnabled;
-                    const btn = document.getElementById('btn-vibration');
-                    if (isVibrationEnabled) {
-                        btn.style.background = 'rgba(229, 50, 45, 0.4)'; // Highlight active
-                        // FORCE VIBRATION: Strong pulse to wake up the motor and confirm permission
-                        if (navigator.vibrate) {
-                            try { navigator.vibrate(200); } catch(e) { console.error(e); }
-                        }
-                    } else {
-                        btn.style.background = ''; // Reset
-                        if (navigator.vibrate) navigator.vibrate(0); // Stop immediately
-                    }
-                }
-
+                // VIBRATION LOGIC (Handle only)
                 function handleVibration(dataArray) {
                     if (!isVibrationEnabled || !navigator.vibrate) return;
 
                     const now = Date.now();
                     // Throttle: Increased frequency for smoother "texture" (20Hz approx)
                     // If we vibrate(50) every 50ms, it's continuous.
-                    if (now - lastVibrationTime < 50) return; 
+                    if (now - lastVibrationTime < 50) return;
 
                     // Calculate average amplitude deviation from 128 (silence)
                     let sum = 0;
@@ -1780,89 +1919,19 @@ HTML_WALLPAPER = """
 
                     // Threshold: Lowered to 3 to catch more audio detail
                     // "Brute force" the tactile feel by keeping it responsive
-                    if (average > 3) { 
+                    if (average > 3) {
                         try {
                             // 50ms pulse matches the throttle for continuity if loud
-                            navigator.vibrate(50); 
+                            navigator.vibrate(50);
                         } catch(e) {
                             // Ignore errors to keep loop running
                         }
                         lastVibrationTime = now;
                     }
                 }
-                
-                // Fullscreen Logic
-                function toggleFullScreen() {
-                    if (!document.fullscreenElement) {
-                        document.documentElement.requestFullscreen().catch(err => {
-                            console.log(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-                        });
-                        // Lock state UI (managed by event listener mostly, but helper here)
-                    } else {
-                        if (document.exitFullscreen) {
-                            document.exitFullscreen();
-                        }
-                    }
-                }
 
-                // Listen for fullscreen change events (ESC key etc)
-                document.addEventListener('fullscreenchange', () => {
-                    if (!document.fullscreenElement) {
-                        fullscreenBtn.classList.remove('neon-glow');
-                        fsLockIcon.classList.remove('fa-lock');
-                        fsLockIcon.classList.add('fa-lock-open');
-                    } else {
-                         fullscreenBtn.classList.add('neon-glow');
-                         fsLockIcon.classList.remove('fa-lock-open');
-                         fsLockIcon.classList.add('fa-lock');
-                    }
-                });
-
-                // BLUR LOGIC
-                function toggleBlurPanel() {
-                    blurPanel.style.display = (blurPanel.style.display === 'block') ? 'none' : 'block';
-                }
-
-                function updateBlur(val) {
-                    val = parseInt(val);
-                    document.getElementById('blur-value-display').innerText = val;
-                    
-                    const overlay = document.querySelector('.acrylic-overlay');
-                    
-                    // Default: blur 20px, opacity 0.47 (approx 120/255)
-                    let blurPx = 20;
-                    let opacity = 0.47;
-                    
-                    if (val < 0) {
-                        // -100 to 0: Scale down to 0
-                        const ratio = (100 + val) / 100; // 0 to 1
-                        blurPx = 20 * ratio;
-                        opacity = 0.47 * ratio;
-                    } else {
-                        // 0 to 100: Scale up
-                        const ratio = val / 100; // 0 to 1
-                        // Max blur 60px, max opacity 0.85
-                        blurPx = 20 + (40 * ratio);
-                        opacity = 0.47 + (0.38 * ratio);
-                    }
-                    
-                    overlay.style.backdropFilter = `blur(${blurPx}px) saturate(125%)`;
-                    overlay.style.webkitBackdropFilter = `blur(${blurPx}px) saturate(125%)`;
-                    overlay.style.backgroundColor = `rgba(0, 0, 0, ${opacity})`;
-                }
-
-                // CLEAN MODE LOGIC
-                function enterCleanMode() {
-                    document.body.classList.add('clean-mode');
-                    // Play audio if paused
-                    if(audio.paused) {
-                        togglePlay();
-                    }
-                }
-
-                function exitCleanMode() {
-                    document.body.classList.remove('clean-mode');
-                }
+                // Resize visualizer
+                window.addEventListener('resize', resizeCanvas);
 
                 // Audio List logic
                 let playlist = {{ audio_files|tojson }};
@@ -1955,7 +2024,7 @@ HTML_WALLPAPER = """
                 let initialized = false;
 
                 function resizeCanvas() {
-                    canvas.width = window.innerWidth;
+                    canvas.width = getViewportWidth();
                     canvas.height = 300;
                 }
                 window.addEventListener('resize', resizeCanvas);
