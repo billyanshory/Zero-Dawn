@@ -949,6 +949,7 @@ HTML_WALLPAPER = """
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     {{ styles|safe }}
     <style>
         body, html {
@@ -1407,6 +1408,7 @@ HTML_WALLPAPER = """
     <div class="acrylic-overlay"></div>
     <canvas id="snow-canvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:9000; display:none;"></canvas>
     <canvas id="dust-canvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:9001; display:none;"></canvas>
+    <canvas id="dna-canvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:9002; display:none;"></canvas>
 
     <div class="content-wrapper">
         {{ navbar|safe }}
@@ -1484,6 +1486,11 @@ HTML_WALLPAPER = """
                 <!-- Let it Dust Button -->
                 <button type="button" class="acrylic-btn" onclick="toggleDust()" id="btn-dust">
                     <i class="fas fa-wind me-2"></i> Let it Dust
+                </button>
+
+                <!-- Let it DNA Button -->
+                <button type="button" class="acrylic-btn" onclick="toggleDNA()" id="btn-dna">
+                    <i class="fas fa-dna me-2"></i> Let it DNA
                 </button>
             </div>
             
@@ -2147,6 +2154,7 @@ HTML_WALLPAPER = """
                     }
                 });
 
+
                 // Volume & Decibels
                 volSlider.addEventListener('input', (e) => {
                     const val = parseFloat(e.target.value);
@@ -2176,6 +2184,143 @@ HTML_WALLPAPER = """
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // DNA LOGIC (Global)
+        let dnaActive = false;
+        let dnaRenderer, dnaScene, dnaCamera;
+        let dnaGroup, miniDnaGroup;
+        let dnaAnimId;
+
+        function toggleDNA() {
+            dnaActive = !dnaActive;
+            const btn = document.getElementById('btn-dna');
+            const canvas = document.getElementById('dna-canvas');
+
+            if (dnaActive) {
+                btn.style.background = 'rgba(255, 255, 255, 0.3)';
+                canvas.style.display = 'block';
+                if (!dnaRenderer) {
+                    initDNA();
+                } else {
+                    animateDNA();
+                }
+            } else {
+                btn.style.background = '';
+                canvas.style.display = 'none';
+                if (dnaAnimId) cancelAnimationFrame(dnaAnimId);
+            }
+        }
+
+        function initDNA() {
+            const canvas = document.getElementById('dna-canvas');
+
+            // Init THREE
+            dnaScene = new THREE.Scene();
+            dnaScene.fog = new THREE.FogExp2(0x000000, 0.02);
+
+            dnaCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            dnaRenderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+            dnaRenderer.setSize(window.innerWidth, window.innerHeight);
+            dnaRenderer.setPixelRatio(window.devicePixelRatio);
+
+            // Create Main DNA
+            dnaGroup = new THREE.Group();
+
+            const nucleotideCount = 100;
+            const radius = 3;
+            const height = 80;
+            const turns = 8;
+
+            // Materials - Glowing Effect
+            const sphereMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+            const cylinderMat = new THREE.MeshBasicMaterial({ color: 0x0088ff });
+
+            for (let i = 0; i < nucleotideCount; i++) {
+                const t = i / nucleotideCount;
+                const angle = t * Math.PI * 2 * turns;
+                const zPos = i * 0.8;
+
+                const x1 = Math.cos(angle) * radius;
+                const y1 = Math.sin(angle) * radius;
+
+                const x2 = Math.cos(angle + Math.PI) * radius;
+                const y2 = Math.sin(angle + Math.PI) * radius;
+
+                const s1 = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), sphereMat);
+                s1.position.set(x1, y1, zPos);
+                dnaGroup.add(s1);
+
+                const s2 = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), sphereMat);
+                s2.position.set(x2, y2, zPos);
+                dnaGroup.add(s2);
+
+                const dist = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+                const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, dist, 4), cylinderMat);
+                cyl.position.set((x1+x2)/2, (y1+y2)/2, zPos);
+                cyl.rotation.z = angle + Math.PI/2;
+                dnaGroup.add(cyl);
+            }
+
+            dnaScene.add(dnaGroup);
+
+            // Mini DNAs
+            miniDnaGroup = new THREE.Group();
+            for(let k=0; k<30; k++) {
+                const mini = dnaGroup.clone();
+                mini.scale.set(0.05, 0.05, 0.05);
+                mini.position.set(
+                    (Math.random() - 0.5) * 60,
+                    (Math.random() - 0.5) * 60,
+                    Math.random() * 80
+                );
+                mini.rotation.z = Math.random() * Math.PI;
+                mini.rotation.x = Math.random() * Math.PI;
+                miniDnaGroup.add(mini);
+            }
+            dnaScene.add(miniDnaGroup);
+
+            dnaCamera.position.z = 5;
+
+            animateDNA();
+        }
+
+        function animateDNA() {
+            if (!dnaActive) return;
+
+            dnaAnimId = requestAnimationFrame(animateDNA);
+
+            const speed = 0.1;
+
+            dnaGroup.rotation.z += 0.005;
+
+            dnaGroup.children.forEach(child => {
+                 child.position.z -= speed;
+                 if (child.position.z < -10) {
+                     child.position.z += 80;
+                 }
+            });
+
+            miniDnaGroup.children.forEach(mini => {
+                mini.position.z -= speed * 2;
+                mini.rotation.z += 0.02;
+                if (mini.position.z < -10) {
+                    mini.position.z += 90;
+                    mini.position.x = (Math.random() - 0.5) * 60;
+                    mini.position.y = (Math.random() - 0.5) * 60;
+                }
+            });
+
+            dnaRenderer.render(dnaScene, dnaCamera);
+        }
+
+        window.addEventListener('resize', () => {
+           if(dnaRenderer && dnaCamera) {
+               dnaCamera.aspect = window.innerWidth / window.innerHeight;
+               dnaCamera.updateProjectionMatrix();
+               dnaRenderer.setSize(window.innerWidth, window.innerHeight);
+           }
+        });
+    </script>
 </body>
 </html>
 """
