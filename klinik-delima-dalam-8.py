@@ -115,6 +115,10 @@ def init_db():
     except: pass
     try: c.execute("ALTER TABLE queue ADD COLUMN cancellation_reason TEXT")
     except: pass
+    try: c.execute("ALTER TABLE queue ADD COLUMN fee_doctor INTEGER DEFAULT 0")
+    except: pass
+    try: c.execute("ALTER TABLE queue ADD COLUMN fee_medicine INTEGER DEFAULT 0")
+    except: pass
     
     # Medicine Stock
     c.execute('''CREATE TABLE IF NOT EXISTS medicine_stock (
@@ -212,6 +216,104 @@ def stok_obat_page():
     # Admin check removed for development
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-capsules').replace('{{ page_title }}', 'STOK OBAT')
     return render_template_string(HTML_DOCTOR_STOCK.replace('{{ navbar|safe }}', navbar))
+
+@app.route('/surat-sakit')
+def surat_sakit_list():
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM queue WHERE status='done' ORDER BY created_at DESC LIMIT 50")
+    patients = [dict(r) for r in c.fetchall()]
+    conn.close()
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-file-medical').replace('{{ page_title }}', 'SURAT SAKIT')
+    return render_template_string(HTML_SICK_LIST.replace('{{ navbar|safe }}', navbar), patients=patients)
+
+@app.route('/surat-sakit/print/<int:id>')
+def surat_sakit_print(id):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM queue WHERE id=?", (id,))
+    row = c.fetchone()
+    conn.close()
+    if not row: return "Pasien tidak ditemukan", 404
+
+    p = dict(row)
+    days = request.args.get('days', '3')
+
+    # Simple number to text (very basic, can extend)
+    days_map = {'1':'Satu', '2':'Dua', '3':'Tiga', '4':'Empat', '5':'Lima', '7':'Tujuh'}
+    days_text = days_map.get(str(days), str(days))
+
+    date_str = datetime.date.today().strftime("%d %B %Y")
+
+    return render_template_string(HTML_SICK_PRINT, p=p, days=days, days_text=days_text, date=date_str)
+
+@app.route('/kasir')
+def kasir_page():
+    conn = get_db_connection()
+    c = conn.cursor()
+    today = datetime.date.today().isoformat()
+    c.execute("SELECT * FROM queue WHERE status='done' AND created_at LIKE ? ORDER BY created_at DESC", (f"{today}%",))
+    patients = [dict(r) for r in c.fetchall()]
+    conn.close()
+
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-cash-register').replace('{{ page_title }}', 'KASIR & LAPORAN')
+    return render_template_string(HTML_CASHIER.replace('{{ navbar|safe }}', navbar), patients=patients)
+
+@app.route('/api/kasir/update', methods=['POST'])
+def api_kasir_update():
+    data = request.json
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("UPDATE queue SET fee_doctor=?, fee_medicine=? WHERE id=?", (data.get('fee_doctor'), data.get('fee_medicine'), data.get('id')))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/database-pasien')
+def database_pasien_page():
+    q = request.args.get('q', '')
+    conn = get_db_connection()
+    c = conn.cursor()
+    if q:
+        c.execute("SELECT * FROM queue WHERE status='done' AND (name LIKE ? OR phone LIKE ?) ORDER BY created_at DESC LIMIT 50", (f"%{q}%", f"%{q}%"))
+    else:
+        c.execute("SELECT * FROM queue WHERE status='done' ORDER BY created_at DESC LIMIT 20")
+    patients = [dict(r) for r in c.fetchall()]
+    conn.close()
+
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-database').replace('{{ page_title }}', 'DATABASE PASIEN')
+    return render_template_string(HTML_PATIENT_DB.replace('{{ navbar|safe }}', navbar), patients=patients)
+
+@app.route('/pencarian-pasien')
+def pencarian_pasien_page():
+    q = request.args.get('q', '')
+    patients = []
+    if q:
+        conn = get_db_connection()
+        c = conn.cursor()
+        # Group by phone to get unique patients (approx)
+        c.execute("SELECT * FROM queue WHERE name LIKE ? OR phone LIKE ? GROUP BY phone LIMIT 20", (f"%{q}%", f"%{q}%"))
+        patients = [dict(r) for r in c.fetchall()]
+        conn.close()
+
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-search').replace('{{ page_title }}', 'CARI PASIEN')
+    return render_template_string(HTML_SEARCH.replace('{{ navbar|safe }}', navbar), patients=patients)
+
+@app.route('/statistik')
+def statistik_page():
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT diagnosis, COUNT(*) as cnt FROM queue WHERE status='done' AND diagnosis IS NOT NULL AND diagnosis != '' GROUP BY diagnosis ORDER BY cnt DESC LIMIT 10")
+    rows = c.fetchall()
+    conn.close()
+
+    chart_data = {
+        'labels': [r['diagnosis'] for r in rows],
+        'values': [r['cnt'] for r in rows]
+    }
+
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-chart-pie').replace('{{ page_title }}', 'STATISTIK')
+    return render_template_string(HTML_STATS.replace('{{ navbar|safe }}', navbar), chart_data=chart_data)
 
 # --- CLINIC API ---
 
@@ -910,6 +1012,31 @@ HTML_LANDING = """
                 <i class="fas fa-hospital-user"></i>
                 PROFIL KLINIK
             </a>
+
+            <a href="/surat-sakit" class="main-btn">
+                <i class="fas fa-file-medical"></i>
+                SURAT SAKIT
+            </a>
+
+            <a href="/kasir" class="main-btn">
+                <i class="fas fa-cash-register"></i>
+                KASIR & LAPORAN
+            </a>
+
+            <a href="/database-pasien" class="main-btn">
+                <i class="fas fa-database"></i>
+                DATABASE PASIEN
+            </a>
+
+            <a href="/pencarian-pasien" class="main-btn">
+                <i class="fas fa-search"></i>
+                CARI PASIEN
+            </a>
+
+            <a href="/statistik" class="main-btn">
+                <i class="fas fa-chart-pie"></i>
+                DASHBOARD STATISTIK
+            </a>
         </div>
     </div>
     
@@ -1116,6 +1243,13 @@ HTML_QUEUE = """
         
         setInterval(refreshStatus, 3000);
         refreshStatus();
+
+        // Auto-fill from URL params
+        window.onload = function() {
+            const params = new URLSearchParams(window.location.search);
+            if(params.has('name')) document.getElementById('q-name').value = params.get('name');
+            if(params.has('phone')) document.getElementById('q-phone').value = params.get('phone');
+        }
     </script>
     <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
@@ -3138,6 +3272,374 @@ HTML_UR_FC = """
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+"""
+
+HTML_SICK_LIST = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Generator Surat Sakit</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-header bg-white py-3 border-0">
+                <h4 class="fw-bold mb-0 text-success"><i class="fas fa-file-medical me-2"></i> Generator Surat Sakit</h4>
+            </div>
+            <div class="card-body p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Nama Pasien</th>
+                                <th>Diagnosa</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in patients %}
+                            <tr>
+                                <td>{{ p.created_at }}</td>
+                                <td class="fw-bold">{{ p.name }}</td>
+                                <td>{{ p.diagnosis }}</td>
+                                <td>
+                                    <form action="/surat-sakit/print/{{ p.id }}" method="get" target="_blank" class="d-flex gap-2">
+                                        <input type="number" name="days" class="form-control form-control-sm" style="width:70px" value="3" placeholder="Hari">
+                                        <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-print me-1"></i> Print</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+HTML_SICK_PRINT = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Surat Keterangan Sakit</title>
+    <style>
+        body { font-family: 'Times New Roman', serif; padding: 40px; max-width: 800px; margin: auto; }
+        .header { text-align: center; border-bottom: 3px double black; padding-bottom: 20px; margin-bottom: 30px; }
+        .header h2 { margin: 0; text-transform: uppercase; letter-spacing: 2px; }
+        .header p { margin: 5px 0; }
+        .content { line-height: 1.6; font-size: 1.1rem; }
+        .signature { margin-top: 50px; text-align: right; }
+        .signature div { margin-top: 70px; font-weight: bold; text-decoration: underline; }
+        @media print { .no-print { display: none; } }
+    </style>
+</head>
+<body onload="window.print()">
+    <div class="no-print" style="position:fixed; top:20px; right:20px;">
+        <button onclick="window.print()" style="padding:10px 20px; font-size:1.2rem; cursor:pointer;">Cetak PDF</button>
+    </div>
+
+    <div class="header">
+        <h2>KLINIK KESEHATAN</h2>
+        <p>Jl. Contoh No. 123, Kota Samarinda</p>
+        <p>Telp: 0812-4186-5310</p>
+    </div>
+
+    <div class="content">
+        <h3 style="text-align:center; text-decoration:underline; margin-bottom:30px;">SURAT KETERANGAN SAKIT</h3>
+
+        <p>Yang bertanda tangan di bawah ini, Dokter Pemeriksa Klinik Kesehatan menerangkan bahwa:</p>
+
+        <table style="margin-left: 20px;">
+            <tr><td style="width:150px;">Nama</td><td>: <strong>{{ p.name }}</strong></td></tr>
+            <tr><td>Umur/Tgl. Lahir</td><td>: -</td></tr>
+            <tr><td>Alamat</td><td>: -</td></tr>
+            <tr><td>Diagnosa</td><td>: {{ p.diagnosis }}</td></tr>
+        </table>
+
+        <p>Berdasarkan hasil pemeriksaan medis, pasien tersebut membutuhkan istirahat karena sakit selama <strong>{{ days }} ({{ days_text }})</strong> hari.</p>
+
+        <p>Demikian surat keterangan ini dibuat untuk dapat dipergunakan sebagaimana mestinya.</p>
+    </div>
+
+    <div class="signature">
+        <p>Samarinda, {{ date }}</p>
+        <div>dr. Pemeriksa</div>
+    </div>
+</body>
+</html>
+"""
+
+HTML_CASHIER = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Kasir & Laporan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card bg-success text-white shadow">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Pendapatan Hari Ini</h5>
+                        <h2 class="display-4 fw-bold" id="grand-total">Rp 0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-white shadow">
+                    <div class="card-body text-center">
+                        <h5 class="text-muted">Total Pasien Selesai</h5>
+                        <h2 class="display-4 fw-bold text-dark">{{ patients|length }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-header bg-white py-3 border-0">
+                <h4 class="fw-bold mb-0 text-dark"><i class="fas fa-cash-register me-2"></i> Transaksi Hari Ini</h4>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Nama Pasien</th>
+                                <th>Layanan</th>
+                                <th>Biaya Jasa (Rp)</th>
+                                <th>Biaya Obat (Rp)</th>
+                                <th>Subtotal</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in patients %}
+                            <tr id="row-{{ p.id }}">
+                                <td class="ps-4 fw-bold">{{ p.name }}<br><small class="text-muted">{{ p.created_at.split(' ')[1] }}</small></td>
+                                <td>{{ p.medical_action }}</td>
+                                <td><input type="number" id="fee-doc-{{ p.id }}" class="form-control" value="{{ p.fee_doctor }}" onchange="calcTotal({{ p.id }})"></td>
+                                <td><input type="number" id="fee-med-{{ p.id }}" class="form-control" value="{{ p.fee_medicine }}" onchange="calcTotal({{ p.id }})"></td>
+                                <td class="fw-bold text-success" id="sub-{{ p.id }}">Rp 0</td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary" onclick="saveFee({{ p.id }})"><i class="fas fa-save"></i></button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function formatRp(num) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(num); }
+
+        function calcTotal(id) {
+            let doc = parseInt(document.getElementById('fee-doc-'+id).value) || 0;
+            let med = parseInt(document.getElementById('fee-med-'+id).value) || 0;
+            document.getElementById('sub-'+id).innerText = formatRp(doc + med);
+            updateGrandTotal();
+        }
+
+        function updateGrandTotal() {
+            let sum = 0;
+            {% for p in patients %}
+            sum += (parseInt(document.getElementById('fee-doc-{{ p.id }}').value)||0) + (parseInt(document.getElementById('fee-med-{{ p.id }}').value)||0);
+            {% endfor %}
+            document.getElementById('grand-total').innerText = formatRp(sum);
+        }
+
+        function saveFee(id) {
+            let doc = document.getElementById('fee-doc-'+id).value;
+            let med = document.getElementById('fee-med-'+id).value;
+            fetch('/api/kasir/update', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id: id, fee_doctor: doc, fee_medicine: med})
+            }).then(r=>r.json()).then(d => {
+                alert('Tersimpan!');
+            });
+        }
+
+        // Init
+        {% for p in patients %}
+        calcTotal({{ p.id }});
+        {% endfor %}
+    </script>
+</body>
+</html>
+"""
+
+HTML_PATIENT_DB = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Database Pasien</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-header bg-white py-4 border-0 text-center">
+                <h3 class="fw-bold text-primary"><i class="fas fa-database me-2"></i> Database Riwayat Pasien</h3>
+                <div class="col-md-6 mx-auto mt-3">
+                    <form method="get" class="d-flex gap-2">
+                        <input type="text" name="q" class="form-control form-control-lg" placeholder="Cari Nama / No HP..." value="{{ request.args.get('q', '') }}">
+                        <button class="btn btn-primary btn-lg"><i class="fas fa-search"></i></button>
+                    </form>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Nama</th>
+                                <th>Keluhan</th>
+                                <th>Diagnosa</th>
+                                <th>Resep</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in patients %}
+                            <tr>
+                                <td>{{ p.created_at.split(' ')[0] }}</td>
+                                <td class="fw-bold">{{ p.name }}<br><small class="text-muted">{{ p.phone }}</small></td>
+                                <td>{{ p.complaint }}</td>
+                                <td><span class="badge bg-info text-dark">{{ p.diagnosis }}</span></td>
+                                <td class="small">{{ p.prescription }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% if not patients %}
+                    <div class="text-center py-5 text-muted">Data tidak ditemukan.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+HTML_SEARCH = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Cari Pasien Lama</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow border-0 rounded-4">
+                    <div class="card-body p-5 text-center">
+                        <h2 class="fw-bold mb-4 text-primary">Pencarian Pasien Lama</h2>
+                        <form method="get" class="mb-5">
+                            <div class="input-group input-group-lg">
+                                <input type="text" name="q" class="form-control" placeholder="Masukkan Nama atau No HP..." value="{{ request.args.get('q', '') }}">
+                                <button class="btn btn-primary px-4"><i class="fas fa-search me-2"></i> CARI</button>
+                            </div>
+                        </form>
+
+                        {% if patients %}
+                        <div class="list-group text-start">
+                            {% for p in patients %}
+                            <a href="/antrean?name={{ p.name }}&phone={{ p.phone }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3">
+                                <div>
+                                    <h5 class="mb-1 fw-bold">{{ p.name }}</h5>
+                                    <small class="text-muted"><i class="fas fa-phone me-1"></i> {{ p.phone }}</small>
+                                </div>
+                                <button class="btn btn-success rounded-pill px-4 fw-bold">PILIH <i class="fas fa-arrow-right ms-2"></i></button>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% elif request.args.get('q') %}
+                        <div class="alert alert-warning">Pasien tidak ditemukan.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+HTML_STATS = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Statistik Penyakit</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <h2 class="mb-4 fw-bold text-center"><i class="fas fa-chart-pie me-2 text-primary"></i> Statistik Penyakit Terbanyak</h2>
+
+        <div class="card shadow border-0 rounded-4 mb-4">
+            <div class="card-body p-4">
+                <canvas id="diseaseChart" style="max-height: 500px;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('diseaseChart').getContext('2d');
+        const data = {{ chart_data | tojson }};
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: 'Jumlah Pasien',
+                    data: data.values,
+                    backgroundColor: 'rgba(46, 204, 113, 0.6)',
+                    borderColor: 'rgba(46, 204, 113, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    </script>
 </body>
 </html>
 """
