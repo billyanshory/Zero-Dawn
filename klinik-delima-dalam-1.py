@@ -187,24 +187,22 @@ def landing_page():
     conn.close()
     
     # Render
-    content = HTML_LANDING.replace('{{ navbar|safe }}', '') # No navbar on landing
-    # Actually HTML_LANDING doesn't have {{ navbar|safe }}. It's standalone.
-    # But I should handle {{ admin }} logic.
-    return render_template_string(HTML_LANDING, admin=session.get('admin', False))
+    return render_template_string(HTML_LANDING, admin=session.get('admin', False), spa_script=JS_SPA_ROUTER)
 
 @app.route('/antrean')
 def antrean_page():
-    return render_template_string(HTML_QUEUE)
+    navbar = render_template_string(HTML_INTERNAL_NAVBAR, title='ANTREAN')
+    return render_template_string(HTML_QUEUE, internal_navbar=navbar, spa_script=JS_SPA_ROUTER)
 
 @app.route('/rekam-medis')
 def rekam_medis_page():
-    # Admin check removed for development
-    return render_template_string(HTML_DOCTOR_REKAM)
+    navbar = render_template_string(HTML_INTERNAL_NAVBAR, title='REKAM MEDIS')
+    return render_template_string(HTML_DOCTOR_REKAM, internal_navbar=navbar, spa_script=JS_SPA_ROUTER)
 
 @app.route('/stok-obat')
 def stok_obat_page():
-    # Admin check removed for development
-    return render_template_string(HTML_DOCTOR_STOCK)
+    navbar = render_template_string(HTML_INTERNAL_NAVBAR, title='STOK OBAT')
+    return render_template_string(HTML_DOCTOR_STOCK, internal_navbar=navbar, spa_script=JS_SPA_ROUTER)
 
 # --- CLINIC API ---
 
@@ -404,7 +402,8 @@ def profil_klinik():
                        agenda_latihan=agenda_latihan, 
                        turnamen=turnamen,
                        target_countdown_time=target_countdown_time,
-                       admin=session.get('admin', False))
+                       admin=session.get('admin', False),
+                       spa_script=JS_SPA_ROUTER)
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -543,6 +542,117 @@ def api_delete_item():
     return jsonify({'success': True})
 
 # --- FRONTEND ASSETS ---
+
+HTML_INTERNAL_NAVBAR = """
+<nav class="navbar fixed-top bg-white shadow-sm p-0" style="height: 60px; z-index: 1030;">
+    <div class="container-fluid h-100 d-flex justify-content-between align-items-center position-relative">
+        <a class="navbar-brand d-flex align-items-center" href="/">
+            <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" height="40" alt="Logo">
+        </a>
+        <div class="position-absolute top-50 start-50 translate-middle fw-bold fs-5 text-uppercase">
+            {{ title }}
+        </div>
+        <button class="btn border-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#internalMenu">
+            <i class="fas fa-bars fa-lg"></i>
+        </button>
+        <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, #2ecc71 50%, #FFD700 50%);"></div>
+    </div>
+</nav>
+<div class="offcanvas offcanvas-end" tabindex="-1" id="internalMenu" style="width: 250px;">
+    <div class="offcanvas-header bg-light">
+        <h5 class="offcanvas-title">Menu</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column gap-3">
+        <a href="/" class="btn btn-outline-dark text-start border-0"><i class="fas fa-home me-2"></i> Home</a>
+        <a href="/rekam-medis" class="btn btn-outline-success text-start border-0"><i class="fas fa-notes-medical me-2"></i> Rekam Medis</a>
+        <a href="/stok-obat" class="btn btn-outline-secondary text-start border-0"><i class="fas fa-capsules me-2"></i> Stok Obat</a>
+        <a href="/antrean" class="btn btn-outline-primary text-start border-0"><i class="fas fa-users me-2"></i> Antrean</a>
+    </div>
+</div>
+<div style="height: 70px;"></div>
+"""
+
+JS_SPA_ROUTER = """
+<script>
+    // Interval Management
+    window.activeIntervals = [];
+    const originalSetInterval = window.setInterval;
+    window.setInterval = function(func, delay) {
+        const id = originalSetInterval(func, delay);
+        window.activeIntervals.push(id);
+        return id;
+    };
+    window.clearIntervalAll = function() {
+        window.activeIntervals.forEach(id => clearInterval(id));
+        window.activeIntervals = [];
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const isLocked = sessionStorage.getItem('lockScreen') === 'true';
+        if (isLocked) {
+             if (!document.fullscreenElement) {
+                 document.addEventListener('click', () => {
+                     if(sessionStorage.getItem('lockScreen') === 'true' && !document.fullscreenElement) {
+                         document.documentElement.requestFullscreen().catch(e=>{});
+                     }
+                 }, {once:true});
+             }
+        }
+        document.body.addEventListener('click', (e) => {
+            const link = e.target.closest('a');
+            if (link) {
+                const href = link.getAttribute('href');
+                if (href && href.startsWith('/') && !href.startsWith('//') && !href.includes('.') && href !== '#') {
+                    e.preventDefault();
+                    navigateTo(href);
+                }
+            }
+        });
+        window.addEventListener('popstate', () => {
+            loadContent(location.pathname);
+        });
+    });
+    async function navigateTo(url) {
+        history.pushState(null, '', url);
+        await loadContent(url);
+    }
+    async function loadContent(url) {
+        window.clearIntervalAll();
+        try {
+            const res = await fetch(url);
+            const text = await res.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+            document.body.innerHTML = doc.body.innerHTML;
+            document.title = doc.title;
+            const scripts = document.body.querySelectorAll('script');
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement('script');
+                Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                oldScript.parentNode.replaceChild(newScript, oldScript);
+            });
+        } catch (e) {
+            window.location.href = url;
+        }
+    }
+    window.toggleFullScreen = function() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().then(() => {
+                sessionStorage.setItem('lockScreen', 'true');
+            }).catch(e => {
+                alert("Fullscreen blocked: " + e.message);
+            });
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+                sessionStorage.setItem('lockScreen', 'false');
+            }
+        }
+    };
+</script>
+"""
 
 HTML_LANDING = """
 <!DOCTYPE html>
@@ -721,22 +831,10 @@ HTML_LANDING = """
         function toggleClinicStatus() {
             fetch('/api/clinic/status', { method: 'POST' }).then(() => updateStatus());
         }
-
-        function toggleFullScreen() {
-            var doc = window.document;
-            var docEl = doc.documentElement;
-            var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
-            var cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
-
-            if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
-                requestFullScreen.call(docEl);
-            } else {
-                cancelFullScreen.call(doc);
-            }
-        }
         
         updateStatus();
     </script>
+    {{ spa_script|safe }}
 </body>
 </html>
 """
@@ -751,7 +849,7 @@ HTML_QUEUE = """
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
+        body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; padding-top: 80px; }
         .monitor-box {
             background: white; border-radius: 15px; padding: 30px; text-align: center;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1); margin-bottom: 20px;
@@ -765,13 +863,8 @@ HTML_QUEUE = """
     </style>
 </head>
 <body>
-    <div class="container py-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <a href="/" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Kembali</a>
-            <h2 class="fw-bold">ANTREAN KLINIK</h2>
-            <div style="width: 80px;"></div>
-        </div>
-        
+    {{ internal_navbar|safe }}
+    <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-5">
                 <div class="monitor-box">
@@ -849,6 +942,7 @@ HTML_QUEUE = """
         setInterval(refreshStatus, 3000);
         refreshStatus();
     </script>
+    {{ spa_script|safe }}
 </body>
 </html>
 """
@@ -863,47 +957,47 @@ HTML_DOCTOR_REKAM = """
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { background: #e9ecef; }
-        .sidebar { height: 100vh; background: #fff; width: 250px; position: fixed; padding: 20px; }
-        .content { margin-left: 250px; padding: 20px; }
-        .queue-card { background: white; border-left: 5px solid #2ecc71; padding: 15px; margin-bottom: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        body { background: #e9ecef; padding-top: 70px; }
+        .queue-card { background: white; border-left: 5px solid #2ecc71; padding: 15px; margin-bottom: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor:pointer; }
+        .queue-card:hover { transform: translateX(5px); transition:0.2s; }
         .queue-card.active { border-left-color: #f1c40f; background: #fffbe6; }
+        .section-title { font-weight:700; color:#555; margin-bottom:15px; border-bottom:2px solid #ddd; padding-bottom:5px; }
     </style>
 </head>
 <body>
-    <div class="sidebar d-flex flex-column">
-        <h4 class="mb-4">Dr. Dashboard</h4>
-        <a href="/" class="btn btn-outline-dark mb-3"><i class="fas fa-home"></i> Home</a>
-        <a href="/rekam-medis" class="btn btn-success mb-2 text-start"><i class="fas fa-user-md"></i> Rekam Medis</a>
-        <a href="/stok-obat" class="btn btn-outline-secondary mb-2 text-start"><i class="fas fa-capsules"></i> Stok Obat</a>
-        <div class="mt-auto">
-             <button class="btn btn-danger w-100" onclick="location.href='/logout'">Logout</button>
-        </div>
-    </div>
+    {{ internal_navbar|safe }}
     
-    <div class="content">
-        <div class="row">
-            <div class="col-md-4">
-                <div class="bg-white p-3 rounded shadow-sm">
-                    <h5 class="border-bottom pb-2">Antrean Menunggu</h5>
-                    <div id="queue-list">
+    <div class="container-fluid px-4 py-3">
+        <div class="row g-4">
+            <!-- Mobile: Order 2. Desktop: Order 1 (Left) -->
+            <div class="col-lg-3 order-2 order-lg-1">
+                <div class="bg-white p-3 rounded shadow-sm h-100">
+                    <h5 class="section-title"><i class="fas fa-users text-primary"></i> Antrean Menunggu</h5>
+                    <div id="queue-list" style="max-height: 70vh; overflow-y: auto;">
                         <!-- JS Loaded -->
                     </div>
                 </div>
             </div>
             
-            <div class="col-md-8">
-                <div class="bg-white p-3 rounded shadow-sm mb-4">
-                    <h5 class="border-bottom pb-2">Sedang Diperiksa</h5>
+            <!-- Mobile: Order 1. Desktop: Order 2 (Center/Main) -->
+            <div class="col-lg-6 order-1 order-lg-2">
+                <div class="bg-white p-4 rounded shadow-sm mb-4">
+                    <h5 class="section-title"><i class="fas fa-stethoscope text-success"></i> Sedang Diperiksa</h5>
                     <div id="current-patient-panel">
-                        <div class="text-center text-muted py-5">Belum ada pasien dipanggil</div>
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-user-md fa-3x mb-3 text-secondary"></i><br>
+                            Belum ada pasien dipanggil
+                        </div>
                     </div>
                 </div>
-                
-                <div class="bg-white p-3 rounded shadow-sm">
-                    <h5 class="border-bottom pb-2">Riwayat Pemeriksaan (Hari Ini)</h5>
-                    <div style="max-height: 300px; overflow-y: auto;">
-                        <table class="table table-sm">
+            </div>
+
+            <!-- Mobile: Order 3. Desktop: Order 3 (Right) -->
+            <div class="col-lg-3 order-3 order-lg-3">
+                 <div class="bg-white p-3 rounded shadow-sm h-100">
+                    <h5 class="section-title"><i class="fas fa-history text-warning"></i> Riwayat Hari Ini</h5>
+                    <div style="max-height: 70vh; overflow-y: auto;">
+                        <table class="table table-sm table-hover">
                             <thead><tr><th>No</th><th>Nama</th><th>Diagnosa</th></tr></thead>
                             <tbody id="history-table"></tbody>
                         </table>
@@ -952,45 +1046,58 @@ HTML_DOCTOR_REKAM = """
         }
 
         function loadData() {
+            if(!document.getElementById('queue-list')) return; // Exit if element missing (SPA nav)
+
             fetch('/api/queue/status?full=1').then(r => r.json()).then(data => {
                 // Queue List
                 const list = document.getElementById('queue-list');
+                if(!list) return;
                 list.innerHTML = '';
                 data.waiting.forEach(p => {
                     list.innerHTML += `
-                        <div class="queue-card">
+                        <div class="queue-card" onclick="callPatient(${p.id})">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <strong>#${p.number} - ${escapeHtml(p.name)}</strong><br>
-                                    <small class="text-muted">${escapeHtml(p.complaint)}</small>
+                                    <span class="badge bg-secondary mb-1">#${p.number}</span>
+                                    <div class="fw-bold">${escapeHtml(p.name)}</div>
+                                    <small class="text-muted text-truncate" style="max-width: 150px; display:block;">${escapeHtml(p.complaint)}</small>
                                 </div>
-                                <button class="btn btn-sm btn-primary" onclick="callPatient(${p.id})">Panggil</button>
+                                <button class="btn btn-sm btn-primary"><i class="fas fa-bullhorn"></i></button>
                             </div>
                         </div>
                     `;
                 });
-                if(data.waiting.length === 0) list.innerHTML = '<p class="text-muted text-center">Tidak ada antrean.</p>';
+                if(data.waiting.length === 0) list.innerHTML = '<p class="text-muted text-center py-4">Tidak ada antrean.</p>';
                 
                 // Current Patient
                 const panel = document.getElementById('current-patient-panel');
                 if (data.current) {
                     panel.innerHTML = `
-                        <div class="alert alert-warning">
-                            <h2 class="fw-bold">#${data.current.number} ${escapeHtml(data.current.name)}</h2>
-                            <p class="lead">${escapeHtml(data.current.complaint)}</p>
+                        <div class="alert alert-warning border-warning">
+                            <div class="d-flex justify-content-between">
+                                <span class="badge bg-warning text-dark fs-5">#${data.current.number}</span>
+                                <span class="text-muted small">${data.current.created_at || ''}</span>
+                            </div>
+                            <h2 class="fw-bold my-3">${escapeHtml(data.current.name)}</h2>
+                            <div class="p-3 bg-white rounded mb-3 border">
+                                <strong>Keluhan:</strong><br>
+                                ${escapeHtml(data.current.complaint)}
+                            </div>
                             <hr>
-                            <button class="btn btn-success btn-lg" onclick="openFinishModal(${data.current.id})">Selesai & Rekam Medis</button>
+                            <button class="btn btn-success btn-lg w-100 shadow" onclick="openFinishModal(${data.current.id})">
+                                <i class="fas fa-check-circle"></i> Selesai & Rekam Medis
+                            </button>
                         </div>
                     `;
                 } else {
-                    panel.innerHTML = '<div class="text-center text-muted py-5">Belum ada pasien dipanggil</div>';
+                    panel.innerHTML = '<div class="text-center text-muted py-5"><i class="fas fa-user-md fa-3x mb-3 text-secondary"></i><br>Belum ada pasien dipanggil</div>';
                 }
                 
                 // History
                 const hist = document.getElementById('history-table');
                 hist.innerHTML = '';
                 data.history.forEach(p => {
-                    hist.innerHTML += `<tr><td>${p.number}</td><td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.diagnosis)}</td></tr>`;
+                    hist.innerHTML += `<tr><td>${p.number}</td><td>${escapeHtml(p.name)}</td><td><small>${escapeHtml(p.diagnosis)}</small></td></tr>`;
                 });
             });
         }
@@ -1018,13 +1125,20 @@ HTML_DOCTOR_REKAM = """
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ action: 'finish', id: id, diagnosis: diag, prescription: presc })
             }).then(() => {
-                location.reload(); 
+                // With SPA, we might want to just reload data or nav
+                loadData();
+                document.querySelector('.btn-close').click(); // close modal
             });
         }
         
-        setInterval(loadData, 5000);
+        // Start Poll
         loadData();
+        // Since SPA re-executes this script every time, we get a new interval.
+        // We should clear old one? hard to access.
+        // But the check at start of loadData will prevent errors.
+        setInterval(loadData, 5000);
     </script>
+    {{ spa_script|safe }}
 </body>
 </html>
 """
@@ -1039,14 +1153,9 @@ HTML_DOCTOR_STOCK = """
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-light">
-    <div class="container py-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-             <a href="/" class="btn btn-outline-secondary"><i class="fas fa-home"></i> Home</a>
-             <h2>Manajemen Stok Obat</h2>
-             <div></div>
-        </div>
-        
+<body class="bg-light" style="padding-top: 80px;">
+    {{ internal_navbar|safe }}
+    <div class="container py-3">
         <div class="card shadow-sm mb-4">
             <div class="card-body">
                 <form id="add-stock-form" class="row g-3" onsubmit="addStock(event)">
@@ -1148,6 +1257,7 @@ HTML_DOCTOR_STOCK = """
         
         loadStock();
     </script>
+    {{ spa_script|safe }}
 </body>
 </html>
 """
@@ -2568,22 +2678,9 @@ HTML_UR_FC = """
             card.addEventListener('mouseleave', () => { card.style.transform = 'scale(1)'; card.style.zIndex = '1'; });
         });
 
-        // Full Screen Toggle
-        function toggleFullScreen() {
-            var doc = window.document;
-            var docEl = doc.documentElement;
-
-            var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
-            var cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
-
-            if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
-                requestFullScreen.call(docEl);
-            } else {
-                cancelFullScreen.call(doc);
-            }
-        }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {{ spa_script|safe }}
 </body>
 </html>
 """
