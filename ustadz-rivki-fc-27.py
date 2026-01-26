@@ -97,6 +97,27 @@ def init_db():
                     value TEXT
                 )''')
 
+    # Clinic Queue
+    c.execute('''CREATE TABLE IF NOT EXISTS queue (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT,
+                    phone TEXT,
+                    complaint TEXT,
+                    status TEXT DEFAULT 'waiting',
+                    number INTEGER,
+                    diagnosis TEXT,
+                    prescription TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )''')
+
+    # Medicine Stock
+    c.execute('''CREATE TABLE IF NOT EXISTS medicine_stock (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT,
+                    stock INTEGER DEFAULT 0,
+                    unit TEXT DEFAULT 'pcs'
+                )''')
+
     # Seed Data
     c.execute("INSERT OR IGNORE INTO news_content (id, title, subtitle, category, type) VALUES ('hero', 'VICTORY IN THE DERBY', 'A stunning performance secures the win', 'FIRST TEAM', 'hero')")
     for i in range(1, 5):
@@ -153,6 +174,181 @@ def get_all_data():
 
 # --- ROUTES ---
 
+# --- CLINIC ROUTES ---
+
+@app.route('/')
+def landing_page():
+    # Check Clinic Status
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT value FROM site_settings WHERE key='clinic_open'")
+    row = c.fetchone()
+    is_open = row['value'] == '1' if row else False
+    conn.close()
+
+    # Render
+    content = HTML_LANDING.replace('{{ navbar|safe }}', '') # No navbar on landing
+    # Actually HTML_LANDING doesn't have {{ navbar|safe }}. It's standalone.
+    # But I should handle {{ admin }} logic.
+    return render_template_string(HTML_LANDING, admin=session.get('admin', False))
+
+@app.route('/antrean')
+def antrean_page():
+    return render_template_string(HTML_QUEUE)
+
+@app.route('/rekam-medis')
+def rekam_medis_page():
+    if not session.get('admin'):
+         return '<script>alert("Akses Khusus Dokter. Silakan Login."); window.location.href="/profil-klinik";</script>'
+    return render_template_string(HTML_DOCTOR_REKAM)
+
+@app.route('/stok-obat')
+def stok_obat_page():
+    if not session.get('admin'):
+         return '<script>alert("Akses Khusus Dokter. Silakan Login."); window.location.href="/profil-klinik";</script>'
+    return render_template_string(HTML_DOCTOR_STOCK)
+
+# --- CLINIC API ---
+
+@app.route('/api/clinic/status', methods=['GET', 'POST'])
+def api_clinic_status():
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    if request.method == 'POST':
+        if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+        c.execute("SELECT value FROM site_settings WHERE key='clinic_open'")
+        row = c.fetchone()
+        curr = row['value'] if row else '0'
+        new_val = '0' if curr == '1' else '1'
+        c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('clinic_open', ?)", (new_val,))
+        conn.commit()
+        conn.close()
+        return jsonify({'open': new_val == '1'})
+
+    c.execute("SELECT value FROM site_settings WHERE key='clinic_open'")
+    row = c.fetchone()
+    is_open = row['value'] == '1' if row else False
+    conn.close()
+    return jsonify({'open': is_open})
+
+@app.route('/api/queue/add', methods=['POST'])
+def api_queue_add():
+    data = request.json
+    name = data.get('name')
+    phone = data.get('phone')
+    complaint = data.get('complaint')
+
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    # Get daily number
+    today = datetime.date.today().isoformat()
+    c.execute("SELECT MAX(number) as max_num FROM queue WHERE created_at LIKE ?", (f"{today}%",))
+    row = c.fetchone()
+    next_num = (row['max_num'] or 0) + 1
+
+    c.execute("INSERT INTO queue (name, phone, complaint, number, status) VALUES (?, ?, ?, ?, 'waiting')",
+              (name, phone, complaint, next_num))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'ticket': next_num})
+
+@app.route('/api/queue/status')
+def api_queue_status():
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    # Current
+    c.execute("SELECT * FROM queue WHERE status='examining' ORDER BY created_at DESC LIMIT 1")
+    curr = c.fetchone()
+    current_data = dict(curr) if curr else None
+
+    # Waiting Count
+    c.execute("SELECT COUNT(*) as cnt FROM queue WHERE status='waiting'")
+    waiting_count = c.fetchone()['cnt']
+
+    # Full data for Admin
+    if request.args.get('full'):
+        c.execute("SELECT * FROM queue WHERE status='waiting' ORDER BY created_at ASC")
+        waiting_list = [dict(r) for r in c.fetchall()]
+
+        today = datetime.date.today().isoformat()
+        c.execute("SELECT * FROM queue WHERE status='done' AND created_at LIKE ? ORDER BY created_at DESC", (f"{today}%",))
+        history_list = [dict(r) for r in c.fetchall()]
+
+        conn.close()
+        return jsonify({
+            'current': current_data,
+            'waiting_count': waiting_count,
+            'waiting': waiting_list,
+            'history': history_list
+        })
+
+    conn.close()
+    return jsonify({
+        'current_number': current_data['number'] if current_data else None,
+        'current_name': current_data['name'] if current_data else None,
+        'waiting_count': waiting_count
+    })
+
+@app.route('/api/queue/action', methods=['POST'])
+def api_queue_action():
+    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    data = request.json
+    action = data.get('action')
+    id = data.get('id')
+
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    if action == 'call':
+        # Finish any currently examining
+        c.execute("UPDATE queue SET status='done' WHERE status='examining'")
+        # Update target
+        c.execute("UPDATE queue SET status='examining' WHERE id=?", (id,))
+
+    elif action == 'finish':
+        diag = data.get('diagnosis')
+        presc = data.get('prescription')
+        c.execute("UPDATE queue SET status='done', diagnosis=?, prescription=? WHERE id=?", (diag, presc, id))
+
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/stock/list')
+def api_stock_list():
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM medicine_stock ORDER BY name ASC")
+    items = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify(items)
+
+@app.route('/api/stock/update', methods=['POST'])
+def api_stock_update():
+    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    data = request.json
+    action = data.get('action')
+
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    if action == 'create':
+        c.execute("INSERT INTO medicine_stock (name, stock, unit) VALUES (?, ?, ?)",
+                  (data.get('name'), data.get('stock'), data.get('unit')))
+    elif action == 'update':
+        id = data.get('id')
+        change = int(data.get('change'))
+        c.execute("UPDATE medicine_stock SET stock = stock + ? WHERE id=?", (change, id))
+    elif action == 'delete':
+        c.execute("DELETE FROM medicine_stock WHERE id=?", (data.get('id'),))
+
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
 def render_page(content, **kwargs):
     content = content.replace('{{ styles|safe }}', STYLES_HTML)
     content = content.replace('{{ navbar|safe }}', NAVBAR_HTML)
@@ -160,8 +356,8 @@ def render_page(content, **kwargs):
         kwargs['timestamp'] = int(time.time())
     return render_template_string(content, **kwargs)
 
-@app.route('/')
-def index():
+@app.route('/profil-klinik')
+def profil_klinik():
     data = get_all_data()
     
     def process_agenda(id_prefix, dynamic_section_id):
@@ -259,7 +455,7 @@ def upload_image(type, id):
         conn.commit()
         conn.close()
         
-    return redirect(url_for('index'))
+    return redirect(url_for('profil_klinik'))
 
 @app.route('/api/update-text', methods=['POST'])
 def api_update_text():
@@ -349,6 +545,576 @@ def api_delete_item():
     return jsonify({'success': True})
 
 # --- FRONTEND ASSETS ---
+
+HTML_LANDING = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Klinik Tahfizh Kilat</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 40px;
+            text-align: center;
+            max-width: 1000px;
+            width: 90%;
+        }
+        .main-btn {
+            background: rgba(255, 255, 255, 0.8);
+            border: none;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 10px;
+            width: 200px;
+            height: 200px;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: 0.3s;
+            text-decoration: none;
+            color: #333;
+            font-weight: bold;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .main-btn:hover {
+            transform: translateY(-5px);
+            background: #fff;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            color: #2ecc71;
+        }
+        .main-btn i {
+            font-size: 4rem;
+            margin-bottom: 15px;
+            color: #2ecc71;
+        }
+        .status-badge {
+            font-size: 1.5rem;
+            font-weight: bold;
+            padding: 10px 30px;
+            border-radius: 50px;
+            margin-bottom: 30px;
+            display: inline-block;
+        }
+        .status-open { background: #2ecc71; color: white; }
+        .status-closed { background: #e74c3c; color: white; }
+        .wa-float {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #25D366;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            text-decoration: none;
+            transition: 0.3s;
+            z-index: 9999;
+        }
+        .wa-float:hover { transform: scale(1.1); color: white; }
+    </style>
+</head>
+<body>
+    <div class="glass-panel">
+        <h1 class="mb-4 fw-bold">KLINIK TAHFIZH KILAT</h1>
+
+        <div id="status-container">
+            <!-- Loaded via JS -->
+            <span class="status-badge status-open">LOADING...</span>
+        </div>
+
+        {% if admin %}
+        <div class="mb-4">
+            <button class="btn btn-warning" onclick="toggleClinicStatus()">
+                <i class="fas fa-power-off"></i> SAKLAR BUKA/TUTUP
+            </button>
+        </div>
+        {% endif %}
+
+        <div class="d-flex flex-wrap justify-content-center">
+            <a href="/antrean" class="main-btn">
+                <i class="fas fa-users"></i>
+                ANTREAN
+            </a>
+
+            <a href="/rekam-medis" class="main-btn">
+                <i class="fas fa-notes-medical"></i>
+                REKAM MEDIS
+                {% if not admin %}<small class="d-block text-muted" style="font-size:0.7rem">(Admin)</small>{% endif %}
+            </a>
+
+            <a href="/stok-obat" class="main-btn">
+                <i class="fas fa-capsules"></i>
+                STOK OBAT
+                {% if not admin %}<small class="d-block text-muted" style="font-size:0.7rem">(Admin)</small>{% endif %}
+            </a>
+
+            <a href="/profil-klinik" class="main-btn">
+                <i class="fas fa-hospital-user"></i>
+                PROFIL KLINIK
+            </a>
+        </div>
+    </div>
+
+    <a href="https://wa.me/6281528455350?text=Halo%20Dokter,%20saya%20ingin%20konsultasi%20darurat." class="wa-float" target="_blank">
+        <i class="fab fa-whatsapp"></i>
+    </a>
+
+    <script>
+        function updateStatus() {
+            fetch('/api/clinic/status').then(r => r.json()).then(data => {
+                const el = document.getElementById('status-container');
+                if(data.open) {
+                    el.innerHTML = '<span class="status-badge status-open">KLINIK BUKA</span>';
+                } else {
+                    el.innerHTML = '<span class="status-badge status-closed">KLINIK TUTUP</span>';
+                }
+            });
+        }
+
+        function toggleClinicStatus() {
+            fetch('/api/clinic/status', { method: 'POST' }).then(() => updateStatus());
+        }
+
+        updateStatus();
+    </script>
+</body>
+</html>
+"""
+
+HTML_QUEUE = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antrean Klinik</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
+        .monitor-box {
+            background: white; border-radius: 15px; padding: 30px; text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1); margin-bottom: 20px;
+        }
+        .big-number { font-size: 6rem; font-weight: 800; color: #2ecc71; line-height: 1; }
+        .form-box { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .ticket {
+            border: 2px dashed #2ecc71; background: #e8f5e9; padding: 20px; border-radius: 10px;
+            text-align: center; margin-top: 20px; display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <a href="/" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Kembali</a>
+            <h2 class="fw-bold">ANTREAN KLINIK</h2>
+            <div style="width: 80px;"></div>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-md-5">
+                <div class="monitor-box">
+                    <h4 class="text-muted text-uppercase">Sedang Diperiksa</h4>
+                    <div class="big-number" id="current-num">--</div>
+                    <p class="mb-0" id="current-name">Menunggu Dokter...</p>
+                </div>
+
+                <div class="monitor-box mt-3">
+                    <h5>Antrean Menunggu</h5>
+                    <div class="fs-4 fw-bold" id="waiting-count">0</div>
+                    <small class="text-muted">Orang</small>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="form-box">
+                    <h4 class="mb-3 border-bottom pb-2">Ambil Nomor Antrean</h4>
+                    <form id="queue-form" onsubmit="submitQueue(event)">
+                        <div class="mb-3">
+                            <label>Nama Pasien</label>
+                            <input type="text" id="q-name" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Nomor HP (WhatsApp)</label>
+                            <input type="tel" id="q-phone" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Keluhan Utama</label>
+                            <textarea id="q-complaint" class="form-control" rows="2" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 py-2 fw-bold">AMBIL NOMOR</button>
+                    </form>
+
+                    <div id="ticket-view" class="ticket">
+                        <h4>TIKET ANTREAN ANDA</h4>
+                        <div class="display-1 fw-bold text-success" id="my-number">0</div>
+                        <p>Silakan menunggu panggilan.</p>
+                        <button class="btn btn-sm btn-outline-success" onclick="location.reload()">Selesai</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function refreshStatus() {
+            fetch('/api/queue/status').then(r => r.json()).then(data => {
+                document.getElementById('current-num').innerText = data.current_number || '--';
+                document.getElementById('current-name').innerText = data.current_name || 'Tidak ada pasien';
+                document.getElementById('waiting-count').innerText = data.waiting_count;
+            });
+        }
+
+        function submitQueue(e) {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('q-name').value,
+                phone: document.getElementById('q-phone').value,
+                complaint: document.getElementById('q-complaint').value
+            };
+
+            fetch('/api/queue/add', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            }).then(r => r.json()).then(res => {
+                if(res.ticket) {
+                    document.getElementById('queue-form').style.display = 'none';
+                    document.getElementById('ticket-view').style.display = 'block';
+                    document.getElementById('my-number').innerText = res.ticket;
+                }
+            });
+        }
+
+        setInterval(refreshStatus, 3000);
+        refreshStatus();
+    </script>
+</body>
+</html>
+"""
+
+HTML_DOCTOR_REKAM = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dokter - Rekam Medis</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #e9ecef; }
+        .sidebar { height: 100vh; background: #fff; width: 250px; position: fixed; padding: 20px; }
+        .content { margin-left: 250px; padding: 20px; }
+        .queue-card { background: white; border-left: 5px solid #2ecc71; padding: 15px; margin-bottom: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .queue-card.active { border-left-color: #f1c40f; background: #fffbe6; }
+    </style>
+</head>
+<body>
+    <div class="sidebar d-flex flex-column">
+        <h4 class="mb-4">Dr. Dashboard</h4>
+        <a href="/" class="btn btn-outline-dark mb-3"><i class="fas fa-home"></i> Home</a>
+        <a href="/rekam-medis" class="btn btn-success mb-2 text-start"><i class="fas fa-user-md"></i> Rekam Medis</a>
+        <a href="/stok-obat" class="btn btn-outline-secondary mb-2 text-start"><i class="fas fa-capsules"></i> Stok Obat</a>
+        <div class="mt-auto">
+             <button class="btn btn-danger w-100" onclick="location.href='/logout'">Logout</button>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="bg-white p-3 rounded shadow-sm">
+                    <h5 class="border-bottom pb-2">Antrean Menunggu</h5>
+                    <div id="queue-list">
+                        <!-- JS Loaded -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="bg-white p-3 rounded shadow-sm mb-4">
+                    <h5 class="border-bottom pb-2">Sedang Diperiksa</h5>
+                    <div id="current-patient-panel">
+                        <div class="text-center text-muted py-5">Belum ada pasien dipanggil</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-3 rounded shadow-sm">
+                    <h5 class="border-bottom pb-2">Riwayat Pemeriksaan (Hari Ini)</h5>
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-sm">
+                            <thead><tr><th>No</th><th>Nama</th><th>Diagnosa</th></tr></thead>
+                            <tbody id="history-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Finish Modal -->
+    <div class="modal fade" id="finishModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Selesaikan Pemeriksaan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="finish-id">
+                    <div class="mb-3">
+                        <label>Diagnosa</label>
+                        <textarea id="diag-input" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label>Resep Obat</label>
+                        <textarea id="presc-input" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="submitFinish()">Simpan & Selesai</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function escapeHtml(text) {
+            if (!text) return "";
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function loadData() {
+            fetch('/api/queue/status?full=1').then(r => r.json()).then(data => {
+                // Queue List
+                const list = document.getElementById('queue-list');
+                list.innerHTML = '';
+                data.waiting.forEach(p => {
+                    list.innerHTML += `
+                        <div class="queue-card">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>#${p.number} - ${escapeHtml(p.name)}</strong><br>
+                                    <small class="text-muted">${escapeHtml(p.complaint)}</small>
+                                </div>
+                                <button class="btn btn-sm btn-primary" onclick="callPatient(${p.id})">Panggil</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                if(data.waiting.length === 0) list.innerHTML = '<p class="text-muted text-center">Tidak ada antrean.</p>';
+
+                // Current Patient
+                const panel = document.getElementById('current-patient-panel');
+                if (data.current) {
+                    panel.innerHTML = `
+                        <div class="alert alert-warning">
+                            <h2 class="fw-bold">#${data.current.number} ${escapeHtml(data.current.name)}</h2>
+                            <p class="lead">${escapeHtml(data.current.complaint)}</p>
+                            <hr>
+                            <button class="btn btn-success btn-lg" onclick="openFinishModal(${data.current.id})">Selesai & Rekam Medis</button>
+                        </div>
+                    `;
+                } else {
+                    panel.innerHTML = '<div class="text-center text-muted py-5">Belum ada pasien dipanggil</div>';
+                }
+
+                // History
+                const hist = document.getElementById('history-table');
+                hist.innerHTML = '';
+                data.history.forEach(p => {
+                    hist.innerHTML += `<tr><td>${p.number}</td><td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.diagnosis)}</td></tr>`;
+                });
+            });
+        }
+
+        function callPatient(id) {
+            fetch('/api/queue/action', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'call', id: id })
+            }).then(() => loadData());
+        }
+
+        function openFinishModal(id) {
+            document.getElementById('finish-id').value = id;
+            document.getElementById('diag-input').value = '';
+            document.getElementById('presc-input').value = '';
+            new bootstrap.Modal(document.getElementById('finishModal')).show();
+        }
+
+        function submitFinish() {
+            const id = document.getElementById('finish-id').value;
+            const diag = document.getElementById('diag-input').value;
+            const presc = document.getElementById('presc-input').value;
+
+            fetch('/api/queue/action', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'finish', id: id, diagnosis: diag, prescription: presc })
+            }).then(() => {
+                location.reload();
+            });
+        }
+
+        setInterval(loadData, 5000);
+        loadData();
+    </script>
+</body>
+</html>
+"""
+
+HTML_DOCTOR_STOCK = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stok Obat</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-light">
+    <div class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+             <a href="/" class="btn btn-outline-secondary"><i class="fas fa-home"></i> Home</a>
+             <h2>Manajemen Stok Obat</h2>
+             <div></div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form id="add-stock-form" class="row g-3" onsubmit="addStock(event)">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" id="new-name" placeholder="Nama Obat" required>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" class="form-control" id="new-stock" placeholder="Jumlah" required>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" id="new-unit" placeholder="Satuan (Strip/Botol)" value="pcs" required>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">+ Tambah</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="bg-white rounded shadow-sm p-4">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Nama Obat</th>
+                        <th>Stok</th>
+                        <th>Satuan</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="stock-table">
+                    <!-- JS Loaded -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function escapeHtml(text) {
+            if (!text) return "";
+            return text.toString()
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function loadStock() {
+            fetch('/api/stock/list').then(r => r.json()).then(data => {
+                const tbody = document.getElementById('stock-table');
+                tbody.innerHTML = '';
+                data.forEach(item => {
+                    const row = `
+                        <tr>
+                            <td>${escapeHtml(item.name)}</td>
+                            <td class="${item.stock < 10 ? 'text-danger fw-bold' : ''}">${item.stock}</td>
+                            <td>${escapeHtml(item.unit)}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" onclick="updateStock(${item.id}, -1)">-1</button>
+                                <button class="btn btn-sm btn-outline-success" onclick="updateStock(${item.id}, 1)">+1</button>
+                                <button class="btn btn-sm btn-danger ms-2" onclick="deleteStock(${item.id})"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            });
+        }
+
+        function addStock(e) {
+            e.preventDefault();
+            const name = document.getElementById('new-name').value;
+            const stock = document.getElementById('new-stock').value;
+            const unit = document.getElementById('new-unit').value;
+
+            fetch('/api/stock/update', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'create', name, stock, unit })
+            }).then(() => {
+                document.getElementById('add-stock-form').reset();
+                loadStock();
+            });
+        }
+
+        function updateStock(id, change) {
+            fetch('/api/stock/update', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'update', id, change })
+            }).then(() => loadStock());
+        }
+
+        function deleteStock(id) {
+            if(!confirm('Hapus obat ini?')) return;
+            fetch('/api/stock/update', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'delete', id })
+            }).then(() => loadStock());
+        }
+
+        loadStock();
+    </script>
+</body>
+</html>
+"""
 
 NAVBAR_HTML = """
 <style>
