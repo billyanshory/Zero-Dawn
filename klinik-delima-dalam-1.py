@@ -544,6 +544,105 @@ def api_delete_item():
 
 # --- FRONTEND ASSETS ---
 
+SPA_SCRIPT = """
+<script>
+(function() {
+    let isLocked = sessionStorage.getItem('lock_active') === 'true';
+
+    window.activateLockScreen = function() {
+        var doc = window.document;
+        var docEl = doc.documentElement;
+        var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+
+        if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+            requestFullScreen.call(docEl);
+            sessionStorage.setItem('lock_active', 'true');
+            isLocked = true;
+        }
+    };
+
+    document.addEventListener('click', function(e) {
+        if (!isLocked) return;
+        const anchor = e.target.closest('a');
+        if (anchor && anchor.href && anchor.host === window.location.host && !anchor.getAttribute('onclick') && !anchor.getAttribute('target')) {
+            if (anchor.getAttribute('href').startsWith('#')) return;
+            e.preventDefault();
+            const url = anchor.href;
+            const loader = document.createElement('div');
+            loader.innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;"><i class="fas fa-spinner fa-spin fa-3x text-success"></i></div>';
+            document.body.appendChild(loader);
+            fetch(url).then(r => r.text()).then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newStyles = doc.head.querySelectorAll('style, link[rel="stylesheet"]');
+                newStyles.forEach(s => document.head.appendChild(s.cloneNode(true)));
+                document.body.innerHTML = doc.body.innerHTML;
+                document.title = doc.title;
+                window.history.pushState({}, '', url);
+                document.body.querySelectorAll('script').forEach(os => {
+                    const ns = document.createElement('script');
+                    Array.from(os.attributes).forEach(a => ns.setAttribute(a.name, a.value));
+                    ns.appendChild(document.createTextNode(os.innerHTML));
+                    os.parentNode.replaceChild(ns, os);
+                });
+            }).catch(() => loader.remove());
+        }
+    });
+})();
+</script>
+"""
+
+HEADER_TEMPLATE = """
+<style>
+    .custom-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: relative; }
+    .header-left-icon { display: flex; align-items: center; z-index: 2; }
+    .header-icon { font-size: 1.5rem; color: #2ecc71; }
+    .header-center-title { position: absolute; left: 50%; transform: translateX(-50%); font-weight: 800; font-size: 1.2rem; text-transform: uppercase; color: #333; white-space: nowrap; z-index: 1; }
+    .header-border { position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, #2ecc71 50%, #FFD700 50%); }
+    .header-right-menu { display: flex; align-items: center; z-index: 2; }
+    .header-menu-btn { background: none; border: none; font-size: 1.5rem; color: #333; cursor: pointer; }
+    .offcanvas-menu { position: fixed; top: 0; right: -300px; width: 300px; height: 100vh; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); z-index: 2000; transition: right 0.3s ease; box-shadow: -5px 0 15px rgba(0,0,0,0.1); padding: 20px; display: flex; flex-direction: column; }
+    .offcanvas-menu.active { right: 0; }
+    .menu-item { display: flex; align-items: center; gap: 15px; padding: 15px; text-decoration: none; color: #333; font-weight: 600; border-bottom: 1px solid #eee; transition: 0.2s; }
+    .menu-item:hover { background: #f8f9fa; color: #2ecc71; padding-left: 20px; }
+    .menu-item i { width: 25px; text-align: center; }
+    .close-menu-btn { align-self: flex-end; background: none; border: none; font-size: 1.5rem; margin-bottom: 20px; cursor: pointer; }
+    .menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1500; display: none; }
+    .menu-overlay.active { display: block; }
+</style>
+<div class="custom-header">
+    <div class="header-left-icon">
+        <i class="{icon} header-icon"></i>
+    </div>
+    <div class="header-center-title">
+        {title}
+    </div>
+    <div class="header-right-menu">
+        <button class="header-menu-btn" onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
+    </div>
+    <div class="header-border"></div>
+</div>
+<div class="menu-overlay" id="menu-overlay" onclick="toggleMenu()"></div>
+<div class="offcanvas-menu" id="offcanvas-menu">
+    <button class="close-menu-btn" onclick="toggleMenu()"><i class="fas fa-times"></i></button>
+    <div class="d-flex align-items-center mb-4 px-2">
+        <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" style="height: 40px; margin-right: 10px;">
+        <div><div class="fw-bold small">TAHFIZH KILAT FC</div><div class="text-muted small" style="font-size: 0.7rem;">Official Clinic System</div></div>
+    </div>
+    <a href="/" class="menu-item"><i class="fas fa-home"></i> Home</a>
+    <a href="/antrean" class="menu-item"><i class="fas fa-users"></i> Antrean</a>
+    <a href="/rekam-medis" class="menu-item"><i class="fas fa-notes-medical"></i> Rekam Medis</a>
+    <a href="/stok-obat" class="menu-item"><i class="fas fa-capsules"></i> Stok Obat</a>
+    <a href="/profil-klinik" class="menu-item"><i class="fas fa-hospital-user"></i> Profil Klinik</a>
+</div>
+<script>
+    function toggleMenu() {
+        document.getElementById('offcanvas-menu').classList.toggle('active');
+        document.getElementById('menu-overlay').classList.toggle('active');
+    }
+</script>
+"""
+
 HTML_LANDING = """
 <!DOCTYPE html>
 <html lang="id">
@@ -561,6 +660,7 @@ HTML_LANDING = """
             align-items: center;
             justify-content: center;
             font-family: 'Segoe UI', sans-serif;
+            margin: 0;
         }
         .glass-panel {
             background: rgba(255, 255, 255, 0.25);
@@ -651,10 +751,10 @@ HTML_LANDING = """
             color: #333;
             text-decoration: none;
             transition: 0.3s;
+            cursor: pointer;
         }
         .lock-screen-btn i { font-size: 1.5rem; margin-bottom: 5px; color: #333; }
         .lock-screen-btn span { font-size: 0.65rem; font-weight: bold; line-height: 1; color: #333; }
-        @media (min-width: 992px) { .lock-screen-btn { display: none; } }
     </style>
 </head>
 <body>
@@ -662,7 +762,6 @@ HTML_LANDING = """
         <h1 class="mb-4 fw-bold">KLINIK TAHFIZH KILAT</h1>
         
         <div id="status-container">
-            <!-- Loaded via JS -->
             <span class="status-badge status-open">LOADING...</span>
         </div>
         
@@ -701,7 +800,7 @@ HTML_LANDING = """
         <i class="fab fa-whatsapp"></i>
     </a>
 
-    <button onclick="toggleFullScreen()" class="lock-screen-btn">
+    <button onclick="window.activateLockScreen()" class="lock-screen-btn">
         <i class="fas fa-expand"></i>
         <span>Layar Penuh</span>
     </button>
@@ -717,26 +816,12 @@ HTML_LANDING = """
                 }
             });
         }
-        
         function toggleClinicStatus() {
             fetch('/api/clinic/status', { method: 'POST' }).then(() => updateStatus());
         }
-
-        function toggleFullScreen() {
-            var doc = window.document;
-            var docEl = doc.documentElement;
-            var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
-            var cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
-
-            if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
-                requestFullScreen.call(docEl);
-            } else {
-                cancelFullScreen.call(doc);
-            }
-        }
-        
         updateStatus();
     </script>
+""" + SPA_SCRIPT + """
 </body>
 </html>
 """
@@ -751,36 +836,25 @@ HTML_QUEUE = """
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
-        .monitor-box {
-            background: white; border-radius: 15px; padding: 30px; text-align: center;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1); margin-bottom: 20px;
-        }
+        body { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; font-family: 'Segoe UI', sans-serif; margin: 0; }
+        .glass-panel { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); border-radius: 15px; border: 1px solid rgba(255,255,255,0.5); padding: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .monitor-box { text-align: center; }
         .big-number { font-size: 6rem; font-weight: 800; color: #2ecc71; line-height: 1; }
-        .form-box { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .ticket {
-            border: 2px dashed #2ecc71; background: #e8f5e9; padding: 20px; border-radius: 10px;
-            text-align: center; margin-top: 20px; display: none;
-        }
+        .ticket { border: 2px dashed #2ecc71; background: #e8f5e9; padding: 20px; border-radius: 10px; text-align: center; margin-top: 20px; display: none; }
     </style>
 </head>
 <body>
+""" + HEADER_TEMPLATE.replace('{icon}', 'fas fa-users').replace('{title}', 'ANTREAN') + """
     <div class="container py-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <a href="/" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Kembali</a>
-            <h2 class="fw-bold">ANTREAN KLINIK</h2>
-            <div style="width: 80px;"></div>
-        </div>
-        
         <div class="row justify-content-center">
             <div class="col-md-5">
-                <div class="monitor-box">
+                <div class="glass-panel monitor-box">
                     <h4 class="text-muted text-uppercase">Sedang Diperiksa</h4>
                     <div class="big-number" id="current-num">--</div>
                     <p class="mb-0" id="current-name">Menunggu Dokter...</p>
                 </div>
                 
-                <div class="monitor-box mt-3">
+                <div class="glass-panel mt-3 text-center">
                     <h5>Antrean Menunggu</h5>
                     <div class="fs-4 fw-bold" id="waiting-count">0</div>
                     <small class="text-muted">Orang</small>
@@ -788,7 +862,7 @@ HTML_QUEUE = """
             </div>
             
             <div class="col-md-6">
-                <div class="form-box">
+                <div class="glass-panel">
                     <h4 class="mb-3 border-bottom pb-2">Ambil Nomor Antrean</h4>
                     <form id="queue-form" onsubmit="submitQueue(event)">
                         <div class="mb-3">
@@ -816,7 +890,6 @@ HTML_QUEUE = """
             </div>
         </div>
     </div>
-
     <script>
         function refreshStatus() {
             fetch('/api/queue/status').then(r => r.json()).then(data => {
@@ -825,7 +898,6 @@ HTML_QUEUE = """
                 document.getElementById('waiting-count').innerText = data.waiting_count;
             });
         }
-        
         function submitQueue(e) {
             e.preventDefault();
             const data = {
@@ -833,7 +905,6 @@ HTML_QUEUE = """
                 phone: document.getElementById('q-phone').value,
                 complaint: document.getElementById('q-complaint').value
             };
-            
             fetch('/api/queue/add', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
@@ -845,10 +916,10 @@ HTML_QUEUE = """
                 }
             });
         }
-        
         setInterval(refreshStatus, 3000);
         refreshStatus();
     </script>
+""" + SPA_SCRIPT + """
 </body>
 </html>
 """
@@ -863,47 +934,39 @@ HTML_DOCTOR_REKAM = """
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { background: #e9ecef; }
-        .sidebar { height: 100vh; background: #fff; width: 250px; position: fixed; padding: 20px; }
-        .content { margin-left: 250px; padding: 20px; }
+        body { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; font-family: 'Segoe UI', sans-serif; margin: 0; }
+        .glass-panel { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); border-radius: 15px; border: 1px solid rgba(255,255,255,0.5); padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); height: 100%; }
         .queue-card { background: white; border-left: 5px solid #2ecc71; padding: 15px; margin-bottom: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .queue-card.active { border-left-color: #f1c40f; background: #fffbe6; }
     </style>
 </head>
 <body>
-    <div class="sidebar d-flex flex-column">
-        <h4 class="mb-4">Dr. Dashboard</h4>
-        <a href="/" class="btn btn-outline-dark mb-3"><i class="fas fa-home"></i> Home</a>
-        <a href="/rekam-medis" class="btn btn-success mb-2 text-start"><i class="fas fa-user-md"></i> Rekam Medis</a>
-        <a href="/stok-obat" class="btn btn-outline-secondary mb-2 text-start"><i class="fas fa-capsules"></i> Stok Obat</a>
-        <div class="mt-auto">
-             <button class="btn btn-danger w-100" onclick="location.href='/logout'">Logout</button>
-        </div>
-    </div>
-    
-    <div class="content">
-        <div class="row">
-            <div class="col-md-4">
-                <div class="bg-white p-3 rounded shadow-sm">
-                    <h5 class="border-bottom pb-2">Antrean Menunggu</h5>
-                    <div id="queue-list">
+""" + HEADER_TEMPLATE.replace('{icon}', 'fas fa-notes-medical').replace('{title}', 'REKAM MEDIS') + """
+    <div class="container-fluid p-4">
+        <div class="row g-4">
+            <div class="col-md-3">
+                <div class="glass-panel">
+                    <h5 class="border-bottom pb-2 fw-bold text-uppercase"><i class="fas fa-clock text-warning"></i> Antrean Menunggu</h5>
+                    <div id="queue-list" style="max-height: 70vh; overflow-y: auto;">
                         <!-- JS Loaded -->
                     </div>
                 </div>
             </div>
             
-            <div class="col-md-8">
-                <div class="bg-white p-3 rounded shadow-sm mb-4">
-                    <h5 class="border-bottom pb-2">Sedang Diperiksa</h5>
-                    <div id="current-patient-panel">
-                        <div class="text-center text-muted py-5">Belum ada pasien dipanggil</div>
+            <div class="col-md-5">
+                <div class="glass-panel">
+                    <h5 class="border-bottom pb-2 fw-bold text-uppercase"><i class="fas fa-stethoscope text-success"></i> Sedang Diperiksa</h5>
+                    <div id="current-patient-panel" class="d-flex align-items-center justify-content-center h-75">
+                        <div class="text-center text-muted">Belum ada pasien dipanggil</div>
                     </div>
                 </div>
-                
-                <div class="bg-white p-3 rounded shadow-sm">
-                    <h5 class="border-bottom pb-2">Riwayat Pemeriksaan (Hari Ini)</h5>
-                    <div style="max-height: 300px; overflow-y: auto;">
-                        <table class="table table-sm">
+            </div>
+
+            <div class="col-md-4">
+                <div class="glass-panel">
+                    <h5 class="border-bottom pb-2 fw-bold text-uppercase"><i class="fas fa-history text-primary"></i> Riwayat Hari Ini</h5>
+                    <div style="max-height: 70vh; overflow-y: auto;">
+                        <table class="table table-sm table-hover">
                             <thead><tr><th>No</th><th>Nama</th><th>Diagnosa</th></tr></thead>
                             <tbody id="history-table"></tbody>
                         </table>
@@ -915,7 +978,7 @@ HTML_DOCTOR_REKAM = """
     
     <!-- Finish Modal -->
     <div class="modal fade" id="finishModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-success text-white">
                     <h5 class="modal-title">Selesaikan Pemeriksaan</h5>
@@ -924,15 +987,16 @@ HTML_DOCTOR_REKAM = """
                 <div class="modal-body">
                     <input type="hidden" id="finish-id">
                     <div class="mb-3">
-                        <label>Diagnosa</label>
-                        <textarea id="diag-input" class="form-control" rows="2"></textarea>
+                        <label class="fw-bold">Diagnosa</label>
+                        <textarea id="diag-input" class="form-control" rows="3"></textarea>
                     </div>
                     <div class="mb-3">
-                        <label>Resep Obat</label>
-                        <textarea id="presc-input" class="form-control" rows="3"></textarea>
+                        <label class="fw-bold">Resep Obat</label>
+                        <textarea id="presc-input" class="form-control" rows="4"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
                     <button type="button" class="btn btn-primary" onclick="submitFinish()">Simpan & Selesai</button>
                 </div>
             </div>
@@ -943,12 +1007,7 @@ HTML_DOCTOR_REKAM = """
     <script>
         function escapeHtml(text) {
             if (!text) return "";
-            return text
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
+            return text.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
 
         function loadData() {
@@ -969,21 +1028,24 @@ HTML_DOCTOR_REKAM = """
                         </div>
                     `;
                 });
-                if(data.waiting.length === 0) list.innerHTML = '<p class="text-muted text-center">Tidak ada antrean.</p>';
+                if(data.waiting.length === 0) list.innerHTML = '<p class="text-muted text-center mt-4">Tidak ada antrean.</p>';
                 
                 // Current Patient
                 const panel = document.getElementById('current-patient-panel');
                 if (data.current) {
+                    panel.className = ""; // Remove centering classes
                     panel.innerHTML = `
-                        <div class="alert alert-warning">
-                            <h2 class="fw-bold">#${data.current.number} ${escapeHtml(data.current.name)}</h2>
-                            <p class="lead">${escapeHtml(data.current.complaint)}</p>
+                        <div class="alert alert-warning shadow-sm">
+                            <h2 class="fw-bold mb-3">#${data.current.number} ${escapeHtml(data.current.name)}</h2>
+                            <h6 class="text-muted mb-2">Keluhan:</h6>
+                            <p class="lead bg-white p-3 rounded border">${escapeHtml(data.current.complaint)}</p>
                             <hr>
-                            <button class="btn btn-success btn-lg" onclick="openFinishModal(${data.current.id})">Selesai & Rekam Medis</button>
+                            <button class="btn btn-success btn-lg w-100" onclick="openFinishModal(${data.current.id})"><i class="fas fa-check-circle"></i> Selesai & Rekam Medis</button>
                         </div>
                     `;
                 } else {
-                    panel.innerHTML = '<div class="text-center text-muted py-5">Belum ada pasien dipanggil</div>';
+                     panel.className = "d-flex align-items-center justify-content-center h-75";
+                    panel.innerHTML = '<div class="text-center text-muted">Belum ada pasien dipanggil</div>';
                 }
                 
                 // History
@@ -1025,6 +1087,7 @@ HTML_DOCTOR_REKAM = """
         setInterval(loadData, 5000);
         loadData();
     </script>
+""" + SPA_SCRIPT + """
 </body>
 </html>
 """
@@ -1038,35 +1101,34 @@ HTML_DOCTOR_STOCK = """
     <title>Stok Obat</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; font-family: 'Segoe UI', sans-serif; margin: 0; }
+        .glass-panel { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); border-radius: 15px; border: 1px solid rgba(255,255,255,0.5); padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+    </style>
 </head>
-<body class="bg-light">
+<body>
+""" + HEADER_TEMPLATE.replace('{icon}', 'fas fa-capsules').replace('{title}', 'STOK OBAT') + """
     <div class="container py-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-             <a href="/" class="btn btn-outline-secondary"><i class="fas fa-home"></i> Home</a>
-             <h2>Manajemen Stok Obat</h2>
-             <div></div>
+        <div class="glass-panel mb-4">
+            <h5 class="mb-3">Tambah Stok Obat</h5>
+            <form id="add-stock-form" class="row g-3" onsubmit="addStock(event)">
+                <div class="col-md-4">
+                    <input type="text" class="form-control" id="new-name" placeholder="Nama Obat" required>
+                </div>
+                <div class="col-md-3">
+                    <input type="number" class="form-control" id="new-stock" placeholder="Jumlah" required>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" class="form-control" id="new-unit" placeholder="Satuan (Strip/Botol)" value="pcs" required>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">+ Tambah</button>
+                </div>
+            </form>
         </div>
         
-        <div class="card shadow-sm mb-4">
-            <div class="card-body">
-                <form id="add-stock-form" class="row g-3" onsubmit="addStock(event)">
-                    <div class="col-md-4">
-                        <input type="text" class="form-control" id="new-name" placeholder="Nama Obat" required>
-                    </div>
-                    <div class="col-md-3">
-                        <input type="number" class="form-control" id="new-stock" placeholder="Jumlah" required>
-                    </div>
-                    <div class="col-md-3">
-                        <input type="text" class="form-control" id="new-unit" placeholder="Satuan (Strip/Botol)" value="pcs" required>
-                    </div>
-                    <div class="col-md-2">
-                        <button type="submit" class="btn btn-primary w-100">+ Tambah</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-        
-        <div class="bg-white rounded shadow-sm p-4">
+        <div class="glass-panel">
+            <h5 class="mb-3">Daftar Stok Obat</h5>
             <table class="table table-hover align-middle">
                 <thead>
                     <tr>
@@ -1086,12 +1148,7 @@ HTML_DOCTOR_STOCK = """
     <script>
         function escapeHtml(text) {
             if (!text) return "";
-            return text.toString()
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
+            return text.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
 
         function loadStock() {
@@ -1148,6 +1205,7 @@ HTML_DOCTOR_STOCK = """
         
         loadStock();
     </script>
+""" + SPA_SCRIPT + """
 </body>
 </html>
 """
@@ -2584,6 +2642,7 @@ HTML_UR_FC = """
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+""" + SPA_SCRIPT + """
 </body>
 </html>
 """
