@@ -194,17 +194,20 @@ def landing_page():
 
 @app.route('/antrean')
 def antrean_page():
-    return render_template_string(HTML_QUEUE)
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-users').replace('{{ page_title }}', 'ANTREAN')
+    return render_template_string(HTML_QUEUE.replace('{{ navbar|safe }}', navbar))
 
 @app.route('/rekam-medis')
 def rekam_medis_page():
     # Admin check removed for development
-    return render_template_string(HTML_DOCTOR_REKAM)
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-notes-medical').replace('{{ page_title }}', 'REKAM MEDIS')
+    return render_template_string(HTML_DOCTOR_REKAM.replace('{{ navbar|safe }}', navbar))
 
 @app.route('/stok-obat')
 def stok_obat_page():
     # Admin check removed for development
-    return render_template_string(HTML_DOCTOR_STOCK)
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-capsules').replace('{{ page_title }}', 'STOK OBAT')
+    return render_template_string(HTML_DOCTOR_STOCK.replace('{{ navbar|safe }}', navbar))
 
 # --- CLINIC API ---
 
@@ -544,6 +547,123 @@ def api_delete_item():
 
 # --- FRONTEND ASSETS ---
 
+MEDICAL_NAVBAR_TEMPLATE = """
+<style>
+    :root {
+        --green: #2ecc71;
+        --gold: #FFD700;
+        --black: #111;
+        --white: #fff;
+    }
+    .medical-top-bar {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        position: sticky;
+        top: 0;
+        z-index: 1050;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    }
+    .medical-split-border {
+        position: absolute; bottom: 0; left: 0; width: 100%; height: 3px;
+        background: linear-gradient(90deg, var(--green) 50%, var(--gold) 50%);
+    }
+    .medical-logo-area { display: flex; align-items: center; gap: 15px; }
+    .medical-logo-icon { font-size: 2rem; color: var(--green); }
+    .medical-title {
+        font-weight: 800; font-size: 1.5rem; text-transform: uppercase;
+        color: #333; letter-spacing: 1px; position: absolute;
+        left: 50%; transform: translateX(-50%); white-space: nowrap;
+    }
+    .hamburger-btn { border: none; background: none; color: #333; font-size: 1.5rem; cursor: pointer; transition: 0.3s; }
+    .hamburger-btn:hover { color: var(--green); }
+
+    /* Overlay Menu */
+    .medical-menu-overlay {
+        position: fixed; top: 70px; right: -100%; width: 100%; max-width: 320px;
+        height: calc(100vh - 70px); background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+        z-index: 1045; transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: -5px 0 20px rgba(0,0,0,0.1);
+        display: flex; flex-direction: column; padding: 30px;
+    }
+    .medical-menu-overlay.active { right: 0; }
+    .menu-item {
+        display: flex; align-items: center; gap: 15px;
+        font-size: 1.1rem; font-weight: 700; color: #333;
+        text-decoration: none; padding: 15px 0;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        transition: 0.3s;
+    }
+    .menu-item i { width: 30px; text-align: center; color: var(--green); font-size: 1.3rem; }
+    .menu-item:hover { padding-left: 10px; color: var(--green); }
+    .menu-item:hover i { color: var(--gold); }
+
+    @media (max-width: 768px) {
+        .medical-title { font-size: 1.1rem; }
+        .medical-logo-icon { font-size: 1.5rem; }
+    }
+</style>
+
+<div class="medical-top-bar">
+    <div class="medical-logo-area">
+        <i class="{{ page_icon }} medical-logo-icon"></i>
+    </div>
+
+    <div class="medical-title">{{ page_title }}</div>
+
+    <button class="hamburger-btn" onclick="toggleMedicalMenu()">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <div class="medical-split-border"></div>
+</div>
+
+<div id="medical-menu" class="medical-menu-overlay">
+    <a href="/" class="menu-item">
+        <i class="fas fa-hospital-user"></i>
+        <div>
+            <div>Home</div>
+            <small class="text-muted fw-normal" style="font-size:0.8rem">Kembali ke Menu Utama</small>
+        </div>
+    </a>
+    <a href="/antrean" class="menu-item">
+        <i class="fas fa-users"></i>
+        <div>
+            <div>Antrean</div>
+            <small class="text-muted fw-normal" style="font-size:0.8rem">Cek Status Antrean</small>
+        </div>
+    </a>
+    <a href="/rekam-medis" class="menu-item">
+        <i class="fas fa-notes-medical"></i>
+        <div>
+            <div>Rekam Medis</div>
+            <small class="text-muted fw-normal" style="font-size:0.8rem">Dashboard Dokter</small>
+        </div>
+    </a>
+    <a href="/stok-obat" class="menu-item">
+        <i class="fas fa-capsules"></i>
+        <div>
+            <div>Stok Obat</div>
+            <small class="text-muted fw-normal" style="font-size:0.8rem">Manajemen Farmasi</small>
+        </div>
+    </a>
+</div>
+
+<script>
+    function toggleMedicalMenu() {
+        const menu = document.getElementById('medical-menu');
+        menu.classList.toggle('active');
+        document.body.style.overflow = menu.classList.contains('active') ? 'hidden' : 'auto';
+    }
+</script>
+"""
+
 HTML_LANDING = """
 <!DOCTYPE html>
 <html lang="id">
@@ -751,13 +871,22 @@ HTML_QUEUE = """
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
-        .monitor-box {
-            background: white; border-radius: 15px; padding: 30px; text-align: center;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1); margin-bottom: 20px;
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh;
+        }
+        .glass-panel-custom {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            height: 100%;
         }
         .big-number { font-size: 6rem; font-weight: 800; color: #2ecc71; line-height: 1; }
-        .form-box { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .section-label { font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: #999; letter-spacing: 1px; margin-bottom: 15px; }
         .ticket {
             border: 2px dashed #2ecc71; background: #e8f5e9; padding: 20px; border-radius: 10px;
             text-align: center; margin-top: 20px; display: none;
@@ -765,52 +894,69 @@ HTML_QUEUE = """
     </style>
 </head>
 <body>
+    {{ navbar|safe }}
+
     <div class="container py-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <a href="/" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Kembali</a>
-            <h2 class="fw-bold">ANTREAN KLINIK</h2>
-            <div style="width: 80px;"></div>
-        </div>
-        
-        <div class="row justify-content-center">
-            <div class="col-md-5">
-                <div class="monitor-box">
-                    <h4 class="text-muted text-uppercase">Sedang Diperiksa</h4>
-                    <div class="big-number" id="current-num">--</div>
-                    <p class="mb-0" id="current-name">Menunggu Dokter...</p>
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="glass-panel-custom text-center d-flex flex-column justify-content-center">
+                    <div class="section-label">Sedang Diperiksa</div>
+                    <div class="big-number mb-3" id="current-num">--</div>
+                    <h3 class="fw-bold mb-0" id="current-name">Menunggu Dokter...</h3>
                 </div>
-                
-                <div class="monitor-box mt-3">
-                    <h5>Antrean Menunggu</h5>
-                    <div class="fs-4 fw-bold" id="waiting-count">0</div>
-                    <small class="text-muted">Orang</small>
+            </div>
+
+            <div class="col-lg-3 col-6">
+                <div class="glass-panel-custom text-center">
+                    <div class="section-label">Antrean Menunggu</div>
+                    <div class="display-1 fw-bold text-muted" id="waiting-count">0</div>
+                    <small class="text-muted">PASIEN</small>
                 </div>
             </div>
             
-            <div class="col-md-6">
-                <div class="form-box">
-                    <h4 class="mb-3 border-bottom pb-2">Ambil Nomor Antrean</h4>
-                    <form id="queue-form" onsubmit="submitQueue(event)">
-                        <div class="mb-3">
-                            <label>Nama Pasien</label>
-                            <input type="text" id="q-name" class="form-control" required>
+            <div class="col-lg-3 col-6">
+                <div class="glass-panel-custom text-center d-flex align-items-center justify-content-center bg-white">
+                    <div>
+                        <div class="section-label">Estimasi Waktu</div>
+                        <div class="fs-2 fw-bold text-warning">~15</div>
+                        <small class="text-muted">Menit/Pasien</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-12">
+                 <div class="glass-panel-custom">
+                    <h4 class="mb-4 fw-bold"><i class="fas fa-ticket-alt me-2 text-success"></i> Ambil Nomor Antrean</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <form id="queue-form" onsubmit="submitQueue(event)">
+                                <div class="mb-3">
+                                    <label class="fw-bold mb-1">Nama Pasien</label>
+                                    <input type="text" id="q-name" class="form-control form-control-lg" placeholder="Masukkan Nama Lengkap" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="fw-bold mb-1">Nomor WhatsApp</label>
+                                    <input type="tel" id="q-phone" class="form-control form-control-lg" placeholder="08..." required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="fw-bold mb-1">Keluhan Utama</label>
+                                    <textarea id="q-complaint" class="form-control" rows="3" placeholder="Contoh: Demam, Batuk, Pusing..." required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-success w-100 py-3 fw-bold rounded-pill shadow-sm">AMBIL NOMOR SEKARANG</button>
+                            </form>
                         </div>
-                        <div class="mb-3">
-                            <label>Nomor HP (WhatsApp)</label>
-                            <input type="tel" id="q-phone" class="form-control" required>
+                        <div class="col-md-6 d-flex align-items-center justify-content-center">
+                            <div id="ticket-view" class="ticket w-100">
+                                <h4 class="text-uppercase text-muted mb-4">Nomor Antrean Anda</h4>
+                                <div class="display-1 fw-bold text-success mb-3" id="my-number">0</div>
+                                <p class="mb-4">Mohon menunggu panggilan dari perawat kami.</p>
+                                <button class="btn btn-outline-success rounded-pill px-4" onclick="location.reload()">Selesai / Ambil Baru</button>
+                            </div>
+                            <div id="ticket-placeholder" class="text-center text-muted opacity-50">
+                                <i class="fas fa-print fa-5x mb-3"></i>
+                                <p>Tiket akan muncul di sini setelah Anda mendaftar.</p>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label>Keluhan Utama</label>
-                            <textarea id="q-complaint" class="form-control" rows="2" required></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-success w-100 py-2 fw-bold">AMBIL NOMOR</button>
-                    </form>
-                    
-                    <div id="ticket-view" class="ticket">
-                        <h4>TIKET ANTREAN ANDA</h4>
-                        <div class="display-1 fw-bold text-success" id="my-number">0</div>
-                        <p>Silakan menunggu panggilan.</p>
-                        <button class="btn btn-sm btn-outline-success" onclick="location.reload()">Selesai</button>
                     </div>
                 </div>
             </div>
@@ -839,7 +985,8 @@ HTML_QUEUE = """
                 body: JSON.stringify(data)
             }).then(r => r.json()).then(res => {
                 if(res.ticket) {
-                    document.getElementById('queue-form').style.display = 'none';
+                    document.getElementById('queue-form').reset();
+                    document.getElementById('ticket-placeholder').style.display = 'none';
                     document.getElementById('ticket-view').style.display = 'block';
                     document.getElementById('my-number').innerText = res.ticket;
                 }
@@ -863,48 +1010,67 @@ HTML_DOCTOR_REKAM = """
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { background: #e9ecef; }
-        .sidebar { height: 100vh; background: #fff; width: 250px; position: fixed; padding: 20px; }
-        .content { margin-left: 250px; padding: 20px; }
-        .queue-card { background: white; border-left: 5px solid #2ecc71; padding: 15px; margin-bottom: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .queue-card.active { border-left-color: #f1c40f; background: #fffbe6; }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh;
+        }
+        .glass-panel-custom {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            height: 100%;
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+        .section-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: #7f8c8d; margin-bottom: 15px; letter-spacing: 1px; }
+        .queue-card {
+            background: white; border-left: 5px solid #2ecc71; padding: 15px; margin-bottom: 10px;
+            border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: 0.2s; cursor: pointer;
+        }
+        .queue-card:hover { transform: translateX(5px); }
+        .active-patient-box {
+            background: #fffbe6; border: 2px solid #f1c40f; border-radius: 15px; padding: 30px; text-align: center;
+        }
     </style>
 </head>
 <body>
-    <div class="sidebar d-flex flex-column">
-        <h4 class="mb-4">Dr. Dashboard</h4>
-        <a href="/" class="btn btn-outline-dark mb-3"><i class="fas fa-home"></i> Home</a>
-        <a href="/rekam-medis" class="btn btn-success mb-2 text-start"><i class="fas fa-user-md"></i> Rekam Medis</a>
-        <a href="/stok-obat" class="btn btn-outline-secondary mb-2 text-start"><i class="fas fa-capsules"></i> Stok Obat</a>
-        <div class="mt-auto">
-             <button class="btn btn-danger w-100" onclick="location.href='/logout'">Logout</button>
-        </div>
-    </div>
-    
-    <div class="content">
-        <div class="row">
-            <div class="col-md-4">
-                <div class="bg-white p-3 rounded shadow-sm">
-                    <h5 class="border-bottom pb-2">Antrean Menunggu</h5>
-                    <div id="queue-list">
-                        <!-- JS Loaded -->
+    {{ navbar|safe }}
+
+    <div class="container-fluid py-4 px-lg-5">
+        <div class="row g-4">
+            <!-- CENTER/TOP: CURRENT PATIENT -->
+            <div class="col-lg-12">
+                <div class="glass-panel-custom">
+                    <div class="section-label"><i class="fas fa-stethoscope me-2"></i> Sedang Diperiksa</div>
+                    <div id="current-patient-panel">
+                        <!-- Loaded via JS -->
+                        <div class="text-center text-muted py-5">Belum ada pasien dipanggil</div>
                     </div>
                 </div>
             </div>
             
-            <div class="col-md-8">
-                <div class="bg-white p-3 rounded shadow-sm mb-4">
-                    <h5 class="border-bottom pb-2">Sedang Diperiksa</h5>
-                    <div id="current-patient-panel">
-                        <div class="text-center text-muted py-5">Belum ada pasien dipanggil</div>
+            <!-- LEFT: WAITING LIST -->
+            <div class="col-lg-5">
+                <div class="glass-panel-custom">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="section-label mb-0"><i class="fas fa-user-clock me-2"></i> Antrean Menunggu</div>
+                        <span class="badge bg-primary rounded-pill" id="waiting-count-badge">0</span>
+                    </div>
+                    <div id="queue-list" style="max-height: 500px; overflow-y: auto; padding-right: 5px;">
+                        <!-- JS Loaded -->
                     </div>
                 </div>
-                
-                <div class="bg-white p-3 rounded shadow-sm">
-                    <h5 class="border-bottom pb-2">Riwayat Pemeriksaan (Hari Ini)</h5>
-                    <div style="max-height: 300px; overflow-y: auto;">
-                        <table class="table table-sm">
-                            <thead><tr><th>No</th><th>Nama</th><th>Diagnosa</th></tr></thead>
+            </div>
+
+            <!-- RIGHT: HISTORY -->
+            <div class="col-lg-7">
+                <div class="glass-panel-custom">
+                    <div class="section-label"><i class="fas fa-history me-2"></i> Riwayat Pemeriksaan (Hari Ini)</div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light"><tr><th>No</th><th>Nama Pasien</th><th>Diagnosa</th></tr></thead>
                             <tbody id="history-table"></tbody>
                         </table>
                     </div>
@@ -913,27 +1079,28 @@ HTML_DOCTOR_REKAM = """
         </div>
     </div>
     
-    <!-- Finish Modal -->
+    <!-- Finish Modal (Same as before) -->
     <div class="modal fade" id="finishModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title">Selesaikan Pemeriksaan</h5>
+                    <h5 class="modal-title">Selesaikan Pemeriksaan & Rekam Medis</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="finish-id">
                     <div class="mb-3">
-                        <label>Diagnosa</label>
-                        <textarea id="diag-input" class="form-control" rows="2"></textarea>
+                        <label class="fw-bold">Diagnosa Dokter</label>
+                        <textarea id="diag-input" class="form-control" rows="3" placeholder="Masukkan hasil diagnosa..."></textarea>
                     </div>
                     <div class="mb-3">
-                        <label>Resep Obat</label>
-                        <textarea id="presc-input" class="form-control" rows="3"></textarea>
+                        <label class="fw-bold">Resep Obat / Tindakan</label>
+                        <textarea id="presc-input" class="form-control" rows="4" placeholder="Daftar obat atau tindakan..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" onclick="submitFinish()">Simpan & Selesai</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-primary" onclick="submitFinish()"><i class="fas fa-save me-2"></i> Simpan & Selesai</button>
                 </div>
             </div>
         </div>
@@ -941,6 +1108,7 @@ HTML_DOCTOR_REKAM = """
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // JS Logic (Same as before, just slight UI tweaks in rendering)
         function escapeHtml(text) {
             if (!text) return "";
             return text
@@ -956,41 +1124,51 @@ HTML_DOCTOR_REKAM = """
                 // Queue List
                 const list = document.getElementById('queue-list');
                 list.innerHTML = '';
+                document.getElementById('waiting-count-badge').innerText = data.waiting.length;
+
                 data.waiting.forEach(p => {
                     list.innerHTML += `
-                        <div class="queue-card">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>#${p.number} - ${escapeHtml(p.name)}</strong><br>
-                                    <small class="text-muted">${escapeHtml(p.complaint)}</small>
-                                </div>
-                                <button class="btn btn-sm btn-primary" onclick="callPatient(${p.id})">Panggil</button>
+                        <div class="queue-card d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-1 fw-bold">#${p.number} ${escapeHtml(p.name)}</h5>
+                                <small class="text-muted"><i class="fas fa-comment-medical me-1"></i> ${escapeHtml(p.complaint)}</small>
                             </div>
+                            <button class="btn btn-sm btn-outline-primary fw-bold" onclick="callPatient(${p.id})">
+                                <i class="fas fa-bullhorn me-1"></i> Panggil
+                            </button>
                         </div>
                     `;
                 });
-                if(data.waiting.length === 0) list.innerHTML = '<p class="text-muted text-center">Tidak ada antrean.</p>';
+                if(data.waiting.length === 0) list.innerHTML = '<div class="text-center text-muted py-4">Tidak ada antrean menunggu.</div>';
                 
                 // Current Patient
                 const panel = document.getElementById('current-patient-panel');
                 if (data.current) {
                     panel.innerHTML = `
-                        <div class="alert alert-warning">
-                            <h2 class="fw-bold">#${data.current.number} ${escapeHtml(data.current.name)}</h2>
-                            <p class="lead">${escapeHtml(data.current.complaint)}</p>
-                            <hr>
-                            <button class="btn btn-success btn-lg" onclick="openFinishModal(${data.current.id})">Selesai & Rekam Medis</button>
+                        <div class="active-patient-box">
+                            <div class="row align-items-center">
+                                <div class="col-md-8 text-md-start mb-3 mb-md-0">
+                                    <h6 class="text-warning text-uppercase fw-bold mb-1">Pasien Saat Ini</h6>
+                                    <h1 class="fw-bold display-5 mb-2">#${data.current.number} ${escapeHtml(data.current.name)}</h1>
+                                    <p class="lead mb-0 text-muted"><i class="fas fa-notes-medical me-2"></i> Keluhan: ${escapeHtml(data.current.complaint)}</p>
+                                </div>
+                                <div class="col-md-4 text-md-end">
+                                    <button class="btn btn-success btn-lg w-100 py-3 shadow" onclick="openFinishModal(${data.current.id})">
+                                        <i class="fas fa-check-circle me-2"></i> Selesai Periksa
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     `;
                 } else {
-                    panel.innerHTML = '<div class="text-center text-muted py-5">Belum ada pasien dipanggil</div>';
+                    panel.innerHTML = '<div class="text-center text-muted py-5 border rounded bg-light"><h5><i class="fas fa-user-slash fa-2x mb-3 d-block"></i>Belum ada pasien yang dipanggil</h5><p>Silakan panggil pasien dari daftar antrean.</p></div>';
                 }
                 
                 // History
                 const hist = document.getElementById('history-table');
                 hist.innerHTML = '';
                 data.history.forEach(p => {
-                    hist.innerHTML += `<tr><td>${p.number}</td><td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.diagnosis)}</td></tr>`;
+                    hist.innerHTML += `<tr><td class="fw-bold text-center">${p.number}</td><td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.diagnosis)}</td></tr>`;
                 });
             });
         }
@@ -1018,7 +1196,9 @@ HTML_DOCTOR_REKAM = """
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ action: 'finish', id: id, diagnosis: diag, prescription: presc })
             }).then(() => {
-                location.reload(); 
+                const modal = bootstrap.Modal.getInstance(document.getElementById('finishModal'));
+                modal.hide();
+                loadData();
             });
         }
         
@@ -1038,48 +1218,76 @@ HTML_DOCTOR_STOCK = """
     <title>Stok Obat</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh;
+        }
+        .glass-panel-custom {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+        .section-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: #7f8c8d; margin-bottom: 20px; letter-spacing: 1px; }
+    </style>
 </head>
-<body class="bg-light">
+<body>
+    {{ navbar|safe }}
+
     <div class="container py-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-             <a href="/" class="btn btn-outline-secondary"><i class="fas fa-home"></i> Home</a>
-             <h2>Manajemen Stok Obat</h2>
-             <div></div>
-        </div>
-        
-        <div class="card shadow-sm mb-4">
-            <div class="card-body">
-                <form id="add-stock-form" class="row g-3" onsubmit="addStock(event)">
-                    <div class="col-md-4">
-                        <input type="text" class="form-control" id="new-name" placeholder="Nama Obat" required>
-                    </div>
-                    <div class="col-md-3">
-                        <input type="number" class="form-control" id="new-stock" placeholder="Jumlah" required>
-                    </div>
-                    <div class="col-md-3">
-                        <input type="text" class="form-control" id="new-unit" placeholder="Satuan (Strip/Botol)" value="pcs" required>
-                    </div>
-                    <div class="col-md-2">
-                        <button type="submit" class="btn btn-primary w-100">+ Tambah</button>
-                    </div>
-                </form>
+        <div class="row g-4">
+            <div class="col-md-12">
+                <div class="glass-panel-custom">
+                    <div class="section-label"><i class="fas fa-plus-circle me-2"></i> Tambah / Update Stok Obat</div>
+                    <form id="add-stock-form" class="row g-3 align-items-end" onsubmit="addStock(event)">
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold small">Nama Obat</label>
+                            <input type="text" class="form-control" id="new-name" placeholder="Contoh: Paracetamol 500mg" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small">Jumlah Awal</label>
+                            <input type="number" class="form-control" id="new-stock" placeholder="0" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold small">Satuan</label>
+                            <select class="form-select" id="new-unit">
+                                <option value="pcs">Pcs</option>
+                                <option value="strip">Strip</option>
+                                <option value="botol">Botol</option>
+                                <option value="box">Box</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100 fw-bold"><i class="fas fa-save me-1"></i> Simpan</button>
+                        </div>
+                    </form>
+                </div>
             </div>
-        </div>
-        
-        <div class="bg-white rounded shadow-sm p-4">
-            <table class="table table-hover align-middle">
-                <thead>
-                    <tr>
-                        <th>Nama Obat</th>
-                        <th>Stok</th>
-                        <th>Satuan</th>
-                        <th>Aksi</th>
-                    </tr>
-                </thead>
-                <tbody id="stock-table">
-                    <!-- JS Loaded -->
-                </tbody>
-            </table>
+
+            <div class="col-md-12">
+                <div class="glass-panel-custom">
+                    <div class="section-label"><i class="fas fa-list-alt me-2"></i> Daftar Stok Obat</div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Nama Obat</th>
+                                    <th class="text-center">Stok</th>
+                                    <th class="text-center">Satuan</th>
+                                    <th class="text-end">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stock-table">
+                                <!-- JS Loaded -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1098,16 +1306,26 @@ HTML_DOCTOR_STOCK = """
             fetch('/api/stock/list').then(r => r.json()).then(data => {
                 const tbody = document.getElementById('stock-table');
                 tbody.innerHTML = '';
+                if(data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">Belum ada data obat.</td></tr>';
+                    return;
+                }
                 data.forEach(item => {
                     const row = `
                         <tr>
-                            <td>${escapeHtml(item.name)}</td>
-                            <td class="${item.stock < 10 ? 'text-danger fw-bold' : ''}">${item.stock}</td>
-                            <td>${escapeHtml(item.unit)}</td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-danger" onclick="updateStock(${item.id}, -1)">-1</button>
-                                <button class="btn btn-sm btn-outline-success" onclick="updateStock(${item.id}, 1)">+1</button>
-                                <button class="btn btn-sm btn-danger ms-2" onclick="deleteStock(${item.id})"><i class="fas fa-trash"></i></button>
+                            <td class="fw-bold text-dark">${escapeHtml(item.name)}</td>
+                            <td class="text-center">
+                                <span class="badge ${item.stock < 10 ? 'bg-danger' : 'bg-success'} fs-6 rounded-pill px-3">
+                                    ${item.stock}
+                                </span>
+                            </td>
+                            <td class="text-center text-muted text-uppercase small fw-bold">${escapeHtml(item.unit)}</td>
+                            <td class="text-end">
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-sm btn-outline-danger" onclick="updateStock(${item.id}, -1)"><i class="fas fa-minus"></i></button>
+                                    <button class="btn btn-sm btn-outline-success" onclick="updateStock(${item.id}, 1)"><i class="fas fa-plus"></i></button>
+                                </div>
+                                <button class="btn btn-sm btn-light text-danger ms-3" onclick="deleteStock(${item.id})" title="Hapus"><i class="fas fa-trash-alt"></i></button>
                             </td>
                         </tr>
                     `;
