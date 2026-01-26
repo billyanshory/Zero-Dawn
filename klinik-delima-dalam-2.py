@@ -107,8 +107,11 @@ def init_db():
                     number INTEGER,
                     diagnosis TEXT,
                     prescription TEXT,
+                    medical_action TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
+    try: c.execute("ALTER TABLE queue ADD COLUMN medical_action TEXT")
+    except: pass
     
     # Medicine Stock
     c.execute('''CREATE TABLE IF NOT EXISTS medicine_stock (
@@ -187,10 +190,8 @@ def landing_page():
     conn.close()
     
     # Render
-    content = HTML_LANDING.replace('{{ navbar|safe }}', '') # No navbar on landing
-    # Actually HTML_LANDING doesn't have {{ navbar|safe }}. It's standalone.
-    # But I should handle {{ admin }} logic.
-    return render_template_string(HTML_LANDING, admin=session.get('admin', False))
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-clinic-medical').replace('{{ page_title }}', 'HOME')
+    return render_template_string(HTML_LANDING.replace('{{ navbar|safe }}', navbar), admin=session.get('admin', False))
 
 @app.route('/antrean')
 def antrean_page():
@@ -312,7 +313,8 @@ def api_queue_action():
     elif action == 'finish':
         diag = data.get('diagnosis')
         presc = data.get('prescription')
-        c.execute("UPDATE queue SET status='done', diagnosis=?, prescription=? WHERE id=?", (diag, presc, id))
+        med_action = data.get('medical_action')
+        c.execute("UPDATE queue SET status='done', diagnosis=?, prescription=?, medical_action=? WHERE id=?", (diag, presc, med_action, id))
         
     conn.commit()
     conn.close()
@@ -626,7 +628,7 @@ MEDICAL_NAVBAR_TEMPLATE = """
 
 <div id="medical-menu" class="medical-menu-overlay">
     <a href="/" class="menu-item">
-        <i class="fas fa-hospital-user"></i>
+        <i class="fas fa-clinic-medical"></i>
         <div>
             <div>Home</div>
             <small class="text-muted fw-normal" style="font-size:0.8rem">Kembali ke Menu Utama</small>
@@ -653,6 +655,13 @@ MEDICAL_NAVBAR_TEMPLATE = """
             <small class="text-muted fw-normal" style="font-size:0.8rem">Manajemen Farmasi</small>
         </div>
     </a>
+    <a href="javascript:void(0)" onclick="toggleFullScreen()" class="menu-item">
+        <i class="fas fa-expand"></i>
+        <div>
+            <div>Layar Penuh</div>
+            <small class="text-muted fw-normal" style="font-size:0.8rem">Mode Layar Penuh</small>
+        </div>
+    </a>
 </div>
 
 <script>
@@ -660,6 +669,19 @@ MEDICAL_NAVBAR_TEMPLATE = """
         const menu = document.getElementById('medical-menu');
         menu.classList.toggle('active');
         document.body.style.overflow = menu.classList.contains('active') ? 'hidden' : 'auto';
+    }
+
+    function toggleFullScreen() {
+        var doc = window.document;
+        var docEl = doc.documentElement;
+        var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+        var cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+
+        if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+            requestFullScreen.call(docEl);
+        } else {
+            cancelFullScreen.call(doc);
+        }
     }
 </script>
 """
@@ -678,8 +700,7 @@ HTML_LANDING = """
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             min-height: 100vh;
             display: flex;
-            align-items: center;
-            justify-content: center;
+            flex-direction: column;
             font-family: 'Segoe UI', sans-serif;
         }
         .glass-panel {
@@ -693,6 +714,7 @@ HTML_LANDING = """
             text-align: center;
             max-width: 1000px;
             width: 90%;
+            margin: auto;
         }
         .main-btn {
             background: rgba(255, 255, 255, 0.8);
@@ -753,31 +775,10 @@ HTML_LANDING = """
             z-index: 9999;
         }
         .wa-float:hover { transform: scale(1.1); color: white; }
-        .lock-screen-btn {
-            position: fixed;
-            bottom: 30px;
-            left: 30px;
-            background: rgba(255, 255, 255, 0.9);
-            border: none;
-            border-radius: 15px;
-            width: 70px;
-            height: 70px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            z-index: 9999;
-            color: #333;
-            text-decoration: none;
-            transition: 0.3s;
-        }
-        .lock-screen-btn i { font-size: 1.5rem; margin-bottom: 5px; color: #333; }
-        .lock-screen-btn span { font-size: 0.65rem; font-weight: bold; line-height: 1; color: #333; }
-        @media (min-width: 992px) { .lock-screen-btn { display: none; } }
     </style>
 </head>
 <body>
+    {{ navbar|safe }}
     <div class="glass-panel">
         <h1 class="mb-4 fw-bold">KLINIK TAHFIZH KILAT</h1>
         
@@ -817,14 +818,9 @@ HTML_LANDING = """
         </div>
     </div>
     
-    <a href="https://wa.me/6281528455350?text=Halo%20Dokter,%20saya%20ingin%20konsultasi%20darurat." class="wa-float" target="_blank">
+    <a href="https://wa.me/6281241865310?text=Halo%20Dokter,%20saya%20ingin%20konsultasi%20darurat." class="wa-float" target="_blank">
         <i class="fab fa-whatsapp"></i>
     </a>
-
-    <button onclick="toggleFullScreen()" class="lock-screen-btn">
-        <i class="fas fa-expand"></i>
-        <span>Layar Penuh</span>
-    </button>
 
     <script>
         function updateStatus() {
@@ -1033,6 +1029,21 @@ HTML_DOCTOR_REKAM = """
         .active-patient-box {
             background: #fffbe6; border: 2px solid #f1c40f; border-radius: 15px; padding: 30px; text-align: center;
         }
+        /* Custom Scrollbar for Table */
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #2ecc71;
+            border-radius: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #27ae60;
+        }
     </style>
 </head>
 <body>
@@ -1068,9 +1079,17 @@ HTML_DOCTOR_REKAM = """
             <div class="col-lg-7">
                 <div class="glass-panel-custom">
                     <div class="section-label"><i class="fas fa-history me-2"></i> Riwayat Pemeriksaan (Hari Ini)</div>
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle">
-                            <thead class="table-light"><tr><th>No</th><th>Nama Pasien</th><th>Diagnosa</th></tr></thead>
+                    <div class="table-responsive custom-scrollbar">
+                        <table class="table table-hover align-middle" style="min-width: 600px;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>No</th>
+                                    <th>Nama Pasien</th>
+                                    <th>Diagnosa</th>
+                                    <th>Resep Obat</th>
+                                    <th>Tindakan</th>
+                                </tr>
+                            </thead>
                             <tbody id="history-table"></tbody>
                         </table>
                     </div>
@@ -1094,8 +1113,12 @@ HTML_DOCTOR_REKAM = """
                         <textarea id="diag-input" class="form-control" rows="3" placeholder="Masukkan hasil diagnosa..."></textarea>
                     </div>
                     <div class="mb-3">
-                        <label class="fw-bold">Resep Obat / Tindakan</label>
-                        <textarea id="presc-input" class="form-control" rows="4" placeholder="Daftar obat atau tindakan..."></textarea>
+                        <label class="fw-bold">Resep Obat</label>
+                        <textarea id="presc-input" class="form-control" rows="3" placeholder="Daftar obat..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold">Tindakan</label>
+                        <textarea id="action-input" class="form-control" rows="3" placeholder="Tindakan medis yang dilakukan..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1168,7 +1191,14 @@ HTML_DOCTOR_REKAM = """
                 const hist = document.getElementById('history-table');
                 hist.innerHTML = '';
                 data.history.forEach(p => {
-                    hist.innerHTML += `<tr><td class="fw-bold text-center">${p.number}</td><td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.diagnosis)}</td></tr>`;
+                    hist.innerHTML += `
+                        <tr>
+                            <td class="fw-bold text-center">${p.number}</td>
+                            <td>${escapeHtml(p.name)}</td>
+                            <td>${escapeHtml(p.diagnosis)}</td>
+                            <td>${escapeHtml(p.prescription)}</td>
+                            <td>${escapeHtml(p.medical_action)}</td>
+                        </tr>`;
                 });
             });
         }
@@ -1184,6 +1214,7 @@ HTML_DOCTOR_REKAM = """
             document.getElementById('finish-id').value = id;
             document.getElementById('diag-input').value = '';
             document.getElementById('presc-input').value = '';
+            document.getElementById('action-input').value = '';
             new bootstrap.Modal(document.getElementById('finishModal')).show();
         }
         
@@ -1191,10 +1222,11 @@ HTML_DOCTOR_REKAM = """
             const id = document.getElementById('finish-id').value;
             const diag = document.getElementById('diag-input').value;
             const presc = document.getElementById('presc-input').value;
+            const act = document.getElementById('action-input').value;
             
             fetch('/api/queue/action', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ action: 'finish', id: id, diagnosis: diag, prescription: presc })
+                body: JSON.stringify({ action: 'finish', id: id, diagnosis: diag, prescription: presc, medical_action: act })
             }).then(() => {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('finishModal'));
                 modal.hide();
@@ -1462,7 +1494,7 @@ NAVBAR_HTML = """
             Lihat Sejarah
         </div>
         <div class="d-none d-lg-flex gap-3 align-items-center">
-            <a href="https://wa.me/6281528455350" class="social-icon-link" target="_blank"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://wa.me/6281241865310" class="social-icon-link" target="_blank"><i class="fab fa-whatsapp"></i></a>
             <a href="https://maps.app.goo.gl/4deg1ha8WaxWKdPC9" class="social-icon-link" target="_blank"><i class="fas fa-map-marker-alt"></i></a>
             <a href="https://www.instagram.com/rivkycahyahakikiori/" class="social-icon-link" target="_blank"><i class="fab fa-instagram"></i></a>
         </div>
@@ -2281,7 +2313,7 @@ HTML_UR_FC = """
                 {{ data['settings'].get('footer_text', '© 2026 TAHKIL FC. All rights reserved.') }}
             </p>
             <div class="d-lg-none d-flex justify-content-center gap-4 mt-3">
-                <a href="https://wa.me/6281528455350" class="social-icon-link" target="_blank"><i class="fab fa-whatsapp"></i></a>
+                <a href="https://wa.me/6281241865310" class="social-icon-link" target="_blank"><i class="fab fa-whatsapp"></i></a>
                 <a href="https://maps.app.goo.gl/4deg1ha8WaxWKdPC9" class="social-icon-link" target="_blank"><i class="fas fa-map-marker-alt"></i></a>
                 <a href="https://www.instagram.com/rivkycahyahakikiori/" class="social-icon-link" target="_blank"><i class="fab fa-instagram"></i></a>
             </div>
@@ -2360,7 +2392,7 @@ HTML_UR_FC = """
                         <div class="agenda-modal-map-overlay" style="cursor:default;">
                             klik ini untuk ke sosmednya <i class="fas fa-arrow-right"></i> 
                             <a href="instagram://user?username=dapurarabiansmd"><i class="fab fa-instagram fa-lg text-danger ms-2"></i></a>
-                            <a href="whatsapp://send?phone=6281528455350"><i class="fab fa-whatsapp fa-lg text-success ms-2"></i></a>
+                            <a href="whatsapp://send?phone=6281241865310"><i class="fab fa-whatsapp fa-lg text-success ms-2"></i></a>
                         </div>
                     `;
                 } else if (index === 2) { 
