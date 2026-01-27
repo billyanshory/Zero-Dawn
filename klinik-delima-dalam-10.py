@@ -188,17 +188,9 @@ def get_all_data():
 
 @app.route('/')
 def landing_page():
-    # Check Clinic Status
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT value FROM site_settings WHERE key='clinic_open'")
-    row = c.fetchone()
-    is_open = row['value'] == '1' if row else False
-    conn.close()
-    
-    # Render
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-clinic-medical').replace('{{ page_title }}', 'KLINIK KESEHATAN')
-    return render_template_string(HTML_LANDING.replace('{{ navbar|safe }}', navbar), admin=session.get('admin', False))
+    # Render Queue (Antrean) as Home
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_title }}', 'ANTREAN')
+    return render_template_string(HTML_QUEUE.replace('{{ navbar|safe }}', navbar))
 
 @app.route('/antrean')
 def antrean_page():
@@ -718,30 +710,59 @@ MEDICAL_NAVBAR_TEMPLATE = """
         color: #333; letter-spacing: 1px; position: absolute; 
         left: 50%; transform: translateX(-50%); white-space: nowrap;
     }
-    .hamburger-btn { border: none; background: none; color: #333; font-size: 1.5rem; cursor: pointer; transition: 0.3s; }
-    .hamburger-btn:hover { color: var(--green); }
     
-    /* Overlay Menu */
-    .medical-menu-overlay {
-        position: fixed; top: 70px; right: -100%; width: 100%; max-width: 320px;
-        height: calc(100vh - 70px); background: rgba(255, 255, 255, 0.98);
-        backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-        z-index: 1045; transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        box-shadow: -5px 0 20px rgba(0,0,0,0.1);
-        display: flex; flex-direction: column; padding: 30px;
-    }
-    .medical-menu-overlay.active { right: 0; }
-    .menu-item {
-        display: flex; align-items: center; gap: 15px;
-        font-size: 1.1rem; font-weight: 700; color: #333;
-        text-decoration: none; padding: 15px 0;
+    /* Horizontal Menu */
+    .medical-horizontal-menu {
+        display: flex;
+        overflow-x: auto;
+        padding: 10px 15px;
+        gap: 10px;
+        background: rgba(255, 255, 255, 0.95);
         border-bottom: 1px solid rgba(0,0,0,0.05);
-        transition: 0.3s;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Firefox */
+        position: sticky;
+        top: 70px; /* Adjust based on navbar height */
+        z-index: 1040;
     }
-    .menu-item i { width: 30px; text-align: center; color: var(--green); font-size: 1.3rem; }
-    .menu-item:hover { padding-left: 10px; color: var(--green); }
-    .menu-item:hover i { color: var(--gold); }
+    .medical-horizontal-menu::-webkit-scrollbar { display: none; } /* Chrome/Safari */
     
+    .feature-btn {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-width: 90px;
+        height: 85px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+        text-decoration: none;
+        color: #555;
+        padding: 8px;
+        flex-shrink: 0;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid rgba(0,0,0,0.02);
+    }
+    .feature-btn:hover, .feature-btn.active {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(46, 204, 113, 0.2);
+        color: var(--green);
+        border-color: var(--green);
+    }
+    .feature-btn i {
+        font-size: 1.6rem;
+        margin-bottom: 6px;
+        color: var(--green);
+    }
+    .feature-btn span {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-align: center;
+        line-height: 1.1;
+        text-transform: uppercase;
+    }
+
     @media (max-width: 768px) {
         .medical-title { font-size: 1.1rem; }
         .medical-logo-icon { font-size: 1.5rem; }
@@ -750,106 +771,69 @@ MEDICAL_NAVBAR_TEMPLATE = """
 
 <div class="medical-top-bar">
     <div class="medical-logo-area">
-        <i class="{{ page_icon }} medical-logo-icon"></i>
+        <i class="fas fa-clinic-medical medical-logo-icon"></i>
     </div>
     
     <div class="medical-title">{{ page_title }}</div>
     
-    <button class="hamburger-btn" onclick="toggleMedicalMenu()">
-        <i class="fas fa-bars"></i>
-    </button>
+    <!-- Placeholder for right spacing to center title -->
+    <div style="width: 40px;"></div>
     
     <div class="medical-split-border"></div>
 </div>
 
-<div id="medical-menu" class="medical-menu-overlay">
-    <a href="/" class="menu-item">
-        <i class="fas fa-clinic-medical"></i>
-        <div>
-            <div>Home</div>
-            <small class="text-muted fw-normal" style="font-size:0.8rem">Kembali ke Menu Utama</small>
-        </div>
-    </a>
-    <a href="/antrean" class="menu-item">
+<div class="medical-horizontal-menu">
+    <a href="/antrean" class="feature-btn">
         <i class="fas fa-users"></i>
-        <div>
-            <div>Antrean</div>
-            <small class="text-muted fw-normal" style="font-size:0.8rem">Cek Status Antrean</small>
-        </div>
+        <span>Antrean</span>
     </a>
-    <a href="/rekam-medis" class="menu-item">
+    <a href="/rekam-medis" class="feature-btn">
         <i class="fas fa-notes-medical"></i>
-        <div>
-            <div>Rekam Medis</div>
-            <small class="text-muted fw-normal" style="font-size:0.8rem">Dashboard Dokter</small>
-        </div>
+        <span>Rekam Medis</span>
     </a>
-    <a href="/stok-obat" class="menu-item">
+    <a href="/stok-obat" class="feature-btn">
         <i class="fas fa-capsules"></i>
-        <div>
-            <div>Stok Obat</div>
-            <small class="text-muted fw-normal" style="font-size:0.8rem">Manajemen Farmasi</small>
-        </div>
+        <span>Stok Obat</span>
     </a>
-    <a href="javascript:void(0)" onclick="toggleFullScreen()" class="menu-item">
-        <i class="fas fa-expand"></i>
-        <div>
-            <div>Layar Penuh</div>
-            <small class="text-muted fw-normal" style="font-size:0.8rem">Mode Layar Penuh</small>
-        </div>
+    <a href="/profil-klinik" class="feature-btn">
+        <i class="fas fa-hospital-user"></i>
+        <span>Profil Klinik</span>
+    </a>
+    <a href="/surat-sakit" class="feature-btn">
+        <i class="fas fa-file-medical"></i>
+        <span>Surat Sakit</span>
+    </a>
+    <a href="/kasir" class="feature-btn">
+        <i class="fas fa-cash-register"></i>
+        <span>Kasir & Laporan</span>
+    </a>
+    <a href="/database-pasien" class="feature-btn">
+        <i class="fas fa-database"></i>
+        <span>Data Pasien</span>
+    </a>
+    <a href="/pencarian-pasien" class="feature-btn">
+        <i class="fas fa-search"></i>
+        <span>Cari Pasien</span>
+    </a>
+    <a href="/statistik" class="feature-btn">
+        <i class="fas fa-chart-pie"></i>
+        <span>Statistik</span>
     </a>
 </div>
 
 <script>
-    function toggleMedicalMenu() {
-        const menu = document.getElementById('medical-menu');
-        menu.classList.toggle('active');
-        document.body.style.overflow = menu.classList.contains('active') ? 'hidden' : 'auto';
-    }
-
-    var mobileLockEnabled = false;
-
-    function toggleFullScreen() {
-        var doc = window.document;
-        var docEl = doc.documentElement;
-        var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
-        var cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
-
-        if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
-            requestFullScreen.call(docEl);
-            mobileLockEnabled = true;
-        } else {
-            cancelFullScreen.call(doc);
-            mobileLockEnabled = false;
-        }
-    }
-
-    function activateMobileLockScreen() {
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (isMobile) {
-            mobileLockEnabled = true;
-            const doc = window.document;
-            const docEl = doc.documentElement;
-            const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
-            
-            try {
-                if(!doc.fullscreenElement) requestFullScreen.call(docEl);
-            } catch(e) {}
-
-            const unlockHandler = () => {
-                if (mobileLockEnabled) {
-                    if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
-                        requestFullScreen.call(docEl);
-                    }
-                }
-            };
-            
-            document.addEventListener('click', unlockHandler, { capture: true });
-            document.addEventListener('touchstart', unlockHandler, { capture: true });
-        }
-    }
-    
-    window.addEventListener('load', activateMobileLockScreen);
+    // Highlight active menu
+    document.addEventListener("DOMContentLoaded", function() {
+        const path = window.location.pathname;
+        const buttons = document.querySelectorAll('.feature-btn');
+        buttons.forEach(btn => {
+            if(btn.getAttribute('href') === path || (path === '/' && btn.getAttribute('href') === '/antrean')) {
+                btn.classList.add('active');
+                // Scroll to active
+                btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            }
+        });
+    });
 </script>
 """
 
