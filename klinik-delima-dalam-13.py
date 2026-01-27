@@ -146,7 +146,20 @@ def init_db():
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT,
                     stock INTEGER DEFAULT 0,
-                    unit TEXT DEFAULT 'pcs'
+                    unit TEXT DEFAULT 'pcs',
+                    expiry_date TEXT
+                )''')
+    try: c.execute("ALTER TABLE medicine_stock ADD COLUMN expiry_date TEXT")
+    except: pass
+
+    # Appointments
+    c.execute('''CREATE TABLE IF NOT EXISTS appointments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT,
+                    phone TEXT,
+                    date TEXT,
+                    time TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
 
     # Seed Data
@@ -733,6 +746,131 @@ def api_delete_item():
     conn.close()
     return jsonify({'success': True})
 
+# --- NEW ENTERPRISE ROUTES ---
+
+@app.route('/booking')
+def booking_page():
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-calendar-check').replace('{{ page_title }}', 'BOOKING JANJI TEMU')
+    return render_template_string(HTML_BOOKING.replace('{{ navbar|safe }}', navbar))
+
+@app.route('/api/booking/add', methods=['POST'])
+def api_booking_add():
+    data = request.json
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("INSERT INTO appointments (name, phone, date, time) VALUES (?, ?, ?, ?)",
+              (data.get('name'), data.get('phone'), data.get('date'), data.get('time')))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/financial-dashboard')
+def financial_dashboard():
+    if not session.get('admin'): return "Unauthorized", 403
+    conn = get_db_connection()
+    c = conn.cursor()
+    # Monthly Revenue
+    c.execute("SELECT strftime('%Y-%m', created_at) as m, SUM(fee_doctor + fee_medicine) as total FROM queue WHERE status='done' GROUP BY m ORDER BY m ASC LIMIT 12")
+    rows = c.fetchall()
+    conn.close()
+
+    chart_data = {
+        'labels': [r['m'] for r in rows],
+        'values': [r['total'] for r in rows]
+    }
+
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-chart-line').replace('{{ page_title }}', 'DASHBOARD KEUANGAN')
+    return render_template_string(HTML_FINANCE.replace('{{ navbar|safe }}', navbar), chart_data=chart_data)
+
+@app.route('/expiry-tracker')
+def expiry_tracker():
+    if not session.get('admin'): return "Unauthorized", 403
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM medicine_stock ORDER BY expiry_date ASC")
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+
+    medicines = []
+    today = datetime.date.today()
+    for r in rows:
+        is_expiring = False
+        if r['expiry_date']:
+            try:
+                exp = datetime.datetime.strptime(r['expiry_date'], '%Y-%m-%d').date()
+                if (exp - today).days < 30:
+                    is_expiring = True
+            except: pass
+        r['is_expiring'] = is_expiring
+        medicines.append(r)
+
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-exclamation-triangle').replace('{{ page_title }}', 'ALERT KEDALUWARSA')
+    return render_template_string(HTML_EXPIRY.replace('{{ navbar|safe }}', navbar), medicines=medicines)
+
+@app.route('/api/stock/update-expiry', methods=['POST'])
+def api_stock_update_expiry():
+    data = request.json
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("UPDATE medicine_stock SET expiry_date=? WHERE id=?", (data.get('date'), data.get('id')))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/receipt-list')
+def receipt_list():
+    if not session.get('admin'): return "Unauthorized", 403
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM queue WHERE status='done' ORDER BY created_at DESC LIMIT 50")
+    patients = [dict(r) for r in c.fetchall()]
+    conn.close()
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-receipt').replace('{{ page_title }}', 'CETAK STRUK')
+    return render_template_string(HTML_RECEIPT_LIST.replace('{{ navbar|safe }}', navbar), patients=patients)
+
+@app.route('/print-receipt/<int:id>')
+def print_receipt(id):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM queue WHERE id=?", (id,))
+    row = c.fetchone()
+    conn.close()
+    if not row: return "Not Found", 404
+    p = dict(row)
+
+    total = (p['fee_doctor'] or 0) + (p['fee_medicine'] or 0)
+    total_fmt = "{:,.0f}".format(total).replace(',', '.')
+    date_str = (p['finished_at'] or p['created_at']).split(' ')[0]
+
+    return render_template_string(HTML_RECEIPT_PRINT, p=p, total=total_fmt, date=date_str)
+
+@app.route('/wa-reminder')
+def wa_reminder_page():
+    if not session.get('admin'): return "Unauthorized", 403
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM queue WHERE status='waiting' ORDER BY number ASC")
+    patients = [dict(r) for r in c.fetchall()]
+    conn.close()
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fab fa-whatsapp').replace('{{ page_title }}', 'WA REMINDER')
+    return render_template_string(HTML_WA_REMINDER.replace('{{ navbar|safe }}', navbar), patients=patients)
+
+@app.route('/booking-list')
+def booking_list_page():
+    if not session.get('admin'): return "Unauthorized", 403
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM appointments ORDER BY date DESC, time ASC")
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-calendar-alt').replace('{{ page_title }}', 'DAFTAR JANJI TEMU')
+    return render_template_string(HTML_BOOKING_LIST.replace('{{ navbar|safe }}', navbar), appointments=rows)
+
+@app.route('/backup-db')
+def backup_db():
+    if not session.get('admin'): return "Unauthorized", 403
+    return send_from_directory('.', 'data.db', as_attachment=True)
+
 # --- FRONTEND ASSETS ---
 
 MEDICAL_NAVBAR_TEMPLATE = """
@@ -880,6 +1018,30 @@ MEDICAL_NAVBAR_TEMPLATE = """
     <a href="/download-data" class="feature-btn">
         <i class="fas fa-file-pdf"></i>
         <span>Unduh Data</span>
+    </a>
+    <a href="/booking" class="feature-btn">
+        <i class="fas fa-calendar-check"></i>
+        <span>Booking</span>
+    </a>
+    <a href="/financial-dashboard" class="feature-btn">
+        <i class="fas fa-chart-line"></i>
+        <span>Keuangan</span>
+    </a>
+    <a href="/expiry-tracker" class="feature-btn">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>Expiry Alert</span>
+    </a>
+    <a href="/receipt-list" class="feature-btn">
+        <i class="fas fa-receipt"></i>
+        <span>Cetak Struk</span>
+    </a>
+    <a href="/wa-reminder" class="feature-btn">
+        <i class="fab fa-whatsapp"></i>
+        <span>WA Reminder</span>
+    </a>
+    <a href="/backup-db" class="feature-btn">
+        <i class="fas fa-shield-alt"></i>
+        <span>Backup DB</span>
     </a>
 </div>
 
@@ -3958,6 +4120,407 @@ HTML_DOWNLOAD_PDF = """
         
         window.onload = generate;
     </script>
+</body>
+</html>
+"""
+
+HTML_BOOKING = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Booking Janji Temu</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <div class="card shadow border-0 rounded-4" style="max-width: 600px; margin: auto;">
+            <div class="card-body p-5">
+                <h3 class="fw-bold text-center mb-4 text-primary"><i class="fas fa-calendar-check me-2"></i> Booking Janji Temu</h3>
+                <form id="booking-form" onsubmit="submitBooking(event)">
+                    <div class="mb-3">
+                        <label class="fw-bold mb-1">Nama Pasien</label>
+                        <input type="text" id="b-name" class="form-control form-control-lg" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold mb-1">Nomor WhatsApp</label>
+                        <input type="tel" id="b-phone" class="form-control form-control-lg" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold mb-1">Tanggal Kunjungan</label>
+                            <input type="date" id="b-date" class="form-control form-control-lg" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold mb-1">Jam (Estimasi)</label>
+                            <input type="time" id="b-time" class="form-control form-control-lg" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 btn-lg rounded-pill mt-3">Kirim Booking</button>
+                </form>
+                <div id="success-msg" class="alert alert-success mt-3" style="display:none;">
+                    Booking Berhasil! Silakan datang sesuai jadwal.
+                </div>
+                <div class="text-center mt-3"><a href="/booking-list" class="text-muted small text-decoration-none">Admin: Lihat Daftar</a></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function submitBooking(e) {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('b-name').value,
+                phone: document.getElementById('b-phone').value,
+                date: document.getElementById('b-date').value,
+                time: document.getElementById('b-time').value
+            };
+            fetch('/api/booking/add', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            }).then(r => r.json()).then(res => {
+                if(res.success) {
+                    document.getElementById('booking-form').reset();
+                    document.getElementById('success-msg').style.display = 'block';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
+"""
+
+HTML_FINANCE = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Keuangan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <h2 class="mb-4 fw-bold text-center"><i class="fas fa-chart-line me-2 text-success"></i> Dashboard Keuangan & Tren</h2>
+
+        <div class="card shadow border-0 rounded-4 mb-4">
+            <div class="card-body p-4">
+                <canvas id="financeChart" style="max-height: 500px;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('financeChart').getContext('2d');
+        const data = {{ chart_data | tojson }};
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: 'Pendapatan Bulanan (Rp)',
+                    data: data.values,
+                    backgroundColor: 'rgba(46, 204, 113, 0.2)',
+                    borderColor: 'rgba(46, 204, 113, 1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                scales: {
+                    y: { beginAtZero: true }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(context.parsed.y);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+"""
+
+HTML_EXPIRY = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Alert Kedaluwarsa Obat</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <h2 class="mb-4 fw-bold text-danger text-center"><i class="fas fa-exclamation-triangle me-2"></i> Tracker Kedaluwarsa Obat</h2>
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nama Obat</th>
+                                <th>Stok</th>
+                                <th>Tgl Kedaluwarsa</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in medicines %}
+                            <tr class="{{ 'table-danger' if m.is_expiring else '' }}">
+                                <td class="fw-bold">{{ m.name }}</td>
+                                <td>{{ m.stock }} {{ m.unit }}</td>
+                                <td>
+                                    {% if m.expiry_date %}
+                                        {{ m.expiry_date }}
+                                    {% else %}
+                                        <span class="text-muted fst-italic">Belum diatur</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if m.is_expiring %}
+                                        <span class="badge bg-danger">KEDALUWARSA &lt; 30 HARI</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Aman</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form class="d-flex gap-2" onsubmit="updateExpiry(event, {{ m.id }})">
+                                        <input type="date" id="date-{{ m.id }}" class="form-control form-control-sm" value="{{ m.expiry_date }}">
+                                        <button class="btn btn-sm btn-primary">Update</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function updateExpiry(e, id) {
+            e.preventDefault();
+            const date = document.getElementById('date-' + id).value;
+            fetch('/api/stock/update-expiry', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id: id, date: date})
+            }).then(() => location.reload());
+        }
+    </script>
+</body>
+</html>
+"""
+
+HTML_RECEIPT_LIST = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Cetak Struk</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <h2 class="mb-4 fw-bold text-center text-dark"><i class="fas fa-receipt me-2"></i> Cetak Struk Pembayaran</h2>
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Nama Pasien</th>
+                                <th>Total Biaya</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in patients %}
+                            <tr>
+                                <td>{{ (p.finished_at or p.created_at).split(' ')[0] }}</td>
+                                <td class="fw-bold">{{ p.name }}</td>
+                                <td class="fw-bold text-success">Rp {{ "{:,.0f}".format((p.fee_doctor or 0) + (p.fee_medicine or 0)).replace(',','.') }}</td>
+                                <td>
+                                    <a href="/print-receipt/{{ p.id }}" target="_blank" class="btn btn-sm btn-dark"><i class="fas fa-print me-1"></i> Cetak Struk</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+HTML_RECEIPT_PRINT = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Struk Pembayaran</title>
+    <style>
+        body { font-family: 'Courier New', monospace; font-size: 12px; width: 58mm; margin: 0; padding: 10px; color: #000; }
+        .text-center { text-align: center; }
+        .fw-bold { font-weight: bold; }
+        .line { border-bottom: 1px dashed #000; margin: 5px 0; }
+        .flex { display: flex; justify-content: space-between; }
+        @media print { .no-print { display: none; } }
+    </style>
+</head>
+<body onload="window.print()">
+    <div class="no-print">
+        <button onclick="window.print()">PRINT</button>
+    </div>
+    <div class="text-center fw-bold" style="font-size: 14px;">KLINIK KESEHATAN</div>
+    <div class="text-center">Jl. Contoh No. 123</div>
+    <div class="text-center">Samarinda</div>
+    <div class="line"></div>
+    <div class="flex"><span>Tgl:</span> <span>{{ date }}</span></div>
+    <div class="flex"><span>Pasien:</span> <span>{{ p.name }}</span></div>
+    <div class="line"></div>
+    <div class="flex"><span>Jasa Dokter</span> <span>{{ p.fee_doctor }}</span></div>
+    <div class="flex"><span>Obat</span> <span>{{ p.fee_medicine }}</span></div>
+    <div class="line"></div>
+    <div class="flex fw-bold" style="font-size: 14px;"><span>TOTAL</span> <span>Rp {{ total }}</span></div>
+    <div class="line"></div>
+    <div class="text-center" style="margin-top: 10px;">Terima Kasih</div>
+    <div class="text-center">Semoga Lekas Sembuh</div>
+</body>
+</html>
+"""
+
+HTML_WA_REMINDER = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>WhatsApp Reminder</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <h2 class="mb-4 fw-bold text-center text-success"><i class="fab fa-whatsapp me-2"></i> WhatsApp Reminder Pasien</h2>
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>No Antrean</th>
+                                <th>Nama Pasien</th>
+                                <th>No WhatsApp</th>
+                                <th>Aksi Reminder</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in patients %}
+                            <tr>
+                                <td class="fw-bold fs-5 text-center">{{ p.number }}</td>
+                                <td class="fw-bold">{{ p.name }}</td>
+                                <td>{{ p.phone }}</td>
+                                <td>
+                                    <a href="https://wa.me/{{ p.phone|replace('0', '62', 1) if p.phone.startswith('0') else p.phone }}?text=Halo%20{{ p.name }},%20giliran%20Anda%203%20nomor%20lagi.%20Harap%20bersiap%20di%20ruang%20tunggu.%20Terima%20kasih."
+                                       target="_blank" class="btn btn-success text-white fw-bold">
+                                        <i class="fab fa-whatsapp me-1"></i> Ingatkan
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% if not patients %}
+                    <div class="text-center py-5 text-muted">Tidak ada antrean menunggu.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+HTML_BOOKING_LIST = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Daftar Janji Temu</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <h2 class="mb-4 fw-bold text-center text-primary"><i class="fas fa-calendar-alt me-2"></i> Daftar Janji Temu</h2>
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Jam</th>
+                                <th>Nama Pasien</th>
+                                <th>No WhatsApp</th>
+                                <th>Dibuat</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for a in appointments %}
+                            <tr>
+                                <td class="fw-bold">{{ a.date }}</td>
+                                <td><span class="badge bg-info text-dark">{{ a.time }}</span></td>
+                                <td class="fw-bold">{{ a.name }}</td>
+                                <td>
+                                    <a href="https://wa.me/{{ a.phone|replace('0', '62', 1) if a.phone.startswith('0') else a.phone }}" target="_blank" class="text-decoration-none">
+                                        <i class="fab fa-whatsapp text-success"></i> {{ a.phone }}
+                                    </a>
+                                </td>
+                                <td class="text-muted small">{{ a.created_at }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% if not appointments %}
+                    <div class="text-center py-5 text-muted">Belum ada janji temu.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
 """
