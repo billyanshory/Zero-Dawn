@@ -807,6 +807,8 @@ MEDICAL_NAVBAR_TEMPLATE = """
         document.body.style.overflow = menu.classList.contains('active') ? 'hidden' : 'auto';
     }
 
+    var mobileLockEnabled = false;
+
     function toggleFullScreen() {
         var doc = window.document;
         var docEl = doc.documentElement;
@@ -815,10 +817,39 @@ MEDICAL_NAVBAR_TEMPLATE = """
 
         if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
             requestFullScreen.call(docEl);
+            mobileLockEnabled = true;
         } else {
             cancelFullScreen.call(doc);
+            mobileLockEnabled = false;
         }
     }
+
+    function activateMobileLockScreen() {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+            mobileLockEnabled = true;
+            const doc = window.document;
+            const docEl = doc.documentElement;
+            const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+
+            try {
+                if(!doc.fullscreenElement) requestFullScreen.call(docEl);
+            } catch(e) {}
+
+            const unlockHandler = () => {
+                if (mobileLockEnabled) {
+                    if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+                        requestFullScreen.call(docEl);
+                    }
+                }
+            };
+
+            document.addEventListener('click', unlockHandler, { capture: true });
+            document.addEventListener('touchstart', unlockHandler, { capture: true });
+        }
+    }
+
+    window.addEventListener('load', activateMobileLockScreen);
 </script>
 """
 
@@ -969,29 +1000,6 @@ HTML_LANDING = """
 <body>
     {{ navbar|safe }}
     <div class="glass-panel">
-        <div id="status-container" class="mb-4">
-            <!-- Loaded via JS -->
-            <span class="status-badge status-open">LOADING...</span>
-        </div>
-        
-        {% if admin %}
-        <!-- Hidden Options Container -->
-        <div id="status-options" class="status-options-hidden mb-4">
-            <div class="d-flex gap-3 justify-content-center">
-                <button class="status-option-btn btn-open" onclick="setStatus(true)">
-                    <i class="fas fa-door-open fa-2x mb-2"></i> 
-                    <div>BUKA</div>
-                    <small style="opacity:0.8">Warna Hijau</small>
-                </button>
-                <button class="status-option-btn btn-close" onclick="setStatus(false)">
-                    <i class="fas fa-door-closed fa-2x mb-2"></i> 
-                    <div>TUTUP</div>
-                    <small style="opacity:0.8">Warna Merah</small>
-                </button>
-            </div>
-        </div>
-        {% endif %}
-        
         <div class="d-flex flex-wrap justify-content-center">
             <a href="/antrean" class="main-btn">
                 <i class="fas fa-users"></i>
@@ -1044,61 +1052,6 @@ HTML_LANDING = """
         <i class="fab fa-whatsapp"></i>
     </a>
 
-    <script>
-        function updateStatus() {
-            fetch('/api/clinic/status').then(r => r.json()).then(data => {
-                const el = document.getElementById('status-container');
-                const isAdmin = document.getElementById('status-options') !== null;
-                const clickAttr = isAdmin ? 'onclick="toggleStatusMenu()" style="cursor:pointer"' : '';
-                
-                if(data.open) {
-                    el.innerHTML = `<span class="status-badge status-open" ${clickAttr}>KLINIK BUKA</span>`;
-                } else {
-                    el.innerHTML = `<span class="status-badge status-closed" ${clickAttr}>KLINIK TUTUP</span>`;
-                }
-            });
-        }
-        
-        function toggleStatusMenu() {
-            const opts = document.getElementById('status-options');
-            if(opts) {
-                if(opts.classList.contains('status-options-visible')) {
-                    opts.classList.remove('status-options-visible');
-                    opts.classList.add('status-options-hidden');
-                } else {
-                    opts.classList.remove('status-options-hidden');
-                    opts.classList.add('status-options-visible');
-                }
-            }
-        }
-        
-        function setStatus(isOpen) {
-            fetch('/api/clinic/status', { 
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ set_status: isOpen })
-            }).then(() => {
-                updateStatus();
-                // Close menu after short delay
-                setTimeout(toggleStatusMenu, 300);
-            });
-        }
-
-        function toggleFullScreen() {
-            var doc = window.document;
-            var docEl = doc.documentElement;
-            var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
-            var cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
-
-            if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
-                requestFullScreen.call(docEl);
-            } else {
-                cancelFullScreen.call(doc);
-            }
-        }
-        
-        updateStatus();
-    </script>
     <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
