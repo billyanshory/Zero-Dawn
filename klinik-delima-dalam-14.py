@@ -383,7 +383,7 @@ def api_clinic_status():
     c = conn.cursor()
     
     if request.method == 'POST':
-        if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+        # if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
         
         data = request.json or {}
         if 'set_status' in data:
@@ -630,7 +630,7 @@ def uploaded_file(filename):
 
 @app.route('/upload/<type>/<id>', methods=['POST'])
 def upload_image(type, id):
-    if not session.get('admin'): return "Unauthorized", 403
+    # if not session.get('admin'): return "Unauthorized", 403
     if 'image' not in request.files: return "No file", 400
     
     file = request.files['image']
@@ -661,7 +661,7 @@ def upload_image(type, id):
 
 @app.route('/api/update-text', methods=['POST'])
 def api_update_text():
-    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    # if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
     table = data.get('table') 
     id = data.get('id')
@@ -701,7 +701,7 @@ def api_update_text():
 
 @app.route('/api/add-card', methods=['POST'])
 def api_add_card():
-    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    # if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
     type = request.json.get('type')
     
     conn = get_db_connection()
@@ -724,7 +724,7 @@ def api_add_card():
 
 @app.route('/api/delete-item', methods=['POST'])
 def api_delete_item():
-    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    # if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
     table = data.get('table')
     id = data.get('id')
@@ -766,7 +766,7 @@ def api_booking_add():
 
 @app.route('/financial-dashboard')
 def financial_dashboard():
-    if not session.get('admin'): return "Unauthorized", 403
+    # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
     c = conn.cursor()
     # Monthly Revenue
@@ -784,7 +784,7 @@ def financial_dashboard():
 
 @app.route('/expiry-tracker')
 def expiry_tracker():
-    if not session.get('admin'): return "Unauthorized", 403
+    # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM medicine_stock ORDER BY expiry_date ASC")
@@ -819,7 +819,7 @@ def api_stock_update_expiry():
 
 @app.route('/receipt-list')
 def receipt_list():
-    if not session.get('admin'): return "Unauthorized", 403
+    # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM queue WHERE status='done' ORDER BY created_at DESC LIMIT 50")
@@ -846,7 +846,7 @@ def print_receipt(id):
 
 @app.route('/wa-reminder')
 def wa_reminder_page():
-    if not session.get('admin'): return "Unauthorized", 403
+    # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM queue WHERE status='waiting' ORDER BY number ASC")
@@ -857,7 +857,7 @@ def wa_reminder_page():
 
 @app.route('/booking-list')
 def booking_list_page():
-    if not session.get('admin'): return "Unauthorized", 403
+    # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM appointments ORDER BY date DESC, time ASC")
@@ -868,7 +868,7 @@ def booking_list_page():
 
 @app.route('/backup-db')
 def backup_db():
-    if not session.get('admin'): return "Unauthorized", 403
+    # if not session.get('admin'): return "Unauthorized", 403
     return send_from_directory('.', 'data.db', as_attachment=True)
 
 # --- FRONTEND ASSETS ---
