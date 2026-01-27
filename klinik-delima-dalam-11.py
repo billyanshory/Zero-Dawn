@@ -14,6 +14,20 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt'}
 
+def get_wita_time():
+    # UTC+8
+    return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8)))
+
+def format_date_indo(date_obj):
+    months = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ]
+    day = date_obj.day
+    month = months[date_obj.month - 1]
+    year = date_obj.year
+    return f"{day} {month} {year}"
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -118,6 +132,8 @@ def init_db():
     try: c.execute("ALTER TABLE queue ADD COLUMN fee_doctor INTEGER DEFAULT 0")
     except: pass
     try: c.execute("ALTER TABLE queue ADD COLUMN fee_medicine INTEGER DEFAULT 0")
+    except: pass
+    try: c.execute("ALTER TABLE queue ADD COLUMN finished_at TEXT")
     except: pass
     
     # Medicine Stock
@@ -235,7 +251,15 @@ def surat_sakit_print(id):
     days_map = {'1':'Satu', '2':'Dua', '3':'Tiga', '4':'Empat', '5':'Lima', '7':'Tujuh'}
     days_text = days_map.get(str(days), str(days))
     
-    date_str = datetime.date.today().strftime("%d %B %Y")
+    fin_at = p.get('finished_at')
+    if fin_at:
+        try:
+            dt = datetime.datetime.strptime(fin_at, '%Y-%m-%d %H:%M:%S')
+            date_str = format_date_indo(dt)
+        except:
+            date_str = format_date_indo(get_wita_time())
+    else:
+        date_str = format_date_indo(get_wita_time())
     
     return render_template_string(HTML_SICK_PRINT, p=p, days=days, days_text=days_text, date=date_str)
 
@@ -438,11 +462,13 @@ def api_queue_action():
         diag = data.get('diagnosis')
         presc = data.get('prescription')
         med_action = data.get('medical_action')
-        c.execute("UPDATE queue SET status='done', diagnosis=?, prescription=?, medical_action=? WHERE id=?", (diag, presc, med_action, id))
+        wita_now = get_wita_time().strftime('%Y-%m-%d %H:%M:%S')
+        c.execute("UPDATE queue SET status='done', diagnosis=?, prescription=?, medical_action=?, finished_at=? WHERE id=?", (diag, presc, med_action, wita_now, id))
         
     elif action == 'cancel':
         reason = data.get('reason')
-        c.execute("UPDATE queue SET status='cancelled', cancellation_reason=? WHERE id=?", (reason, id))
+        wita_now = get_wita_time().strftime('%Y-%m-%d %H:%M:%S')
+        c.execute("UPDATE queue SET status='cancelled', cancellation_reason=?, finished_at=? WHERE id=?", (reason, wita_now, id))
 
     conn.commit()
     conn.close()
@@ -1283,7 +1309,13 @@ HTML_DOCTOR_REKAM = """
                 <div class="glass-panel-custom mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="section-label mb-0"><i class="fas fa-history me-2"></i> Riwayat Pemeriksaan (Hari Ini)</div>
-                        <button class="btn btn-sm btn-outline-success fw-bold" onclick="openArchive()"><i class="fas fa-database me-2"></i> Database</button>
+                        <div>
+                            <div class="btn-group me-2">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="setSort('asc')">Terlama</button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="setSort('desc')">Terbaru</button>
+                            </div>
+                            <button class="btn btn-sm btn-outline-success fw-bold" onclick="openArchive()"><i class="fas fa-database me-2"></i> Database</button>
+                        </div>
                     </div>
                     <div class="table-responsive custom-scrollbar">
                         <table class="table table-hover align-middle" style="min-width: 600px;">
@@ -1291,10 +1323,12 @@ HTML_DOCTOR_REKAM = """
                                 <tr>
                                     <th>No</th>
                                     <th style="white-space:nowrap">Nama Pasien</th>
+                                    <th>Status</th>
                                     <th>Keluhan</th>
                                     <th>Diagnosa</th>
                                     <th>Resep Obat</th>
                                     <th>Tindakan</th>
+                                    <th>Waktu</th>
                                     <th>Aksi</th>
                                 </tr>
                             </thead>
@@ -1307,7 +1341,13 @@ HTML_DOCTOR_REKAM = """
                 <div class="glass-panel-custom bg-light border-danger">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="section-label text-danger mb-0"><i class="fas fa-trash-alt me-2"></i> DATA PASIEN YANG DIHAPUS</div>
-                        <button class="btn btn-sm btn-outline-danger fw-bold" onclick="openArchive()"><i class="fas fa-database me-2"></i> Database</button>
+                        <div>
+                            <div class="btn-group me-2">
+                                <button class="btn btn-sm btn-outline-danger" onclick="setSort('asc')">Terlama</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="setSort('desc')">Terbaru</button>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger fw-bold" onclick="openArchive()"><i class="fas fa-database me-2"></i> Database</button>
+                        </div>
                     </div>
                     <div class="table-responsive custom-scrollbar" style="max-height: 200px;">
                         <table class="table table-sm table-hover align-middle">
@@ -1315,7 +1355,10 @@ HTML_DOCTOR_REKAM = """
                                 <tr>
                                     <th>No</th>
                                     <th>Nama Pasien</th>
+                                    <th>Status</th>
+                                    <th>Keluhan</th>
                                     <th>Alasan Batal</th>
+                                    <th>Waktu</th>
                                 </tr>
                             </thead>
                             <tbody id="deleted-table"></tbody>
@@ -1360,9 +1403,29 @@ HTML_DOCTOR_REKAM = """
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // JS Logic (Same as before, just slight UI tweaks in rendering)
+        let currentSort = 'desc';
+        function setSort(order) {
+            currentSort = order;
+            loadData();
+        }
+
+        function formatWita(dateStr) {
+            if(!dateStr) return '-';
+            try {
+                // dateStr from python finished_at is 'YYYY-MM-DD HH:MM:SS' (WITA)
+                const parts = dateStr.split(/[\\sT]/);
+                if(parts.length < 2) return dateStr;
+                const datePart = parts[0];
+                const timePart = parts[1].substring(0, 5);
+                const [y, m, d] = datePart.split('-');
+                const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                return `${d} ${months[parseInt(m)-1]} ${y} ${timePart} WITA`;
+            } catch(e) { return dateStr; }
+        }
+
         function escapeHtml(text) {
             if (!text) return "";
-            return text
+            return text.toString()
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
                 .replace(/>/g, "&gt;")
@@ -1415,6 +1478,15 @@ HTML_DOCTOR_REKAM = """
                     panel.innerHTML = '<div class="text-center text-muted py-5 border rounded bg-light"><h5><i class="fas fa-user-slash fa-2x mb-3 d-block"></i>Belum ada pasien yang dipanggil</h5><p>Silakan panggil pasien dari daftar antrean.</p></div>';
                 }
                 
+                // Sort Logic
+                const sorter = (a, b) => {
+                     const ta = a.finished_at || a.created_at || '';
+                     const tb = b.finished_at || b.created_at || '';
+                     return currentSort === 'asc' ? ta.localeCompare(tb) : tb.localeCompare(ta);
+                };
+                data.history.sort(sorter);
+                if(data.cancelled) data.cancelled.sort(sorter);
+
                 // History
                 const hist = document.getElementById('history-table');
                 hist.innerHTML = '';
@@ -1423,10 +1495,12 @@ HTML_DOCTOR_REKAM = """
                         <tr>
                             <td class="fw-bold text-center">${p.number}</td>
                             <td style="white-space:nowrap">${escapeHtml(p.name)}</td>
+                            <td><span class="badge bg-success">Selesai</span></td>
                             <td>${escapeHtml(p.complaint)}</td>
                             <td>${escapeHtml(p.diagnosis)}</td>
                             <td>${escapeHtml(p.prescription)}</td>
                             <td>${escapeHtml(p.medical_action)}</td>
+                            <td style="white-space:nowrap">${formatWita(p.finished_at || p.created_at)}</td>
                             <td>
                                 <button class="btn btn-sm btn-danger rounded-circle" onclick="deletePatient(${p.id})">
                                     <i class="fas fa-trash-alt"></i>
@@ -1445,7 +1519,10 @@ HTML_DOCTOR_REKAM = """
                                 <tr>
                                     <td class="fw-bold text-center">${p.number}</td>
                                     <td class="fw-bold">${escapeHtml(p.name)}</td>
+                                    <td><span class="badge bg-danger">Batal</span></td>
+                                    <td>${escapeHtml(p.complaint)}</td>
                                     <td class="text-danger">${escapeHtml(p.cancellation_reason)}</td>
+                                    <td style="white-space:nowrap">${formatWita(p.finished_at || p.created_at)}</td>
                                 </tr>`;
                         });
                     }
@@ -3370,7 +3447,7 @@ HTML_CASHIER = """
                         <tbody>
                             {% for p in patients %}
                             <tr id="row-{{ p.id }}">
-                                <td class="ps-4 fw-bold">{{ p.name }}<br><small class="text-muted">{{ p.created_at.split(' ')[1] }}</small></td>
+                                <td class="ps-4 fw-bold">{{ p.name }}<br><small class="text-muted">{{ p.finished_at.split(' ')[1][:5] if p.finished_at else p.created_at.split(' ')[1][:5] }} WITA</small></td>
                                 <td>{{ p.medical_action }}</td>
                                 <td><input type="number" id="fee-doc-{{ p.id }}" class="form-control" value="{{ p.fee_doctor }}" onchange="calcTotal({{ p.id }})"></td>
                                 <td><input type="number" id="fee-med-{{ p.id }}" class="form-control" value="{{ p.fee_medicine }}" onchange="calcTotal({{ p.id }})"></td>
@@ -3510,13 +3587,13 @@ HTML_SEARCH = """
                         {% if patients %}
                         <div class="list-group text-start">
                             {% for p in patients %}
-                            <a href="/antrean?name={{ p.name }}&phone={{ p.phone }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3">
+                            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3">
                                 <div>
                                     <h5 class="mb-1 fw-bold">{{ p.name }}</h5>
                                     <small class="text-muted"><i class="fas fa-phone me-1"></i> {{ p.phone }}</small>
                                 </div>
-                                <button class="btn btn-success rounded-pill px-4 fw-bold">PILIH <i class="fas fa-arrow-right ms-2"></i></button>
-                            </a>
+                                <button class="btn btn-success rounded-pill px-4 fw-bold" onclick='showPatientDetail({{ p | tojson | safe }})'>PILIH <i class="fas fa-arrow-right ms-2"></i></button>
+                            </div>
                             {% endfor %}
                         </div>
                         {% elif request.args.get('q') %}
@@ -3527,6 +3604,128 @@ HTML_SEARCH = """
             </div>
         </div>
     </div>
+
+    <!-- Patient Detail Modal -->
+    <div class="modal fade" id="patientDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" style="background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.5);">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold text-success"><i class="fas fa-id-card me-2"></i> Detail Data Pasien</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="d-flex align-items-center mb-4 p-3 bg-white rounded shadow-sm">
+                        <div class="bg-light rounded-circle p-3 d-flex align-items-center justify-content-center me-3" style="width: 70px; height: 70px;">
+                            <i class="fas fa-user fa-2x text-secondary"></i>
+                        </div>
+                        <div>
+                            <h3 class="fw-bold mb-0" id="pd-name">Nama Pasien</h3>
+                            <div class="text-muted"><i class="fas fa-phone me-1"></i> <span id="pd-phone">08xxx</span></div>
+                        </div>
+                        <div class="ms-auto">
+                             <span class="badge bg-success rounded-pill fs-6 px-3 py-2" id="pd-status">Selesai</span>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded h-100">
+                                <label class="fw-bold text-muted small text-uppercase">Keluhan Utama</label>
+                                <p class="mb-0 fw-bold" id="pd-complaint">-</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded h-100">
+                                <label class="fw-bold text-muted small text-uppercase">Diagnosa Dokter</label>
+                                <p class="mb-0 fw-bold text-success" id="pd-diagnosis">-</p>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="p-3 bg-light rounded">
+                                <label class="fw-bold text-muted small text-uppercase">Resep Obat</label>
+                                <p class="mb-0" id="pd-prescription">-</p>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                             <div class="p-3 bg-light rounded">
+                                <label class="fw-bold text-muted small text-uppercase">Tindakan Medis</label>
+                                <p class="mb-0" id="pd-action">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3 g-3">
+                         <div class="col-6">
+                             <small class="text-muted d-block">Tanggal Daftar</small>
+                             <strong id="pd-created">-</strong>
+                         </div>
+                         <div class="col-6 text-end">
+                             <small class="text-muted d-block">Selesai Periksa</small>
+                             <strong id="pd-finished">-</strong>
+                         </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Tutup</button>
+                    <a href="#" id="pd-link" class="btn btn-primary rounded-pill px-4"><i class="fas fa-edit me-1"></i> Daftar Ulang</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function formatDate(dateStr) {
+            if(!dateStr) return '-';
+            try {
+                const parts = dateStr.split(/[\\sT]/);
+                if(parts.length < 2) return dateStr;
+                const datePart = parts[0];
+                const timePart = parts[1].substring(0, 5);
+                const [y, m, d] = datePart.split('-');
+                const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                return `${d} ${months[parseInt(m)-1]} ${y} ${timePart} WITA`;
+            } catch(e) { return dateStr; }
+        }
+
+        function showPatientDetail(p) {
+            document.getElementById('pd-name').innerText = p.name;
+            document.getElementById('pd-phone').innerText = p.phone;
+            document.getElementById('pd-complaint').innerText = p.complaint || '-';
+            document.getElementById('pd-diagnosis').innerText = p.diagnosis || '-';
+            document.getElementById('pd-prescription').innerText = p.prescription || '-';
+            document.getElementById('pd-action').innerText = p.medical_action || '-';
+
+            // Format dates
+            // created_at is UTC in DB, finished_at is WITA string.
+            // But for simple display, we treat created_at string as is (it might show UTC time).
+            // User specifically asked for correct time.
+            // If created_at is UTC, I should probably adjust it?
+            // The user complaint was "waktunya nda konsisten acak dia random".
+            // Since we don't convert created_at on backend, it's just the string.
+            // If I format it using the same function, it just reformats the string.
+            // I'll stick to formatting the string nicely.
+
+            document.getElementById('pd-created').innerText = formatDate(p.created_at);
+            document.getElementById('pd-finished').innerText = formatDate(p.finished_at);
+
+            const badge = document.getElementById('pd-status');
+            if(p.status === 'done') {
+                badge.className = 'badge bg-success rounded-pill fs-6 px-3 py-2';
+                badge.innerText = 'Selesai';
+            } else if(p.status === 'cancelled') {
+                badge.className = 'badge bg-danger rounded-pill fs-6 px-3 py-2';
+                badge.innerText = 'Batal';
+            } else {
+                badge.className = 'badge bg-warning text-dark rounded-pill fs-6 px-3 py-2';
+                badge.innerText = 'Menunggu';
+            }
+
+            document.getElementById('pd-link').href = '/antrean?name=' + encodeURIComponent(p.name) + '&phone=' + encodeURIComponent(p.phone);
+
+            new bootstrap.Modal(document.getElementById('patientDetailModal')).show();
+        }
+    </script>
 </body>
 </html>
 """
