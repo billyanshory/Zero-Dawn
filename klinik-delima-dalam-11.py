@@ -17,6 +17,25 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico',
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def get_wita_now():
+    return datetime.datetime.utcnow() + datetime.timedelta(hours=8)
+
+def format_date_indo(date_str):
+    if not date_str: return ""
+    try:
+        # Handle if date_str contains time or not
+        if 'T' in date_str: date_str = date_str.replace('T', ' ')
+
+        if ' ' in date_str:
+            dt = datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+        else:
+            dt = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+
+        months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
+        return f"{dt.day} {months[dt.month - 1]} {dt.year}"
+    except:
+        return date_str
+
 def init_db():
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
@@ -118,6 +137,8 @@ def init_db():
     try: c.execute("ALTER TABLE queue ADD COLUMN fee_doctor INTEGER DEFAULT 0")
     except: pass
     try: c.execute("ALTER TABLE queue ADD COLUMN fee_medicine INTEGER DEFAULT 0")
+    except: pass
+    try: c.execute("ALTER TABLE queue ADD COLUMN finished_at TEXT")
     except: pass
     
     # Medicine Stock
@@ -235,7 +256,12 @@ def surat_sakit_print(id):
     days_map = {'1':'Satu', '2':'Dua', '3':'Tiga', '4':'Empat', '5':'Lima', '7':'Tujuh'}
     days_text = days_map.get(str(days), str(days))
     
-    date_str = datetime.date.today().strftime("%d %B %Y")
+    # Use finished_at if available, else created_at, else now
+    raw_date = p.get('finished_at') or p.get('created_at')
+    if raw_date:
+        date_str = format_date_indo(raw_date)
+    else:
+        date_str = format_date_indo(get_wita_now().strftime("%Y-%m-%d"))
     
     return render_template_string(HTML_SICK_PRINT, p=p, days=days, days_text=days_text, date=date_str)
 
@@ -411,7 +437,9 @@ def api_queue_archive():
     
     grouped = {}
     for r in rows:
-        date_str = r['created_at'].split(' ')[0] if r['created_at'] else 'Unknown'
+        # Use finished_at for date grouping if available, else created_at
+        time_source = r.get('finished_at') or r['created_at']
+        date_str = time_source.split(' ')[0] if time_source else 'Unknown'
         if date_str not in grouped:
             grouped[date_str] = []
         grouped[date_str].append(r)
@@ -438,7 +466,8 @@ def api_queue_action():
         diag = data.get('diagnosis')
         presc = data.get('prescription')
         med_action = data.get('medical_action')
-        c.execute("UPDATE queue SET status='done', diagnosis=?, prescription=?, medical_action=? WHERE id=?", (diag, presc, med_action, id))
+        now_wita = get_wita_now().strftime("%Y-%m-%d %H:%M:%S")
+        c.execute("UPDATE queue SET status='done', diagnosis=?, prescription=?, medical_action=?, finished_at=? WHERE id=?", (diag, presc, med_action, now_wita, id))
         
     elif action == 'cancel':
         reason = data.get('reason')
@@ -1530,7 +1559,11 @@ HTML_DOCTOR_REKAM = """
                     <div class="glass-panel-custom h-100 m-0" style="border-radius:0; overflow-y:auto; border:none;">
                         <div class="d-flex justify-content-between align-items-center mb-4 sticky-top bg-white p-3 shadow-sm">
                             <h3 class="fw-bold text-success m-0"><i class="fas fa-database me-2"></i> Arsip Data Pasien</h3>
-                            <button class="btn btn-danger rounded-circle shadow-sm" onclick="closeArchive()"><i class="fas fa-times"></i></button>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-primary btn-sm" onclick="setSort('desc')">Terbaru - Terlama</button>
+                                <button class="btn btn-outline-primary btn-sm" onclick="setSort('asc')">Terlama - Terbaru</button>
+                                <button class="btn btn-danger rounded-circle shadow-sm" onclick="closeArchive()"><i class="fas fa-times"></i></button>
+                            </div>
                         </div>
                         <div id="archive-content" class="container py-3">
                             <div class="text-center text-muted"><i class="fas fa-circle-notch fa-spin fa-2x"></i><br>Loading Database...</div>
@@ -1542,53 +1575,87 @@ HTML_DOCTOR_REKAM = """
     </div>
 
     <script>
+    let archiveData = {};
+    let sortOrder = 'desc';
+
     function openArchive() {
         document.getElementById('archive-modal').classList.add('archive-visible');
         fetch('/api/queue/archive').then(r=>r.json()).then(data => {
-            const container = document.getElementById('archive-content');
-            container.innerHTML = '';
-            const dates = Object.keys(data).sort().reverse(); 
-            if(dates.length === 0) {
-                container.innerHTML = '<div class="text-center text-muted mt-5"><h5>Belum ada data arsip.</h5></div>';
-                return;
-            }
-            dates.forEach(date => {
-                const rows = data[date];
-                let html = `<div class="date-header" onclick="toggleDate('${date}')">
-                                <span><i class="far fa-calendar-alt me-2"></i> ${date}</span>
-                                <span class="badge bg-success rounded-pill">${rows.length} Pasien</span>
-                            </div>
-                            <div id="date-${date}" class="date-content">
-                                <div class="table-responsive">
-                                    <table class="table table-bordered table-hover align-middle">
-                                        <thead class="table-success">
-                                            <tr>
-                                                <th>No</th>
-                                                <th>Nama</th>
-                                                <th>Status</th>
-                                                <th>Diagnosa</th>
-                                                <th>Resep</th>
-                                                <th>Tindakan</th>
-                                                <th>Waktu</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>`;
-                rows.forEach(r => {
-                    const badge = r.status==='done' ? '<span class="badge bg-primary">Selesai</span>' : '<span class="badge bg-danger">Batal</span>';
-                    const time = r.created_at ? r.created_at.split(' ')[1] : '-';
-                    html += `<tr>
-                                <td class="text-center fw-bold">${r.number}</td>
-                                <td>${escapeHtml(r.name)}</td>
-                                <td>${badge}</td>
-                                <td>${escapeHtml(r.diagnosis || '-')}</td>
-                                <td>${escapeHtml(r.prescription || '-')}</td>
-                                <td>${escapeHtml(r.medical_action || '-')}</td>
-                                <td class="text-center">${time}</td>
-                             </tr>`;
-                });
-                html += `</tbody></table></div></div>`;
-                container.innerHTML += html;
+            archiveData = data;
+            renderArchive();
+        });
+    }
+
+    function setSort(order) {
+        sortOrder = order;
+        renderArchive();
+    }
+
+    function renderArchive() {
+        const container = document.getElementById('archive-content');
+        container.innerHTML = '';
+        let dates = Object.keys(archiveData);
+        if(sortOrder === 'asc') dates.sort();
+        else dates.sort().reverse();
+
+        if(dates.length === 0) {
+            container.innerHTML = '<div class="text-center text-muted mt-5"><h5>Belum ada data arsip.</h5></div>';
+            return;
+        }
+
+        const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+        dates.forEach(date => {
+            const rows = archiveData[date];
+
+            // Format Date Indo
+            let dateFormatted = date;
+            try {
+                const d = new Date(date);
+                if(!isNaN(d)) dateFormatted = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+            } catch(e) {}
+
+            let html = `<div class="date-header" onclick="toggleDate('${date}')">
+                            <span><i class="far fa-calendar-alt me-2"></i> ${dateFormatted}</span>
+                            <span class="badge bg-success rounded-pill">${rows.length} Pasien</span>
+                        </div>
+                        <div id="date-${date}" class="date-content">
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover align-middle">
+                                    <thead class="table-success">
+                                        <tr>
+                                            <th>No</th>
+                                            <th>Nama</th>
+                                            <th>Status</th>
+                                            <th>Keluhan</th>
+                                            <th>Diagnosa</th>
+                                            <th>Resep</th>
+                                            <th>Tindakan</th>
+                                            <th>Waktu</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>`;
+            rows.forEach(r => {
+                const badge = r.status==='done' ? '<span class="badge bg-primary">Selesai</span>' : '<span class="badge bg-danger">Batal</span>';
+
+                // Time Logic
+                let time = '-';
+                if (r.finished_at) time = r.finished_at.split(' ')[1];
+                else if (r.created_at) time = r.created_at.split(' ')[1];
+
+                html += `<tr>
+                            <td class="text-center fw-bold">${r.number}</td>
+                            <td>${escapeHtml(r.name)}</td>
+                            <td>${badge}</td>
+                            <td>${escapeHtml(r.complaint || '-')}</td>
+                            <td>${escapeHtml(r.diagnosis || '-')}</td>
+                            <td>${escapeHtml(r.prescription || '-')}</td>
+                            <td>${escapeHtml(r.medical_action || '-')}</td>
+                            <td class="text-center">${time} WITA</td>
+                         </tr>`;
             });
+            html += `</tbody></table></div></div>`;
+            container.innerHTML += html;
         });
     }
     function closeArchive() {
@@ -3370,7 +3437,7 @@ HTML_CASHIER = """
                         <tbody>
                             {% for p in patients %}
                             <tr id="row-{{ p.id }}">
-                                <td class="ps-4 fw-bold">{{ p.name }}<br><small class="text-muted">{{ p.created_at.split(' ')[1] }}</small></td>
+                                <td class="ps-4 fw-bold">{{ p.name }}<br><small class="text-muted">{% if p.finished_at %}{{ p.finished_at.split(' ')[1] }} WITA{% else %}{{ p.created_at.split(' ')[1] }}{% endif %}</small></td>
                                 <td>{{ p.medical_action }}</td>
                                 <td><input type="number" id="fee-doc-{{ p.id }}" class="form-control" value="{{ p.fee_doctor }}" onchange="calcTotal({{ p.id }})"></td>
                                 <td><input type="number" id="fee-med-{{ p.id }}" class="form-control" value="{{ p.fee_medicine }}" onchange="calcTotal({{ p.id }})"></td>
@@ -3490,7 +3557,26 @@ HTML_SEARCH = """
     <title>Cari Pasien Lama</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+    <style>
+        body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 9999;
+            justify-content: center; align-items: center;
+        }
+        .modal-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            padding: 30px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popUp { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    </style>
 </head>
 <body>
     {{ navbar|safe }}
@@ -3510,13 +3596,14 @@ HTML_SEARCH = """
                         {% if patients %}
                         <div class="list-group text-start">
                             {% for p in patients %}
-                            <a href="/antrean?name={{ p.name }}&phone={{ p.phone }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3">
+                            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3" style="cursor: pointer;"
+                                 onclick="showPlayerCard('{{ p.name }}', '{{ p.phone }}', '{{ p.finished_at or p.created_at }}', '{{ p.diagnosis or '-' }}')">
                                 <div>
                                     <h5 class="mb-1 fw-bold">{{ p.name }}</h5>
                                     <small class="text-muted"><i class="fas fa-phone me-1"></i> {{ p.phone }}</small>
                                 </div>
                                 <button class="btn btn-success rounded-pill px-4 fw-bold">PILIH <i class="fas fa-arrow-right ms-2"></i></button>
-                            </a>
+                            </div>
                             {% endfor %}
                         </div>
                         {% elif request.args.get('q') %}
@@ -3527,6 +3614,78 @@ HTML_SEARCH = """
             </div>
         </div>
     </div>
+
+    <!-- PLAYER CARD MODAL -->
+    <div id="player-card-modal" class="modal-overlay" onclick="closePlayerCard()">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="text-end">
+                <button class="btn btn-sm btn-danger rounded-circle" onclick="closePlayerCard()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="text-center mb-4">
+                <div class="bg-gradient bg-success text-white rounded-circle d-flex align-items-center justify-content-center mx-auto shadow-lg" style="width: 100px; height: 100px; font-size: 3rem;">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+            <h3 class="fw-bold text-uppercase text-center mb-1" id="pc-name" style="letter-spacing: 1px;">Nama Pasien</h3>
+            <p class="text-muted text-center mb-4 font-monospace" id="pc-phone">08xxxx</p>
+
+            <div class="d-flex flex-column gap-3 text-start mb-4">
+                 <div class="d-flex align-items-center p-3 bg-white rounded-4 shadow-sm border">
+                    <i class="fas fa-history text-warning fa-2x me-3"></i>
+                    <div style="line-height: 1.2;">
+                        <small class="text-muted text-uppercase fw-bold" style="font-size:0.7rem;">Terakhir Berkunjung</small>
+                        <div class="fw-bold text-dark" id="pc-last-visit">-</div>
+                    </div>
+                </div>
+                 <div class="d-flex align-items-center p-3 bg-white rounded-4 shadow-sm border">
+                    <i class="fas fa-notes-medical text-primary fa-2x me-3"></i>
+                    <div style="line-height: 1.2;">
+                        <small class="text-muted text-uppercase fw-bold" style="font-size:0.7rem;">Diagnosa Terakhir</small>
+                        <div class="fw-bold text-dark" id="pc-last-diag">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-success w-100 py-3 fw-bold shadow rounded-pill" id="pc-select-btn">
+                <i class="fas fa-check-circle me-2"></i> PILIH PASIEN INI
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function showPlayerCard(name, phone, lastDate, lastDiag) {
+            document.getElementById('pc-name').innerText = name;
+            document.getElementById('pc-phone').innerText = phone;
+
+            // Format Date if possible
+            let dateDisplay = lastDate;
+            try {
+                if(lastDate && lastDate != 'None') {
+                    const d = new Date(lastDate.replace(' ', 'T'));
+                    if(!isNaN(d)) {
+                         const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+                         dateDisplay = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+                    }
+                } else {
+                    dateDisplay = "Baru / Belum ada data";
+                }
+            } catch(e) {}
+
+            document.getElementById('pc-last-visit').innerText = dateDisplay;
+            document.getElementById('pc-last-diag').innerText = (lastDiag && lastDiag != 'None') ? lastDiag : '-';
+
+            const btn = document.getElementById('pc-select-btn');
+            btn.onclick = function() {
+                window.location.href = '/antrean?name=' + encodeURIComponent(name) + '&phone=' + encodeURIComponent(phone);
+            };
+
+            document.getElementById('player-card-modal').style.display = 'flex';
+        }
+
+        function closePlayerCard() {
+            document.getElementById('player-card-modal').style.display = 'none';
+        }
+    </script>
 </body>
 </html>
 """
