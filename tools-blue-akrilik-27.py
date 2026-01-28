@@ -1407,6 +1407,12 @@ HTML_WALLPAPER = """
     <div class="acrylic-overlay"></div>
     <canvas id="snow-canvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:9000; display:none;"></canvas>
     <canvas id="dust-canvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:9001; display:none;"></canvas>
+    <canvas id="matrix-canvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:9002; display:none;"></canvas>
+    <canvas id="constellation-canvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:9003; display:none;"></canvas>
+    <canvas id="warp-canvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:9004; display:none;"></canvas>
+    <canvas id="confetti-canvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:9005; display:none;"></canvas>
+    <canvas id="bubbles-canvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:9006; display:none;"></canvas>
+    <canvas id="trail-canvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:9007; display:none;"></canvas>
 
     <div class="content-wrapper">
         {{ navbar|safe }}
@@ -1484,6 +1490,36 @@ HTML_WALLPAPER = """
                 <!-- Let it Dust Button -->
                 <button type="button" class="acrylic-btn" onclick="toggleDust()" id="btn-dust">
                     <i class="fas fa-wind me-2"></i> Let it Dust
+                </button>
+
+                <!-- Matrix Rain Button -->
+                <button type="button" class="acrylic-btn" onclick="toggleMatrix()" id="btn-matrix">
+                    <i class="fas fa-terminal me-2"></i> The Matrix Rain
+                </button>
+
+                <!-- Constellation Button -->
+                <button type="button" class="acrylic-btn" onclick="toggleConstellation()" id="btn-constellation">
+                    <i class="fas fa-project-diagram me-2"></i> Constellation
+                </button>
+
+                <!-- Warp Speed Button -->
+                <button type="button" class="acrylic-btn" onclick="toggleWarp()" id="btn-warp">
+                    <i class="fas fa-space-shuttle me-2"></i> Warp Speed
+                </button>
+
+                <!-- Confetti Button -->
+                <button type="button" class="acrylic-btn" onclick="toggleConfetti()" id="btn-confetti">
+                    <i class="fas fa-glass-cheers me-2"></i> Confetti Explosion
+                </button>
+
+                <!-- Bubbles Button -->
+                <button type="button" class="acrylic-btn" onclick="toggleBubbles()" id="btn-bubbles">
+                    <i class="fas fa-soap me-2"></i> Bubbles
+                </button>
+
+                <!-- Mouse Trail Button -->
+                <button type="button" class="acrylic-btn" onclick="toggleMouseTrail()" id="btn-trail">
+                    <i class="fas fa-mouse-pointer me-2"></i> Interactive Mouse Trail
                 </button>
             </div>
             
@@ -1563,185 +1599,6 @@ HTML_WALLPAPER = """
                 const fullscreenBtn = document.getElementById('fullscreen-btn');
                 const fsLockIcon = document.getElementById('fs-lock-icon');
                 const blurPanel = document.getElementById('blur-panel');
-
-                // SNOW LOGIC
-                let snowActive = false;
-                let snowCanvas, snowCtx;
-                let snowflakes = [];
-                let snowAnimFrame;
-
-                function toggleSnow() {
-                    snowActive = !snowActive;
-                    const btn = document.getElementById('btn-snow');
-                    const canvas = document.getElementById('snow-canvas');
-                    
-                    if (snowActive) {
-                        btn.style.background = 'rgba(255, 255, 255, 0.3)'; // Highlight
-                        canvas.style.display = 'block';
-                        initSnow();
-                    } else {
-                        btn.style.background = '';
-                        canvas.style.display = 'none';
-                        cancelAnimationFrame(snowAnimFrame);
-                    }
-                }
-
-                function initSnow() {
-                    snowCanvas = document.getElementById('snow-canvas');
-                    snowCtx = snowCanvas.getContext('2d');
-                    snowCanvas.width = window.innerWidth;
-                    snowCanvas.height = window.innerHeight;
-                    
-                    snowflakes = [];
-                    const count = 150; // Particle count
-                    for (let i = 0; i < count; i++) {
-                        snowflakes.push(createSnowflake());
-                    }
-                    
-                    loopSnow();
-                }
-                
-                function createSnowflake() {
-                    return {
-                        x: Math.random() * window.innerWidth,
-                        y: Math.random() * window.innerHeight,
-                        radius: Math.random() * 3 + 1,
-                        speed: Math.random() * 2 + 0.5,
-                        opacity: Math.random() * 0.5 + 0.3,
-                        drift: Math.random() * 1 - 0.5
-                    };
-                }
-                
-                function loopSnow() {
-                    if (!snowActive) return;
-                    
-                    snowCtx.clearRect(0, 0, snowCanvas.width, snowCanvas.height);
-                    
-                    for (let i = 0; i < snowflakes.length; i++) {
-                        let p = snowflakes[i];
-                        
-                        snowCtx.beginPath();
-                        snowCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                        snowCtx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
-                        snowCtx.fill();
-                        
-                        // Update
-                        p.y += p.speed;
-                        p.x += p.drift;
-                        
-                        // Reset if out of view
-                        if (p.y > window.innerHeight) {
-                            p.y = -5;
-                            p.x = Math.random() * window.innerWidth;
-                        }
-                        if (p.x > window.innerWidth) p.x = 0;
-                        if (p.x < 0) p.x = window.innerWidth;
-                    }
-                    
-                    snowAnimFrame = requestAnimationFrame(loopSnow);
-                }
-                
-                window.addEventListener('resize', () => {
-                    if (snowActive && snowCanvas) {
-                        snowCanvas.width = window.innerWidth;
-                        snowCanvas.height = window.innerHeight;
-                    }
-                    if (dustActive && dustCanvas) {
-                        dustCanvas.width = window.innerWidth;
-                        dustCanvas.height = window.innerHeight;
-                    }
-                });
-
-                // DUST LOGIC
-                let dustActive = false;
-                let dustCanvas, dustCtx;
-                let dustParticles = [];
-                let dustAnimFrame;
-
-                function toggleDust() {
-                    dustActive = !dustActive;
-                    const btn = document.getElementById('btn-dust');
-                    const canvas = document.getElementById('dust-canvas');
-                    
-                    if (dustActive) {
-                        btn.style.background = 'rgba(255, 255, 255, 0.3)'; // Highlight
-                        canvas.style.display = 'block';
-                        initDust();
-                    } else {
-                        btn.style.background = '';
-                        canvas.style.display = 'none';
-                        cancelAnimationFrame(dustAnimFrame);
-                    }
-                }
-
-                function initDust() {
-                    dustCanvas = document.getElementById('dust-canvas');
-                    dustCtx = dustCanvas.getContext('2d');
-                    dustCanvas.width = window.innerWidth;
-                    dustCanvas.height = window.innerHeight;
-                    
-                    dustParticles = [];
-                    const count = 300; // Particle count
-                    for (let i = 0; i < count; i++) {
-                        dustParticles.push(createDustParticle());
-                    }
-                    
-                    loopDust();
-                }
-
-                function createDustParticle() {
-                    return {
-                        x: (Math.random() - 0.5) * window.innerWidth * 4, // Wide spread for depth
-                        y: (Math.random() - 0.5) * window.innerHeight * 4,
-                        z: Math.random() * window.innerWidth, // Depth
-                        vz: Math.random() * 2 + 1, // Velocity towards screen
-                        size: Math.random() * 2,
-                        opacity: Math.random() * 0.5 + 0.2
-                    };
-                }
-
-                function loopDust() {
-                    if (!dustActive) return;
-                    
-                    dustCtx.clearRect(0, 0, dustCanvas.width, dustCanvas.height);
-                    
-                    const cx = dustCanvas.width / 2;
-                    const cy = dustCanvas.height / 2;
-                    const fov = 500; // Field of view
-                    
-                    for (let i = 0; i < dustParticles.length; i++) {
-                        let p = dustParticles[i];
-                        
-                        // Update Z (move towards screen)
-                        p.z -= p.vz;
-                        
-                        // Reset if passed screen
-                        if (p.z <= 0) {
-                            p.z = window.innerWidth;
-                            p.x = (Math.random() - 0.5) * window.innerWidth * 4;
-                            p.y = (Math.random() - 0.5) * window.innerHeight * 4;
-                            p.vz = Math.random() * 2 + 1;
-                        }
-                        
-                        // Perspective projection
-                        const scale = fov / (fov + p.z);
-                        const x2d = cx + p.x * scale;
-                        const y2d = cy + p.y * scale;
-                        const size2d = p.size * scale;
-                        
-                        // Draw only if on screen
-                        if (x2d >= 0 && x2d <= dustCanvas.width && y2d >= 0 && y2d <= dustCanvas.height) {
-                            dustCtx.beginPath();
-                            dustCtx.arc(x2d, y2d, Math.max(0, size2d), 0, Math.PI * 2);
-                            // Fade out as it gets super close (optional, or keep it "hitting lens")
-                            // Let's keep it visible to simulate "hitting lens"
-                            dustCtx.fillStyle = `rgba(200, 200, 200, ${p.opacity})`;
-                            dustCtx.fill();
-                        }
-                    }
-                    
-                    dustAnimFrame = requestAnimationFrame(loopDust);
-                }
 
                 // VIBRATION LOGIC
                 let isVibrationEnabled = false;
@@ -2176,6 +2033,675 @@ HTML_WALLPAPER = """
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // GLOBAL PARTICLE EFFECTS LOGIC
+
+        // SNOW LOGIC
+        let snowActive = false;
+        let snowCanvas, snowCtx;
+        let snowflakes = [];
+        let snowAnimFrame;
+
+        function toggleSnow() {
+            snowActive = !snowActive;
+            const btn = document.getElementById('btn-snow');
+            const canvas = document.getElementById('snow-canvas');
+
+            if (snowActive) {
+                btn.style.background = 'rgba(255, 255, 255, 0.3)'; // Highlight
+                canvas.style.display = 'block';
+                initSnow();
+            } else {
+                btn.style.background = '';
+                canvas.style.display = 'none';
+                cancelAnimationFrame(snowAnimFrame);
+            }
+        }
+
+        function initSnow() {
+            snowCanvas = document.getElementById('snow-canvas');
+            snowCtx = snowCanvas.getContext('2d');
+            snowCanvas.width = window.innerWidth;
+            snowCanvas.height = window.innerHeight;
+
+            snowflakes = [];
+            const count = 150; // Particle count
+            for (let i = 0; i < count; i++) {
+                snowflakes.push(createSnowflake());
+            }
+
+            loopSnow();
+        }
+
+        function createSnowflake() {
+            return {
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                radius: Math.random() * 3 + 1,
+                speed: Math.random() * 2 + 0.5,
+                opacity: Math.random() * 0.5 + 0.3,
+                drift: Math.random() * 1 - 0.5
+            };
+        }
+
+        function loopSnow() {
+            if (!snowActive) return;
+
+            snowCtx.clearRect(0, 0, snowCanvas.width, snowCanvas.height);
+
+            for (let i = 0; i < snowflakes.length; i++) {
+                let p = snowflakes[i];
+
+                snowCtx.beginPath();
+                snowCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                snowCtx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
+                snowCtx.fill();
+
+                // Update
+                p.y += p.speed;
+                p.x += p.drift;
+
+                // Reset if out of view
+                if (p.y > window.innerHeight) {
+                    p.y = -5;
+                    p.x = Math.random() * window.innerWidth;
+                }
+                if (p.x > window.innerWidth) p.x = 0;
+                if (p.x < 0) p.x = window.innerWidth;
+            }
+
+            snowAnimFrame = requestAnimationFrame(loopSnow);
+        }
+
+        // DUST LOGIC
+        let dustActive = false;
+        let dustCanvas, dustCtx;
+        let dustParticles = [];
+        let dustAnimFrame;
+
+        function toggleDust() {
+            dustActive = !dustActive;
+            const btn = document.getElementById('btn-dust');
+            const canvas = document.getElementById('dust-canvas');
+
+            if (dustActive) {
+                btn.style.background = 'rgba(255, 255, 255, 0.3)'; // Highlight
+                canvas.style.display = 'block';
+                initDust();
+            } else {
+                btn.style.background = '';
+                canvas.style.display = 'none';
+                cancelAnimationFrame(dustAnimFrame);
+            }
+        }
+
+        function initDust() {
+            dustCanvas = document.getElementById('dust-canvas');
+            dustCtx = dustCanvas.getContext('2d');
+            dustCanvas.width = window.innerWidth;
+            dustCanvas.height = window.innerHeight;
+
+            dustParticles = [];
+            const count = 300; // Particle count
+            for (let i = 0; i < count; i++) {
+                dustParticles.push(createDustParticle());
+            }
+
+            loopDust();
+        }
+
+        function createDustParticle() {
+            return {
+                x: (Math.random() - 0.5) * window.innerWidth * 4, // Wide spread for depth
+                y: (Math.random() - 0.5) * window.innerHeight * 4,
+                z: Math.random() * window.innerWidth, // Depth
+                vz: Math.random() * 2 + 1, // Velocity towards screen
+                size: Math.random() * 2,
+                opacity: Math.random() * 0.5 + 0.2
+            };
+        }
+
+        function loopDust() {
+            if (!dustActive) return;
+
+            dustCtx.clearRect(0, 0, dustCanvas.width, dustCanvas.height);
+
+            const cx = dustCanvas.width / 2;
+            const cy = dustCanvas.height / 2;
+            const fov = 500; // Field of view
+
+            for (let i = 0; i < dustParticles.length; i++) {
+                let p = dustParticles[i];
+
+                // Update Z (move towards screen)
+                p.z -= p.vz;
+
+                // Reset if passed screen
+                if (p.z <= 0) {
+                    p.z = window.innerWidth;
+                    p.x = (Math.random() - 0.5) * window.innerWidth * 4;
+                    p.y = (Math.random() - 0.5) * window.innerHeight * 4;
+                    p.vz = Math.random() * 2 + 1;
+                }
+
+                // Perspective projection
+                const scale = fov / (fov + p.z);
+                const x2d = cx + p.x * scale;
+                const y2d = cy + p.y * scale;
+                const size2d = p.size * scale;
+
+                // Draw only if on screen
+                if (x2d >= 0 && x2d <= dustCanvas.width && y2d >= 0 && y2d <= dustCanvas.height) {
+                    dustCtx.beginPath();
+                    dustCtx.arc(x2d, y2d, Math.max(0, size2d), 0, Math.PI * 2);
+                    dustCtx.fillStyle = `rgba(200, 200, 200, ${p.opacity})`;
+                    dustCtx.fill();
+                }
+            }
+
+            dustAnimFrame = requestAnimationFrame(loopDust);
+        }
+
+        // MATRIX RAIN LOGIC
+        let matrixActive = false;
+        let matrixCanvas, matrixCtx;
+        let matrixDrops = [];
+        let matrixAnimFrame;
+
+        function toggleMatrix() {
+            matrixActive = !matrixActive;
+            const btn = document.getElementById('btn-matrix');
+            const canvas = document.getElementById('matrix-canvas');
+
+            if (matrixActive) {
+                btn.style.background = 'rgba(0, 255, 0, 0.3)';
+                btn.style.borderColor = '#0f0';
+                canvas.style.display = 'block';
+                initMatrix();
+            } else {
+                btn.style.background = '';
+                btn.style.borderColor = '';
+                canvas.style.display = 'none';
+                cancelAnimationFrame(matrixAnimFrame);
+            }
+        }
+
+        function initMatrix() {
+            matrixCanvas = document.getElementById('matrix-canvas');
+            matrixCtx = matrixCanvas.getContext('2d');
+            matrixCanvas.width = window.innerWidth;
+            matrixCanvas.height = window.innerHeight;
+
+            const fontSize = 16;
+            const columns = matrixCanvas.width / fontSize;
+            matrixDrops = [];
+            for(let x = 0; x < columns; x++) matrixDrops[x] = 1;
+
+            loopMatrix(fontSize);
+        }
+
+        function loopMatrix(fontSize) {
+            if (!matrixActive) return;
+
+            // Translucent black background to create trail effect
+            matrixCtx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+
+            matrixCtx.fillStyle = '#0F0'; // Neon Green
+            matrixCtx.font = fontSize + 'px monospace';
+
+            const chars = '0123456789ABCDEFアァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
+
+            for(let i = 0; i < matrixDrops.length; i++) {
+                const text = chars.charAt(Math.floor(Math.random() * chars.length));
+                matrixCtx.fillText(text, i * fontSize, matrixDrops[i] * fontSize);
+
+                // Reset drop randomly after it has crossed screen
+                if(matrixDrops[i] * fontSize > matrixCanvas.height && Math.random() > 0.975) {
+                    matrixDrops[i] = 0;
+                }
+
+                matrixDrops[i]++;
+            }
+
+            matrixAnimFrame = requestAnimationFrame(() => loopMatrix(fontSize));
+        }
+
+        // CONSTELLATION LOGIC
+        let constellationActive = false;
+        let constellationCanvas, constellationCtx;
+        let stars = [];
+        let constellationAnimFrame;
+
+        function toggleConstellation() {
+            constellationActive = !constellationActive;
+            const btn = document.getElementById('btn-constellation');
+            const canvas = document.getElementById('constellation-canvas');
+
+            if (constellationActive) {
+                btn.style.background = 'rgba(255, 255, 255, 0.3)';
+                canvas.style.display = 'block';
+                initConstellation();
+            } else {
+                btn.style.background = '';
+                canvas.style.display = 'none';
+                cancelAnimationFrame(constellationAnimFrame);
+            }
+        }
+
+        function initConstellation() {
+            constellationCanvas = document.getElementById('constellation-canvas');
+            constellationCtx = constellationCanvas.getContext('2d');
+            constellationCanvas.width = window.innerWidth;
+            constellationCanvas.height = window.innerHeight;
+
+            stars = [];
+            const count = 100;
+            for(let i=0; i<count; i++) {
+                stars.push({
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight,
+                    vx: (Math.random() - 0.5) * 1,
+                    vy: (Math.random() - 0.5) * 1,
+                    radius: Math.random() * 2 + 1
+                });
+            }
+
+            loopConstellation();
+        }
+
+        function loopConstellation() {
+            if (!constellationActive) return;
+
+            constellationCtx.clearRect(0, 0, constellationCanvas.width, constellationCanvas.height);
+
+            // Update and Draw Stars
+            for(let i=0; i<stars.length; i++) {
+                let s = stars[i];
+
+                s.x += s.vx;
+                s.y += s.vy;
+
+                if(s.x < 0 || s.x > window.innerWidth) s.vx *= -1;
+                if(s.y < 0 || s.y > window.innerHeight) s.vy *= -1;
+
+                constellationCtx.beginPath();
+                constellationCtx.arc(s.x, s.y, s.radius, 0, Math.PI*2);
+                constellationCtx.fillStyle = 'white';
+                constellationCtx.fill();
+
+                // Connect
+                for(let j=i+1; j<stars.length; j++) {
+                    let s2 = stars[j];
+                    let dx = s.x - s2.x;
+                    let dy = s.y - s2.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+
+                    if(dist < 150) {
+                        constellationCtx.beginPath();
+                        constellationCtx.strokeStyle = `rgba(255, 255, 255, ${1 - dist/150})`;
+                        constellationCtx.lineWidth = 0.5;
+                        constellationCtx.moveTo(s.x, s.y);
+                        constellationCtx.lineTo(s2.x, s2.y);
+                        constellationCtx.stroke();
+                    }
+                }
+            }
+
+            constellationAnimFrame = requestAnimationFrame(loopConstellation);
+        }
+
+        // WARP SPEED LOGIC
+        let warpActive = false;
+        let warpCanvas, warpCtx;
+        let warpStars = [];
+        let warpAnimFrame;
+
+        function toggleWarp() {
+            warpActive = !warpActive;
+            const btn = document.getElementById('btn-warp');
+            const canvas = document.getElementById('warp-canvas');
+
+            if (warpActive) {
+                btn.style.background = 'rgba(100, 100, 255, 0.4)';
+                btn.style.borderColor = '#aaf';
+                canvas.style.display = 'block';
+                initWarp();
+            } else {
+                btn.style.background = '';
+                btn.style.borderColor = '';
+                canvas.style.display = 'none';
+                cancelAnimationFrame(warpAnimFrame);
+            }
+        }
+
+        function initWarp() {
+            warpCanvas = document.getElementById('warp-canvas');
+            warpCtx = warpCanvas.getContext('2d');
+            warpCanvas.width = window.innerWidth;
+            warpCanvas.height = window.innerHeight;
+
+            warpStars = [];
+            const count = 500;
+            for(let i=0; i<count; i++) {
+                warpStars.push({
+                    x: Math.random() * window.innerWidth - window.innerWidth/2,
+                    y: Math.random() * window.innerHeight - window.innerHeight/2,
+                    z: Math.random() * window.innerWidth
+                });
+            }
+
+            loopWarp();
+        }
+
+        function loopWarp() {
+            if (!warpActive) return;
+
+            // Trail effect
+            warpCtx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            warpCtx.fillRect(0, 0, warpCanvas.width, warpCanvas.height);
+
+            const cx = warpCanvas.width / 2;
+            const cy = warpCanvas.height / 2;
+            const speed = 15;
+
+            for(let i=0; i<warpStars.length; i++) {
+                let s = warpStars[i];
+                s.z -= speed;
+
+                if(s.z <= 0) {
+                    s.z = window.innerWidth;
+                    s.x = Math.random() * window.innerWidth - cx;
+                    s.y = Math.random() * window.innerHeight - cy;
+                }
+
+                const sx = (s.x / s.z) * 1000 + cx;
+                const sy = (s.y / s.z) * 1000 + cy;
+                const size = (1 - s.z / window.innerWidth) * 5;
+
+                if(sx > 0 && sx < warpCanvas.width && sy > 0 && sy < warpCanvas.height) {
+                    warpCtx.beginPath();
+                    warpCtx.arc(sx, sy, Math.max(0, size), 0, Math.PI*2);
+                    warpCtx.fillStyle = 'white';
+                    warpCtx.fill();
+                }
+            }
+
+            warpAnimFrame = requestAnimationFrame(loopWarp);
+        }
+
+        // CONFETTI LOGIC
+        let confettiActive = false;
+        let confettiCanvas, confettiCtx;
+        let confettiParticles = [];
+        let confettiAnimFrame;
+
+        function toggleConfetti() {
+            confettiActive = !confettiActive;
+            const btn = document.getElementById('btn-confetti');
+            const canvas = document.getElementById('confetti-canvas');
+
+            if (confettiActive) {
+                btn.style.background = 'rgba(255, 100, 100, 0.3)';
+                canvas.style.display = 'block';
+                initConfetti();
+            } else {
+                btn.style.background = '';
+                canvas.style.display = 'none';
+                cancelAnimationFrame(confettiAnimFrame);
+            }
+        }
+
+        function initConfetti() {
+            confettiCanvas = document.getElementById('confetti-canvas');
+            confettiCtx = confettiCanvas.getContext('2d');
+            confettiCanvas.width = window.innerWidth;
+            confettiCanvas.height = window.innerHeight;
+
+            confettiParticles = [];
+            const colors = ['#f00', '#0f0', '#00f', '#ff0', '#0ff', '#f0f', '#fff'];
+
+            for(let i=0; i<150; i++) {
+                confettiParticles.push({
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight - window.innerHeight,
+                    r: Math.random() * 10 + 5,
+                    d: Math.random() * 10 + 10, // density
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    tilt: Math.floor(Math.random() * 10) - 10,
+                    tiltAngle: 0,
+                    tiltAngleIncremental: (Math.random() * 0.07) + 0.05
+                });
+            }
+
+            loopConfetti();
+        }
+
+        function loopConfetti() {
+            if (!confettiActive) return;
+
+            confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+
+            for(let i=0; i<confettiParticles.length; i++) {
+                let p = confettiParticles[i];
+
+                p.tiltAngle += p.tiltAngleIncremental;
+                p.y += (Math.cos(p.d) + 3 + p.r / 2) / 2;
+                p.tilt = Math.sin(p.tiltAngle - i / 3) * 15;
+
+                // Draw (Simulated 3D paper flip)
+                confettiCtx.beginPath();
+                confettiCtx.lineWidth = p.r / 2;
+                confettiCtx.strokeStyle = p.color;
+                confettiCtx.moveTo(p.x + p.tilt + p.r / 4, p.y);
+                confettiCtx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 4);
+                confettiCtx.stroke();
+
+                // Reset
+                if(p.y > window.innerHeight) {
+                    p.x = Math.random() * window.innerWidth;
+                    p.y = -20;
+                    p.tilt = Math.floor(Math.random() * 10) - 10;
+                }
+            }
+
+            confettiAnimFrame = requestAnimationFrame(loopConfetti);
+        }
+
+        // BUBBLES LOGIC
+        let bubblesActive = false;
+        let bubblesCanvas, bubblesCtx;
+        let bubbles = [];
+        let bubblesAnimFrame;
+
+        function toggleBubbles() {
+            bubblesActive = !bubblesActive;
+            const btn = document.getElementById('btn-bubbles');
+            const canvas = document.getElementById('bubbles-canvas');
+
+            if (bubblesActive) {
+                btn.style.background = 'rgba(100, 200, 255, 0.3)';
+                canvas.style.display = 'block';
+                initBubbles();
+            } else {
+                btn.style.background = '';
+                canvas.style.display = 'none';
+                cancelAnimationFrame(bubblesAnimFrame);
+            }
+        }
+
+        function initBubbles() {
+            bubblesCanvas = document.getElementById('bubbles-canvas');
+            bubblesCtx = bubblesCanvas.getContext('2d');
+            bubblesCanvas.width = window.innerWidth;
+            bubblesCanvas.height = window.innerHeight;
+
+            bubbles = [];
+            for(let i=0; i<50; i++) {
+                bubbles.push({
+                    x: Math.random() * window.innerWidth,
+                    y: window.innerHeight + Math.random() * 100,
+                    r: Math.random() * 15 + 5,
+                    speed: Math.random() * 2 + 1,
+                    osc: Math.random() * 100
+                });
+            }
+
+            loopBubbles();
+        }
+
+        function loopBubbles() {
+            if (!bubblesActive) return;
+
+            bubblesCtx.clearRect(0, 0, bubblesCanvas.width, bubblesCanvas.height);
+
+            for(let i=0; i<bubbles.length; i++) {
+                let b = bubbles[i];
+
+                b.y -= b.speed;
+                b.x += Math.sin(b.y * 0.02 + b.osc) * 0.5;
+
+                bubblesCtx.beginPath();
+                bubblesCtx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+                bubblesCtx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                bubblesCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                bubblesCtx.lineWidth = 1;
+                bubblesCtx.fill();
+                bubblesCtx.stroke();
+
+                // Shine
+                bubblesCtx.beginPath();
+                bubblesCtx.arc(b.x - b.r/3, b.y - b.r/3, b.r/4, 0, Math.PI*2);
+                bubblesCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                bubblesCtx.fill();
+
+                if(b.y < -b.r) {
+                    b.y = window.innerHeight + b.r;
+                    b.x = Math.random() * window.innerWidth;
+                }
+            }
+
+            bubblesAnimFrame = requestAnimationFrame(loopBubbles);
+        }
+
+        // MOUSE TRAIL LOGIC
+        let trailActive = false;
+        let trailCanvas, trailCtx;
+        let trailParticles = [];
+        let trailAnimFrame;
+        let mouseX = 0, mouseY = 0;
+
+        function handleMouseMove(e) {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            if(trailActive) {
+                for(let i=0; i<3; i++) {
+                    trailParticles.push({
+                        x: mouseX,
+                        y: mouseY,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 2,
+                        size: Math.random() * 5 + 2,
+                        color: `hsl(${Math.random()*360}, 100%, 50%)`,
+                        life: 1.0
+                    });
+                }
+            }
+        }
+
+        function toggleMouseTrail() {
+            trailActive = !trailActive;
+            const btn = document.getElementById('btn-trail');
+            const canvas = document.getElementById('trail-canvas');
+
+            if (trailActive) {
+                btn.style.background = 'rgba(255, 255, 0, 0.3)';
+                canvas.style.display = 'block';
+                initMouseTrail();
+                document.addEventListener('mousemove', handleMouseMove);
+            } else {
+                btn.style.background = '';
+                canvas.style.display = 'none';
+                cancelAnimationFrame(trailAnimFrame);
+                document.removeEventListener('mousemove', handleMouseMove);
+            }
+        }
+
+        function initMouseTrail() {
+            trailCanvas = document.getElementById('trail-canvas');
+            trailCtx = trailCanvas.getContext('2d');
+            trailCanvas.width = window.innerWidth;
+            trailCanvas.height = window.innerHeight;
+            trailParticles = [];
+            loopMouseTrail();
+        }
+
+        function loopMouseTrail() {
+            if (!trailActive) return;
+
+            // Fade out effect
+            trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
+
+            for(let i=0; i<trailParticles.length; i++) {
+                let p = trailParticles[i];
+
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                p.size *= 0.95;
+
+                if(p.life > 0) {
+                    trailCtx.beginPath();
+                    trailCtx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                    trailCtx.fillStyle = p.color;
+                    trailCtx.globalAlpha = p.life;
+                    trailCtx.fill();
+                    trailCtx.globalAlpha = 1.0;
+                } else {
+                    trailParticles.splice(i, 1);
+                    i--;
+                }
+            }
+
+            trailAnimFrame = requestAnimationFrame(loopMouseTrail);
+        }
+
+        window.addEventListener('resize', () => {
+            if (snowActive && snowCanvas) {
+                snowCanvas.width = window.innerWidth;
+                snowCanvas.height = window.innerHeight;
+            }
+            if (dustActive && dustCanvas) {
+                dustCanvas.width = window.innerWidth;
+                dustCanvas.height = window.innerHeight;
+            }
+            if (matrixActive && matrixCanvas) {
+                matrixCanvas.width = window.innerWidth;
+                matrixCanvas.height = window.innerHeight;
+                initMatrix(); // Re-init to fix columns
+            }
+            if (constellationActive && constellationCanvas) {
+                constellationCanvas.width = window.innerWidth;
+                constellationCanvas.height = window.innerHeight;
+            }
+            if (warpActive && warpCanvas) {
+                warpCanvas.width = window.innerWidth;
+                warpCanvas.height = window.innerHeight;
+            }
+            if (confettiActive && confettiCanvas) {
+                confettiCanvas.width = window.innerWidth;
+                confettiCanvas.height = window.innerHeight;
+            }
+            if (bubblesActive && bubblesCanvas) {
+                bubblesCanvas.width = window.innerWidth;
+                bubblesCanvas.height = window.innerHeight;
+            }
+            if (trailActive && trailCanvas) {
+                trailCanvas.width = window.innerWidth;
+                trailCanvas.height = window.innerHeight;
+            }
+        });
+    </script>
 </body>
 </html>
 """
