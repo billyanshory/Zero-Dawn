@@ -1,0 +1,21 @@
+ * Serving Flask app 'klinik-delima-dalam-17'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [28/Jan/2026 16:56:20] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jan/2026 16:56:20] "GET /antrean HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jan/2026 16:56:20] "[31m[1mGET /kasir HTTP/1.1[0m" 403 -
+127.0.0.1 - - [28/Jan/2026 16:56:20] "[31m[1mGET /rekam-medis HTTP/1.1[0m" 403 -
+127.0.0.1 - - [28/Jan/2026 16:56:20] "[32mPOST /login HTTP/1.1[0m" 302 -
+127.0.0.1 - - [28/Jan/2026 16:56:20] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jan/2026 16:56:20] "GET /kasir HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jan/2026 16:56:20] "[31m[1mGET /rekam-medis HTTP/1.1[0m" 403 -
+127.0.0.1 - - [28/Jan/2026 16:56:20] "[31m[1mPOST /api/queue/action HTTP/1.1[0m" 403 -
+127.0.0.1 - - [28/Jan/2026 16:56:20] "[32mPOST /login HTTP/1.1[0m" 302 -
+127.0.0.1 - - [28/Jan/2026 16:56:20] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jan/2026 16:56:20] "GET /kasir HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jan/2026 16:56:20] "GET /rekam-medis HTTP/1.1" 200 -
+/app/klinik-delima-dalam-17.py:26: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  return datetime.datetime.utcnow() + datetime.timedelta(hours=8)
+127.0.0.1 - - [28/Jan/2026 16:56:25] "POST /api/queue/action HTTP/1.1" 200 -
