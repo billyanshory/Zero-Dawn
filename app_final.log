@@ -1,0 +1,7 @@
+ * Serving Flask app 'klinik-delima-dalam-15'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [28/Jan/2026 10:53:26] "POST /api/queue/add HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jan/2026 10:53:26] "GET /audit-log HTTP/1.1" 200 -

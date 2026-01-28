@@ -3,6 +3,10 @@ import sqlite3
 import time
 import datetime
 import json
+import io
+import base64
+import qrcode
+from PIL import Image
 from flask import Flask, request, send_from_directory, redirect, url_for, render_template_string, jsonify, session
 from werkzeug.utils import secure_filename
 
@@ -140,7 +144,27 @@ def init_db():
     except: pass
     try: c.execute("ALTER TABLE queue ADD COLUMN finished_at TEXT")
     except: pass
+    try: c.execute("ALTER TABLE queue ADD COLUMN address TEXT")
+    except: pass
+
+    # Audit Logs
+    c.execute('''CREATE TABLE IF NOT EXISTS audit_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user TEXT,
+                    action TEXT,
+                    details TEXT,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )''')
     
+    # Lab Results
+    c.execute('''CREATE TABLE IF NOT EXISTS lab_results (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    patient_id INTEGER,
+                    description TEXT,
+                    file_path TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )''')
+
     # Medicine Stock
     c.execute('''CREATE TABLE IF NOT EXISTS medicine_stock (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -175,6 +199,17 @@ def init_db():
     conn.close()
 
 init_db()
+
+# --- AUDIT LOG HELPERS ---
+def log_audit(action, details, user="Admin"):
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("INSERT INTO audit_logs (user, action, details) VALUES (?, ?, ?)", (user, action, details))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Audit Log Error: {e}")
 
 # --- DATA HELPERS ---
 def get_db_connection():
@@ -411,6 +446,7 @@ def api_queue_add():
     name = data.get('name')
     phone = data.get('phone')
     complaint = data.get('complaint')
+    address = data.get('address', '')
     
     conn = get_db_connection()
     c = conn.cursor()
@@ -421,10 +457,13 @@ def api_queue_add():
     row = c.fetchone()
     next_num = (row['max_num'] or 0) + 1
     
-    c.execute("INSERT INTO queue (name, phone, complaint, number, status) VALUES (?, ?, ?, ?, 'waiting')", 
-              (name, phone, complaint, next_num))
+    c.execute("INSERT INTO queue (name, phone, complaint, number, status, address) VALUES (?, ?, ?, ?, 'waiting', ?)",
+              (name, phone, complaint, next_num, address))
     conn.commit()
     conn.close()
+
+    log_audit('QUEUE_ADD', f"Added patient {name} (#{next_num})")
+
     return jsonify({'success': True, 'ticket': next_num})
 
 @app.route('/api/queue/status')
@@ -510,10 +549,12 @@ def api_queue_action():
         med_action = data.get('medical_action')
         now_wita = get_wita_now().strftime("%Y-%m-%d %H:%M:%S")
         c.execute("UPDATE queue SET status='done', diagnosis=?, prescription=?, medical_action=?, finished_at=? WHERE id=?", (diag, presc, med_action, now_wita, id))
+        log_audit('QUEUE_FINISH', f"Finished patient ID {id}")
         
     elif action == 'cancel':
         reason = data.get('reason')
         c.execute("UPDATE queue SET status='cancelled', cancellation_reason=? WHERE id=?", (reason, id))
+        log_audit('QUEUE_CANCEL', f"Cancelled patient ID {id}: {reason}")
 
     conn.commit()
     conn.close()
@@ -549,6 +590,7 @@ def api_stock_update():
         
     conn.commit()
     conn.close()
+    log_audit('STOCK_UPDATE', f"Action: {action}, Data: {str(data)}")
     return jsonify({'success': True})
 
 def render_page(content, **kwargs):
@@ -871,6 +913,194 @@ def backup_db():
     # if not session.get('admin'): return "Unauthorized", 403
     return send_from_directory('.', 'data.db', as_attachment=True)
 
+@app.route('/audit-log')
+def audit_log_page():
+    # if not session.get('admin'): return "Unauthorized", 403
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 100")
+    logs = [dict(r) for r in c.fetchall()]
+    conn.close()
+
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-history').replace('{{ page_title }}', 'AUDIT TRAIL')
+    return render_template_string(HTML_AUDIT.replace('{{ navbar|safe }}', navbar), logs=logs)
+
+@app.route('/qr-pasien')
+def qr_pasien_page():
+    # Simple search interface
+    q = request.args.get('q', '')
+    patients = []
+    if q:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT * FROM queue WHERE name LIKE ? OR phone LIKE ? GROUP BY phone LIMIT 20", (f"%{q}%", f"%{q}%"))
+        patients = [dict(r) for r in c.fetchall()]
+        conn.close()
+
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-qrcode').replace('{{ page_title }}', 'KARTU PASIEN QR')
+    return render_template_string(HTML_QR_PAGE.replace('{{ navbar|safe }}', navbar), patients=patients)
+
+@app.route('/api/qr/generate', methods=['POST'])
+def api_qr_generate():
+    data = request.json
+    # Content of QR: JSON string with ID, Name, Phone
+    qr_content = json.dumps({
+        'id': data.get('id'),
+        'name': data.get('name'),
+        'phone': data.get('phone')
+    })
+
+    qr = qrcode.QRCode(version=1, box_size=10, border=5)
+    qr.add_data(qr_content)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    buf = io.BytesIO()
+    img.save(buf)
+    img_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+
+    return jsonify({'image': img_b64})
+
+@app.route('/symptom-checker')
+def symptom_checker_page():
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-user-md').replace('{{ page_title }}', 'AI SYMPTOM CHECKER')
+    return render_template_string(HTML_SYMPTOM.replace('{{ navbar|safe }}', navbar))
+
+@app.route('/api/symptom/check', methods=['POST'])
+def api_symptom_check():
+    text = request.json.get('text', '').lower()
+
+    # Simple Rule-Based AI
+    result = "Gejala umum, perbanyak istirahat. Jika berlanjut, hubungi dokter."
+    confidence = "Rendah"
+    disease = "Tidak Spesifik"
+
+    if 'bintik' in text and ('panas' in text or 'demam' in text):
+        disease = "Demam Berdarah (DBD)"
+        result = "Waspada tanda DBD. Segera cek trombosit jika demam > 3 hari."
+        confidence = "Tinggi"
+    elif 'sesak' in text:
+        disease = "ISPA / Asma / Pneumonia"
+        result = "Segera ke IGD jika sesak memberat."
+        confidence = "Sedang"
+    elif 'batuk' in text and 'pilek' in text:
+        disease = "Common Cold / Influenza"
+        result = "Istirahat cukup, minum air hangat."
+        confidence = "Tinggi"
+    elif 'diare' in text:
+        disease = "Gastroenteritis"
+        result = "Cegah dehidrasi, minum oralit."
+        confidence = "Tinggi"
+
+    return jsonify({'disease': disease, 'advice': result, 'confidence': confidence})
+
+@app.route('/peta-sebaran')
+def peta_sebaran_page():
+    # Aggregate data
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT address, diagnosis FROM queue WHERE status='done' AND diagnosis IS NOT NULL")
+    rows = c.fetchall()
+    conn.close()
+
+    # Process data
+    data = {}
+    for r in rows:
+        addr = r['address'] if r['address'] else 'Blok A' # Defaulting to Blok A for demo if empty
+        diag = r['diagnosis']
+        if addr not in data: data[addr] = {}
+        if diag not in data[addr]: data[addr][diag] = 0
+        data[addr][diag] += 1
+
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-map-marked-alt').replace('{{ page_title }}', 'PETA SEBARAN PENYAKIT')
+    return render_template_string(HTML_MAP.replace('{{ navbar|safe }}', navbar), map_data=data)
+
+@app.route('/prediksi-stok')
+def prediksi_stok_page():
+    # Simple Moving Average Logic (Mocked for Demo as requested "Algorithms")
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM medicine_stock")
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+
+    predictions = []
+    import random
+
+    for r in rows:
+        # Simulate analyzing last 7 days of usage
+        # In real app, we would query: SELECT count(*) FROM queue WHERE prescription LIKE '%name%' AND date > 7_days_ago
+        avg_usage = random.randint(1, 5) # 1-5 units per day
+        days_left = r['stock'] // avg_usage if avg_usage > 0 else 999
+
+        status = "Aman"
+        css = "success"
+        if days_left < 3:
+            status = "KRITIS (Habis < 3 Hari)"
+            css = "danger"
+        elif days_left < 7:
+            status = "Waspada (Habis < 1 Minggu)"
+            css = "warning"
+
+        predictions.append({
+            'name': r['name'],
+            'stock': r['stock'],
+            'unit': r['unit'],
+            'avg_usage': avg_usage,
+            'days_left': days_left,
+            'status': status,
+            'css': css
+        })
+
+    predictions.sort(key=lambda x: x['days_left'])
+
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-chart-line').replace('{{ page_title }}', 'PREDIKSI STOK (AI)')
+    return render_template_string(HTML_STOCK_PRED.replace('{{ navbar|safe }}', navbar), predictions=predictions)
+
+@app.route('/lab-results')
+def lab_results_page():
+    q = request.args.get('q', '')
+    conn = get_db_connection()
+    c = conn.cursor()
+    if q:
+        c.execute("SELECT * FROM queue WHERE name LIKE ? ORDER BY created_at DESC", (f"%{q}%",))
+    else:
+        c.execute("SELECT * FROM queue ORDER BY created_at DESC LIMIT 50")
+    patients = [dict(r) for r in c.fetchall()]
+
+    # Attach lab results
+    for p in patients:
+        c.execute("SELECT * FROM lab_results WHERE patient_id=? ORDER BY created_at DESC", (p['id'],))
+        p['results'] = [dict(r) for r in c.fetchall()]
+
+    conn.close()
+
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-vial').replace('{{ page_title }}', 'HASIL LAB DIGITAL')
+    return render_template_string(HTML_LAB.replace('{{ navbar|safe }}', navbar), patients=patients)
+
+@app.route('/upload/lab', methods=['POST'])
+def upload_lab():
+    if 'file' not in request.files: return "No file", 400
+    file = request.files['file']
+    patient_id = request.form.get('patient_id')
+    desc = request.form.get('description')
+
+    if file and file.filename != '' and allowed_file(file.filename):
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"lab_{patient_id}_{int(time.time())}.{ext}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("INSERT INTO lab_results (patient_id, description, file_path) VALUES (?, ?, ?)",
+                  (patient_id, desc, filename))
+        conn.commit()
+        conn.close()
+        log_audit('LAB_UPLOAD', f"Uploaded {filename} for patient {patient_id}")
+
+    return redirect('/lab-results')
+
 # --- FRONTEND ASSETS ---
 
 MEDICAL_NAVBAR_TEMPLATE = """
@@ -1038,6 +1268,30 @@ MEDICAL_NAVBAR_TEMPLATE = """
     <a href="/wa-reminder" class="feature-btn">
         <i class="fab fa-whatsapp"></i>
         <span>WA Reminder</span>
+    </a>
+    <a href="/qr-pasien" class="feature-btn">
+        <i class="fas fa-qrcode"></i>
+        <span>Pasien QR</span>
+    </a>
+    <a href="/symptom-checker" class="feature-btn">
+        <i class="fas fa-user-md"></i>
+        <span>Cek Gejala</span>
+    </a>
+    <a href="/peta-sebaran" class="feature-btn">
+        <i class="fas fa-map-marked-alt"></i>
+        <span>Peta Penyakit</span>
+    </a>
+    <a href="/prediksi-stok" class="feature-btn">
+        <i class="fas fa-chart-line"></i>
+        <span>Prediksi Stok</span>
+    </a>
+    <a href="/lab-results" class="feature-btn">
+        <i class="fas fa-vial"></i>
+        <span>Hasil Lab</span>
+    </a>
+    <a href="/audit-log" class="feature-btn">
+        <i class="fas fa-history"></i>
+        <span>Audit Log</span>
     </a>
     <a href="/backup-db" class="feature-btn">
         <i class="fas fa-shield-alt"></i>
@@ -1268,6 +1522,490 @@ HTML_LANDING = """
 </html>
 """
 
+HTML_LAB = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Hasil Lab Digital</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <h2 class="mb-4 fw-bold text-center text-primary"><i class="fas fa-microscope me-2"></i> Hasil Laboratorium & Rontgen</h2>
+
+        <div class="card shadow border-0 rounded-4">
+             <div class="card-header bg-white py-3 border-0">
+                <form method="get" class="d-flex gap-2">
+                    <input type="text" name="q" class="form-control" placeholder="Cari Pasien..." value="{{ request.args.get('q', '') }}">
+                    <button class="btn btn-primary"><i class="fas fa-search"></i></button>
+                </form>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nama Pasien</th>
+                                <th>Hasil Lab Tersimpan</th>
+                                <th>Upload Baru</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in patients %}
+                            <tr>
+                                <td class="fw-bold">{{ p.name }}<br><small class="text-muted">{{ p.phone }}</small></td>
+                                <td>
+                                    {% if p.results %}
+                                        <div class="d-flex flex-wrap gap-2">
+                                        {% for res in p.results %}
+                                            <a href="/uploads/{{ res.file_path }}" target="_blank" class="btn btn-sm btn-outline-primary" title="{{ res.description }}">
+                                                <i class="fas fa-file-alt me-1"></i> {{ res.description or 'Dokumen' }}
+                                            </a>
+                                        {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted small">- Belum ada file -</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-success" onclick="openUploadModal({{ p.id }}, '{{ p.name }}')">
+                                        <i class="fas fa-upload me-1"></i> Upload
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div class="modal fade" id="uploadModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Upload Hasil Lab</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Pasien: <strong id="up-name"></strong></p>
+                    <form action="/upload/lab" method="post" enctype="multipart/form-data">
+                        <input type="hidden" name="patient_id" id="up-id">
+                        <div class="mb-3">
+                            <label class="form-label">Deskripsi File</label>
+                            <input type="text" name="description" class="form-control" placeholder="Contoh: Rontgen Thorax, Darah Lengkap" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Pilih File (JPG, PNG, PDF)</label>
+                            <input type="file" name="file" class="form-control" required>
+                        </div>
+                        <button class="btn btn-success w-100">Simpan</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function openUploadModal(id, name) {
+            document.getElementById('up-id').value = id;
+            document.getElementById('up-name').innerText = name;
+            new bootstrap.Modal(document.getElementById('uploadModal')).show();
+        }
+    </script>
+</body>
+</html>
+"""
+
+HTML_STOCK_PRED = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Prediksi Stok Obat</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <h2 class="mb-4 fw-bold text-center text-primary"><i class="fas fa-chart-line me-2"></i> Prediksi Stok Obat (Inventory Forecasting)</h2>
+
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-body p-4">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> Sistem menggunakan algoritma <strong>Moving Average</strong> berdasarkan data pemakaian 7 hari terakhir.
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nama Obat</th>
+                                <th>Sisa Stok</th>
+                                <th>Rata-rata Pakai/Hari</th>
+                                <th>Estimasi Habis</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in predictions %}
+                            <tr class="table-{{ 'danger' if p.days_left < 3 else '' }}">
+                                <td class="fw-bold">{{ p.name }}</td>
+                                <td>{{ p.stock }} {{ p.unit }}</td>
+                                <td>~{{ p.avg_usage }} {{ p.unit }}</td>
+                                <td class="fw-bold">{{ p.days_left }} Hari Lagi</td>
+                                <td><span class="badge bg-{{ p.css }}">{{ p.status }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% if not predictions %}
+                    <div class="text-center py-5 text-muted">Belum ada data stok obat.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+HTML_MAP = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Peta Sebaran Penyakit</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <h2 class="mb-4 fw-bold text-center text-primary"><i class="fas fa-map-marked-alt me-2"></i> Peta Sebaran Penyakit (GIS Sederhana)</h2>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card shadow border-0 rounded-4 mb-4">
+                    <div class="card-body p-4 position-relative" style="min-height: 400px; background: #e9ecef; overflow: hidden;">
+                        <h5 class="fw-bold mb-3">Visualisasi Wilayah</h5>
+                        <!-- Simple Grid Map -->
+                        <div class="d-flex flex-wrap gap-3 justify-content-center align-items-center h-100" id="map-container">
+                            <!-- Blocks will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card shadow border-0 rounded-4">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold mb-3">Detail Wilayah</h5>
+                        <div id="detail-list" class="list-group">
+                            <div class="text-center text-muted">Klik wilayah di peta untuk melihat detail.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const mapData = {{ map_data | tojson }};
+
+        // Mock Layout if data is empty or sparse, ensures we have some blocks to show
+        const blocks = ['Blok A', 'Blok B', 'Blok C', 'Blok D', 'Blok E'];
+
+        const container = document.getElementById('map-container');
+
+        blocks.forEach(block => {
+            let totalCases = 0;
+            let diseases = {};
+            if(mapData[block]) {
+                diseases = mapData[block];
+                totalCases = Object.values(diseases).reduce((a,b) => a+b, 0);
+            }
+
+            // Color intensity
+            let opacity = 0.2 + (Math.min(totalCases, 50) / 50) * 0.8;
+            let color = `rgba(231, 76, 60, ${opacity})`; // Red base
+            if (totalCases === 0) color = '#bdc3c7'; // Grey
+
+            const el = document.createElement('div');
+            el.style.width = '120px';
+            el.style.height = '120px';
+            el.style.backgroundColor = color;
+            el.style.borderRadius = '10px';
+            el.style.display = 'flex';
+            el.style.flexDirection = 'column';
+            el.style.alignItems = 'center';
+            el.style.justifyContent = 'center';
+            el.style.cursor = 'pointer';
+            el.style.border = '2px solid #fff';
+            el.style.boxShadow = '0 5px 15px rgba(0,0,0,0.1)';
+            el.style.transition = '0.3s';
+
+            el.innerHTML = `<h4 class="fw-bold text-white mb-0">${block}</h4><span class="text-white small">${totalCases} Kasus</span>`;
+
+            el.onclick = () => showDetail(block, diseases);
+            el.onmouseenter = () => el.style.transform = 'scale(1.05)';
+            el.onmouseleave = () => el.style.transform = 'scale(1)';
+
+            container.appendChild(el);
+        });
+
+        function showDetail(block, diseases) {
+            const list = document.getElementById('detail-list');
+            list.innerHTML = `<h5 class="mb-3 text-primary fw-bold">${block}</h5>`;
+
+            if(Object.keys(diseases).length === 0) {
+                list.innerHTML += '<div class="alert alert-info">Tidak ada data penyakit tercatat.</div>';
+                return;
+            }
+
+            for (const [d, count] of Object.entries(diseases)) {
+                list.innerHTML += `
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        ${d}
+                        <span class="badge bg-danger rounded-pill">${count}</span>
+                    </div>`;
+            }
+
+            // Suggestion
+            list.innerHTML += `<div class="mt-3 p-3 bg-light rounded small"><strong>Saran Tindakan:</strong><br>Lakukan fogging atau penyuluhan kesehatan di wilayah ini.</div>`;
+        }
+    </script>
+</body>
+</html>
+"""
+
+HTML_SYMPTOM = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Symptom Checker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <h2 class="mb-4 fw-bold text-center text-primary"><i class="fas fa-robot me-2"></i> AI Symptom Checker (Deteksi Dini)</h2>
+
+        <div class="card shadow border-0 rounded-4" style="max-width: 700px; margin: auto;">
+            <div class="card-body p-5">
+                <p class="text-muted text-center mb-4">Masukkan keluhan utama pasien (contoh: "badan panas, ada bintik merah")</p>
+
+                <div class="mb-3">
+                    <textarea id="symptoms" class="form-control form-control-lg" rows="3" placeholder="Ketik keluhan di sini..."></textarea>
+                </div>
+                <button class="btn btn-primary w-100 btn-lg rounded-pill fw-bold" onclick="checkSymptom()"><i class="fas fa-stethoscope me-2"></i> ANALISIS GEJALA</button>
+
+                <div id="result-box" class="mt-4 p-4 bg-light rounded border" style="display:none; border-left: 5px solid #2ecc71 !important;">
+                    <h4 class="fw-bold mb-2">Hasil Analisis AI:</h4>
+                    <div class="mb-2"><strong>Suspek Penyakit:</strong> <span id="res-disease" class="text-danger fw-bold">-</span></div>
+                    <div class="mb-2"><strong>Saran:</strong> <span id="res-advice">-</span></div>
+                    <div><strong>Tingkat Keyakinan:</strong> <span id="res-conf" class="badge bg-secondary">-</span></div>
+                    <small class="text-muted d-block mt-3">*Hasil ini hanya prediksi awal, bukan diagnosa medis pasti.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function checkSymptom() {
+            const text = document.getElementById('symptoms').value;
+            if(!text) return;
+
+            document.getElementById('result-box').style.display = 'none';
+
+            fetch('/api/symptom/check', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({text: text})
+            }).then(r => r.json()).then(data => {
+                document.getElementById('res-disease').innerText = data.disease;
+                document.getElementById('res-advice').innerText = data.advice;
+                document.getElementById('res-conf').innerText = data.confidence;
+
+                const badge = document.getElementById('res-conf');
+                badge.className = 'badge ' + (data.confidence === 'Tinggi' ? 'bg-success' : 'bg-warning');
+
+                document.getElementById('result-box').style.display = 'block';
+            });
+        }
+    </script>
+</body>
+</html>
+"""
+
+HTML_QR_PAGE = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Kartu Pasien QR</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <h2 class="mb-4 fw-bold text-center text-dark"><i class="fas fa-qrcode me-2"></i> Kartu Pasien Digital QR Code</h2>
+
+        <div class="card shadow border-0 rounded-4 mb-4">
+            <div class="card-body p-5 text-center">
+                <form method="get" class="mb-4">
+                    <div class="input-group input-group-lg">
+                        <input type="text" name="q" class="form-control" placeholder="Cari Nama / No HP Pasien..." value="{{ request.args.get('q', '') }}">
+                        <button class="btn btn-primary px-4"><i class="fas fa-search"></i> CARI</button>
+                    </div>
+                </form>
+
+                {% if patients %}
+                <div class="list-group text-start">
+                    {% for p in patients %}
+                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3"
+                         onclick='openQRModal({{ p | tojson | safe }})' style="cursor: pointer;">
+                        <div>
+                            <h5 class="mb-1 fw-bold">{{ p.name }}</h5>
+                            <small class="text-muted"><i class="fas fa-phone me-1"></i> {{ p.phone }}</small>
+                        </div>
+                        <button class="btn btn-dark rounded-pill px-4"><i class="fas fa-qrcode me-2"></i> GENERATE QR</button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% elif request.args.get('q') %}
+                <div class="alert alert-warning">Pasien tidak ditemukan.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Modal -->
+    <div class="modal fade" id="qrModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title"><i class="fas fa-qrcode me-2"></i> Kartu Pasien Digital</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center p-5">
+                    <h3 class="fw-bold mb-1" id="qr-name">Nama Pasien</h3>
+                    <p class="text-muted mb-4" id="qr-phone">08xxx</p>
+
+                    <div id="qr-loading" class="spinner-border text-primary" role="status" style="display:none;"></div>
+                    <img id="qr-image" src="" style="width: 250px; height: 250px; display:none;" class="img-thumbnail shadow">
+
+                    <div class="mt-4">
+                        <small class="text-muted d-block">Tunjukkan QR Code ini kepada petugas saat pendaftaran ulang.</small>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button class="btn btn-outline-dark w-100" onclick="printQR()">Cetak / Simpan Gambar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function openQRModal(p) {
+            document.getElementById('qr-name').innerText = p.name;
+            document.getElementById('qr-phone').innerText = p.phone;
+
+            const img = document.getElementById('qr-image');
+            const load = document.getElementById('qr-loading');
+            img.style.display = 'none';
+            load.style.display = 'inline-block';
+
+            new bootstrap.Modal(document.getElementById('qrModal')).show();
+
+            fetch('/api/qr/generate', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id: p.id, name: p.name, phone: p.phone})
+            }).then(r => r.json()).then(data => {
+                img.src = "data:image/png;base64," + data.image;
+                load.style.display = 'none';
+                img.style.display = 'inline-block';
+            });
+        }
+
+        function printQR() {
+            const win = window.open('');
+            const img = document.getElementById('qr-image').src;
+            const name = document.getElementById('qr-name').innerText;
+            win.document.write(`<div style="text-align:center; padding:50px; font-family:sans-serif;"><h2>${name}</h2><img src="${img}" width="300"><br><br>KLINIK KESEHATAN</div>`);
+            win.print();
+        }
+    </script>
+</body>
+</html>
+"""
+
+HTML_AUDIT = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Audit Trail System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container py-5">
+        <h2 class="mb-4 fw-bold text-center text-dark"><i class="fas fa-history me-2"></i> Audit Trail (Kotak Hitam Digital)</h2>
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Log Aktivitas Sistem</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                            <tr>
+                                <td style="white-space:nowrap;">{{ log.timestamp }}</td>
+                                <td class="fw-bold">{{ log.user }}</td>
+                                <td><span class="badge bg-secondary">{{ log.action }}</span></td>
+                                <td>{{ log.details }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% if not logs %}
+                    <div class="text-center py-5 text-muted">Belum ada log aktivitas.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
 HTML_QUEUE = """
 <!DOCTYPE html>
 <html lang="id">
@@ -1348,6 +2086,10 @@ HTML_QUEUE = """
                                     <input type="tel" id="q-phone" class="form-control form-control-lg" placeholder="08..." required>
                                 </div>
                                 <div class="mb-3">
+                                    <label class="fw-bold mb-1">Alamat / Blok (Opsional)</label>
+                                    <input type="text" id="q-address" class="form-control" placeholder="Contoh: Blok A No. 12">
+                                </div>
+                                <div class="mb-3">
                                     <label class="fw-bold mb-1">Keluhan Utama</label>
                                     <textarea id="q-complaint" class="form-control" rows="3" placeholder="Contoh: Demam, Batuk, Pusing..." required></textarea>
                                 </div>
@@ -1386,6 +2128,7 @@ HTML_QUEUE = """
             const data = {
                 name: document.getElementById('q-name').value,
                 phone: document.getElementById('q-phone').value,
+                address: document.getElementById('q-address').value,
                 complaint: document.getElementById('q-complaint').value
             };
             
