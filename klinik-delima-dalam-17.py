@@ -9,6 +9,7 @@ import qrcode
 from PIL import Image
 from flask import Flask, request, send_from_directory, redirect, url_for, render_template_string, jsonify, session
 from werkzeug.utils import secure_filename
+from functools import wraps
 
 # --- FLASK CONFIGURATION ---
 app = Flask(__name__)
@@ -201,7 +202,9 @@ def init_db():
 init_db()
 
 # --- AUDIT LOG HELPERS ---
-def log_audit(action, details, user="Admin"):
+def log_audit(action, details, user=None):
+    if user is None:
+        user = session.get('user', 'System')
     try:
         conn = get_db_connection()
         c = conn.cursor()
@@ -210,6 +213,22 @@ def log_audit(action, details, user="Admin"):
         conn.close()
     except Exception as e:
         print(f"Audit Log Error: {e}")
+
+# --- AUTH HELPERS ---
+ROLES = {
+    'ADMIN': 'admin',
+    'DOCTOR': 'doctor'
+}
+
+def role_required(allowed_roles):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'role' not in session or session['role'] not in allowed_roles:
+                return "AKSES DITOLAK", 403
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 # --- DATA HELPERS ---
 def get_db_connection():
@@ -267,18 +286,21 @@ def antrean_page():
     return render_template_string(HTML_QUEUE.replace('{{ navbar|safe }}', navbar))
 
 @app.route('/rekam-medis')
+@role_required(['admin', 'doctor'])
 def rekam_medis_page():
     # Admin check removed for development
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-notes-medical').replace('{{ page_title }}', 'REKAM MEDIS')
     return render_template_string(HTML_DOCTOR_REKAM.replace('{{ navbar|safe }}', navbar))
 
 @app.route('/stok-obat')
+@role_required(['admin', 'doctor'])
 def stok_obat_page():
     # Admin check removed for development
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-capsules').replace('{{ page_title }}', 'STOK OBAT')
     return render_template_string(HTML_DOCTOR_STOCK.replace('{{ navbar|safe }}', navbar))
 
 @app.route('/surat-sakit')
+@role_required(['doctor'])
 def surat_sakit_list():
     conn = get_db_connection()
     c = conn.cursor()
@@ -289,6 +311,7 @@ def surat_sakit_list():
     return render_template_string(HTML_SICK_LIST.replace('{{ navbar|safe }}', navbar), patients=patients)
 
 @app.route('/surat-sakit/print/<int:id>')
+@role_required(['doctor'])
 def surat_sakit_print(id):
     conn = get_db_connection()
     c = conn.cursor()
@@ -314,6 +337,7 @@ def surat_sakit_print(id):
     return render_template_string(HTML_SICK_PRINT, p=p, days=days, days_text=days_text, date=date_str)
 
 @app.route('/kasir')
+@role_required(['admin', 'doctor'])
 def kasir_page():
     conn = get_db_connection()
     c = conn.cursor()
@@ -326,6 +350,7 @@ def kasir_page():
     return render_template_string(HTML_CASHIER.replace('{{ navbar|safe }}', navbar), patients=patients)
 
 @app.route('/api/kasir/update', methods=['POST'])
+@role_required(['admin', 'doctor'])
 def api_kasir_update():
     data = request.json
     conn = get_db_connection()
@@ -336,6 +361,7 @@ def api_kasir_update():
     return jsonify({'success': True})
 
 @app.route('/database-pasien')
+@role_required(['admin', 'doctor'])
 def database_pasien_page():
     q = request.args.get('q', '')
     conn = get_db_connection()
@@ -351,6 +377,7 @@ def database_pasien_page():
     return render_template_string(HTML_PATIENT_DB.replace('{{ navbar|safe }}', navbar), patients=patients)
 
 @app.route('/pencarian-pasien')
+@role_required(['admin', 'doctor'])
 def pencarian_pasien_page():
     q = request.args.get('q', '')
     patients = []
@@ -418,7 +445,8 @@ def api_clinic_status():
     c = conn.cursor()
     
     if request.method == 'POST':
-        # if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+        if 'role' not in session or session['role'] not in [ROLES['ADMIN'], ROLES['DOCTOR']]:
+            return jsonify({'error': 'Unauthorized'}), 403
         
         data = request.json or {}
         if 'set_status' in data:
@@ -528,6 +556,7 @@ def api_queue_archive():
     return jsonify(grouped)
 
 @app.route('/api/queue/action', methods=['POST'])
+@role_required(['admin', 'doctor'])
 def api_queue_action():
     # if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
@@ -544,6 +573,10 @@ def api_queue_action():
         c.execute("UPDATE queue SET status='examining' WHERE id=?", (id,))
         
     elif action == 'finish':
+        if session.get('role') != ROLES['DOCTOR']:
+            conn.close()
+            return jsonify({'error': 'AKSES DITOLAK: Hanya Dokter'}), 403
+
         diag = data.get('diagnosis')
         presc = data.get('prescription')
         med_action = data.get('medical_action')
@@ -561,6 +594,7 @@ def api_queue_action():
     return jsonify({'success': True})
 
 @app.route('/api/stock/list')
+@role_required(['admin', 'doctor'])
 def api_stock_list():
     conn = get_db_connection()
     c = conn.cursor()
@@ -570,6 +604,7 @@ def api_stock_list():
     return jsonify(items)
 
 @app.route('/api/stock/update', methods=['POST'])
+@role_required(['admin', 'doctor'])
 def api_stock_update():
     # if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
@@ -656,15 +691,33 @@ def profil_klinik():
 def login():
     uid = request.form.get('userid')
     pwd = request.form.get('password')
-    if uid == 'adminwebsite' and pwd == '4dm1nw3bs1t3':
+
+    role = None
+    if uid == 'admin' and pwd == 'admin123':
+        role = ROLES['ADMIN']
+    elif uid == 'dokter' and pwd == 'dokter123':
+        role = ROLES['DOCTOR']
+    elif uid == 'adminwebsite' and pwd == '4dm1nw3bs1t3':
+        # Legacy support
         session['admin'] = True
-        return redirect(url_for('index'))
-    return redirect(url_for('index'))
+        return redirect(url_for('landing_page'))
+
+    if role:
+        session['role'] = role
+        session['user'] = uid
+        log_audit('LOGIN', f"User {uid} logged in as {role}")
+
+        if role == ROLES['DOCTOR']:
+            return redirect('/rekam-medis')
+        elif role == ROLES['ADMIN']:
+            return redirect('/antrean')
+
+    return redirect(url_for('landing_page'))
 
 @app.route('/logout')
 def logout():
-    session.pop('admin', None)
-    return redirect(url_for('index'))
+    session.clear()
+    return redirect(url_for('landing_page'))
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -807,6 +860,7 @@ def api_booking_add():
     return jsonify({'success': True})
 
 @app.route('/financial-dashboard')
+@role_required(['doctor'])
 def financial_dashboard():
     # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
@@ -825,6 +879,7 @@ def financial_dashboard():
     return render_template_string(HTML_FINANCE.replace('{{ navbar|safe }}', navbar), chart_data=chart_data)
 
 @app.route('/expiry-tracker')
+@role_required(['admin', 'doctor'])
 def expiry_tracker():
     # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
@@ -850,6 +905,7 @@ def expiry_tracker():
     return render_template_string(HTML_EXPIRY.replace('{{ navbar|safe }}', navbar), medicines=medicines)
 
 @app.route('/api/stock/update-expiry', methods=['POST'])
+@role_required(['admin', 'doctor'])
 def api_stock_update_expiry():
     data = request.json
     conn = get_db_connection()
@@ -860,6 +916,7 @@ def api_stock_update_expiry():
     return jsonify({'success': True})
 
 @app.route('/receipt-list')
+@role_required(['admin', 'doctor'])
 def receipt_list():
     # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
@@ -871,6 +928,7 @@ def receipt_list():
     return render_template_string(HTML_RECEIPT_LIST.replace('{{ navbar|safe }}', navbar), patients=patients)
 
 @app.route('/print-receipt/<int:id>')
+@role_required(['admin', 'doctor'])
 def print_receipt(id):
     conn = get_db_connection()
     c = conn.cursor()
@@ -887,6 +945,7 @@ def print_receipt(id):
     return render_template_string(HTML_RECEIPT_PRINT, p=p, total=total_fmt, date=date_str)
 
 @app.route('/wa-reminder')
+@role_required(['admin', 'doctor'])
 def wa_reminder_page():
     # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
@@ -898,6 +957,7 @@ def wa_reminder_page():
     return render_template_string(HTML_WA_REMINDER.replace('{{ navbar|safe }}', navbar), patients=patients)
 
 @app.route('/booking-list')
+@role_required(['admin', 'doctor'])
 def booking_list_page():
     # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
@@ -909,11 +969,13 @@ def booking_list_page():
     return render_template_string(HTML_BOOKING_LIST.replace('{{ navbar|safe }}', navbar), appointments=rows)
 
 @app.route('/backup-db')
+@role_required(['doctor'])
 def backup_db():
     # if not session.get('admin'): return "Unauthorized", 403
     return send_from_directory('.', 'data.db', as_attachment=True)
 
 @app.route('/audit-log')
+@role_required(['doctor'])
 def audit_log_page():
     # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
@@ -926,6 +988,7 @@ def audit_log_page():
     return render_template_string(HTML_AUDIT.replace('{{ navbar|safe }}', navbar), logs=logs)
 
 @app.route('/qr-pasien')
+@role_required(['admin', 'doctor'])
 def qr_pasien_page():
     # Simple search interface
     q = request.args.get('q', '')
@@ -941,6 +1004,7 @@ def qr_pasien_page():
     return render_template_string(HTML_QR_PAGE.replace('{{ navbar|safe }}', navbar), patients=patients)
 
 @app.route('/api/qr/generate', methods=['POST'])
+@role_required(['admin', 'doctor'])
 def api_qr_generate():
     data = request.json
     # Content of QR: JSON string with ID, Name, Phone
@@ -995,6 +1059,7 @@ def api_symptom_check():
     return jsonify({'disease': disease, 'advice': result, 'confidence': confidence})
 
 @app.route('/peta-sebaran')
+@role_required(['doctor'])
 def peta_sebaran_page():
     # Aggregate data
     conn = get_db_connection()
@@ -1016,6 +1081,7 @@ def peta_sebaran_page():
     return render_template_string(HTML_MAP.replace('{{ navbar|safe }}', navbar), map_data=data)
 
 @app.route('/prediksi-stok')
+@role_required(['doctor'])
 def prediksi_stok_page():
     # Simple Moving Average Logic (Mocked for Demo as requested "Algorithms")
     conn = get_db_connection()
@@ -1058,6 +1124,7 @@ def prediksi_stok_page():
     return render_template_string(HTML_STOCK_PRED.replace('{{ navbar|safe }}', navbar), predictions=predictions)
 
 @app.route('/lab-results')
+@role_required(['admin', 'doctor'])
 def lab_results_page():
     q = request.args.get('q', '')
     conn = get_db_connection()
@@ -1079,6 +1146,7 @@ def lab_results_page():
     return render_template_string(HTML_LAB.replace('{{ navbar|safe }}', navbar), patients=patients)
 
 @app.route('/upload/lab', methods=['POST'])
+@role_required(['admin', 'doctor'])
 def upload_lab():
     if 'file' not in request.files: return "No file", 400
     file = request.files['file']
@@ -1108,6 +1176,7 @@ MEDICAL_NAVBAR_TEMPLATE = """
     :root {
         --green: #2ecc71;
         --gold: #FFD700;
+        --blue: #3498db;
         --black: #111;
         --white: #fff;
     }
@@ -1129,6 +1198,9 @@ MEDICAL_NAVBAR_TEMPLATE = """
         position: absolute; bottom: 0; left: 0; width: 100%; height: 3px;
         background: linear-gradient(90deg, var(--green) 50%, var(--gold) 50%);
     }
+    .border-doctor { background: linear-gradient(90deg, var(--gold) 50%, var(--gold) 50%) !important; height: 5px !important; }
+    .border-admin { background: linear-gradient(90deg, var(--blue) 50%, var(--blue) 50%) !important; height: 5px !important; }
+
     .medical-logo-area { display: flex; align-items: center; gap: 15px; }
     .medical-logo-icon { font-size: 2rem; color: var(--green); }
     .medical-title { 
@@ -1202,10 +1274,18 @@ MEDICAL_NAVBAR_TEMPLATE = """
     
     <div class="medical-title">{{ page_title }}</div>
     
-    <!-- Placeholder for right spacing to center title -->
-    <div style="width: 40px;"></div> 
+    <div class="d-flex align-items-center gap-2">
+       {% if session.get('role') %}
+           <span class="badge {{ 'bg-warning text-dark' if session['role'] == 'doctor' else 'bg-primary' }}">
+               {{ session['user'] }} ({{ session['role']|upper }})
+           </span>
+           <a href="/logout" class="btn btn-sm btn-danger fw-bold"><i class="fas fa-sign-out-alt"></i></a>
+       {% else %}
+           <button class="btn btn-sm btn-success fw-bold" onclick="openLoginModal()">LOGIN</button>
+       {% endif %}
+    </div>
     
-    <div class="medical-split-border"></div>
+    <div class="medical-split-border {{ 'border-doctor' if session.get('role') == 'doctor' else 'border-admin' if session.get('role') == 'admin' else '' }}"></div>
 </div>
 
 <div class="medical-horizontal-menu">
@@ -1213,90 +1293,128 @@ MEDICAL_NAVBAR_TEMPLATE = """
         <i class="fas fa-users"></i>
         <span>Antrean</span>
     </a>
-    <a href="/rekam-medis" class="feature-btn">
-        <i class="fas fa-notes-medical"></i>
-        <span>Rekam Medis</span>
-    </a>
-    <a href="/stok-obat" class="feature-btn">
-        <i class="fas fa-capsules"></i>
-        <span>Stok Obat</span>
-    </a>
+
     <a href="/profil-klinik" class="feature-btn">
         <i class="fas fa-hospital-user"></i>
         <span>Profil Klinik</span>
     </a>
-    <a href="/surat-sakit" class="feature-btn">
-        <i class="fas fa-file-medical"></i>
-        <span>Surat Sakit</span>
-    </a>
-    <a href="/kasir" class="feature-btn">
-        <i class="fas fa-cash-register"></i>
-        <span>Kasir & Laporan</span>
-    </a>
-    <a href="/database-pasien" class="feature-btn">
-        <i class="fas fa-database"></i>
-        <span>Data Pasien</span>
-    </a>
-    <a href="/pencarian-pasien" class="feature-btn">
-        <i class="fas fa-search"></i>
-        <span>Cari Pasien</span>
-    </a>
-    <a href="/statistik" class="feature-btn">
-        <i class="fas fa-chart-pie"></i>
-        <span>Statistik</span>
-    </a>
-    <a href="/download-data" class="feature-btn">
-        <i class="fas fa-file-pdf"></i>
-        <span>Unduh Data</span>
-    </a>
+
     <a href="/booking" class="feature-btn">
         <i class="fas fa-calendar-check"></i>
         <span>Booking</span>
     </a>
-    <a href="/financial-dashboard" class="feature-btn">
-        <i class="fas fa-chart-line"></i>
-        <span>Keuangan</span>
-    </a>
-    <a href="/expiry-tracker" class="feature-btn">
-        <i class="fas fa-exclamation-triangle"></i>
-        <span>Expiry Alert</span>
-    </a>
-    <a href="/receipt-list" class="feature-btn">
-        <i class="fas fa-receipt"></i>
-        <span>Cetak Struk</span>
-    </a>
-    <a href="/wa-reminder" class="feature-btn">
-        <i class="fab fa-whatsapp"></i>
-        <span>WA Reminder</span>
-    </a>
-    <a href="/qr-pasien" class="feature-btn">
-        <i class="fas fa-qrcode"></i>
-        <span>Pasien QR</span>
-    </a>
+
     <a href="/symptom-checker" class="feature-btn">
         <i class="fas fa-user-md"></i>
         <span>Cek Gejala</span>
     </a>
-    <a href="/peta-sebaran" class="feature-btn">
-        <i class="fas fa-map-marked-alt"></i>
-        <span>Peta Penyakit</span>
-    </a>
-    <a href="/prediksi-stok" class="feature-btn">
-        <i class="fas fa-chart-line"></i>
-        <span>Prediksi Stok</span>
-    </a>
-    <a href="/lab-results" class="feature-btn">
-        <i class="fas fa-vial"></i>
-        <span>Hasil Lab</span>
-    </a>
-    <a href="/audit-log" class="feature-btn">
-        <i class="fas fa-history"></i>
-        <span>Audit Log</span>
-    </a>
-    <a href="/backup-db" class="feature-btn">
-        <i class="fas fa-shield-alt"></i>
-        <span>Backup DB</span>
-    </a>
+
+    {% if session.get('role') in ['admin', 'doctor'] %}
+        <a href="/rekam-medis" class="feature-btn">
+            <i class="fas fa-notes-medical"></i>
+            <span>Rekam Medis</span>
+        </a>
+        <a href="/stok-obat" class="feature-btn">
+            <i class="fas fa-capsules"></i>
+            <span>Stok Obat</span>
+        </a>
+        <a href="/kasir" class="feature-btn">
+            <i class="fas fa-cash-register"></i>
+            <span>Kasir & Laporan</span>
+        </a>
+        <a href="/database-pasien" class="feature-btn">
+            <i class="fas fa-database"></i>
+            <span>Data Pasien</span>
+        </a>
+        <a href="/pencarian-pasien" class="feature-btn">
+            <i class="fas fa-search"></i>
+            <span>Cari Pasien</span>
+        </a>
+        <a href="/receipt-list" class="feature-btn">
+            <i class="fas fa-receipt"></i>
+            <span>Cetak Struk</span>
+        </a>
+        <a href="/wa-reminder" class="feature-btn">
+            <i class="fab fa-whatsapp"></i>
+            <span>WA Reminder</span>
+        </a>
+        <a href="/qr-pasien" class="feature-btn">
+            <i class="fas fa-qrcode"></i>
+            <span>Pasien QR</span>
+        </a>
+        <a href="/lab-results" class="feature-btn">
+            <i class="fas fa-vial"></i>
+            <span>Hasil Lab</span>
+        </a>
+        <a href="/expiry-tracker" class="feature-btn">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>Expiry Alert</span>
+        </a>
+         <a href="/booking-list" class="feature-btn">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Janji Temu</span>
+        </a>
+    {% endif %}
+
+    {% if session.get('role') == 'doctor' %}
+        <a href="/surat-sakit" class="feature-btn">
+            <i class="fas fa-file-medical"></i>
+            <span>Surat Sakit</span>
+        </a>
+        <a href="/financial-dashboard" class="feature-btn">
+            <i class="fas fa-chart-line"></i>
+            <span>Keuangan</span>
+        </a>
+        <a href="/statistik" class="feature-btn">
+            <i class="fas fa-chart-pie"></i>
+            <span>Statistik</span>
+        </a>
+         <a href="/download-data" class="feature-btn">
+            <i class="fas fa-file-pdf"></i>
+            <span>Unduh Data</span>
+        </a>
+        <a href="/peta-sebaran" class="feature-btn">
+            <i class="fas fa-map-marked-alt"></i>
+            <span>Peta Penyakit</span>
+        </a>
+        <a href="/prediksi-stok" class="feature-btn">
+            <i class="fas fa-chart-line"></i>
+            <span>Prediksi Stok</span>
+        </a>
+        <a href="/audit-log" class="feature-btn">
+            <i class="fas fa-history"></i>
+            <span>Audit Log</span>
+        </a>
+        <a href="/backup-db" class="feature-btn">
+            <i class="fas fa-shield-alt"></i>
+            <span>Backup DB</span>
+        </a>
+    {% endif %}
+</div>
+
+<!-- Login Modal -->
+<div class="modal fade" id="loginModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Login Pegawai</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/login" method="post">
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" name="userid" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                    <button class="btn btn-success w-100 fw-bold">MASUK</button>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -1312,6 +1430,10 @@ MEDICAL_NAVBAR_TEMPLATE = """
             }
         });
     });
+
+    function openLoginModal() {
+        new bootstrap.Modal(document.getElementById('loginModal')).show();
+    }
 </script>
 """
 
@@ -1518,6 +1640,7 @@ HTML_LANDING = """
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
 """
@@ -2220,6 +2343,8 @@ HTML_DOCTOR_REKAM = """
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: #27ae60; 
         }
+        .panel-gold { border-top: 5px solid #FFD700 !important; }
+        .panel-blue { border-top: 5px solid #3498db !important; }
     </style>
 </head>
 <body>
@@ -2229,7 +2354,7 @@ HTML_DOCTOR_REKAM = """
         <div class="row g-4">
             <!-- CENTER/TOP: CURRENT PATIENT -->
             <div class="col-lg-12">
-                <div class="glass-panel-custom">
+                <div class="glass-panel-custom {{ 'panel-gold' if session.get('role') == 'doctor' else 'panel-blue' }}">
                     <div class="section-label"><i class="fas fa-stethoscope me-2"></i> Sedang Diperiksa</div>
                     <div id="current-patient-panel">
                         <!-- Loaded via JS -->
@@ -2240,7 +2365,7 @@ HTML_DOCTOR_REKAM = """
             
             <!-- LEFT: WAITING LIST -->
             <div class="col-lg-5">
-                <div class="glass-panel-custom h-100">
+                <div class="glass-panel-custom h-100 {{ 'panel-gold' if session.get('role') == 'doctor' else 'panel-blue' }}">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="section-label mb-0"><i class="fas fa-user-clock me-2"></i> Antrean Menunggu</div>
                         <span class="badge bg-primary rounded-pill" id="waiting-count-badge">0</span>
@@ -2253,7 +2378,7 @@ HTML_DOCTOR_REKAM = """
 
             <!-- RIGHT: HISTORY -->
             <div class="col-lg-7">
-                <div class="glass-panel-custom mb-4">
+                <div class="glass-panel-custom mb-4 {{ 'panel-gold' if session.get('role') == 'doctor' else 'panel-blue' }}">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="section-label mb-0"><i class="fas fa-history me-2"></i> Riwayat Pemeriksaan (Hari Ini)</div>
                         <button class="btn btn-sm btn-outline-success fw-bold" onclick="openArchive()"><i class="fas fa-database me-2"></i> Database</button>
@@ -2265,8 +2390,10 @@ HTML_DOCTOR_REKAM = """
                                     <th>No</th>
                                     <th style="white-space:nowrap">Nama Pasien</th>
                                     <th>Keluhan</th>
+                                    {% if session.get('role') == 'doctor' %}
                                     <th>Diagnosa</th>
                                     <th>Resep Obat</th>
+                                    {% endif %}
                                     <th>Tindakan</th>
                                     <th>Aksi</th>
                                 </tr>
@@ -2332,6 +2459,8 @@ HTML_DOCTOR_REKAM = """
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        const userRole = "{{ session.get('role') }}";
+
         // JS Logic (Same as before, just slight UI tweaks in rendering)
         function escapeHtml(text) {
             if (!text) return "";
@@ -2368,6 +2497,15 @@ HTML_DOCTOR_REKAM = """
                 // Current Patient
                 const panel = document.getElementById('current-patient-panel');
                 if (data.current) {
+                    let actionBtn = '';
+                    if (userRole === 'doctor') {
+                        actionBtn = `<button class="btn btn-success btn-lg w-100 py-3 shadow" onclick="openFinishModal(${data.current.id})">
+                                        <i class="fas fa-check-circle me-2"></i> Selesai Periksa
+                                     </button>`;
+                    } else {
+                        actionBtn = `<div class="alert alert-info mb-0 fw-bold"><i class="fas fa-info-circle"></i> Hanya Dokter yang dapat mengisi Rekam Medis.</div>`;
+                    }
+
                     panel.innerHTML = `
                         <div class="active-patient-box">
                             <div class="row align-items-center">
@@ -2377,9 +2515,7 @@ HTML_DOCTOR_REKAM = """
                                     <p class="lead mb-0 text-muted"><i class="fas fa-notes-medical me-2"></i> Keluhan: ${escapeHtml(data.current.complaint)}</p>
                                 </div>
                                 <div class="col-md-4 text-md-end">
-                                    <button class="btn btn-success btn-lg w-100 py-3 shadow" onclick="openFinishModal(${data.current.id})">
-                                        <i class="fas fa-check-circle me-2"></i> Selesai Periksa
-                                    </button>
+                                    ${actionBtn}
                                 </div>
                             </div>
                         </div>
@@ -2392,13 +2528,17 @@ HTML_DOCTOR_REKAM = """
                 const hist = document.getElementById('history-table');
                 hist.innerHTML = '';
                 data.history.forEach(p => {
+                    let rows = '';
+                    if (userRole === 'doctor') {
+                        rows += `<td>${escapeHtml(p.diagnosis)}</td><td>${escapeHtml(p.prescription)}</td>`;
+                    }
+
                     hist.innerHTML += `
                         <tr>
                             <td class="fw-bold text-center">${p.number}</td>
                             <td style="white-space:nowrap">${escapeHtml(p.name)}</td>
                             <td>${escapeHtml(p.complaint)}</td>
-                            <td>${escapeHtml(p.diagnosis)}</td>
-                            <td>${escapeHtml(p.prescription)}</td>
+                            ${rows}
                             <td>${escapeHtml(p.medical_action)}</td>
                             <td>
                                 <button class="btn btn-sm btn-danger rounded-circle" onclick="deletePatient(${p.id})">
