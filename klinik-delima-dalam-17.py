@@ -6,6 +6,7 @@ import json
 import io
 import base64
 import qrcode
+from functools import wraps
 from PIL import Image
 from flask import Flask, request, send_from_directory, redirect, url_for, render_template_string, jsonify, session
 from werkzeug.utils import secure_filename
@@ -14,6 +15,10 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB Limit
 app.secret_key = "supersecretkey"
+
+@app.context_processor
+def inject_rbac():
+    return dict(role=session.get('role', 'patient'), menu_items=MENU_ITEMS)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt'}
@@ -39,6 +44,44 @@ def format_date_indo(date_str):
         return f"{dt.day} {months[dt.month - 1]} {dt.year}"
     except:
         return date_str
+
+# --- RBAC CONFIGURATION ---
+MENU_ITEMS = [
+    {'route': '/antrean', 'label': 'Antrean', 'icon': 'fas fa-users', 'roles': ['patient', 'admin', 'doctor']},
+    {'route': '/profil-klinik', 'label': 'Profil Klinik', 'icon': 'fas fa-hospital-user', 'roles': ['patient', 'admin', 'doctor']},
+    {'route': '/symptom-checker', 'label': 'Cek Gejala', 'icon': 'fas fa-user-md', 'roles': ['patient', 'doctor']},
+    {'route': '/booking', 'label': 'Booking', 'icon': 'fas fa-calendar-check', 'roles': ['patient', 'doctor']},
+    {'route': '/booking-list', 'label': 'Daftar Janji', 'icon': 'fas fa-calendar-alt', 'roles': ['admin', 'doctor']},
+    {'route': '/rekam-medis', 'label': 'Rekam Medis', 'icon': 'fas fa-notes-medical', 'roles': ['doctor']},
+    {'route': '/stok-obat', 'label': 'Stok Obat', 'icon': 'fas fa-capsules', 'roles': ['admin', 'doctor']},
+    {'route': '/surat-sakit', 'label': 'Surat Sakit', 'icon': 'fas fa-file-medical', 'roles': ['doctor']},
+    {'route': '/kasir', 'label': 'Kasir & Laporan', 'icon': 'fas fa-cash-register', 'roles': ['admin', 'doctor']},
+    {'route': '/database-pasien', 'label': 'Data Pasien', 'icon': 'fas fa-database', 'roles': ['admin', 'doctor']},
+    {'route': '/pencarian-pasien', 'label': 'Cari Pasien', 'icon': 'fas fa-search', 'roles': ['admin', 'doctor']},
+    {'route': '/statistik', 'label': 'Statistik', 'icon': 'fas fa-chart-pie', 'roles': ['doctor']},
+    {'route': '/download-data', 'label': 'Unduh Data', 'icon': 'fas fa-file-pdf', 'roles': ['admin', 'doctor']},
+    {'route': '/financial-dashboard', 'label': 'Keuangan', 'icon': 'fas fa-chart-line', 'roles': ['doctor']},
+    {'route': '/expiry-tracker', 'label': 'Expiry Alert', 'icon': 'fas fa-exclamation-triangle', 'roles': ['admin', 'doctor']},
+    {'route': '/receipt-list', 'label': 'Cetak Struk', 'icon': 'fas fa-receipt', 'roles': ['admin', 'doctor']},
+    {'route': '/wa-reminder', 'label': 'WA Reminder', 'icon': 'fab fa-whatsapp', 'roles': ['admin', 'doctor']},
+    {'route': '/qr-pasien', 'label': 'Pasien QR', 'icon': 'fas fa-qrcode', 'roles': ['admin', 'doctor']},
+    {'route': '/peta-sebaran', 'label': 'Peta Penyakit', 'icon': 'fas fa-map-marked-alt', 'roles': ['doctor']},
+    {'route': '/prediksi-stok', 'label': 'Prediksi Stok', 'icon': 'fas fa-chart-line', 'roles': ['doctor']},
+    {'route': '/lab-results', 'label': 'Hasil Lab', 'icon': 'fas fa-vial', 'roles': ['admin', 'doctor']},
+    {'route': '/audit-log', 'label': 'Audit Log', 'icon': 'fas fa-history', 'roles': ['doctor']},
+    {'route': '/backup-db', 'label': 'Backup DB', 'icon': 'fas fa-shield-alt', 'roles': ['doctor']},
+]
+
+def role_required(allowed_roles):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            current_role = session.get('role', 'patient')
+            if current_role not in allowed_roles:
+                return render_template_string("<h1>403 Unauthorized</h1><p>Anda tidak memiliki akses ke halaman ini.</p><a href='/'>Kembali</a>"), 403
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 def init_db():
     conn = sqlite3.connect('data.db')
@@ -267,18 +310,21 @@ def antrean_page():
     return render_template_string(HTML_QUEUE.replace('{{ navbar|safe }}', navbar))
 
 @app.route('/rekam-medis')
+@role_required(['doctor'])
 def rekam_medis_page():
     # Admin check removed for development
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-notes-medical').replace('{{ page_title }}', 'REKAM MEDIS')
     return render_template_string(HTML_DOCTOR_REKAM.replace('{{ navbar|safe }}', navbar))
 
 @app.route('/stok-obat')
+@role_required(['admin', 'doctor'])
 def stok_obat_page():
     # Admin check removed for development
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-capsules').replace('{{ page_title }}', 'STOK OBAT')
     return render_template_string(HTML_DOCTOR_STOCK.replace('{{ navbar|safe }}', navbar))
 
 @app.route('/surat-sakit')
+@role_required(['doctor'])
 def surat_sakit_list():
     conn = get_db_connection()
     c = conn.cursor()
@@ -289,6 +335,7 @@ def surat_sakit_list():
     return render_template_string(HTML_SICK_LIST.replace('{{ navbar|safe }}', navbar), patients=patients)
 
 @app.route('/surat-sakit/print/<int:id>')
+@role_required(['doctor'])
 def surat_sakit_print(id):
     conn = get_db_connection()
     c = conn.cursor()
@@ -314,6 +361,7 @@ def surat_sakit_print(id):
     return render_template_string(HTML_SICK_PRINT, p=p, days=days, days_text=days_text, date=date_str)
 
 @app.route('/kasir')
+@role_required(['admin', 'doctor'])
 def kasir_page():
     conn = get_db_connection()
     c = conn.cursor()
@@ -326,6 +374,7 @@ def kasir_page():
     return render_template_string(HTML_CASHIER.replace('{{ navbar|safe }}', navbar), patients=patients)
 
 @app.route('/api/kasir/update', methods=['POST'])
+@role_required(['admin', 'doctor'])
 def api_kasir_update():
     data = request.json
     conn = get_db_connection()
@@ -336,6 +385,7 @@ def api_kasir_update():
     return jsonify({'success': True})
 
 @app.route('/database-pasien')
+@role_required(['admin', 'doctor'])
 def database_pasien_page():
     q = request.args.get('q', '')
     conn = get_db_connection()
@@ -351,6 +401,7 @@ def database_pasien_page():
     return render_template_string(HTML_PATIENT_DB.replace('{{ navbar|safe }}', navbar), patients=patients)
 
 @app.route('/pencarian-pasien')
+@role_required(['admin', 'doctor'])
 def pencarian_pasien_page():
     q = request.args.get('q', '')
     patients = []
@@ -366,6 +417,7 @@ def pencarian_pasien_page():
     return render_template_string(HTML_SEARCH.replace('{{ navbar|safe }}', navbar), patients=patients)
 
 @app.route('/statistik')
+@role_required(['doctor'])
 def statistik_page():
     conn = get_db_connection()
     c = conn.cursor()
@@ -382,10 +434,12 @@ def statistik_page():
     return render_template_string(HTML_STATS.replace('{{ navbar|safe }}', navbar), chart_data=chart_data)
 
 @app.route('/download-data')
+@role_required(['admin', 'doctor'])
 def download_data_page():
     return render_template_string(HTML_DOWNLOAD_PDF)
 
 @app.route('/api/export-data')
+@role_required(['admin', 'doctor'])
 def api_export_data():
     conn = get_db_connection()
     c = conn.cursor()
@@ -482,6 +536,10 @@ def api_queue_status():
     
     # Full data for Admin
     if request.args.get('full'):
+        if session.get('role') not in ['admin', 'doctor']:
+            conn.close()
+            return jsonify({'error': 'Unauthorized'}), 403
+
         c.execute("SELECT * FROM queue WHERE status='waiting' ORDER BY created_at ASC")
         waiting_list = [dict(r) for r in c.fetchall()]
         
@@ -509,6 +567,7 @@ def api_queue_status():
     })
 
 @app.route('/api/queue/archive')
+@role_required(['admin', 'doctor'])
 def api_queue_archive():
     conn = get_db_connection()
     c = conn.cursor()
@@ -528,6 +587,7 @@ def api_queue_archive():
     return jsonify(grouped)
 
 @app.route('/api/queue/action', methods=['POST'])
+@role_required(['admin', 'doctor'])
 def api_queue_action():
     # if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
@@ -561,6 +621,7 @@ def api_queue_action():
     return jsonify({'success': True})
 
 @app.route('/api/stock/list')
+@role_required(['admin', 'doctor'])
 def api_stock_list():
     conn = get_db_connection()
     c = conn.cursor()
@@ -570,6 +631,7 @@ def api_stock_list():
     return jsonify(items)
 
 @app.route('/api/stock/update', methods=['POST'])
+@role_required(['admin', 'doctor'])
 def api_stock_update():
     # if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
@@ -656,21 +718,30 @@ def profil_klinik():
 def login():
     uid = request.form.get('userid')
     pwd = request.form.get('password')
-    if uid == 'adminwebsite' and pwd == '4dm1nw3bs1t3':
-        session['admin'] = True
-        return redirect(url_for('index'))
-    return redirect(url_for('index'))
+
+    if uid == 'dokter' and pwd == 'dokter123':
+        session['role'] = 'doctor'
+        return redirect(url_for('landing_page'))
+    elif uid == 'admin' and pwd == 'admin123':
+        session['role'] = 'admin'
+        return redirect(url_for('landing_page'))
+    elif uid == 'adminwebsite' and pwd == '4dm1nw3bs1t3':
+        session['role'] = 'admin'
+        return redirect(url_for('landing_page'))
+
+    return redirect(url_for('landing_page'))
 
 @app.route('/logout')
 def logout():
-    session.pop('admin', None)
-    return redirect(url_for('index'))
+    session.clear()
+    return redirect(url_for('landing_page'))
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/upload/<type>/<id>', methods=['POST'])
+@role_required(['admin', 'doctor'])
 def upload_image(type, id):
     # if not session.get('admin'): return "Unauthorized", 403
     if 'image' not in request.files: return "No file", 400
@@ -702,6 +773,7 @@ def upload_image(type, id):
     return redirect(url_for('profil_klinik'))
 
 @app.route('/api/update-text', methods=['POST'])
+@role_required(['admin', 'doctor'])
 def api_update_text():
     # if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
@@ -742,6 +814,7 @@ def api_update_text():
     return jsonify({'success': True})
 
 @app.route('/api/add-card', methods=['POST'])
+@role_required(['admin', 'doctor'])
 def api_add_card():
     # if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
     type = request.json.get('type')
@@ -765,6 +838,7 @@ def api_add_card():
     return jsonify({'success': True, 'id': new_id})
 
 @app.route('/api/delete-item', methods=['POST'])
+@role_required(['admin', 'doctor'])
 def api_delete_item():
     # if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
@@ -807,6 +881,7 @@ def api_booking_add():
     return jsonify({'success': True})
 
 @app.route('/financial-dashboard')
+@role_required(['doctor'])
 def financial_dashboard():
     # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
@@ -825,6 +900,7 @@ def financial_dashboard():
     return render_template_string(HTML_FINANCE.replace('{{ navbar|safe }}', navbar), chart_data=chart_data)
 
 @app.route('/expiry-tracker')
+@role_required(['admin', 'doctor'])
 def expiry_tracker():
     # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
@@ -850,6 +926,7 @@ def expiry_tracker():
     return render_template_string(HTML_EXPIRY.replace('{{ navbar|safe }}', navbar), medicines=medicines)
 
 @app.route('/api/stock/update-expiry', methods=['POST'])
+@role_required(['admin', 'doctor'])
 def api_stock_update_expiry():
     data = request.json
     conn = get_db_connection()
@@ -860,6 +937,7 @@ def api_stock_update_expiry():
     return jsonify({'success': True})
 
 @app.route('/receipt-list')
+@role_required(['admin', 'doctor'])
 def receipt_list():
     # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
@@ -871,6 +949,7 @@ def receipt_list():
     return render_template_string(HTML_RECEIPT_LIST.replace('{{ navbar|safe }}', navbar), patients=patients)
 
 @app.route('/print-receipt/<int:id>')
+@role_required(['admin', 'doctor'])
 def print_receipt(id):
     conn = get_db_connection()
     c = conn.cursor()
@@ -887,6 +966,7 @@ def print_receipt(id):
     return render_template_string(HTML_RECEIPT_PRINT, p=p, total=total_fmt, date=date_str)
 
 @app.route('/wa-reminder')
+@role_required(['admin', 'doctor'])
 def wa_reminder_page():
     # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
@@ -898,6 +978,7 @@ def wa_reminder_page():
     return render_template_string(HTML_WA_REMINDER.replace('{{ navbar|safe }}', navbar), patients=patients)
 
 @app.route('/booking-list')
+@role_required(['admin', 'doctor'])
 def booking_list_page():
     # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
@@ -909,11 +990,13 @@ def booking_list_page():
     return render_template_string(HTML_BOOKING_LIST.replace('{{ navbar|safe }}', navbar), appointments=rows)
 
 @app.route('/backup-db')
+@role_required(['doctor'])
 def backup_db():
     # if not session.get('admin'): return "Unauthorized", 403
     return send_from_directory('.', 'data.db', as_attachment=True)
 
 @app.route('/audit-log')
+@role_required(['doctor'])
 def audit_log_page():
     # if not session.get('admin'): return "Unauthorized", 403
     conn = get_db_connection()
@@ -926,6 +1009,7 @@ def audit_log_page():
     return render_template_string(HTML_AUDIT.replace('{{ navbar|safe }}', navbar), logs=logs)
 
 @app.route('/qr-pasien')
+@role_required(['admin', 'doctor'])
 def qr_pasien_page():
     # Simple search interface
     q = request.args.get('q', '')
@@ -941,6 +1025,7 @@ def qr_pasien_page():
     return render_template_string(HTML_QR_PAGE.replace('{{ navbar|safe }}', navbar), patients=patients)
 
 @app.route('/api/qr/generate', methods=['POST'])
+@role_required(['admin', 'doctor'])
 def api_qr_generate():
     data = request.json
     # Content of QR: JSON string with ID, Name, Phone
@@ -995,6 +1080,7 @@ def api_symptom_check():
     return jsonify({'disease': disease, 'advice': result, 'confidence': confidence})
 
 @app.route('/peta-sebaran')
+@role_required(['doctor'])
 def peta_sebaran_page():
     # Aggregate data
     conn = get_db_connection()
@@ -1016,6 +1102,7 @@ def peta_sebaran_page():
     return render_template_string(HTML_MAP.replace('{{ navbar|safe }}', navbar), map_data=data)
 
 @app.route('/prediksi-stok')
+@role_required(['doctor'])
 def prediksi_stok_page():
     # Simple Moving Average Logic (Mocked for Demo as requested "Algorithms")
     conn = get_db_connection()
@@ -1058,6 +1145,7 @@ def prediksi_stok_page():
     return render_template_string(HTML_STOCK_PRED.replace('{{ navbar|safe }}', navbar), predictions=predictions)
 
 @app.route('/lab-results')
+@role_required(['admin', 'doctor'])
 def lab_results_page():
     q = request.args.get('q', '')
     conn = get_db_connection()
@@ -1079,6 +1167,7 @@ def lab_results_page():
     return render_template_string(HTML_LAB.replace('{{ navbar|safe }}', navbar), patients=patients)
 
 @app.route('/upload/lab', methods=['POST'])
+@role_required(['admin', 'doctor'])
 def upload_lab():
     if 'file' not in request.files: return "No file", 400
     file = request.files['file']
@@ -1110,9 +1199,17 @@ MEDICAL_NAVBAR_TEMPLATE = """
         --gold: #FFD700;
         --black: #111;
         --white: #fff;
+        --blue: #3498db;
     }
     .medical-top-bar {
+        {% if role == 'doctor' %}
+        background: var(--gold);
+        {% elif role == 'admin' %}
+        background: var(--blue);
+        {% else %}
         background: rgba(255, 255, 255, 0.9);
+        {% endif %}
+
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         height: 70px;
@@ -1124,17 +1221,18 @@ MEDICAL_NAVBAR_TEMPLATE = """
         top: 0;
         z-index: 1050;
         box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        transition: background 0.3s;
     }
     .medical-split-border {
         position: absolute; bottom: 0; left: 0; width: 100%; height: 3px;
         background: linear-gradient(90deg, var(--green) 50%, var(--gold) 50%);
     }
     .medical-logo-area { display: flex; align-items: center; gap: 15px; }
-    .medical-logo-icon { font-size: 2rem; color: var(--green); }
+    .medical-logo-icon { font-size: 2rem; color: {% if role in ['admin', 'doctor'] %}white{% else %}var(--green){% endif %}; }
     .medical-title { 
         font-weight: 800; font-size: 1.5rem; text-transform: uppercase; 
-        color: #333; letter-spacing: 1px; position: absolute; 
-        left: 50%; transform: translateX(-50%); white-space: nowrap;
+        color: {% if role in ['admin', 'doctor'] %}white{% else %}#333{% endif %};
+        letter-spacing: 1px;
     }
     
     /* Horizontal Menu */
@@ -1189,9 +1287,50 @@ MEDICAL_NAVBAR_TEMPLATE = """
         text-transform: uppercase;
     }
 
+    /* Role Switcher Buttons */
+    .role-btn-group {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+    .role-btn {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: transform 0.2s;
+    }
+    .role-btn:hover { transform: scale(1.05); }
+    .role-btn-pasien { background: white; color: #333; }
+    .role-btn-admin { background: var(--blue); color: white; }
+    .role-btn-dokter { background: var(--gold); color: black; }
+
+    /* Login Modal */
+    .login-modal-overlay {
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center;
+        backdrop-filter: blur(5px);
+    }
+    .login-modal-box {
+        background: white; padding: 30px; border-radius: 15px; width: 320px;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.3); position: relative;
+        animation: slideIn 0.3s ease-out;
+    }
+    @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
     @media (max-width: 768px) {
-        .medical-title { font-size: 1.1rem; }
+        .medical-title { font-size: 1.0rem; }
         .medical-logo-icon { font-size: 1.5rem; }
+        .role-btn span { display: none; } /* Hide text on small screens */
+        .role-btn { padding: 8px; border-radius: 50%; width: 35px; height: 35px; justify-content: center; }
+        .role-btn i { margin: 0; }
     }
 </style>
 
@@ -1202,101 +1341,53 @@ MEDICAL_NAVBAR_TEMPLATE = """
     
     <div class="medical-title">{{ page_title }}</div>
     
-    <!-- Placeholder for right spacing to center title -->
-    <div style="width: 40px;"></div> 
+    <div class="role-btn-group">
+        <a href="/logout" class="role-btn role-btn-pasien" title="Mode Pasien">
+            <i class="fas fa-user"></i> <span>Pasien</span>
+        </a>
+        <button onclick="openLogin('admin')" class="role-btn role-btn-admin" title="Login Admin">
+            <i class="fas fa-user-cog"></i> <span>Admin</span>
+        </button>
+        <button onclick="openLogin('dokter')" class="role-btn role-btn-dokter" title="Login Dokter">
+            <i class="fas fa-user-md"></i> <span>Dokter</span>
+        </button>
+    </div>
     
     <div class="medical-split-border"></div>
 </div>
 
 <div class="medical-horizontal-menu">
-    <a href="/antrean" class="feature-btn">
-        <i class="fas fa-users"></i>
-        <span>Antrean</span>
-    </a>
-    <a href="/rekam-medis" class="feature-btn">
-        <i class="fas fa-notes-medical"></i>
-        <span>Rekam Medis</span>
-    </a>
-    <a href="/stok-obat" class="feature-btn">
-        <i class="fas fa-capsules"></i>
-        <span>Stok Obat</span>
-    </a>
-    <a href="/profil-klinik" class="feature-btn">
-        <i class="fas fa-hospital-user"></i>
-        <span>Profil Klinik</span>
-    </a>
-    <a href="/surat-sakit" class="feature-btn">
-        <i class="fas fa-file-medical"></i>
-        <span>Surat Sakit</span>
-    </a>
-    <a href="/kasir" class="feature-btn">
-        <i class="fas fa-cash-register"></i>
-        <span>Kasir & Laporan</span>
-    </a>
-    <a href="/database-pasien" class="feature-btn">
-        <i class="fas fa-database"></i>
-        <span>Data Pasien</span>
-    </a>
-    <a href="/pencarian-pasien" class="feature-btn">
-        <i class="fas fa-search"></i>
-        <span>Cari Pasien</span>
-    </a>
-    <a href="/statistik" class="feature-btn">
-        <i class="fas fa-chart-pie"></i>
-        <span>Statistik</span>
-    </a>
-    <a href="/download-data" class="feature-btn">
-        <i class="fas fa-file-pdf"></i>
-        <span>Unduh Data</span>
-    </a>
-    <a href="/booking" class="feature-btn">
-        <i class="fas fa-calendar-check"></i>
-        <span>Booking</span>
-    </a>
-    <a href="/financial-dashboard" class="feature-btn">
-        <i class="fas fa-chart-line"></i>
-        <span>Keuangan</span>
-    </a>
-    <a href="/expiry-tracker" class="feature-btn">
-        <i class="fas fa-exclamation-triangle"></i>
-        <span>Expiry Alert</span>
-    </a>
-    <a href="/receipt-list" class="feature-btn">
-        <i class="fas fa-receipt"></i>
-        <span>Cetak Struk</span>
-    </a>
-    <a href="/wa-reminder" class="feature-btn">
-        <i class="fab fa-whatsapp"></i>
-        <span>WA Reminder</span>
-    </a>
-    <a href="/qr-pasien" class="feature-btn">
-        <i class="fas fa-qrcode"></i>
-        <span>Pasien QR</span>
-    </a>
-    <a href="/symptom-checker" class="feature-btn">
-        <i class="fas fa-user-md"></i>
-        <span>Cek Gejala</span>
-    </a>
-    <a href="/peta-sebaran" class="feature-btn">
-        <i class="fas fa-map-marked-alt"></i>
-        <span>Peta Penyakit</span>
-    </a>
-    <a href="/prediksi-stok" class="feature-btn">
-        <i class="fas fa-chart-line"></i>
-        <span>Prediksi Stok</span>
-    </a>
-    <a href="/lab-results" class="feature-btn">
-        <i class="fas fa-vial"></i>
-        <span>Hasil Lab</span>
-    </a>
-    <a href="/audit-log" class="feature-btn">
-        <i class="fas fa-history"></i>
-        <span>Audit Log</span>
-    </a>
-    <a href="/backup-db" class="feature-btn">
-        <i class="fas fa-shield-alt"></i>
-        <span>Backup DB</span>
-    </a>
+    {% for item in menu_items %}
+        {% if role in item.roles %}
+        <a href="{{ item.route }}" class="feature-btn">
+            <i class="{{ item.icon }}"></i>
+            <span>{{ item.label }}</span>
+        </a>
+        {% endif %}
+    {% endfor %}
+</div>
+
+<!-- Login Modal -->
+<div id="loginModal" class="login-modal-overlay">
+    <div class="login-modal-box">
+        <button type="button" onclick="closeLogin()" style="position:absolute; top:10px; right:15px; border:none; background:none; font-size:1.2rem; cursor:pointer;">&times;</button>
+        <h4 id="loginTitle" class="text-center mb-4 fw-bold">Login</h4>
+        <form action="/login" method="POST">
+            <div class="mb-3">
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="fas fa-user"></i></span>
+                    <input type="text" name="userid" id="loginUser" class="form-control" placeholder="Username" required>
+                </div>
+            </div>
+            <div class="mb-4">
+                 <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="fas fa-lock"></i></span>
+                    <input type="password" name="password" id="loginPass" class="form-control" placeholder="Password" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 fw-bold py-2 rounded-pill">MASUK SISTEM</button>
+        </form>
+    </div>
 </div>
 
 <script>
@@ -1312,6 +1403,38 @@ MEDICAL_NAVBAR_TEMPLATE = """
             }
         });
     });
+
+    function openLogin(role) {
+        document.getElementById('loginModal').style.display = 'flex';
+        const title = document.getElementById('loginTitle');
+        const user = document.getElementById('loginUser');
+        const pass = document.getElementById('loginPass');
+
+        if(role === 'admin') {
+            title.innerText = 'Login Admin';
+            title.style.color = '#3498db';
+            user.value = 'admin';
+            pass.value = '';
+        } else {
+            title.innerText = 'Login Dokter';
+            title.style.color = '#d35400';
+            user.value = 'dokter';
+            pass.value = '';
+        }
+        pass.focus();
+    }
+
+    function closeLogin() {
+        document.getElementById('loginModal').style.display = 'none';
+    }
+
+    // Close modal on outside click
+    window.onclick = function(event) {
+        const modal = document.getElementById('loginModal');
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
 </script>
 """
 
