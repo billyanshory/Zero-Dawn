@@ -234,7 +234,7 @@ def logout():
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
 
 @app.route('/upload/<type>/<id>', methods=['POST'])
 def upload_image(type, id):
