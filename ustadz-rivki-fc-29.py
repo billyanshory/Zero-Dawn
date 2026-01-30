@@ -264,6 +264,14 @@ def upload_image(type, id):
             
             if type == 'history':
                 c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", ('history_image', filename))
+            elif type == 'news':
+                c.execute("UPDATE news_content SET image_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (filename, id))
+            elif type == 'personnel':
+                c.execute("UPDATE personnel SET image_path = ? WHERE id = ?", (filename, id))
+            elif type == 'agenda':
+                c.execute("UPDATE agenda_content SET image_path = ? WHERE id = ?", (filename, id))
+            elif type == 'sponsor':
+                c.execute("UPDATE sponsors SET image_path = ? WHERE id = ?", (filename, id))
                 
             conn.commit()
             conn.close()
@@ -892,6 +900,10 @@ HTML_UR_FC = """
                     {% if admin %}
                     <div class="position-absolute top-0 start-50 translate-middle-x d-flex gap-1" style="z-index: 10;">
                         <button class="trash-btn" onclick="deleteItem('sponsors', '{{ sponsor.id }}')"><i class="fas fa-trash"></i></button>
+                        <form action="/upload/sponsor/{{ sponsor.id }}" method="post" enctype="multipart/form-data">
+                            <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="upload-sponsor-{{ sponsor.id }}">
+                            <label for="upload-sponsor-{{ sponsor.id }}" class="trash-btn" style="background: #007bff;"><i class="fas fa-camera"></i></label>
+                        </form>
                     </div>
                     <div class="mt-2">
                         <input type="range" class="form-range custom-range-slider" min="40" max="200" step="5" value="{{ size }}" style="width: 100px;" 
@@ -1085,6 +1097,13 @@ HTML_UR_FC = """
                 <!-- Info Column (Left on desktop, Bottom on mobile) -->
                 <div class="col-md-7 order-md-1 text-start d-flex flex-column justify-content-center">
                      {% if admin %}
+                    <form id="pm-upload-form" method="post" enctype="multipart/form-data" class="mb-3">
+                        <label>Update Photo:</label>
+                        <div class="input-group">
+                            <input type="file" name="image" class="form-control" required>
+                            <button class="btn btn-primary" type="submit">Upload</button>
+                        </div>
+                    </form>
                     <div class="mb-3">
                         <label>Name:</label>
                         <input type="text" id="pm-name-input" class="form-control fw-bold">
@@ -1153,6 +1172,14 @@ HTML_UR_FC = """
         <div class="modal-content-custom" onclick="event.stopPropagation()" style="max-width:600px;">
             <div style="position:relative; margin-bottom:15px;" id="partner-img-wrapper">
                 <img id="partner-modal-img" src="" style="width:100%; height:auto; max-height:70vh; object-fit:contain; border-radius:10px;">
+                {% if admin %}
+                <form id="partner-upload-form" method="post" enctype="multipart/form-data" class="mt-2">
+                    <div class="input-group">
+                        <input type="file" name="image" class="form-control" required>
+                        <button class="btn btn-primary" type="submit">Upload</button>
+                    </div>
+                </form>
+                {% endif %}
             </div>
             
             <div id="partner-modal-body">
@@ -1169,6 +1196,14 @@ HTML_UR_FC = """
                 <a href="https://maps.app.goo.gl/pKfSE3Ewm1RPCDiy9" target="_blank" class="agenda-modal-map-overlay" id="agenda-map-link">
                     klik ini untuk ke lokasi latihan <i class="fas fa-arrow-right"></i> <i class="fas fa-map-marker-alt fa-lg text-danger"></i>
                 </a>
+                {% if admin %}
+                <form id="agenda-upload-form" method="post" enctype="multipart/form-data" class="mt-2">
+                    <div class="input-group">
+                        <input type="file" name="image" class="form-control" required>
+                        <button class="btn btn-primary" type="submit">Upload New Image</button>
+                    </div>
+                </form>
+                {% endif %}
             </div>
             
             <div class="time-box-wrapper" id="agenda-time-wrapper">
@@ -1217,6 +1252,13 @@ HTML_UR_FC = """
             </div>
 
             {% if admin %}
+            <form id="news-upload-form" method="post" enctype="multipart/form-data" class="mb-3">
+                <label>Update Headline Image:</label>
+                <div class="input-group">
+                    <input type="file" name="image" class="form-control" required>
+                    <button class="btn btn-primary" type="submit">Upload</button>
+                </div>
+            </form>
             <div class="mb-2">
                 <label>Title:</label>
                 <input type="text" id="news-modal-title-input" class="form-control fw-bold">
@@ -1292,6 +1334,7 @@ HTML_UR_FC = """
 
             if (isAdmin) {
                 // --- ADMIN EDIT MODE ---
+                document.getElementById('partner-upload-form').action = '/upload/agenda/' + id;
                 
                 // Build Form
                 const formHtml = `
@@ -1396,6 +1439,7 @@ HTML_UR_FC = """
 
             if (isAdmin) {
                 // --- ADMIN MODE ---
+                document.getElementById('agenda-upload-form').action = '/upload/agenda/' + id;
                 
                 // Build Form Inputs
                 const formHtml = `
@@ -1608,6 +1652,7 @@ HTML_UR_FC = """
             document.getElementById('person-modal').style.display = 'flex';
             
             if (document.getElementById('pm-name-input')) { // Admin
+                document.getElementById('pm-upload-form').action = '/upload/personnel/' + id;
                 document.getElementById('pm-name-input').value = name;
                 document.getElementById('pm-pos-input').value = position;
                 document.getElementById('pm-nat-input').value = nat || 'Indonesia';
@@ -1694,6 +1739,7 @@ HTML_UR_FC = """
             }
 
             if (document.getElementById('news-modal-title-input')) { // Admin Mode
+                document.getElementById('news-upload-form').action = '/upload/news/' + newsId;
                 document.getElementById('news-modal-title-input').value = item.title;
                 document.getElementById('news-modal-subtitle-input').value = item.subtitle;
                 document.getElementById('news-modal-details-input').value = item.details || '';
