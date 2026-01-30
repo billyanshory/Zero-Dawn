@@ -5,11 +5,15 @@ import datetime
 import json
 from flask import Flask, request, send_from_directory, redirect, url_for, render_template_string, jsonify, session
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
+from PIL import Image
 
 # --- FLASK CONFIGURATION ---
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB Limit
-app.secret_key = "supersecretkey"
+app.secret_key = "51677061409c9ab04d7b9822cfe8e6206f0595ffbeb91de43ff3a476769963d3"
+ADMIN_PASSWORD_HASH = 'scrypt:32768:8:1$wC1vDFSL04PVmWuj$30839c55608f9ceffc247121c87d882263a54c06fb067ed509bfbb8d7e838e1936a9fdf128a45f0042729585665c5c3b7547c9969bc74c01d1de5ec5de07d8e2'
+
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt'}
@@ -17,8 +21,13 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico',
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def get_db_connection():
+    conn = sqlite3.connect('data.db', timeout=20, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 def init_db():
-    conn = sqlite3.connect('data.db')
+    conn = get_db_connection()
     c = conn.cursor()
     # Existing tables
     c.execute('''CREATE TABLE IF NOT EXISTS agenda_content (
@@ -112,10 +121,7 @@ def init_db():
 init_db()
 
 # --- DATA HELPERS ---
-def get_db_connection():
-    conn = sqlite3.connect('data.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+# get_db_connection is now defined above init_db
 
 def get_all_data():
     conn = get_db_connection()
@@ -216,7 +222,7 @@ def index():
 def login():
     uid = request.form.get('userid')
     pwd = request.form.get('password')
-    if uid == 'adminwebsite' and pwd == '4dm1nw3bs1t3':
+    if uid == 'adminwebsite' and check_password_hash(ADMIN_PASSWORD_HASH, pwd):
         session['admin'] = True
         return redirect(url_for('index'))
     return redirect(url_for('index'))
@@ -237,27 +243,41 @@ def upload_image(type, id):
     
     file = request.files['image']
     if file and file.filename != '' and allowed_file(file.filename):
-        ext = file.filename.rsplit('.', 1)[1].lower()
-        filename = f"{type}_{id}_{int(time.time())}.{ext}"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        
-        conn = get_db_connection()
-        c = conn.cursor()
-        
-        if type == 'history':
-            c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", ('history_image', filename))
-        elif type == 'news':
-            c.execute("UPDATE news_content SET image_path = ? WHERE id = ?", (filename, id))
-        elif type == 'personnel':
-            c.execute("UPDATE personnel SET image_path = ? WHERE id = ?", (filename, id))
-        elif type == 'sponsor':
-            c.execute("UPDATE sponsors SET image_path = ? WHERE id = ?", (filename, id))
-        elif type == 'agenda':
-            c.execute("UPDATE agenda_content SET image_path = ? WHERE id = ?", (filename, id))
+        try:
+            img = Image.open(file)
+            if img.mode in ("RGBA", "P"): img = img.convert("RGB")
+
+            # Resize
+            max_width = 1024
+            if img.width > max_width:
+                ratio = max_width / float(img.width)
+                new_height = int((float(img.height) * float(ratio)))
+                img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
             
-        conn.commit()
-        conn.close()
+            # Save as JPEG
+            filename = secure_filename(f"{type}_{id}_{int(time.time())}.jpg")
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            img.save(filepath, "JPEG", quality=85, optimize=True)
+
+            conn = get_db_connection()
+            c = conn.cursor()
+
+            if type == 'history':
+                c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", ('history_image', filename))
+            elif type == 'news':
+                c.execute("UPDATE news_content SET image_path = ? WHERE id = ?", (filename, id))
+            elif type == 'personnel':
+                c.execute("UPDATE personnel SET image_path = ? WHERE id = ?", (filename, id))
+            elif type == 'sponsor':
+                c.execute("UPDATE sponsors SET image_path = ? WHERE id = ?", (filename, id))
+            elif type == 'agenda':
+                c.execute("UPDATE agenda_content SET image_path = ? WHERE id = ?", (filename, id))
+
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"Error processing image: {e}")
+            return "Error processing image", 500
         
     return redirect(url_for('index'))
 
