@@ -264,14 +264,6 @@ def upload_image(type, id):
             
             if type == 'history':
                 c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", ('history_image', filename))
-            elif type == 'news':
-                c.execute("UPDATE news_content SET image_path = ? WHERE id = ?", (filename, id))
-            elif type == 'personnel':
-                c.execute("UPDATE personnel SET image_path = ? WHERE id = ?", (filename, id))
-            elif type == 'sponsor':
-                c.execute("UPDATE sponsors SET image_path = ? WHERE id = ?", (filename, id))
-            elif type == 'agenda':
-                c.execute("UPDATE agenda_content SET image_path = ? WHERE id = ?", (filename, id))
                 
             conn.commit()
             conn.close()
@@ -901,10 +893,6 @@ HTML_UR_FC = """
                     <div class="position-absolute top-0 start-50 translate-middle-x d-flex gap-1" style="z-index: 10;">
                         <button class="trash-btn" onclick="deleteItem('sponsors', '{{ sponsor.id }}')"><i class="fas fa-trash"></i></button>
                     </div>
-                    <form action="/upload/sponsor/{{ sponsor.id }}" method="post" enctype="multipart/form-data" class="position-absolute bottom-0 end-0">
-                        <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="sp-upload-{{ sponsor.id }}">
-                        <label for="sp-upload-{{ sponsor.id }}" class="btn btn-sm btn-light border rounded-circle p-1" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><i class="fas fa-camera text-primary"></i></label>
-                    </form>
                     <div class="mt-2">
                         <input type="range" class="form-range custom-range-slider" min="40" max="200" step="5" value="{{ size }}" style="width: 100px;" 
                                oninput="previewResize('{{ sponsor.id }}', this.value)"
@@ -1092,12 +1080,6 @@ HTML_UR_FC = """
                 <!-- Image Column (Right on desktop, Top on mobile) -->
                 <div class="col-md-5 order-md-2 mb-3 mb-md-0 d-flex justify-content-center align-items-center position-relative">
                     <img id="pm-img" src="" style="width:100%; height:300px; object-fit:cover; border-radius:10px; box-shadow:0 5px 15px rgba(0,0,0,0.2);">
-                    {% if admin %}
-                    <form id="pm-upload-form" method="post" enctype="multipart/form-data" class="position-absolute bottom-0 end-0 m-3">
-                         <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="pm-upload">
-                         <label for="pm-upload" class="btn btn-warning shadow"><i class="fas fa-camera"></i></label>
-                    </form>
-                    {% endif %}
                 </div>
                 
                 <!-- Info Column (Left on desktop, Bottom on mobile) -->
@@ -1232,12 +1214,6 @@ HTML_UR_FC = """
             
             <div style="position:relative;">
                 <img id="news-modal-img" src="" style="width:100%; height:300px; object-fit:cover; border-radius:8px; margin-bottom:15px;">
-                {% if admin %}
-                <form id="news-upload-form" method="post" enctype="multipart/form-data" class="position-absolute bottom-0 end-0 m-3">
-                     <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="news-upload">
-                     <label for="news-upload" class="btn btn-warning shadow"><i class="fas fa-camera"></i></label>
-                </form>
-                {% endif %}
             </div>
 
             {% if admin %}
@@ -1316,12 +1292,6 @@ HTML_UR_FC = """
 
             if (isAdmin) {
                 // --- ADMIN EDIT MODE ---
-                
-                // Inject Upload Button
-                const uploadBtn = document.createElement('div');
-                uploadBtn.className = 'camera-btn';
-                uploadBtn.innerHTML = `<form action="/upload/agenda/${id}" method="post" enctype="multipart/form-data"><label for="p-up-${id}" style="cursor:pointer;width:100%;height:100%;display:flex;align-items:center;justify-content:center;"><i class="fas fa-camera"></i></label><input type="file" id="p-up-${id}" name="image" style="display:none;" onchange="this.form.submit()"></form>`;
-                imgWrapper.appendChild(uploadBtn);
                 
                 // Build Form
                 const formHtml = `
@@ -1426,12 +1396,6 @@ HTML_UR_FC = """
 
             if (isAdmin) {
                 // --- ADMIN MODE ---
-                
-                // Inject Upload Button
-                const uploadBtn = document.createElement('div');
-                uploadBtn.className = 'camera-btn';
-                uploadBtn.innerHTML = `<form action="/upload/agenda/${id}" method="post" enctype="multipart/form-data"><label for="ag-up-${id}" style="cursor:pointer;width:100%;height:100%;display:flex;align-items:center;justify-content:center;"><i class="fas fa-camera"></i></label><input type="file" id="ag-up-${id}" name="image" style="display:none;" onchange="this.form.submit()"></form>`;
-                imgContainer.appendChild(uploadBtn);
                 
                 // Build Form Inputs
                 const formHtml = `
@@ -1644,7 +1608,6 @@ HTML_UR_FC = """
             document.getElementById('person-modal').style.display = 'flex';
             
             if (document.getElementById('pm-name-input')) { // Admin
-                document.getElementById('pm-upload-form').action = '/upload/personnel/' + id;
                 document.getElementById('pm-name-input').value = name;
                 document.getElementById('pm-pos-input').value = position;
                 document.getElementById('pm-nat-input').value = nat || 'Indonesia';
@@ -1731,7 +1694,6 @@ HTML_UR_FC = """
             }
 
             if (document.getElementById('news-modal-title-input')) { // Admin Mode
-                document.getElementById('news-upload-form').action = '/upload/news/' + newsId;
                 document.getElementById('news-modal-title-input').value = item.title;
                 document.getElementById('news-modal-subtitle-input').value = item.subtitle;
                 document.getElementById('news-modal-details-input').value = item.details || '';
