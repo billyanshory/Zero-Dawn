@@ -106,6 +106,76 @@ def init_db():
                     value TEXT
                 )''')
 
+    # --- ACADEMY TABLES ---
+    # Candidates
+    c.execute('''CREATE TABLE IF NOT EXISTS candidates (
+                    id TEXT PRIMARY KEY,
+                    name TEXT,
+                    dob TEXT,
+                    category TEXT,
+                    position TEXT,
+                    guardian TEXT,
+                    guardian_wa TEXT,
+                    photo_path TEXT,
+                    status TEXT DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )''')
+
+    # Academy Students
+    c.execute('''CREATE TABLE IF NOT EXISTS academy_students (
+                    id TEXT PRIMARY KEY,
+                    name TEXT,
+                    dob TEXT,
+                    category TEXT,
+                    position TEXT,
+                    guardian TEXT,
+                    guardian_wa TEXT,
+                    photo_path TEXT,
+                    user_id TEXT,
+                    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )''')
+
+    # Academy Users
+    c.execute('''CREATE TABLE IF NOT EXISTS academy_users (
+                    username TEXT PRIMARY KEY,
+                    password_hash TEXT,
+                    role TEXT,
+                    related_id TEXT
+                )''')
+
+    # Finance Bills
+    c.execute('''CREATE TABLE IF NOT EXISTS finance_bills (
+                    id TEXT PRIMARY KEY,
+                    student_id TEXT,
+                    month TEXT,
+                    amount INTEGER,
+                    status TEXT DEFAULT 'unpaid',
+                    proof_path TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )''')
+
+    # Attendance
+    c.execute('''CREATE TABLE IF NOT EXISTS academy_attendance (
+                    id TEXT PRIMARY KEY,
+                    date TEXT,
+                    student_id TEXT,
+                    status TEXT,
+                    coach_id TEXT
+                )''')
+
+    # Evaluations
+    c.execute('''CREATE TABLE IF NOT EXISTS academy_evaluations (
+                    id TEXT PRIMARY KEY,
+                    month TEXT,
+                    student_id TEXT,
+                    coach_id TEXT,
+                    data TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )''')
+
+    # Seed Coach
+    c.execute("INSERT OR IGNORE INTO academy_users (username, password_hash, role, related_id) VALUES ('coach', ?, 'coach', 'coach_1')", (generate_password_hash('coach123'),))
+
     # Seed Data
     c.execute("INSERT OR IGNORE INTO news_content (id, title, subtitle, category, type) VALUES ('hero', 'VICTORY IN THE DERBY', 'A stunning performance secures the win', 'FIRST TEAM', 'hero')")
     for i in range(1, 5):
@@ -784,6 +854,38 @@ STYLES_HTML = """
         cursor: pointer; transition: 0.3s; z-index: 20;
     }
     .camera-btn:hover { transform: scale(1.1); background: #fff; }
+
+    /* ACADEMY STYLES */
+    .bottom-nav {
+        position: fixed; bottom: 0; left: 0; width: 100%; height: 75px;
+        background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-top: 1px solid rgba(255, 215, 0, 0.3);
+        display: flex; justify-content: space-around; align-items: center;
+        z-index: 9999; padding-bottom: 10px;
+        box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+    }
+    .bottom-nav-item {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        text-decoration: none; color: #555; transition: 0.3s;
+        font-size: 0.7rem; font-weight: 700; flex: 1; height: 100%;
+        position: relative;
+    }
+    .bottom-nav-item i {
+        font-size: 1.5rem; margin-bottom: 5px; color: #333;
+        background: #f8f9fa; padding: 10px; border-radius: 50%;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: 0.3s;
+    }
+    .bottom-nav-item:hover i { background: var(--gold); color: black; transform: translateY(-5px); }
+
+    /* Academy Tab Active State */
+    .tab-btn { padding: 10px 20px; border: none; background: #eee; font-weight: 600; border-radius: 20px; margin-right: 5px; }
+    .tab-btn.active { background: var(--green); color: white; }
+
+    .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
+    .status-paid { background: #d1e7dd; color: #0f5132; }
+    .status-unpaid { background: #f8d7da; color: #842029; }
+    .status-pending { background: #fff3cd; color: #664d03; }
 </style>
 """
 
@@ -1306,8 +1408,296 @@ HTML_UR_FC = """
         </div>
     </footer>
 
+    <!-- STICKY BOTTOM NAV -->
+    <div class="bottom-nav">
+        <a href="javascript:void(0)" onclick="openAcademyModal('register')" class="bottom-nav-item">
+            <i class="fas fa-user-plus"></i>
+            <span>DAFTAR</span>
+        </a>
+        <a href="javascript:void(0)" onclick="openAcademyModal('finance')" class="bottom-nav-item">
+            <i class="fas fa-wallet"></i>
+            <span>KEUANGAN</span>
+        </a>
+        <a href="javascript:void(0)" onclick="openAcademyModal('report')" class="bottom-nav-item">
+            <i class="fas fa-chart-line"></i>
+            <span>RAPOR</span>
+        </a>
+    </div>
+
+    <!-- ACADEMY MODALS -->
+
+    <!-- REGISTER -->
+    <div id="register-modal" class="modal-overlay" onclick="closeAcademyModals()">
+        <div class="modal-content-custom" onclick="event.stopPropagation()">
+            <h3 class="section-title">PENDAFTARAN SISWA BARU</h3>
+            <p class="text-muted">Isi formulir untuk bergabung dengan Akademi TAHKIL FC</p>
+            <form id="reg-form" onsubmit="event.preventDefault(); submitRegistration();" class="text-start">
+                <div class="mb-2">
+                    <label>Nama Lengkap:</label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
+                <div class="row">
+                    <div class="col-6 mb-2">
+                        <label>Tanggal Lahir:</label>
+                        <input type="date" name="dob" class="form-control" required>
+                    </div>
+                    <div class="col-6 mb-2">
+                        <label>Posisi:</label>
+                        <select name="position" class="form-control">
+                            <option>Pemain Depan (FW)</option>
+                            <option>Gelandang (MF)</option>
+                            <option>Belakang (DF)</option>
+                            <option>Kiper (GK)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label>Nama Wali:</label>
+                    <input type="text" name="guardian" class="form-control" required>
+                </div>
+                <div class="mb-2">
+                    <label>No WA Wali:</label>
+                    <input type="text" name="guardian_wa" class="form-control" placeholder="08..." required>
+                </div>
+                <div class="mb-3">
+                    <label>Foto Diri:</label>
+                    <input type="file" name="photo" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-success w-100 fw-bold py-2">KIRIM PENDAFTARAN</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- FINANCE -->
+    <div id="finance-modal" class="modal-overlay" onclick="closeAcademyModals()">
+        <div class="modal-content-custom" onclick="event.stopPropagation()">
+            <h3 class="section-title">MANAJEMEN KEUANGAN & SPP</h3>
+
+            <div id="finance-login-view">
+                <p>Silakan login siswa untuk cek tagihan.</p>
+                <input type="text" id="login-user" class="form-control mb-2" placeholder="Username">
+                <input type="password" id="login-pass" class="form-control mb-3" placeholder="Password">
+                <button onclick="loginAcademy('finance')" class="btn btn-primary w-100">LOGIN SISWA</button>
+            </div>
+
+            <div id="finance-dashboard-view" style="display:none;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 id="fin-student-name" class="fw-bold m-0"></h5>
+                    <button onclick="logoutAcademy()" class="btn btn-sm btn-outline-danger">Logout</button>
+                </div>
+                <div id="finance-bills-list" class="text-start" style="max-height: 400px; overflow-y: auto;">
+                    <div class="alert alert-info">Memuat data tagihan...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REPORT -->
+    <div id="report-modal" class="modal-overlay" onclick="closeAcademyModals()">
+        <div class="modal-content-custom" onclick="event.stopPropagation()">
+            <h3 class="section-title">RAPOR & ABSENSI DIGITAL</h3>
+
+            <div id="report-login-view">
+                <p>Silakan login untuk melihat rapor perkembangan.</p>
+                <input type="text" id="report-user" class="form-control mb-2" placeholder="Username">
+                <input type="password" id="report-pass" class="form-control mb-3" placeholder="Password">
+                <button onclick="loginAcademy('report')" class="btn btn-primary w-100">LOGIN</button>
+            </div>
+
+            <div id="report-dashboard-view" style="display:none;">
+                 <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 id="rep-student-name" class="fw-bold text-success m-0"></h5>
+                    <button onclick="logoutAcademy()" class="btn btn-sm btn-outline-danger">Logout</button>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-6">
+                        <div class="bg-light p-3 rounded">
+                            <h5>Kehadiran</h5>
+                            <h2 class="fw-bold" id="att-percentage">--%</h2>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-light p-3 rounded">
+                            <h5>Skor Rata-rata</h5>
+                            <h2 class="fw-bold" id="avg-score">--</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3 text-start">
+                    <h5>Grafik Perkembangan (Bulan Ini)</h5>
+                    <div id="score-bars" class="d-flex flex-column gap-2">
+                        <!-- Bars injected via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- DATA INJECTION FOR JS -->
     <script>
+        // ACADEMY JS
+        let currentUser = null;
+
+        function openAcademyModal(type) {
+            closeAcademyModals();
+            document.getElementById(type + '-modal').style.display = 'flex';
+            if(type === 'finance' || type === 'report') {
+                if(currentUser) {
+                    showDashboard(type);
+                }
+            }
+        }
+
+        function closeAcademyModals() {
+            document.getElementById('register-modal').style.display = 'none';
+            document.getElementById('finance-modal').style.display = 'none';
+            document.getElementById('report-modal').style.display = 'none';
+        }
+
+        function submitRegistration() {
+            const form = document.getElementById('reg-form');
+            const formData = new FormData(form);
+
+            fetch('/api/academy/register', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    alert("Pendaftaran Berhasil! Data Anda sedang diverifikasi admin.");
+                    closeAcademyModals();
+                    form.reset();
+                } else {
+                    alert("Gagal: " + data.error);
+                }
+            });
+        }
+
+        function loginAcademy(context) {
+            const u = context === 'finance' ? document.getElementById('login-user').value : document.getElementById('report-user').value;
+            const p = context === 'finance' ? document.getElementById('login-pass').value : document.getElementById('report-pass').value;
+
+            fetch('/academy/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username: u, password: p })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    currentUser = data.user;
+                    showDashboard(context);
+                } else {
+                    alert("Login Gagal: " + data.error);
+                }
+            });
+        }
+
+        function logoutAcademy() {
+            currentUser = null;
+            document.getElementById('finance-login-view').style.display = 'block';
+            document.getElementById('finance-dashboard-view').style.display = 'none';
+            document.getElementById('report-login-view').style.display = 'block';
+            document.getElementById('report-dashboard-view').style.display = 'none';
+        }
+
+        function showDashboard(type) {
+            if(type === 'finance') {
+                document.getElementById('finance-login-view').style.display = 'none';
+                document.getElementById('finance-dashboard-view').style.display = 'block';
+                document.getElementById('fin-student-name').innerText = currentUser.name;
+                loadBills();
+            } else if (type === 'report') {
+                document.getElementById('report-login-view').style.display = 'none';
+                document.getElementById('report-dashboard-view').style.display = 'block';
+                document.getElementById('rep-student-name').innerText = currentUser.name;
+                loadReport();
+            }
+        }
+
+        function loadBills() {
+            fetch('/api/academy/data?type=bills')
+            .then(res => res.json())
+            .then(data => {
+                const list = document.getElementById('finance-bills-list');
+                list.innerHTML = '';
+                if(data.bills.length === 0) {
+                    list.innerHTML = '<div class="alert alert-success">Tidak ada tagihan aktif.</div>';
+                    return;
+                }
+                data.bills.forEach(bill => {
+                    const statusClass = bill.status === 'paid' ? 'status-paid' : (bill.status === 'pending' ? 'status-pending' : 'status-unpaid');
+                    const statusText = bill.status === 'paid' ? 'LUNAS' : (bill.status === 'pending' ? 'VERIFIKASI' : 'BELUM BAYAR');
+
+                    let actionBtn = '';
+                    if(bill.status === 'unpaid') {
+                        actionBtn = `<button class="btn btn-sm btn-primary mt-2" onclick="triggerUpload('${bill.id}')">Upload Bukti</button>
+                                     <form id="upload-form-${bill.id}" style="display:none">
+                                        <input type="file" id="file-${bill.id}" onchange="uploadProof('${bill.id}')">
+                                     </form>`;
+                    } else if (bill.status === 'paid') {
+                        actionBtn = `<a href="/print-receipt/${bill.id}" target="_blank" class="btn btn-sm btn-outline-success mt-2"><i class="fas fa-print"></i> Kwitansi</a>`;
+                    }
+
+                    const html = `
+                        <div class="card mb-2 p-3 shadow-sm border-0 bg-light">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="fw-bold mb-1">SPP ${bill.month}</h6>
+                                    <small class="text-muted">Rp ${bill.amount.toLocaleString()}</small>
+                                </div>
+                                <span class="status-badge ${statusClass}">${statusText}</span>
+                            </div>
+                            ${actionBtn}
+                        </div>
+                    `;
+                    list.innerHTML += html;
+                });
+            });
+        }
+
+        function triggerUpload(id) {
+            document.getElementById('file-'+id).click();
+        }
+
+        function uploadProof(billId) {
+            const fileInput = document.getElementById('file-'+billId);
+            const formData = new FormData();
+            formData.append('proof', fileInput.files[0]);
+            formData.append('bill_id', billId);
+
+            fetch('/api/academy/finance/upload', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) { alert("Bukti terupload!"); loadBills(); }
+            });
+        }
+
+        function loadReport() {
+            fetch('/api/academy/data?type=report')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('att-percentage').innerText = data.attendance + "%";
+                document.getElementById('avg-score').innerText = data.avg_score;
+
+                const bars = document.getElementById('score-bars');
+                bars.innerHTML = '';
+                // Example categories
+                const categories = { 'Passing': data.scores.passing, 'Shooting': data.scores.shooting, 'Stamina': data.scores.stamina, 'Attitude': data.scores.attitude };
+                for (const [key, val] of Object.entries(categories)) {
+                    bars.innerHTML += `
+                        <div>
+                            <div class="d-flex justify-content-between small"><span>${key}</span><span>${val || 0}</span></div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-warning" style="width: ${val || 0}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        }
+
         const newsData = {{ data['news'] | tojson }};
         const isAdmin = {{ 'true' if admin else 'false' }};
     </script>
@@ -1813,6 +2203,185 @@ HTML_UR_FC = """
 </body>
 </html>
 """
+
+# --- ACADEMY ROUTES ---
+
+@app.route('/api/academy/register', methods=['POST'])
+def academy_register():
+    try:
+        name = request.form.get('name')
+        dob = request.form.get('dob')
+        pos = request.form.get('position')
+        guard = request.form.get('guardian')
+        wa = request.form.get('guardian_wa')
+
+        photo_path = None
+        if 'photo' in request.files:
+            file = request.files['photo']
+            if file and allowed_file(file.filename):
+                filename = secure_filename(f"cand_{int(time.time())}.jpg")
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                photo_path = filename
+
+        conn = get_db_connection()
+        c = conn.cursor()
+        cid = f"cand_{int(time.time())}"
+        # Simple Age Category Logic
+        cat = 'U-12'
+
+        c.execute("INSERT INTO candidates (id, name, dob, category, position, guardian, guardian_wa, photo_path) VALUES (?,?,?,?,?,?,?,?)",
+                  (cid, name, dob, cat, pos, guard, wa, photo_path))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/academy/login', methods=['POST'])
+def academy_login():
+    data = request.json
+    u = data.get('username')
+    p = data.get('password')
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM academy_users WHERE username = ?", (u,))
+    user = c.fetchone()
+    conn.close()
+
+    if user and check_password_hash(user['password_hash'], p):
+        # Set session
+        session['academy_user'] = {'username': u, 'role': user['role'], 'related_id': user['related_id']}
+        # Get name if student
+        name = u
+        if user['role'] == 'student':
+            conn = get_db_connection()
+            s = conn.execute("SELECT name FROM academy_students WHERE id=?", (user['related_id'],)).fetchone()
+            conn.close()
+            if s: name = s['name']
+
+        return jsonify({'success': True, 'user': {'name': name, 'role': user['role']}})
+    return jsonify({'success': False, 'error': 'Invalid credentials'})
+
+@app.route('/api/academy/data', methods=['GET'])
+def academy_data():
+    if 'academy_user' not in session: return jsonify({'error': 'Unauthorized'}), 403
+    type = request.args.get('type')
+    user = session['academy_user']
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    data = {}
+
+    if type == 'bills' and user['role'] == 'student':
+        c.execute("SELECT * FROM finance_bills WHERE student_id = ? ORDER BY created_at DESC", (user['related_id'],))
+        bills = [dict(row) for row in c.fetchall()]
+        data['bills'] = bills
+
+    elif type == 'report' and user['role'] == 'student':
+        c.execute("SELECT * FROM academy_attendance WHERE student_id = ?", (user['related_id'],))
+        att = c.fetchall()
+        total = len(att)
+        present = len([x for x in att if x['status'] == 'present'])
+        pct = int((present / total * 100)) if total > 0 else 0
+
+        c.execute("SELECT * FROM academy_evaluations WHERE student_id = ? ORDER BY created_at DESC LIMIT 1", (user['related_id'],))
+        last_eval = c.fetchone()
+        scores = {}
+        if last_eval and last_eval['data']:
+             try: scores = json.loads(last_eval['data'])
+             except: pass
+
+        avg = 0
+        if scores:
+            vals = [int(v) for v in scores.values() if str(v).isdigit()]
+            if vals: avg = sum(vals) // len(vals)
+
+        data['attendance'] = pct
+        data['avg_score'] = avg
+        data['scores'] = scores
+
+    conn.close()
+    return jsonify(data)
+
+@app.route('/api/academy/finance/upload', methods=['POST'])
+def academy_upload_proof():
+    if 'academy_user' not in session: return jsonify({'error': 'Unauthorized'}), 403
+    bill_id = request.form.get('bill_id')
+    file = request.files.get('proof')
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(f"proof_{bill_id}.jpg")
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+        conn = get_db_connection()
+        conn.execute("UPDATE finance_bills SET status='pending', proof_path=? WHERE id=?", (filename, bill_id))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    return jsonify({'success': False})
+
+@app.route('/api/academy/approve', methods=['POST'])
+def academy_approve():
+    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    cand_id = request.json.get('id')
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    cand = c.execute("SELECT * FROM candidates WHERE id=?", (cand_id,)).fetchone()
+    if cand:
+        # Move to students
+        sid = f"stu_{int(time.time())}"
+        # Create User
+        username = cand['name'].replace(' ', '').lower() + str(int(time.time())%1000)
+        pwd_hash = generate_password_hash("123456")
+
+        c.execute("INSERT INTO academy_users (username, password_hash, role, related_id) VALUES (?,?,?,?)",
+                  (username, pwd_hash, 'student', sid))
+
+        c.execute("INSERT INTO academy_students (id, name, dob, category, position, guardian, guardian_wa, photo_path, user_id) VALUES (?,?,?,?,?,?,?,?,?)",
+                  (sid, cand['name'], cand['dob'], cand['category'], cand['position'], cand['guardian'], cand['guardian_wa'], cand['photo_path'], username))
+
+        c.execute("DELETE FROM candidates WHERE id=?", (cand_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'username': username})
+
+    conn.close()
+    return jsonify({'success': False})
+
+@app.route('/api/academy/finance/verify', methods=['POST'])
+def academy_verify_payment():
+    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    bill_id = request.json.get('id')
+
+    conn = get_db_connection()
+    conn.execute("UPDATE finance_bills SET status='paid' WHERE id=?", (bill_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/print-receipt/<bill_id>')
+def print_receipt(bill_id):
+    conn = get_db_connection()
+    bill = conn.execute("SELECT * FROM finance_bills WHERE id=?", (bill_id,)).fetchone()
+    conn.close()
+    if not bill or bill['status'] != 'paid': return "Receipt Not Available"
+
+    return f"""
+    <div style="text-align:center; font-family:monospace; padding:20px; border:1px solid #000; width:300px; margin:20px auto;">
+        <h2>TAHKIL FC ACADEMY</h2>
+        <p>OFFICIAL RECEIPT</p>
+        <hr>
+        <p align="left">ID: {bill['id']}</p>
+        <p align="left">Month: {bill['month']}</p>
+        <p align="left">Amount: Rp {bill['amount']:,}</p>
+        <p align="left">Status: PAID</p>
+        <hr>
+        <p>Thank you for your payment.</p>
+        <button onclick="window.print()">Print</button>
+    </div>
+    """
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
