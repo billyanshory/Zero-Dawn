@@ -7,6 +7,11 @@ from flask import Flask, request, send_from_directory, redirect, url_for, render
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from PIL import Image
+try:
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+except ImportError:
+    pass
 
 # --- FLASK CONFIGURATION ---
 app = Flask(__name__)
@@ -16,7 +21,7 @@ ADMIN_PASSWORD_HASH = 'scrypt:32768:8:1$wC1vDFSL04PVmWuj$30839c55608f9ceffc24712
 
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg', 'heic', 'heif', 'avif', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -238,48 +243,55 @@ def uploaded_file(filename):
 
 @app.route('/upload/<type>/<id>', methods=['POST'])
 def upload_image(type, id):
-    if not session.get('admin'): return "Unauthorized", 403
-    if 'image' not in request.files: return "No file", 400
+    if not session.get('admin'): return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    if 'image' not in request.files: return jsonify({'success': False, 'error': 'No file part'}), 400
     
     file = request.files['image']
-    if file and file.filename != '' and allowed_file(file.filename):
-        try:
-            img = Image.open(file)
-            if img.mode in ("RGBA", "P"): img = img.convert("RGB")
-            
-            # Resize
-            max_width = 1024
-            if img.width > max_width:
-                ratio = max_width / float(img.width)
-                new_height = int((float(img.height) * float(ratio)))
-                img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
-            
-            # Save as JPEG
-            filename = secure_filename(f"{type}_{id}_{int(time.time())}.jpg")
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            img.save(filepath, "JPEG", quality=85, optimize=True)
-            
-            conn = get_db_connection()
-            c = conn.cursor()
-            
-            if type == 'history':
-                c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", ('history_image', filename))
-            elif type == 'news':
-                c.execute("UPDATE news_content SET image_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (filename, id))
-            elif type == 'personnel':
-                c.execute("UPDATE personnel SET image_path = ? WHERE id = ?", (filename, id))
-            elif type == 'agenda':
-                c.execute("UPDATE agenda_content SET image_path = ? WHERE id = ?", (filename, id))
-            elif type == 'sponsor':
-                c.execute("UPDATE sponsors SET image_path = ? WHERE id = ?", (filename, id))
+    if file and file.filename != '':
+        if allowed_file(file.filename):
+            try:
+                img = Image.open(file)
+                if img.mode in ("RGBA", "P"): img = img.convert("RGB")
+
+                # Resize
+                max_width = 1024
+                if img.width > max_width:
+                    ratio = max_width / float(img.width)
+                    new_height = int((float(img.height) * float(ratio)))
+                    if hasattr(Image, 'Resampling'):
+                        img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
+                    else:
+                        img = img.resize((max_width, new_height), Image.LANCZOS)
                 
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            print(f"Error processing image: {e}")
-            return "Error processing image", 500
+                # Save as JPEG
+                filename = secure_filename(f"{type}_{id}_{time.time_ns()}.jpg")
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                img.save(filepath, "JPEG", quality=85, optimize=True)
+
+                conn = get_db_connection()
+                c = conn.cursor()
+
+                if type == 'history':
+                    c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", ('history_image', filename))
+                elif type == 'news':
+                    c.execute("UPDATE news_content SET image_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (filename, id))
+                elif type == 'personnel':
+                    c.execute("UPDATE personnel SET image_path = ? WHERE id = ?", (filename, id))
+                elif type == 'agenda':
+                    c.execute("UPDATE agenda_content SET image_path = ? WHERE id = ?", (filename, id))
+                elif type == 'sponsor':
+                    c.execute("UPDATE sponsors SET image_path = ? WHERE id = ?", (filename, id))
+
+                conn.commit()
+                conn.close()
+                return jsonify({'success': True, 'filename': filename})
+            except Exception as e:
+                print(f"Error processing image: {e}")
+                return jsonify({'success': False, 'error': f'Error processing image: {str(e)}'}), 500
+        else:
+            return jsonify({'success': False, 'error': 'File type not allowed'}), 400
         
-    return redirect(url_for('index'))
+    return jsonify({'success': False, 'error': 'No file selected'}), 400
 
 @app.route('/api/update-text', methods=['POST'])
 def api_update_text():
@@ -1100,8 +1112,7 @@ HTML_UR_FC = """
                     <form id="pm-upload-form" method="post" enctype="multipart/form-data" class="mb-3">
                         <label>Update Photo:</label>
                         <div class="input-group">
-                            <input type="file" name="image" class="form-control" required>
-                            <button class="btn btn-primary" type="submit">Upload</button>
+                            <input type="file" name="image" class="form-control" id="pm-file-input">
                         </div>
                     </form>
                     <div class="mb-3">
@@ -1175,9 +1186,9 @@ HTML_UR_FC = """
                 {% if admin %}
                 <form id="partner-upload-form" method="post" enctype="multipart/form-data" class="mt-2">
                     <div class="input-group">
-                        <input type="file" name="image" class="form-control" required>
-                        <button class="btn btn-primary" type="submit">Upload</button>
+                        <input type="file" name="image" class="form-control" id="partner-file-input">
                     </div>
+                    <small class="text-muted">Select file and click Save below to upload.</small>
                 </form>
                 {% endif %}
             </div>
@@ -1199,9 +1210,9 @@ HTML_UR_FC = """
                 {% if admin %}
                 <form id="agenda-upload-form" method="post" enctype="multipart/form-data" class="mt-2">
                     <div class="input-group">
-                        <input type="file" name="image" class="form-control" required>
-                        <button class="btn btn-primary" type="submit">Upload New Image</button>
+                        <input type="file" name="image" class="form-control" id="agenda-file-input">
                     </div>
+                    <small class="text-muted">Select file and click Save below to upload.</small>
                 </form>
                 {% endif %}
             </div>
@@ -1223,8 +1234,8 @@ HTML_UR_FC = """
                 <img id="history-main-img" src="{{ '/uploads/' + history_img if history_img else url_for('static', filename='logo-tahkil-fc.png') }}" style="width:100%; height:100%; object-fit:cover;">
                 
                 {% if admin %}
-                <form action="/upload/history/main" method="post" enctype="multipart/form-data" class="position-absolute bottom-0 end-0 p-2">
-                    <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="history-upload">
+                <form class="position-absolute bottom-0 end-0 p-2">
+                    <input type="file" name="image" style="display:none;" id="history-upload">
                     <label for="history-upload" class="btn btn-sm btn-warning"><i class="fas fa-camera"></i> Change Image</label>
                 </form>
                 {% endif %}
@@ -1255,8 +1266,7 @@ HTML_UR_FC = """
             <form id="news-upload-form" method="post" enctype="multipart/form-data" class="mb-3">
                 <label>Update Headline Image:</label>
                 <div class="input-group">
-                    <input type="file" name="image" class="form-control" required>
-                    <button class="btn btn-primary" type="submit">Upload</button>
+                    <input type="file" name="image" class="form-control" id="news-file-input">
                 </div>
             </form>
             <div class="mb-2">
@@ -1403,16 +1413,18 @@ HTML_UR_FC = """
         }
         
         function savePartnerFull(id) {
-            const title = document.getElementById('pm-title-input').value;
-            const details = document.getElementById('pm-details-input').value;
-            const price = document.getElementById('pm-price-input').value;
+            uploadImageAndSave('agenda', id, 'partner-file-input', () => {
+                const title = document.getElementById('pm-title-input').value;
+                const details = document.getElementById('pm-details-input').value;
+                const price = document.getElementById('pm-price-input').value;
 
-            Promise.all([
-                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'title', value: title }) }),
-                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'details', value: details }) }),
-                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'price', value: price }) })
-            ]).then(() => {
-                location.reload();
+                Promise.all([
+                    fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'title', value: title }) }),
+                    fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'details', value: details }) }),
+                    fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'price', value: price }) })
+                ]).then(() => {
+                    location.reload();
+                });
             });
         }
 
@@ -1542,17 +1554,19 @@ HTML_UR_FC = """
         }
 
         function saveAgendaFull(id) {
-            const title = document.getElementById('ag-title-input').value;
-            const date = document.getElementById('ag-date-input').value;
-            const price = document.getElementById('ag-price-input').value;
+            uploadImageAndSave('agenda', id, 'agenda-file-input', () => {
+                const title = document.getElementById('ag-title-input').value;
+                const date = document.getElementById('ag-date-input').value;
+                const price = document.getElementById('ag-price-input').value;
 
-            // Save text
-            Promise.all([
-                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'title', value: title }) }),
-                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'event_date', value: date }) }),
-                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'price', value: price }) })
-            ]).then(() => {
-                location.reload();
+                // Save text
+                Promise.all([
+                    fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'title', value: title }) }),
+                    fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'event_date', value: date }) }),
+                    fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'agenda_content', id: id, field: 'price', value: price }) })
+                ]).then(() => {
+                    location.reload();
+                });
             });
         }
 
@@ -1578,6 +1592,30 @@ HTML_UR_FC = """
             const container = btn.parentElement.querySelector('.horizontal-scroll-container');
             const scrollAmount = 300;
             container.scrollBy({ left: dir * scrollAmount, behavior: 'smooth' });
+        }
+
+        async function uploadImageAndSave(type, id, fileInputId, nextStep) {
+            const fileInput = document.getElementById(fileInputId);
+            if (fileInput && fileInput.files.length > 0) {
+                const formData = new FormData();
+                formData.append('image', fileInput.files[0]);
+
+                try {
+                    const response = await fetch('/upload/' + type + '/' + id, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    if (!result.success) {
+                        alert('Upload Failed: ' + result.error);
+                        return; // Stop saving
+                    }
+                } catch (error) {
+                    alert('Upload Error: ' + error);
+                    return;
+                }
+            }
+            nextStep();
         }
 
         // --- TIME AGO LOGIC ---
@@ -1672,14 +1710,16 @@ HTML_UR_FC = """
 
         function savePersonFull() {
             if(!currentPersonId) return;
-            // Simple sequential saves
-            ['name', 'position', 'nationality', 'joined', 'matches', 'goals'].forEach(field => {
-                let suffix = (field === 'name' || field === 'position') ? '-input' : '-input'; 
-                let idMap = {'name':'pm-name-input', 'position':'pm-pos-input', 'nationality':'pm-nat-input', 'joined':'pm-join-input', 'matches':'pm-match-input', 'goals':'pm-goal-input'};
-                let val = document.getElementById(idMap[field]).value;
-                saveText('personnel', currentPersonId, field, {value: val});
+            uploadImageAndSave('personnel', currentPersonId, 'pm-file-input', () => {
+                // Simple sequential saves
+                ['name', 'position', 'nationality', 'joined', 'matches', 'goals'].forEach(field => {
+                    let suffix = (field === 'name' || field === 'position') ? '-input' : '-input';
+                    let idMap = {'name':'pm-name-input', 'position':'pm-pos-input', 'nationality':'pm-nat-input', 'joined':'pm-join-input', 'matches':'pm-match-input', 'goals':'pm-goal-input'};
+                    let val = document.getElementById(idMap[field]).value;
+                    saveText('personnel', currentPersonId, field, {value: val});
+                });
+                setTimeout(() => location.reload(), 500);
             });
-            setTimeout(() => location.reload(), 500);
         }
 
         // Next Match
@@ -1711,11 +1751,13 @@ HTML_UR_FC = """
         }
         function closeHistoryModal() { document.getElementById('history-modal').style.display = 'none'; }
         function saveHistory() {
-             const val = document.getElementById('history-text-input').value;
-             fetch('/api/update-text', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ table: 'site_settings', id: 'history_text', value: val })
-            }).then(() => location.reload());
+             uploadImageAndSave('history', 'main', 'history-upload', () => {
+                 const val = document.getElementById('history-text-input').value;
+                 fetch('/api/update-text', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ table: 'site_settings', id: 'history_text', value: val })
+                }).then(() => location.reload());
+             });
         }
 
         // News Modal
@@ -1754,16 +1796,18 @@ HTML_UR_FC = """
 
         function saveNewsModal() {
             if(!currentNewsId) return;
-            const title = document.getElementById('news-modal-title-input').value;
-            const subtitle = document.getElementById('news-modal-subtitle-input').value;
-            const details = document.getElementById('news-modal-details-input').value;
-            
-            // Chain promises for updates
-            Promise.all([
-                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'news_content', id: currentNewsId, field: 'title', value: title }) }),
-                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'news_content', id: currentNewsId, field: 'subtitle', value: subtitle }) }),
-                fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'news_content', id: currentNewsId, field: 'details', value: details }) })
-            ]).then(() => location.reload());
+            uploadImageAndSave('news', currentNewsId, 'news-file-input', () => {
+                const title = document.getElementById('news-modal-title-input').value;
+                const subtitle = document.getElementById('news-modal-subtitle-input').value;
+                const details = document.getElementById('news-modal-details-input').value;
+
+                // Chain promises for updates
+                Promise.all([
+                    fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'news_content', id: currentNewsId, field: 'title', value: title }) }),
+                    fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'news_content', id: currentNewsId, field: 'subtitle', value: subtitle }) }),
+                    fetch('/api/update-text', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ table: 'news_content', id: currentNewsId, field: 'details', value: details }) })
+                ]).then(() => location.reload());
+            });
         }
 
         // Countdown
