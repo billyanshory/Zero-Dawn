@@ -501,23 +501,51 @@ NAVBAR_HTML = """
         top: 0;
         z-index: 1040;
     }
-    .navbar-logo-container { position: absolute; left: 5%; top: -15px; z-index: 2000; }
-    .navbar-logo-img { height: 85px; transition: 0.3s; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.2)); cursor: pointer; }
-    .navbar-links { margin-left: 120px; display: flex; gap: 30px; }
     .nav-item-custom {
         color: #333; text-transform: uppercase; font-weight: 700; text-decoration: none; font-size: 0.9rem; position: relative;
     }
     .nav-item-custom:after {
-        content: ''; position: absolute; width: 0; height: 3px; bottom: -24px; left: 0; background-color: #FFD700; transition: width 0.3s;
+        content: ''; position: absolute; width: 0; height: 3px; bottom: -5px; left: 0; background-color: #FFD700; transition: width 0.3s;
     }
     .nav-item-custom:hover:after { width: 100%; }
     
+    .nav-split-container {
+        display: flex;
+        width: 100%;
+        height: 100%;
+    }
+    .nav-box-left {
+        width: 50%;
+        display: flex;
+        align-items: center;
+        border-bottom: 3px solid #2ecc71;
+        padding-left: 5%;
+        position: relative;
+    }
+    .nav-box-right {
+        width: 50%;
+        display: flex;
+        align-items: center;
+        border-bottom: 3px solid #FFD700;
+        padding-left: 20px;
+        position: relative;
+    }
+    .nav-box-links {
+        display: flex;
+        gap: 20px;
+        margin-left: 30px;
+    }
+    .navbar-logo-desktop {
+        height: 85px; margin-top: -15px; transition: 0.3s; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.2)); cursor: pointer; z-index: 2000; position: relative;
+    }
+    .mobile-separator {
+        height: 1px; background-color: #ddd; margin: 15px 0; width: 100%;
+    }
+
     @media (max-width: 992px) {
         .top-bar { display: none; }
         .main-navbar { justify-content: space-between; padding: 0 20px; }
-        .navbar-logo-container { position: static; transform: none; }
         .navbar-logo-img { height: 50px; }
-        .navbar-links { display: none; }
     }
 </style>
 
@@ -546,30 +574,42 @@ NAVBAR_HTML = """
     </div>
 </div>
 
-<div class="main-navbar">
-    <div class="navbar-logo-container" onclick="toggleLogoPopup()">
-        <a href="javascript:void(0)">
-            <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="navbar-logo-img" alt="TAHKIL FC">
-        </a>
-    </div>
-    <div class="d-lg-none fw-bold fs-4 position-absolute start-50 translate-middle-x" style="white-space: nowrap;">TAHFIZH KILAT FC</div>
-    <div class="navbar-links d-none d-lg-flex" style="gap: 20px;">
-        <div style="display:flex; gap:20px; border:2px solid #2ecc71; padding:5px 15px; border-radius:8px;">
-            <a href="{{ url_for('index') }}#hero" class="nav-item-custom">Home</a>
-            <a href="{{ url_for('index') }}#players" class="nav-item-custom">Pemain</a>
-            <a href="{{ url_for('index') }}#coaches" class="nav-item-custom">Pelatih</a>
-            <a href="{{ url_for('index') }}#mvp" class="nav-item-custom">MVP</a>
-            <a href="{{ url_for('index') }}#agenda-latihan" class="nav-item-custom">Agenda</a>
-            <a href="{{ url_for('index') }}#main-partners" class="nav-item-custom">Sponsors</a>
+<div class="main-navbar p-0 d-none d-lg-flex">
+    <div class="nav-split-container">
+        <!-- Left Box (Green) -->
+        <div class="nav-box-left">
+            <div onclick="toggleLogoPopup()">
+                <a href="javascript:void(0)">
+                    <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="navbar-logo-desktop" alt="TAHKIL FC">
+                </a>
+            </div>
+            <div class="nav-box-links">
+                <a href="{{ url_for('index') }}#hero" class="nav-item-custom">Home</a>
+                <a href="{{ url_for('index') }}#players" class="nav-item-custom">Pemain</a>
+                <a href="{{ url_for('index') }}#coaches" class="nav-item-custom">Pelatih</a>
+                <a href="{{ url_for('index') }}#mvp" class="nav-item-custom">MVP</a>
+                <a href="{{ url_for('index') }}#agenda-latihan" class="nav-item-custom">Agenda</a>
+                <a href="{{ url_for('index') }}#main-partners" class="nav-item-custom">Sponsors</a>
+            </div>
         </div>
-        <div style="display:flex; gap:20px; border:2px solid #FFD700; padding:5px 15px; border-radius:8px;">
-            <a href="{{ url_for('list_players') }}" class="nav-item-custom">DAFTAR</a>
-            <a href="{{ url_for('list_bills') }}" class="nav-item-custom">KEUANGAN</a>
-            <a href="{{ url_for('list_reports') }}" class="nav-item-custom">RAPOR</a>
+        <!-- Right Box (Yellow) -->
+        <div class="nav-box-right">
+             <div class="nav-box-links">
+                <a href="{{ url_for('list_players') }}" class="nav-item-custom">DAFTAR</a>
+                <a href="{{ url_for('list_bills') }}" class="nav-item-custom">KEUANGAN</a>
+                <a href="{{ url_for('list_reports') }}" class="nav-item-custom">RAPOR</a>
+             </div>
         </div>
     </div>
-    <button class="d-lg-none btn border-0" onclick="toggleMobileMenu()"><i class="fas fa-bars fa-2x"></i></button>
-    <div class="navbar-split-border"></div>
+</div>
+
+<!-- Mobile Header -->
+<div class="main-navbar d-lg-none justify-content-between px-3">
+    <div class="navbar-logo-container" onclick="toggleLogoPopup()" style="position:static; transform:none;">
+        <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="navbar-logo-img" style="height:50px;">
+    </div>
+    <div class="fw-bold fs-4 position-absolute start-50 translate-middle-x" style="white-space: nowrap;">TAHFIZH KILAT FC</div>
+    <button class="btn border-0" onclick="toggleMobileMenu()"><i class="fas fa-bars fa-2x"></i></button>
 </div>
 
 <div id="mobile-menu" class="mobile-menu-container">
@@ -581,6 +621,11 @@ NAVBAR_HTML = """
     <a href="#agenda-latihan" class="mobile-nav-link">Agenda</a>
     <a href="#main-partners" class="mobile-nav-link">Sponsors</a>
     
+    <div class="mobile-separator"></div>
+    <a href="{{ url_for('list_players') }}" class="mobile-nav-link">DAFTAR</a>
+    <a href="{{ url_for('list_bills') }}" class="mobile-nav-link">KEUANGAN</a>
+    <a href="{{ url_for('list_reports') }}" class="mobile-nav-link">RAPOR</a>
+
     <div class="mt-auto d-flex flex-column gap-3">
         <div class="history-btn justify-content-center d-lg-none" onclick="toggleFullScreen()" style="background: #111; color: #FFD700;">
             <i class="fas fa-expand"></i>
