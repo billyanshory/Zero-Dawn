@@ -117,6 +117,8 @@ def init_db():
                     guardian TEXT,
                     guardian_wa TEXT,
                     photo_path TEXT,
+                    requested_username TEXT,
+                    requested_password TEXT,
                     status TEXT DEFAULT 'pending',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
@@ -521,10 +523,10 @@ NAVBAR_HTML = """
         </div>
     </div>
     <div class="top-bar-right d-flex align-items-center gap-3">
-        {% if not admin %}
-        <button onclick="document.getElementById('login-modal').style.display='flex'" class="btn btn-outline-light btn-sm">Admin Login</button>
+        {% if not admin and not session.get('academy_user') %}
+        <button onclick="document.getElementById('login-modal').style.display='flex'" class="btn btn-outline-light btn-sm">Login</button>
         {% else %}
-        <a href="/logout" class="btn btn-danger btn-sm">Logout</a>
+        <a href="/logout" class="btn btn-sm fw-bold" style="background: #ff69b4; color: white; border: none;">Logout</a>
         {% endif %}
         
         <div class="history-btn" onclick="openHistoryModal()">
@@ -576,19 +578,35 @@ NAVBAR_HTML = """
             <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="monochrome-icon">
             Lihat Sejarah
         </div>
-        <button onclick="document.getElementById('login-modal').style.display='flex'" class="btn btn-outline-dark w-100">Admin Login</button>
+        {% if not admin and not session.get('academy_user') %}
+        <button onclick="document.getElementById('login-modal').style.display='flex'" class="btn btn-outline-dark w-100">Login</button>
+        {% else %}
+        <a href="/logout" class="btn w-100" style="background: #ff69b4; color: white;">Logout</a>
+        {% endif %}
     </div>
 </div>
 
 <div id="login-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center;">
-    <div style="background:white; padding:30px; border-radius:10px; width:300px;">
-        <h3 class="text-center mb-3">Admin Login</h3>
-        <form action="/login" method="POST">
-            <input type="text" name="userid" placeholder="User ID" class="form-control mb-2" required>
-            <input type="password" name="password" placeholder="Password" class="form-control mb-3" required>
-            <button type="submit" class="btn btn-success w-100">Login</button>
-        </form>
-        <button onclick="document.getElementById('login-modal').style.display='none'" class="btn btn-link w-100 mt-2">Cancel</button>
+    <div style="background:white; padding:30px; border-radius:10px; width:350px; text-align: center;">
+        <h3 class="text-center mb-3 fw-bold">LOGIN</h3>
+
+        <div id="login-menu">
+            <button onclick="showLogin('student')" class="btn btn-primary w-100 mb-2">Login Siswa</button>
+            <button onclick="showLogin('coach')" class="btn btn-warning w-100 mb-2">Login Coach</button>
+            <button onclick="showLogin('admin')" class="btn btn-dark w-100 mb-2">Login Admin</button>
+        </div>
+
+        <div id="login-form-container" style="display:none;">
+            <h5 id="login-title" class="mb-3"></h5>
+            <form id="main-login-form" onsubmit="event.preventDefault(); handleMainLogin();">
+                <input type="text" id="main-uid" placeholder="User ID / Username" class="form-control mb-2" required>
+                <input type="password" id="main-pwd" placeholder="Password" class="form-control mb-3" required>
+                <button type="submit" class="btn btn-success w-100">Login</button>
+            </form>
+            <button onclick="resetLoginModal()" class="btn btn-link w-100 mt-2">Back</button>
+        </div>
+
+        <button onclick="document.getElementById('login-modal').style.display='none'" class="btn btn-link w-100 mt-2 text-danger">Cancel</button>
     </div>
 </div>
 """
@@ -1137,7 +1155,7 @@ HTML_UR_FC = """
                         <div class="col-md-4">
                             <div class="agenda-card-barca cursor-pointer" onclick="openAgendaModal('{{ item.id }}', '{{ item.title }}', '{{ item.event_date }}', '{{ item.price }}', '{{ item.image_path if item.image_path else '' }}')">
                                 <div class="agenda-img" style="position:relative;">
-                                    <img src="{{ '/uploads/' + item.image_path if item.image_path else url_for('static', filename='logo-tahkil-fc.png') }}?t={{ timestamp }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
+                                    <img src="{{ '/uploads/' + item.image_path if item.image_path else url_for('static', filename='logo-tahkil-fc.png') }}?t={{ timestamp }}" onerror="this.onerror=null;this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
                                 </div>
                                 <div class="agenda-details">
                                     <div class="agenda-date">{{ item.event_date | replace('T', ' ') if item.event_date else 'Date TBD' }}</div>
@@ -1167,7 +1185,7 @@ HTML_UR_FC = """
             <div class="col-md-4">
                 <div class="agenda-card-barca cursor-pointer" onclick="openPartnerModal('{{ loop.index0 }}', '{{ item.id }}', '{{ item.title }}', '{{ item.details if item.details else '' }}', '{{ item.image_path if item.image_path else '' }}', '{{ item.price if item.price else '' }}')">
                     <div class="agenda-img" style="position:relative;">
-                         <img src="{{ '/uploads/' + item.image_path if item.image_path else url_for('static', filename='logo-tahkil-fc.png') }}?t={{ timestamp }}" onerror="this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
+                         <img src="{{ '/uploads/' + item.image_path if item.image_path else url_for('static', filename='logo-tahkil-fc.png') }}?t={{ timestamp }}" onerror="this.onerror=null;this.src='{{ url_for('static', filename='logo-tahkil-fc.png') }}'" style="width:100%; height:100%; object-fit:cover;">
                     </div>
                     <div class="agenda-details">
                         <div class="agenda-date">{{ item.price }}</div>
@@ -1430,6 +1448,17 @@ HTML_UR_FC = """
     <div id="register-modal" class="modal-overlay" onclick="closeAcademyModals()">
         <div class="modal-content-custom" onclick="event.stopPropagation()">
             <h3 class="section-title">PENDAFTARAN SISWA BARU</h3>
+
+            {% if admin %}
+            <!-- ADMIN VIEW: Approve Candidates -->
+            <div id="admin-candidates-view">
+                <h5 class="text-start fw-bold mb-3">Pending Approvals</h5>
+                <div id="candidates-list" class="text-start" style="max-height: 400px; overflow-y: auto;">
+                    <p>Loading candidates...</p>
+                </div>
+            </div>
+            {% else %}
+            <!-- USER VIEW: Registration Form -->
             <p class="text-muted">Isi formulir untuk bergabung dengan Akademi TAHKIL FC</p>
             <form id="reg-form" onsubmit="event.preventDefault(); submitRegistration();" class="text-start">
                 <div class="mb-2">
@@ -1459,12 +1488,23 @@ HTML_UR_FC = """
                     <label>No WA Wali:</label>
                     <input type="text" name="guardian_wa" class="form-control" placeholder="08..." required>
                 </div>
+                <div class="row mb-2">
+                    <div class="col-6">
+                        <label>Username (Untuk Login):</label>
+                        <input type="text" name="username" class="form-control" required>
+                    </div>
+                    <div class="col-6">
+                        <label>Password:</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                </div>
                 <div class="mb-3">
                     <label>Foto Diri:</label>
                     <input type="file" name="photo" class="form-control" required>
                 </div>
                 <button type="submit" class="btn btn-success w-100 fw-bold py-2">KIRIM PENDAFTARAN</button>
             </form>
+            {% endif %}
         </div>
     </div>
 
@@ -1473,22 +1513,28 @@ HTML_UR_FC = """
         <div class="modal-content-custom" onclick="event.stopPropagation()">
             <h3 class="section-title">MANAJEMEN KEUANGAN & SPP</h3>
             
+            {% if admin %}
+            <!-- ADMIN VIEW -->
+            <h5 class="text-start fw-bold mb-3">Validasi Keuangan</h5>
+            <div id="admin-finance-list" class="text-start" style="max-height: 400px; overflow-y: auto;">
+                <p>Loading pending payments...</p>
+            </div>
+            {% else %}
+            <!-- STUDENT VIEW -->
             <div id="finance-login-view">
                 <p>Silakan login siswa untuk cek tagihan.</p>
-                <input type="text" id="login-user" class="form-control mb-2" placeholder="Username">
-                <input type="password" id="login-pass" class="form-control mb-3" placeholder="Password">
-                <button onclick="loginAcademy('finance')" class="btn btn-primary w-100">LOGIN SISWA</button>
+                <button onclick="document.getElementById('finance-modal').style.display='none'; document.getElementById('login-modal').style.display='flex'" class="btn btn-primary w-100">LOGIN SISWA</button>
             </div>
 
             <div id="finance-dashboard-view" style="display:none;">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 id="fin-student-name" class="fw-bold m-0"></h5>
-                    <button onclick="logoutAcademy()" class="btn btn-sm btn-outline-danger">Logout</button>
                 </div>
                 <div id="finance-bills-list" class="text-start" style="max-height: 400px; overflow-y: auto;">
                     <div class="alert alert-info">Memuat data tagihan...</div>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 
@@ -1498,37 +1544,13 @@ HTML_UR_FC = """
             <h3 class="section-title">RAPOR & ABSENSI DIGITAL</h3>
              
             <div id="report-login-view">
-                <p>Silakan login untuk melihat rapor perkembangan.</p>
-                <input type="text" id="report-user" class="form-control mb-2" placeholder="Username">
-                <input type="password" id="report-pass" class="form-control mb-3" placeholder="Password">
-                <button onclick="loginAcademy('report')" class="btn btn-primary w-100">LOGIN</button>
+                <p>Silakan login untuk akses fitur.</p>
+                <button onclick="document.getElementById('report-modal').style.display='none'; document.getElementById('login-modal').style.display='flex'" class="btn btn-primary w-100">LOGIN</button>
             </div>
 
             <div id="report-dashboard-view" style="display:none;">
-                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 id="rep-student-name" class="fw-bold text-success m-0"></h5>
-                    <button onclick="logoutAcademy()" class="btn btn-sm btn-outline-danger">Logout</button>
-                </div>
-                <div class="row mt-3">
-                    <div class="col-6">
-                        <div class="bg-light p-3 rounded">
-                            <h5>Kehadiran</h5>
-                            <h2 class="fw-bold" id="att-percentage">--%</h2>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="bg-light p-3 rounded">
-                            <h5>Skor Rata-rata</h5>
-                            <h2 class="fw-bold" id="avg-score">--</h2>
-                        </div>
-                    </div>
-                </div>
-                <div class="mt-3 text-start">
-                    <h5>Grafik Perkembangan (Bulan Ini)</h5>
-                    <div id="score-bars" class="d-flex flex-column gap-2">
-                        <!-- Bars injected via JS -->
-                    </div>
-                </div>
+                 <!-- Content injected via JS based on Role -->
+                 <div id="report-content-area"></div>
             </div>
         </div>
     </div>
@@ -1536,22 +1558,312 @@ HTML_UR_FC = """
     <!-- DATA INJECTION FOR JS -->
     <script>
         // ACADEMY JS
-        let currentUser = null;
+        let currentUser = {{ session.get('academy_user', {}) | tojson }};
+        const isAdmin = {{ 'true' if admin else 'false' }};
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (isAdmin) {
+                loadAdminCandidates();
+                loadAdminFinance();
+            }
+            if (currentUser && currentUser.username) {
+                // If logged in as student/coach, show dashboard
+                showDashboard('finance'); // For student view
+                showDashboard('report');
+            }
+        });
 
         function openAcademyModal(type) {
             closeAcademyModals();
             document.getElementById(type + '-modal').style.display = 'flex';
-            if(type === 'finance' || type === 'report') {
-                if(currentUser) {
-                    showDashboard(type);
-                }
-            }
         }
 
         function closeAcademyModals() {
             document.getElementById('register-modal').style.display = 'none';
             document.getElementById('finance-modal').style.display = 'none';
             document.getElementById('report-modal').style.display = 'none';
+        }
+
+        // --- LOGIN LOGIC ---
+        let loginType = '';
+        function showLogin(type) {
+            loginType = type;
+            document.getElementById('login-menu').style.display = 'none';
+            document.getElementById('login-form-container').style.display = 'block';
+            document.getElementById('login-title').innerText = type.toUpperCase() + ' LOGIN';
+        }
+        function resetLoginModal() {
+            document.getElementById('login-menu').style.display = 'block';
+            document.getElementById('login-form-container').style.display = 'none';
+            document.getElementById('main-uid').value = '';
+            document.getElementById('main-pwd').value = '';
+        }
+        function handleMainLogin() {
+            const u = document.getElementById('main-uid').value;
+            const p = document.getElementById('main-pwd').value;
+
+            if (loginType === 'admin') {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/login';
+                const i1 = document.createElement('input'); i1.name='userid'; i1.value=u; i1.type='hidden';
+                const i2 = document.createElement('input'); i2.name='password'; i2.value=p; i2.type='hidden';
+                form.appendChild(i1); form.appendChild(i2);
+                document.body.appendChild(form);
+                form.submit();
+            } else {
+                fetch('/academy/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ username: u, password: p })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if(data.success) location.reload();
+                    else alert(data.error);
+                });
+            }
+        }
+
+        // --- DASHBOARD LOGIC ---
+        function showDashboard(type) {
+            // Check if user is logged in
+            if (!currentUser || !currentUser.username) return;
+
+            if(type === 'finance') {
+                const loginView = document.getElementById('finance-login-view');
+                if(loginView) loginView.style.display = 'none';
+                const dashView = document.getElementById('finance-dashboard-view');
+                if(dashView) {
+                    dashView.style.display = 'block';
+                    if(document.getElementById('fin-student-name')) document.getElementById('fin-student-name').innerText = currentUser.username; // Or name if available
+                    loadBills();
+                }
+            } else if (type === 'report') {
+                const loginView = document.getElementById('report-login-view');
+                if(loginView) loginView.style.display = 'none';
+                const dashView = document.getElementById('report-dashboard-view');
+                if(dashView) {
+                    dashView.style.display = 'block';
+                    // Render content based on role
+                    renderReportContent();
+                }
+            }
+        }
+
+        function renderReportContent() {
+            const container = document.getElementById('report-content-area');
+            if(!container) return;
+            container.innerHTML = '';
+
+            if (currentUser.role === 'coach') {
+                // COACH VIEW
+                container.innerHTML = `
+                    <h5 class="fw-bold mb-3">Coach Dashboard</h5>
+                    <ul class="nav nav-tabs mb-3" id="coachTabs">
+                      <li class="nav-item">
+                        <a class="nav-link active" onclick="switchCoachTab('absensi')">Absensi Harian</a>
+                      </li>
+                      <li class="nav-item">
+                        <a class="nav-link" onclick="switchCoachTab('evaluasi')">Evaluasi / Rapor</a>
+                      </li>
+                    </ul>
+
+                    <div id="tab-absensi">
+                        <div class="mb-2">
+                            <label>Tanggal:</label>
+                            <input type="date" id="att-date" class="form-control" value="${new Date().toISOString().split('T')[0]}">
+                        </div>
+                        <button onclick="loadStudentsForAttendance()" class="btn btn-sm btn-info mb-2">Load Students</button>
+                        <div id="att-student-list" class="text-start" style="max-height:300px; overflow-y:auto;"></div>
+                        <button onclick="submitAttendance()" class="btn btn-success w-100 mt-2">SIMPAN ABSENSI</button>
+                    </div>
+
+                    <div id="tab-evaluasi" style="display:none;">
+                        <div class="mb-2">
+                            <label>Bulan:</label>
+                            <input type="month" id="eval-month" class="form-control" value="${new Date().toISOString().slice(0, 7)}">
+                        </div>
+                        <div class="mb-2">
+                            <label>Siswa:</label>
+                            <select id="eval-student-select" class="form-control"><option>Loading...</option></select>
+                        </div>
+                        <div class="row text-start">
+                            <div class="col-6 mb-2"><label>Passing (0-100)</label><input type="number" class="form-control eval-score" data-key="passing"></div>
+                            <div class="col-6 mb-2"><label>Shooting (0-100)</label><input type="number" class="form-control eval-score" data-key="shooting"></div>
+                            <div class="col-6 mb-2"><label>Stamina (0-100)</label><input type="number" class="form-control eval-score" data-key="stamina"></div>
+                            <div class="col-6 mb-2"><label>Attitude (0-100)</label><input type="number" class="form-control eval-score" data-key="attitude"></div>
+                            <div class="col-6 mb-2"><label>Teamwork (0-100)</label><input type="number" class="form-control eval-score" data-key="teamwork"></div>
+                            <div class="col-6 mb-2"><label>Dribbling (0-100)</label><input type="number" class="form-control eval-score" data-key="dribbling"></div>
+                        </div>
+                        <button onclick="submitEvaluation()" class="btn btn-primary w-100 mt-2">SIMPAN RAPOR</button>
+                    </div>
+                `;
+                loadStudentsForEval();
+            } else {
+                // STUDENT VIEW
+                container.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold text-success m-0">${currentUser.username}</h5>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-6">
+                            <div class="bg-light p-3 rounded">
+                                <h5>Kehadiran</h5>
+                                <h2 class="fw-bold" id="att-percentage">--%</h2>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-light p-3 rounded">
+                                <h5>Skor Rata-rata</h5>
+                                <h2 class="fw-bold" id="avg-score">--</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-start">
+                        <h5>Grafik Perkembangan</h5>
+                        <div id="score-bars" class="d-flex flex-column gap-2"></div>
+                    </div>
+                `;
+                loadStudentReportData();
+            }
+        }
+
+        function switchCoachTab(tab) {
+            document.getElementById('tab-absensi').style.display = tab === 'absensi' ? 'block' : 'none';
+            document.getElementById('tab-evaluasi').style.display = tab === 'evaluasi' ? 'block' : 'none';
+            document.querySelectorAll('#coachTabs .nav-link').forEach(l => l.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // --- DATA LOADERS ---
+
+        // ADMIN
+        function loadAdminCandidates() {
+            const list = document.getElementById('candidates-list');
+            if(!list) return;
+            fetch('/api/academy/candidates').then(r=>r.json()).then(d=>{
+                if(d.candidates.length === 0) list.innerHTML = '<p class="text-muted">No pending candidates.</p>';
+                else {
+                    list.innerHTML = d.candidates.map(c => `
+                        <div class="card mb-2 p-2 shadow-sm">
+                            <div class="d-flex justify-content-between">
+                                <strong>${c.name} (${c.dob})</strong>
+                                <button class="btn btn-sm btn-success" onclick="approveCandidate('${c.id}')">Approve</button>
+                            </div>
+                            <small>${c.position} | ${c.guardian} (${c.guardian_wa})</small>
+                            <small class="text-primary">Req User: ${c.requested_username || 'Auto'}</small>
+                        </div>
+                    `).join('');
+                }
+            });
+        }
+        function approveCandidate(id) {
+            fetch('/api/academy/approve', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id})})
+            .then(r=>r.json()).then(d=>{
+                if(d.success) { alert('Approved!'); loadAdminCandidates(); }
+            });
+        }
+
+        function loadAdminFinance() {
+            const list = document.getElementById('admin-finance-list');
+            if(!list) return;
+            fetch('/api/academy/finance/pending').then(r=>r.json()).then(d=>{
+                if(d.bills.length === 0) list.innerHTML = '<p class="text-muted">No pending payments.</p>';
+                else {
+                    list.innerHTML = d.bills.map(b => `
+                        <div class="card mb-2 p-2 shadow-sm">
+                            <div class="d-flex justify-content-between">
+                                <strong>${b.student_name}</strong>
+                                <span class="badge bg-warning text-dark">Pending</span>
+                            </div>
+                            <div>${b.month} - Rp ${b.amount.toLocaleString()}</div>
+                            <div class="mt-2 d-flex gap-2">
+                                <a href="/uploads/${b.proof_path}" target="_blank" class="btn btn-sm btn-outline-info">View Proof</a>
+                                <button class="btn btn-sm btn-success" onclick="verifyPayment('${b.id}')">Validate</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            });
+        }
+        function verifyPayment(id) {
+            fetch('/api/academy/finance/verify', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id})})
+            .then(r=>r.json()).then(d=>{
+                if(d.success) { alert('Validated!'); loadAdminFinance(); }
+            });
+        }
+
+        // COACH
+        function loadStudentsForAttendance() {
+            const list = document.getElementById('att-student-list');
+            fetch('/api/academy/students').then(r=>r.json()).then(d=>{
+                list.innerHTML = d.students.map(s => `
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                        <span>${s.name}</span>
+                        <select class="form-select form-select-sm w-auto att-select" data-id="${s.id}">
+                            <option value="present">Hadir</option>
+                            <option value="sick">Sakit</option>
+                            <option value="alpha">Alpha</option>
+                        </select>
+                    </div>
+                `).join('');
+            });
+        }
+        function submitAttendance() {
+            const date = document.getElementById('att-date').value;
+            const students = [];
+            document.querySelectorAll('.att-select').forEach(sel => {
+                students.push({id: sel.getAttribute('data-id'), status: sel.value});
+            });
+            fetch('/api/academy/attendance', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({date, students})})
+            .then(r=>r.json()).then(d=>{
+                if(d.success) alert('Attendance Saved!');
+            });
+        }
+
+        function loadStudentsForEval() {
+            const sel = document.getElementById('eval-student-select');
+            fetch('/api/academy/students').then(r=>r.json()).then(d=>{
+                sel.innerHTML = d.students.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            });
+        }
+        function submitEvaluation() {
+            const month = document.getElementById('eval-month').value;
+            const student_id = document.getElementById('eval-student-select').value;
+            const scores = {};
+            document.querySelectorAll('.eval-score').forEach(inp => {
+                scores[inp.getAttribute('data-key')] = inp.value;
+            });
+             fetch('/api/academy/evaluation', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({month, student_id, scores})})
+            .then(r=>r.json()).then(d=>{
+                if(d.success) alert('Evaluation Saved!');
+            });
+        }
+
+        // STUDENT
+        function loadStudentReportData() {
+            fetch('/api/academy/data?type=report')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('att-percentage').innerText = data.attendance + "%";
+                document.getElementById('avg-score').innerText = data.avg_score;
+
+                const bars = document.getElementById('score-bars');
+                bars.innerHTML = '';
+                // Example categories
+                const categories = { 'Passing': data.scores.passing, 'Shooting': data.scores.shooting, 'Stamina': data.scores.stamina, 'Attitude': data.scores.attitude };
+                for (const [key, val] of Object.entries(categories)) {
+                    bars.innerHTML += `
+                        <div>
+                            <div class="d-flex justify-content-between small"><span>${key}</span><span>${val || 0}</span></div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-warning" style="width: ${val || 0}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
         }
 
         function submitRegistration() {
@@ -1574,50 +1886,9 @@ HTML_UR_FC = """
             });
         }
 
-        function loginAcademy(context) {
-            const u = context === 'finance' ? document.getElementById('login-user').value : document.getElementById('report-user').value;
-            const p = context === 'finance' ? document.getElementById('login-pass').value : document.getElementById('report-pass').value;
-            
-            fetch('/academy/login', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ username: u, password: p })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if(data.success) {
-                    currentUser = data.user;
-                    showDashboard(context);
-                } else {
-                    alert("Login Gagal: " + data.error);
-                }
-            });
-        }
-        
-        function logoutAcademy() {
-            currentUser = null;
-            document.getElementById('finance-login-view').style.display = 'block';
-            document.getElementById('finance-dashboard-view').style.display = 'none';
-            document.getElementById('report-login-view').style.display = 'block';
-            document.getElementById('report-dashboard-view').style.display = 'none';
-        }
-
-        function showDashboard(type) {
-            if(type === 'finance') {
-                document.getElementById('finance-login-view').style.display = 'none';
-                document.getElementById('finance-dashboard-view').style.display = 'block';
-                document.getElementById('fin-student-name').innerText = currentUser.name;
-                loadBills();
-            } else if (type === 'report') {
-                document.getElementById('report-login-view').style.display = 'none';
-                document.getElementById('report-dashboard-view').style.display = 'block';
-                document.getElementById('rep-student-name').innerText = currentUser.name;
-                loadReport();
-            }
-        }
-
+        // Shared Finance Load
         function loadBills() {
-            fetch('/api/academy/data?type=bills')
+             fetch('/api/academy/data?type=bills')
             .then(res => res.json())
             .then(data => {
                 const list = document.getElementById('finance-bills-list');
@@ -1656,11 +1927,7 @@ HTML_UR_FC = """
                 });
             });
         }
-        
-        function triggerUpload(id) {
-            document.getElementById('file-'+id).click();
-        }
-        
+        function triggerUpload(id) { document.getElementById('file-'+id).click(); }
         function uploadProof(billId) {
             const fileInput = document.getElementById('file-'+billId);
             const formData = new FormData();
@@ -1671,30 +1938,6 @@ HTML_UR_FC = """
             .then(res => res.json())
             .then(data => {
                 if(data.success) { alert("Bukti terupload!"); loadBills(); }
-            });
-        }
-
-        function loadReport() {
-            fetch('/api/academy/data?type=report')
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('att-percentage').innerText = data.attendance + "%";
-                document.getElementById('avg-score').innerText = data.avg_score;
-                
-                const bars = document.getElementById('score-bars');
-                bars.innerHTML = '';
-                // Example categories
-                const categories = { 'Passing': data.scores.passing, 'Shooting': data.scores.shooting, 'Stamina': data.scores.stamina, 'Attitude': data.scores.attitude };
-                for (const [key, val] of Object.entries(categories)) {
-                    bars.innerHTML += `
-                        <div>
-                            <div class="d-flex justify-content-between small"><span>${key}</span><span>${val || 0}</span></div>
-                            <div class="progress" style="height: 8px;">
-                                <div class="progress-bar bg-warning" style="width: ${val || 0}%"></div>
-                            </div>
-                        </div>
-                    `;
-                }
             });
         }
 
@@ -2214,6 +2457,8 @@ def academy_register():
         pos = request.form.get('position')
         guard = request.form.get('guardian')
         wa = request.form.get('guardian_wa')
+        username = request.form.get('username')
+        password = request.form.get('password')
         
         photo_path = None
         if 'photo' in request.files:
@@ -2229,8 +2474,10 @@ def academy_register():
         # Simple Age Category Logic
         cat = 'U-12' 
         
-        c.execute("INSERT INTO candidates (id, name, dob, category, position, guardian, guardian_wa, photo_path) VALUES (?,?,?,?,?,?,?,?)",
-                  (cid, name, dob, cat, pos, guard, wa, photo_path))
+        pwd_hash = generate_password_hash(password) if password else None
+
+        c.execute("INSERT INTO candidates (id, name, dob, category, position, guardian, guardian_wa, photo_path, requested_username, requested_password) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                  (cid, name, dob, cat, pos, guard, wa, photo_path, username, pwd_hash))
         conn.commit()
         conn.close()
         return jsonify({'success': True})
@@ -2243,6 +2490,11 @@ def academy_login():
     u = data.get('username')
     p = data.get('password')
     
+    # Hardcoded Coach Check
+    if u == 'coach' and p == 'c04ch':
+         session['academy_user'] = {'username': 'coach', 'role': 'coach', 'related_id': 'coach_1'}
+         return jsonify({'success': True, 'user': {'name': 'Coach', 'role': 'coach'}})
+
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM academy_users WHERE username = ?", (u,))
@@ -2333,8 +2585,12 @@ def academy_approve():
         # Move to students
         sid = f"stu_{int(time.time())}"
         # Create User
-        username = cand['name'].replace(' ', '').lower() + str(int(time.time())%1000)
-        pwd_hash = generate_password_hash("123456") 
+        username = cand['requested_username']
+        pwd_hash = cand['requested_password']
+
+        if not username:
+             username = cand['name'].replace(' ', '').lower() + str(int(time.time())%1000)
+             pwd_hash = generate_password_hash("123456")
         
         c.execute("INSERT INTO academy_users (username, password_hash, role, related_id) VALUES (?,?,?,?)", 
                   (username, pwd_hash, 'student', sid))
@@ -2382,6 +2638,77 @@ def print_receipt(bill_id):
         <button onclick="window.print()">Print</button>
     </div>
     """
+
+@app.route('/api/academy/candidates', methods=['GET'])
+def academy_candidates():
+    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM candidates WHERE status='pending' ORDER BY created_at DESC")
+    rows = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({'candidates': rows})
+
+@app.route('/api/academy/students', methods=['GET'])
+def academy_students():
+    # Admin or Coach
+    if not session.get('admin') and (not session.get('academy_user') or session['academy_user']['role'] != 'coach'):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM academy_students ORDER BY name ASC")
+    rows = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({'students': rows})
+
+@app.route('/api/academy/finance/pending', methods=['GET'])
+def academy_pending_bills():
+    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT fb.*, s.name as student_name FROM finance_bills fb JOIN academy_students s ON fb.student_id = s.id WHERE fb.status='pending' ORDER BY fb.created_at DESC")
+    rows = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({'bills': rows})
+
+@app.route('/api/academy/attendance', methods=['POST'])
+def academy_attendance():
+    user = session.get('academy_user')
+    if not user or user['role'] != 'coach': return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.json
+    date = data.get('date')
+    students = data.get('students') # List of {id: '...', status: 'present/sick/alpha'}
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    for s in students:
+        aid = f"att_{s['id']}_{date}"
+        c.execute("INSERT OR REPLACE INTO academy_attendance (id, date, student_id, status, coach_id) VALUES (?,?,?,?,?)",
+                  (aid, date, s['id'], s['status'], user['related_id']))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/academy/evaluation', methods=['POST'])
+def academy_evaluation():
+    user = session.get('academy_user')
+    if not user or user['role'] != 'coach': return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.json
+    month = data.get('month')
+    sid = data.get('student_id')
+    scores = data.get('scores') # JSON object
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    eid = f"eval_{sid}_{month}"
+    c.execute("INSERT OR REPLACE INTO academy_evaluations (id, month, student_id, coach_id, data) VALUES (?,?,?,?,?)",
+              (eid, month, sid, user['related_id'], json.dumps(scores)))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
