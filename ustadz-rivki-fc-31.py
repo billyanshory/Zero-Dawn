@@ -118,8 +118,14 @@ def init_db():
                     guardian_wa TEXT,
                     photo_path TEXT,
                     status TEXT DEFAULT 'pending',
+                    username TEXT,
+                    password_hash TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
+    try: c.execute("ALTER TABLE candidates ADD COLUMN username TEXT")
+    except: pass
+    try: c.execute("ALTER TABLE candidates ADD COLUMN password_hash TEXT")
+    except: pass
 
     # Academy Students
     c.execute('''CREATE TABLE IF NOT EXISTS academy_students (
@@ -174,7 +180,7 @@ def init_db():
                 )''')
     
     # Seed Coach
-    c.execute("INSERT OR IGNORE INTO academy_users (username, password_hash, role, related_id) VALUES ('coach', ?, 'coach', 'coach_1')", (generate_password_hash('coach123'),))
+    c.execute("INSERT OR IGNORE INTO academy_users (username, password_hash, role, related_id) VALUES ('coach', ?, 'coach', 'coach_1')", (generate_password_hash('c04ch'),))
 
     # Seed Data
     c.execute("INSERT OR IGNORE INTO news_content (id, title, subtitle, category, type) VALUES ('hero', 'VICTORY IN THE DERBY', 'A stunning performance secures the win', 'FIRST TEAM', 'hero')")
@@ -576,7 +582,11 @@ NAVBAR_HTML = """
             <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="monochrome-icon">
             Lihat Sejarah
         </div>
+        {% if not admin %}
         <button onclick="document.getElementById('login-modal').style.display='flex'" class="btn btn-outline-dark w-100">Admin Login</button>
+        {% else %}
+        <a href="/logout" class="btn btn-danger w-100">Logout</a>
+        {% endif %}
     </div>
 </div>
 
@@ -1429,50 +1439,80 @@ HTML_UR_FC = """
     <!-- REGISTER -->
     <div id="register-modal" class="modal-overlay" onclick="closeAcademyModals()">
         <div class="modal-content-custom" onclick="event.stopPropagation()">
-            <h3 class="section-title">PENDAFTARAN SISWA BARU</h3>
-            <p class="text-muted">Isi formulir untuk bergabung dengan Akademi TAHKIL FC</p>
-            <form id="reg-form" onsubmit="event.preventDefault(); submitRegistration();" class="text-start">
-                <div class="mb-2">
-                    <label>Nama Lengkap:</label>
-                    <input type="text" name="name" class="form-control" required>
-                </div>
-                <div class="row">
-                    <div class="col-6 mb-2">
-                        <label>Tanggal Lahir:</label>
-                        <input type="date" name="dob" class="form-control" required>
+            <div class="d-flex align-items-center justify-content-center gap-3 mb-2">
+                <h3 class="section-title m-0">PENDAFTARAN SISWA BARU</h3>
+                <button onclick="toggleRegAdmin()" class="btn btn-sm btn-outline-dark">Admin Mode</button>
+            </div>
+
+            <!-- User View -->
+            <div id="reg-user-view">
+                <p class="text-muted">Isi formulir untuk bergabung dengan Akademi TAHKIL FC</p>
+                <form id="reg-form" onsubmit="event.preventDefault(); submitRegistration();" class="text-start">
+                    <div class="mb-2">
+                        <label>Nama Lengkap:</label>
+                        <input type="text" name="name" class="form-control" required>
                     </div>
-                    <div class="col-6 mb-2">
-                        <label>Posisi:</label>
-                        <select name="position" class="form-control">
-                            <option>Pemain Depan (FW)</option>
-                            <option>Gelandang (MF)</option>
-                            <option>Belakang (DF)</option>
-                            <option>Kiper (GK)</option>
-                        </select>
+                    <div class="row">
+                        <div class="col-6 mb-2">
+                            <label>Tanggal Lahir:</label>
+                            <input type="date" name="dob" class="form-control" required>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <label>Posisi:</label>
+                            <select name="position" class="form-control">
+                                <option>Pemain Depan (FW)</option>
+                                <option>Gelandang (MF)</option>
+                                <option>Belakang (DF)</option>
+                                <option>Kiper (GK)</option>
+                            </select>
+                        </div>
                     </div>
+                    <div class="mb-2">
+                        <label>Nama Wali:</label>
+                        <input type="text" name="guardian" class="form-control" required>
+                    </div>
+                    <div class="mb-2">
+                        <label>No WA Wali:</label>
+                        <input type="text" name="guardian_wa" class="form-control" placeholder="08..." required>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-2">
+                            <label>Username (untuk Login):</label>
+                            <input type="text" name="username" class="form-control" required>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <label>Password:</label>
+                            <input type="password" name="password" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label>Foto Diri:</label>
+                        <input type="file" name="photo" class="form-control" required>
+                    </div>
+                    <div class="alert alert-warning small">Status Pending: Saat "Daftar" ditekan, data masuk ke antrean verifikasi admin.</div>
+                    <button type="submit" class="btn btn-success w-100 fw-bold py-2">DAFTAR (Kirim ke Admin)</button>
+                </form>
+            </div>
+
+            <!-- Admin View -->
+            <div id="reg-admin-view" style="display:none;" class="text-start">
+                <h5 class="fw-bold text-danger mb-3">Verifikasi Calon Siswa</h5>
+                <div id="candidates-list" style="max-height:400px; overflow-y:auto;">
+                    <div class="alert alert-info">Memuat data...</div>
                 </div>
-                <div class="mb-2">
-                    <label>Nama Wali:</label>
-                    <input type="text" name="guardian" class="form-control" required>
-                </div>
-                <div class="mb-2">
-                    <label>No WA Wali:</label>
-                    <input type="text" name="guardian_wa" class="form-control" placeholder="08..." required>
-                </div>
-                <div class="mb-3">
-                    <label>Foto Diri:</label>
-                    <input type="file" name="photo" class="form-control" required>
-                </div>
-                <button type="submit" class="btn btn-success w-100 fw-bold py-2">KIRIM PENDAFTARAN</button>
-            </form>
+            </div>
         </div>
     </div>
 
     <!-- FINANCE -->
     <div id="finance-modal" class="modal-overlay" onclick="closeAcademyModals()">
         <div class="modal-content-custom" onclick="event.stopPropagation()">
-            <h3 class="section-title">MANAJEMEN KEUANGAN & SPP</h3>
+            <div class="d-flex align-items-center justify-content-center gap-3 mb-2">
+                <h3 class="section-title m-0">MANAJEMEN KEUANGAN & SPP</h3>
+                <button onclick="toggleFinAdmin()" class="btn btn-sm btn-outline-dark">Admin Mode</button>
+            </div>
             
+            <!-- User Login View -->
             <div id="finance-login-view">
                 <p>Silakan login siswa untuk cek tagihan.</p>
                 <input type="text" id="login-user" class="form-control mb-2" placeholder="Username">
@@ -1480,6 +1520,7 @@ HTML_UR_FC = """
                 <button onclick="loginAcademy('finance')" class="btn btn-primary w-100">LOGIN SISWA</button>
             </div>
 
+            <!-- User Dashboard View -->
             <div id="finance-dashboard-view" style="display:none;">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 id="fin-student-name" class="fw-bold m-0"></h5>
@@ -1489,14 +1530,26 @@ HTML_UR_FC = """
                     <div class="alert alert-info">Memuat data tagihan...</div>
                 </div>
             </div>
+
+            <!-- Admin View -->
+            <div id="finance-admin-view" style="display:none;" class="text-start">
+                <h5 class="fw-bold text-success mb-3">Verifikasi Pembayaran</h5>
+                <div id="finance-admin-list" style="max-height:400px; overflow-y:auto;">
+                    <div class="alert alert-info">Memuat data...</div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- REPORT -->
     <div id="report-modal" class="modal-overlay" onclick="closeAcademyModals()">
         <div class="modal-content-custom" onclick="event.stopPropagation()">
-            <h3 class="section-title">RAPOR & ABSENSI DIGITAL</h3>
+            <div class="d-flex align-items-center justify-content-center gap-3 mb-2">
+                <h3 class="section-title m-0">RAPOR & ABSENSI DIGITAL</h3>
+                <button onclick="toggleCoachMode()" class="btn btn-sm btn-outline-dark">Coach Mode</button>
+            </div>
              
+            <!-- Student Login View -->
             <div id="report-login-view">
                 <p>Silakan login untuk melihat rapor perkembangan.</p>
                 <input type="text" id="report-user" class="form-control mb-2" placeholder="Username">
@@ -1504,6 +1557,7 @@ HTML_UR_FC = """
                 <button onclick="loginAcademy('report')" class="btn btn-primary w-100">LOGIN</button>
             </div>
 
+            <!-- Student Dashboard View -->
             <div id="report-dashboard-view" style="display:none;">
                  <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 id="rep-student-name" class="fw-bold text-success m-0"></h5>
@@ -1527,6 +1581,57 @@ HTML_UR_FC = """
                     <h5>Grafik Perkembangan (Bulan Ini)</h5>
                     <div id="score-bars" class="d-flex flex-column gap-2">
                         <!-- Bars injected via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coach Login View -->
+            <div id="coach-login-view" style="display:none;">
+                <h5 class="fw-bold text-primary mb-3">Coach Login</h5>
+                <input type="text" id="coach-user" class="form-control mb-2" placeholder="Coach ID">
+                <input type="password" id="coach-pass" class="form-control mb-3" placeholder="Password">
+                <button onclick="loginCoach()" class="btn btn-primary w-100">LOGIN COACH</button>
+            </div>
+
+            <!-- Coach Dashboard View -->
+            <div id="coach-dashboard-view" style="display:none;" class="text-start">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold text-primary m-0">Coach Dashboard</h5>
+                    <button onclick="logoutCoach()" class="btn btn-sm btn-outline-danger">Logout</button>
+                </div>
+
+                <ul class="nav nav-tabs mb-3">
+                    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-absensi">Absensi</a></li>
+                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-evaluasi">Evaluasi</a></li>
+                </ul>
+
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="tab-absensi">
+                        <div class="mb-2">
+                            <label>Tanggal Latihan:</label>
+                            <input type="date" id="att-date" class="form-control">
+                        </div>
+                        <div id="att-student-list" style="max-height:300px; overflow-y:auto;" class="mb-2"></div>
+                        <button onclick="saveAttendance()" class="btn btn-success w-100">SIMPAN ABSENSI</button>
+                    </div>
+                    <div class="tab-pane fade" id="tab-evaluasi">
+                        <div class="mb-2">
+                            <label>Bulan Evaluasi:</label>
+                            <input type="month" id="eval-month" class="form-control">
+                        </div>
+                        <div class="mb-2">
+                            <label>Pilih Siswa:</label>
+                            <select id="eval-student-select" class="form-control"></select>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-2"><label>Passing:</label><input type="number" class="form-control eval-score" data-cat="passing"></div>
+                            <div class="col-6 mb-2"><label>Shooting:</label><input type="number" class="form-control eval-score" data-cat="shooting"></div>
+                            <div class="col-6 mb-2"><label>Stamina:</label><input type="number" class="form-control eval-score" data-cat="stamina"></div>
+                            <div class="col-6 mb-2"><label>Attitude:</label><input type="number" class="form-control eval-score" data-cat="attitude"></div>
+                            <div class="col-6 mb-2"><label>Teamwork:</label><input type="number" class="form-control eval-score" data-cat="teamwork"></div>
+                            <div class="col-6 mb-2"><label>Discipline:</label><input type="number" class="form-control eval-score" data-cat="discipline"></div>
+                        </div>
+                        <button onclick="saveEvaluation()" class="btn btn-primary w-100 mt-2">SIMPAN NILAI</button>
                     </div>
                 </div>
             </div>
@@ -1572,6 +1677,256 @@ HTML_UR_FC = """
                     alert("Gagal: " + data.error);
                 }
             });
+        }
+
+        function toggleRegAdmin() {
+            if(!isAdmin) {
+                alert("Akses Ditolak. Silakan login sebagai Admin Website terlebih dahulu.");
+                return;
+            }
+            const userView = document.getElementById('reg-user-view');
+            const adminView = document.getElementById('reg-admin-view');
+            if(adminView.style.display === 'none') {
+                userView.style.display = 'none';
+                adminView.style.display = 'block';
+                loadCandidates();
+            } else {
+                userView.style.display = 'block';
+                adminView.style.display = 'none';
+            }
+        }
+
+        function loadCandidates() {
+            fetch('/api/academy/admin/candidates')
+            .then(res => res.json())
+            .then(data => {
+                const list = document.getElementById('candidates-list');
+                list.innerHTML = '';
+                if(data.candidates.length === 0) {
+                    list.innerHTML = '<div class="alert alert-info">Tidak ada calon siswa pending.</div>';
+                    return;
+                }
+                data.candidates.forEach(c => {
+                   list.innerHTML += `
+                        <div class="card mb-2 p-2 shadow-sm">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="fw-bold m-0">${c.name} (${c.position})</h6>
+                                    <small class="text-muted">Lahir: ${c.dob} | Wali: ${c.guardian}</small><br>
+                                    <small class="text-primary">User: ${c.username}</small>
+                                </div>
+                                <button onclick="approveCandidate('${c.id}')" class="btn btn-sm btn-success">Terima (Approve)</button>
+                            </div>
+                        </div>
+                   `;
+                });
+            });
+        }
+
+        function approveCandidate(id) {
+            if(!confirm("Approve siswa ini? Data akan masuk ke daftar resmi.")) return;
+            fetch('/api/academy/approve', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: id })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    alert("Siswa berhasil di-approve! Otomatis masuk daftar resmi.");
+                    loadCandidates();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            });
+        }
+
+        function toggleFinAdmin() {
+            if(!isAdmin) {
+                alert("Akses Ditolak. Silakan login sebagai Admin Website terlebih dahulu.");
+                return;
+            }
+            // Hide other views
+            document.getElementById('finance-login-view').style.display = 'none';
+            document.getElementById('finance-dashboard-view').style.display = 'none';
+
+            const adminView = document.getElementById('finance-admin-view');
+            if(adminView.style.display === 'none') {
+                adminView.style.display = 'block';
+                loadFinAdminData();
+            } else {
+                adminView.style.display = 'none';
+                document.getElementById('finance-login-view').style.display = 'block';
+            }
+        }
+
+        function loadFinAdminData() {
+            fetch('/api/academy/admin/finance')
+            .then(res => res.json())
+            .then(data => {
+                const list = document.getElementById('finance-admin-list');
+                list.innerHTML = '';
+                if(data.bills.length === 0) {
+                     list.innerHTML = '<div class="alert alert-info">Tidak ada tagihan perlu verifikasi.</div>';
+                     return;
+                }
+                data.bills.forEach(b => {
+                    let btn = '';
+                    let proof = '';
+                    if(b.status === 'pending') {
+                         btn = `<button onclick="verifyPayment('${b.id}')" class="btn btn-sm btn-success mt-2">Validasi Lunas</button>`;
+                         if(b.proof_path) proof = `<a href="/uploads/${b.proof_path}" target="_blank"><img src="/uploads/${b.proof_path}" style="height:50px; border:1px solid #ddd;"></a>`;
+                         else proof = '<span class="text-danger">Belum upload bukti</span>';
+                    } else if (b.status === 'paid') {
+                        btn = `<span class="badge bg-success">LUNAS</span>`;
+                        proof = `<span class="text-muted small">Verified</span>`;
+                    }
+
+                    list.innerHTML += `
+                        <div class="card mb-2 p-2 shadow-sm ${b.status === 'pending' ? 'border-warning' : ''}">
+                             <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="fw-bold m-0">${b.student_name}</h6>
+                                    <small class="text-muted">SPP ${b.month} - Rp ${b.amount.toLocaleString()}</small>
+                                    <div class="mt-1">${proof}</div>
+                                </div>
+                                <div>${btn}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+            });
+        }
+
+        function verifyPayment(id) {
+             if(!confirm("Validasi pembayaran ini sebagai Lunas?")) return;
+             fetch('/api/academy/finance/verify', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: id })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    loadFinAdminData();
+                }
+            });
+        }
+
+        let currentCoach = null;
+
+        function toggleCoachMode() {
+            // Hide student views
+            document.getElementById('report-login-view').style.display = 'none';
+            document.getElementById('report-dashboard-view').style.display = 'none';
+
+            if(currentCoach) {
+                document.getElementById('coach-dashboard-view').style.display = 'block';
+                document.getElementById('coach-login-view').style.display = 'none';
+                loadCoachStudents();
+            } else {
+                document.getElementById('coach-dashboard-view').style.display = 'none';
+                const loginView = document.getElementById('coach-login-view');
+                if(loginView.style.display === 'none') {
+                    loginView.style.display = 'block';
+                } else {
+                    loginView.style.display = 'none';
+                    document.getElementById('report-login-view').style.display = 'block';
+                }
+            }
+        }
+
+        function loginCoach() {
+            const u = document.getElementById('coach-user').value;
+            const p = document.getElementById('coach-pass').value;
+            fetch('/academy/login', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username: u, password: p })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success && data.user.role === 'coach') {
+                    currentCoach = data.user;
+                    toggleCoachMode();
+                } else {
+                    alert("Login Gagal atau bukan akun Coach.");
+                }
+            });
+        }
+
+        function logoutCoach() {
+            currentCoach = null;
+            toggleCoachMode();
+        }
+
+        function loadCoachStudents() {
+            fetch('/api/academy/coach/students')
+            .then(res => res.json())
+            .then(data => {
+                const list = document.getElementById('att-student-list');
+                const sel = document.getElementById('eval-student-select');
+                list.innerHTML = '';
+                sel.innerHTML = '<option value="">-- Pilih Siswa --</option>';
+
+                if(data.students) {
+                    data.students.forEach(s => {
+                        // Attendance List
+                        list.innerHTML += `
+                            <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                <span>${s.name}</span>
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="att_${s.id}" id="att_${s.id}_p" value="present" checked>
+                                    <label class="btn btn-outline-success btn-sm" for="att_${s.id}_p">Hadir</label>
+
+                                    <input type="radio" class="btn-check" name="att_${s.id}" id="att_${s.id}_s" value="sick">
+                                    <label class="btn btn-outline-warning btn-sm" for="att_${s.id}_s">Sakit</label>
+
+                                    <input type="radio" class="btn-check" name="att_${s.id}" id="att_${s.id}_a" value="alpha">
+                                    <label class="btn btn-outline-danger btn-sm" for="att_${s.id}_a">Alpha</label>
+                                </div>
+                            </div>
+                        `;
+                        // Eval Select
+                        sel.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+                    });
+                }
+            });
+        }
+
+        function saveAttendance() {
+            const date = document.getElementById('att-date').value;
+            if(!date) { alert("Pilih tanggal latihan!"); return; }
+
+            const list = [];
+            document.querySelectorAll('[name^="att_"]:checked').forEach(radio => {
+                const sid = radio.name.replace('att_', '');
+                list.push({ student_id: sid, status: radio.value });
+            });
+
+            fetch('/api/academy/coach/attendance', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ date: date, list: list })
+            })
+            .then(res => res.json())
+            .then(d => { if(d.success) alert("Absensi tersimpan!"); });
+        }
+
+        function saveEvaluation() {
+            const month = document.getElementById('eval-month').value;
+            const sid = document.getElementById('eval-student-select').value;
+            if(!month || !sid) { alert("Pilih bulan dan siswa!"); return; }
+
+            const scores = {};
+            document.querySelectorAll('.eval-score').forEach(inp => {
+                scores[inp.dataset.cat] = inp.value;
+            });
+
+            fetch('/api/academy/coach/evaluation', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ month: month, student_id: sid, scores: scores })
+            })
+            .then(res => res.json())
+            .then(d => { if(d.success) alert("Evaluasi tersimpan!"); });
         }
 
         function loginAcademy(context) {
@@ -2214,7 +2569,12 @@ def academy_register():
         pos = request.form.get('position')
         guard = request.form.get('guardian')
         wa = request.form.get('guardian_wa')
+        username = request.form.get('username')
+        password = request.form.get('password')
         
+        if not username or not password:
+            return jsonify({'success': False, 'error': 'Username and Password required'})
+
         photo_path = None
         if 'photo' in request.files:
             file = request.files['photo']
@@ -2225,17 +2585,34 @@ def academy_register():
         
         conn = get_db_connection()
         c = conn.cursor()
+
+        # Check username availability
+        if c.execute("SELECT 1 FROM academy_users WHERE username=?", (username,)).fetchone():
+            conn.close()
+            return jsonify({'success': False, 'error': 'Username already taken'})
+
         cid = f"cand_{int(time.time())}"
         # Simple Age Category Logic
         cat = 'U-12' 
+        pwd_hash = generate_password_hash(password)
         
-        c.execute("INSERT INTO candidates (id, name, dob, category, position, guardian, guardian_wa, photo_path) VALUES (?,?,?,?,?,?,?,?)",
-                  (cid, name, dob, cat, pos, guard, wa, photo_path))
+        c.execute("INSERT INTO candidates (id, name, dob, category, position, guardian, guardian_wa, photo_path, username, password_hash) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                  (cid, name, dob, cat, pos, guard, wa, photo_path, username, pwd_hash))
         conn.commit()
         conn.close()
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/academy/admin/candidates', methods=['GET'])
+def academy_admin_candidates():
+    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM candidates WHERE status='pending' ORDER BY created_at DESC")
+    candidates = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({'candidates': candidates})
 
 @app.route('/academy/login', methods=['POST'])
 def academy_login():
@@ -2332,23 +2709,48 @@ def academy_approve():
     if cand:
         # Move to students
         sid = f"stu_{int(time.time())}"
-        # Create User
-        username = cand['name'].replace(' ', '').lower() + str(int(time.time())%1000)
-        pwd_hash = generate_password_hash("123456") 
         
-        c.execute("INSERT INTO academy_users (username, password_hash, role, related_id) VALUES (?,?,?,?)", 
-                  (username, pwd_hash, 'student', sid))
+        # Use existing credentials
+        username = cand['username']
+        pwd_hash = cand['password_hash']
         
-        c.execute("INSERT INTO academy_students (id, name, dob, category, position, guardian, guardian_wa, photo_path, user_id) VALUES (?,?,?,?,?,?,?,?,?)",
-                  (sid, cand['name'], cand['dob'], cand['category'], cand['position'], cand['guardian'], cand['guardian_wa'], cand['photo_path'], username))
+        # Fallback if old data
+        if not username:
+             username = cand['name'].replace(' ', '').lower() + str(int(time.time())%1000)
+             pwd_hash = generate_password_hash("123456")
         
-        c.execute("DELETE FROM candidates WHERE id=?", (cand_id,))
-        conn.commit()
-        conn.close()
-        return jsonify({'success': True, 'username': username})
+        try:
+            c.execute("INSERT INTO academy_users (username, password_hash, role, related_id) VALUES (?,?,?,?)",
+                      (username, pwd_hash, 'student', sid))
+
+            c.execute("INSERT INTO academy_students (id, name, dob, category, position, guardian, guardian_wa, photo_path, user_id) VALUES (?,?,?,?,?,?,?,?,?)",
+                      (sid, cand['name'], cand['dob'], cand['category'], cand['position'], cand['guardian'], cand['guardian_wa'], cand['photo_path'], username))
+
+            c.execute("DELETE FROM candidates WHERE id=?", (cand_id,))
+            conn.commit()
+            conn.close()
+            return jsonify({'success': True})
+        except Exception as e:
+            conn.close()
+            return jsonify({'success': False, 'error': str(e)})
     
     conn.close()
-    return jsonify({'success': False})
+    return jsonify({'success': False, 'error': 'Candidate not found'})
+
+@app.route('/api/academy/admin/finance', methods=['GET'])
+def academy_admin_finance():
+    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    conn = get_db_connection()
+    c = conn.cursor()
+    # Get pending bills with student info
+    c.execute('''SELECT f.*, s.name as student_name
+                 FROM finance_bills f
+                 JOIN academy_students s ON f.student_id = s.id
+                 WHERE f.status != 'unpaid'
+                 ORDER BY f.created_at DESC''')
+    bills = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({'bills': bills})
 
 @app.route('/api/academy/finance/verify', methods=['POST'])
 def academy_verify_payment():
@@ -2357,6 +2759,56 @@ def academy_verify_payment():
     
     conn = get_db_connection()
     conn.execute("UPDATE finance_bills SET status='paid' WHERE id=?", (bill_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/academy/coach/students', methods=['GET'])
+def academy_coach_students():
+    user = session.get('academy_user')
+    if not user or user['role'] != 'coach': return jsonify({'error': 'Unauthorized'}), 403
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT id, name FROM academy_students ORDER BY name ASC")
+    students = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({'students': students})
+
+@app.route('/api/academy/coach/attendance', methods=['POST'])
+def academy_coach_attendance():
+    user = session.get('academy_user')
+    if not user or user['role'] != 'coach': return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.json
+    date = data.get('date')
+    attendance_list = data.get('list') # [{student_id, status}, ...]
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    for item in attendance_list:
+        aid = f"att_{date}_{item['student_id']}"
+        c.execute("INSERT OR REPLACE INTO academy_attendance (id, date, student_id, status, coach_id) VALUES (?,?,?,?,?)",
+                  (aid, date, item['student_id'], item['status'], user['related_id']))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/academy/coach/evaluation', methods=['POST'])
+def academy_coach_evaluation():
+    user = session.get('academy_user')
+    if not user or user['role'] != 'coach': return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.json
+    month = data.get('month')
+    student_id = data.get('student_id')
+    scores = json.dumps(data.get('scores')) # JSON string
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    eid = f"eval_{month}_{student_id}"
+    c.execute("INSERT OR REPLACE INTO academy_evaluations (id, month, student_id, coach_id, data) VALUES (?,?,?,?,?)",
+              (eid, month, student_id, user['related_id'], scores))
     conn.commit()
     conn.close()
     return jsonify({'success': True})
