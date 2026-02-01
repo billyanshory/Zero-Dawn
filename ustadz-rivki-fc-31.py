@@ -117,9 +117,17 @@ def init_db():
                     guardian TEXT,
                     guardian_wa TEXT,
                     photo_path TEXT,
+                    requested_userid TEXT,
+                    requested_password_hash TEXT,
                     status TEXT DEFAULT 'pending',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
+
+    # Migrations for Candidates
+    try: c.execute("ALTER TABLE candidates ADD COLUMN requested_userid TEXT")
+    except: pass
+    try: c.execute("ALTER TABLE candidates ADD COLUMN requested_password_hash TEXT")
+    except: pass
 
     # Academy Students
     c.execute('''CREATE TABLE IF NOT EXISTS academy_students (
@@ -174,7 +182,7 @@ def init_db():
                 )''')
     
     # Seed Coach
-    c.execute("INSERT OR IGNORE INTO academy_users (username, password_hash, role, related_id) VALUES ('coach', ?, 'coach', 'coach_1')", (generate_password_hash('coach123'),))
+    c.execute("INSERT OR IGNORE INTO academy_users (username, password_hash, role, related_id) VALUES ('coach', ?, 'coach', 'coach_1')", (generate_password_hash('c04ch'),))
 
     # Seed Data
     c.execute("INSERT OR IGNORE INTO news_content (id, title, subtitle, category, type) VALUES ('hero', 'VICTORY IN THE DERBY', 'A stunning performance secures the win', 'FIRST TEAM', 'hero')")
@@ -286,7 +294,8 @@ def index():
                        agenda_latihan=agenda_latihan, 
                        turnamen=turnamen,
                        target_countdown_time=target_countdown_time,
-                       admin=session.get('admin', False))
+                       admin=session.get('admin', False),
+                       academy_user=session.get('academy_user'))
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -300,6 +309,7 @@ def login():
 @app.route('/logout')
 def logout():
     session.pop('admin', None)
+    session.pop('academy_user', None)
     return redirect(url_for('index'))
 
 @app.route('/uploads/<filename>')
@@ -521,10 +531,10 @@ NAVBAR_HTML = """
         </div>
     </div>
     <div class="top-bar-right d-flex align-items-center gap-3">
-        {% if not admin %}
-        <button onclick="document.getElementById('login-modal').style.display='flex'" class="btn btn-outline-light btn-sm">Admin Login</button>
+        {% if not admin and not academy_user %}
+        <button onclick="document.getElementById('login-modal').style.display='flex'" class="btn btn-success btn-sm fw-bold border-white">Login</button>
         {% else %}
-        <a href="/logout" class="btn btn-danger btn-sm">Logout</a>
+        <a href="/logout" class="btn btn-sm fw-bold text-white" style="background: hotpink; border:none;">Logout</a>
         {% endif %}
         
         <div class="history-btn" onclick="openHistoryModal()">
@@ -576,21 +586,88 @@ NAVBAR_HTML = """
             <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="monochrome-icon">
             Lihat Sejarah
         </div>
-        <button onclick="document.getElementById('login-modal').style.display='flex'" class="btn btn-outline-dark w-100">Admin Login</button>
+        {% if not admin and not academy_user %}
+        <button onclick="document.getElementById('login-modal').style.display='flex'" class="btn btn-success w-100 fw-bold">Login</button>
+        {% else %}
+        <a href="/logout" class="btn w-100 fw-bold text-white" style="background: hotpink; border:none;">Logout</a>
+        {% endif %}
     </div>
 </div>
 
 <div id="login-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center;">
-    <div style="background:white; padding:30px; border-radius:10px; width:300px;">
-        <h3 class="text-center mb-3">Admin Login</h3>
-        <form action="/login" method="POST">
-            <input type="text" name="userid" placeholder="User ID" class="form-control mb-2" required>
-            <input type="password" name="password" placeholder="Password" class="form-control mb-3" required>
-            <button type="submit" class="btn btn-success w-100">Login</button>
-        </form>
-        <button onclick="document.getElementById('login-modal').style.display='none'" class="btn btn-link w-100 mt-2">Cancel</button>
+    <div style="background:white; padding:30px; border-radius:10px; width:300px; text-align:center;">
+        <div id="login-role-select">
+            <h3 class="mb-4 fw-bold">LOGIN SEBAGAI</h3>
+            <div class="d-grid gap-3">
+                <button onclick="showLoginForm('student')" class="btn btn-primary fw-bold py-2">SISWA / WALI</button>
+                <button onclick="showLoginForm('admin')" class="btn btn-dark fw-bold py-2">ADMIN</button>
+                <button onclick="showLoginForm('coach')" class="btn btn-warning fw-bold py-2">COACH</button>
+            </div>
+            <button onclick="document.getElementById('login-modal').style.display='none'" class="btn btn-link w-100 mt-3 text-muted">Batal</button>
+        </div>
+
+        <div id="login-form-container" style="display:none;">
+            <h4 class="mb-3 fw-bold text-uppercase" id="login-title">Login</h4>
+            <!-- Admin Form (Standard Submit) -->
+            <form id="admin-login-form" action="/login" method="POST" style="display:none;">
+                <input type="text" name="userid" placeholder="User ID" class="form-control mb-2" required>
+                <input type="password" name="password" placeholder="Password" class="form-control mb-3" required>
+                <button type="submit" class="btn btn-success w-100">Login</button>
+            </form>
+
+            <!-- Academy Form (AJAX) -->
+            <div id="academy-login-form" style="display:none;">
+                <input type="text" id="acad-user" placeholder="User ID" class="form-control mb-2">
+                <input type="password" id="acad-pass" placeholder="Password" class="form-control mb-3">
+                <button onclick="doAcademyLogin()" class="btn btn-success w-100">Login</button>
+            </div>
+
+            <button onclick="backToRoleSelect()" class="btn btn-link w-100 mt-2">Kembali</button>
+        </div>
     </div>
 </div>
+<script>
+    function showLoginForm(role) {
+        document.getElementById('login-role-select').style.display = 'none';
+        document.getElementById('login-form-container').style.display = 'block';
+        document.getElementById('login-title').innerText = role + ' LOGIN';
+
+        document.getElementById('admin-login-form').style.display = 'none';
+        document.getElementById('academy-login-form').style.display = 'none';
+
+        if(role === 'admin') {
+            document.getElementById('admin-login-form').style.display = 'block';
+        } else {
+            document.getElementById('academy-login-form').style.display = 'block';
+            // Auto fill coach id if coach selected (optional, but helpful based on prompt hints)
+            document.getElementById('acad-user').value = (role === 'coach') ? 'coach' : '';
+            document.getElementById('acad-pass').value = '';
+        }
+    }
+
+    function backToRoleSelect() {
+        document.getElementById('login-role-select').style.display = 'block';
+        document.getElementById('login-form-container').style.display = 'none';
+    }
+
+    function doAcademyLogin() {
+        const u = document.getElementById('acad-user').value;
+        const p = document.getElementById('acad-pass').value;
+        fetch('/academy/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ username: u, password: p })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                location.reload();
+            } else {
+                alert(data.error);
+            }
+        });
+    }
+</script>
 """
 
 STYLES_HTML = """
@@ -1430,41 +1507,68 @@ HTML_UR_FC = """
     <div id="register-modal" class="modal-overlay" onclick="closeAcademyModals()">
         <div class="modal-content-custom" onclick="event.stopPropagation()">
             <h3 class="section-title">PENDAFTARAN SISWA BARU</h3>
-            <p class="text-muted">Isi formulir untuk bergabung dengan Akademi TAHKIL FC</p>
-            <form id="reg-form" onsubmit="event.preventDefault(); submitRegistration();" class="text-start">
-                <div class="mb-2">
-                    <label>Nama Lengkap:</label>
-                    <input type="text" name="name" class="form-control" required>
+
+            <!-- ADMIN VIEW -->
+            <div id="admin-candidates-view" style="display:none;">
+                <div class="alert alert-info fw-bold">Daftar Calon Siswa (Pending Approval)</div>
+                <div id="candidates-list" style="max-height: 400px; overflow-y: auto; text-align: left;">
+                    <!-- Injected via JS -->
                 </div>
-                <div class="row">
-                    <div class="col-6 mb-2">
-                        <label>Tanggal Lahir:</label>
-                        <input type="date" name="dob" class="form-control" required>
+            </div>
+
+            <!-- GUEST VIEW -->
+            <div id="guest-register-view">
+                <p class="text-muted">Isi formulir untuk bergabung dengan Akademi TAHKIL FC</p>
+                <form id="reg-form" onsubmit="event.preventDefault(); submitRegistration();" class="text-start">
+                    <div class="mb-2">
+                        <label>Nama Lengkap:</label>
+                        <input type="text" name="name" class="form-control" required>
                     </div>
-                    <div class="col-6 mb-2">
-                        <label>Posisi:</label>
-                        <select name="position" class="form-control">
-                            <option>Pemain Depan (FW)</option>
-                            <option>Gelandang (MF)</option>
-                            <option>Belakang (DF)</option>
-                            <option>Kiper (GK)</option>
-                        </select>
+                    <div class="row">
+                        <div class="col-6 mb-2">
+                            <label>Tanggal Lahir:</label>
+                            <input type="date" name="dob" class="form-control" required>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <label>Posisi:</label>
+                            <select name="position" class="form-control">
+                                <option>Pemain Depan (FW)</option>
+                                <option>Gelandang (MF)</option>
+                                <option>Belakang (DF)</option>
+                                <option>Kiper (GK)</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
-                <div class="mb-2">
-                    <label>Nama Wali:</label>
-                    <input type="text" name="guardian" class="form-control" required>
-                </div>
-                <div class="mb-2">
-                    <label>No WA Wali:</label>
-                    <input type="text" name="guardian_wa" class="form-control" placeholder="08..." required>
-                </div>
-                <div class="mb-3">
-                    <label>Foto Diri:</label>
-                    <input type="file" name="photo" class="form-control" required>
-                </div>
-                <button type="submit" class="btn btn-success w-100 fw-bold py-2">KIRIM PENDAFTARAN</button>
-            </form>
+                    <div class="mb-2">
+                        <label>Nama Wali:</label>
+                        <input type="text" name="guardian" class="form-control" required>
+                    </div>
+                    <div class="mb-2">
+                        <label>No WA Wali:</label>
+                        <input type="text" name="guardian_wa" class="form-control" placeholder="08..." required>
+                    </div>
+
+                    <hr>
+                    <p class="small text-muted mb-2 fw-bold">Buat Akun Login Siswa:</p>
+                    <div class="row">
+                        <div class="col-6 mb-2">
+                            <label>User ID:</label>
+                            <input type="text" name="userid" class="form-control" required>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <label>Password:</label>
+                            <input type="password" name="password" class="form-control" required>
+                        </div>
+                    </div>
+                    <hr>
+
+                    <div class="mb-3">
+                        <label>Foto Diri:</label>
+                        <input type="file" name="photo" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100 fw-bold py-2">KIRIM PENDAFTARAN</button>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -1473,20 +1577,31 @@ HTML_UR_FC = """
         <div class="modal-content-custom" onclick="event.stopPropagation()">
             <h3 class="section-title">MANAJEMEN KEUANGAN & SPP</h3>
             
-            <div id="finance-login-view">
-                <p>Silakan login siswa untuk cek tagihan.</p>
-                <input type="text" id="login-user" class="form-control mb-2" placeholder="Username">
-                <input type="password" id="login-pass" class="form-control mb-3" placeholder="Password">
-                <button onclick="loginAcademy('finance')" class="btn btn-primary w-100">LOGIN SISWA</button>
+            <!-- ADMIN VIEW -->
+            <div id="admin-finance-view" style="display:none;">
+                <div class="alert alert-warning fw-bold">Verifikasi Pembayaran Masuk</div>
+                <div id="finance-verify-list" style="max-height: 400px; overflow-y: auto; text-align: left;">
+                    <!-- Injected via JS -->
+                </div>
             </div>
 
-            <div id="finance-dashboard-view" style="display:none;">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 id="fin-student-name" class="fw-bold m-0"></h5>
-                    <button onclick="logoutAcademy()" class="btn btn-sm btn-outline-danger">Logout</button>
+            <!-- STUDENT VIEW -->
+            <div id="student-finance-container">
+                <div id="finance-login-view">
+                    <p>Silakan login siswa untuk cek tagihan.</p>
+                    <input type="text" id="login-user" class="form-control mb-2" placeholder="Username">
+                    <input type="password" id="login-pass" class="form-control mb-3" placeholder="Password">
+                    <button onclick="loginAcademy('finance')" class="btn btn-primary w-100">LOGIN SISWA</button>
                 </div>
-                <div id="finance-bills-list" class="text-start" style="max-height: 400px; overflow-y: auto;">
-                    <div class="alert alert-info">Memuat data tagihan...</div>
+
+                <div id="finance-dashboard-view" style="display:none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 id="fin-student-name" class="fw-bold m-0"></h5>
+                        <button onclick="logoutAcademy()" class="btn btn-sm btn-outline-danger">Logout</button>
+                    </div>
+                    <div id="finance-bills-list" class="text-start" style="max-height: 400px; overflow-y: auto;">
+                        <div class="alert alert-info">Memuat data tagihan...</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1497,36 +1612,74 @@ HTML_UR_FC = """
         <div class="modal-content-custom" onclick="event.stopPropagation()">
             <h3 class="section-title">RAPOR & ABSENSI DIGITAL</h3>
              
-            <div id="report-login-view">
-                <p>Silakan login untuk melihat rapor perkembangan.</p>
-                <input type="text" id="report-user" class="form-control mb-2" placeholder="Username">
-                <input type="password" id="report-pass" class="form-control mb-3" placeholder="Password">
-                <button onclick="loginAcademy('report')" class="btn btn-primary w-100">LOGIN</button>
-            </div>
-
-            <div id="report-dashboard-view" style="display:none;">
-                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 id="rep-student-name" class="fw-bold text-success m-0"></h5>
+            <!-- COACH VIEW -->
+            <div id="coach-report-view" style="display:none; text-align: left;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold m-0 text-warning">COACH DASHBOARD</h5>
                     <button onclick="logoutAcademy()" class="btn btn-sm btn-outline-danger">Logout</button>
                 </div>
-                <div class="row mt-3">
-                    <div class="col-6">
-                        <div class="bg-light p-3 rounded">
-                            <h5>Kehadiran</h5>
-                            <h2 class="fw-bold" id="att-percentage">--%</h2>
-                        </div>
+
+                <ul class="nav nav-tabs mb-3">
+                    <li class="nav-item"><a class="nav-link active fw-bold" data-bs-toggle="tab" href="#tab-absensi">Absensi Harian</a></li>
+                    <li class="nav-item"><a class="nav-link fw-bold" data-bs-toggle="tab" href="#tab-evaluasi">Evaluasi Bulanan</a></li>
+                </ul>
+
+                <div class="tab-content" style="max-height: 400px; overflow-y: auto;">
+                    <!-- TAB ABSENSI -->
+                    <div class="tab-pane fade show active" id="tab-absensi">
+                         <div class="mb-3 d-flex gap-2">
+                            <input type="date" id="att-date" class="form-control">
+                            <button onclick="loadCoachData('attendance')" class="btn btn-secondary">Refresh</button>
+                         </div>
+                         <div id="coach-att-list">Loading...</div>
+                         <button onclick="submitCoachData('attendance')" class="btn btn-success w-100 mt-3 fw-bold">SIMPAN ABSENSI</button>
                     </div>
-                    <div class="col-6">
-                        <div class="bg-light p-3 rounded">
-                            <h5>Skor Rata-rata</h5>
-                            <h2 class="fw-bold" id="avg-score">--</h2>
-                        </div>
+
+                    <!-- TAB EVALUASI -->
+                    <div class="tab-pane fade" id="tab-evaluasi">
+                         <div class="mb-3 d-flex gap-2">
+                            <input type="month" id="eval-month" class="form-control">
+                            <button onclick="loadCoachData('evaluation')" class="btn btn-secondary">Refresh</button>
+                         </div>
+                         <div id="coach-eval-list">Loading...</div>
+                         <button onclick="submitCoachData('evaluation')" class="btn btn-success w-100 mt-3 fw-bold">SIMPAN RAPOR</button>
                     </div>
                 </div>
-                <div class="mt-3 text-start">
-                    <h5>Grafik Perkembangan (Bulan Ini)</h5>
-                    <div id="score-bars" class="d-flex flex-column gap-2">
-                        <!-- Bars injected via JS -->
+            </div>
+
+            <!-- STUDENT VIEW -->
+            <div id="student-report-container">
+                <div id="report-login-view">
+                    <p>Silakan login untuk melihat rapor perkembangan.</p>
+                    <input type="text" id="report-user" class="form-control mb-2" placeholder="Username">
+                    <input type="password" id="report-pass" class="form-control mb-3" placeholder="Password">
+                    <button onclick="loginAcademy('report')" class="btn btn-primary w-100">LOGIN</button>
+                </div>
+
+                <div id="report-dashboard-view" style="display:none;">
+                     <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 id="rep-student-name" class="fw-bold text-success m-0"></h5>
+                        <button onclick="logoutAcademy()" class="btn btn-sm btn-outline-danger">Logout</button>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-6">
+                            <div class="bg-light p-3 rounded">
+                                <h5>Kehadiran</h5>
+                                <h2 class="fw-bold" id="att-percentage">--%</h2>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-light p-3 rounded">
+                                <h5>Skor Rata-rata</h5>
+                                <h2 class="fw-bold" id="avg-score">--</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-start">
+                        <h5>Grafik Perkembangan (Bulan Ini)</h5>
+                        <div id="score-bars" class="d-flex flex-column gap-2">
+                            <!-- Bars injected via JS -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1536,14 +1689,56 @@ HTML_UR_FC = """
     <!-- DATA INJECTION FOR JS -->
     <script>
         // ACADEMY JS
-        let currentUser = null;
+        let currentUser = {{ session.get('academy_user') | tojson }};
+        const isAdmin = {{ 'true' if admin else 'false' }};
 
         function openAcademyModal(type) {
             closeAcademyModals();
-            document.getElementById(type + '-modal').style.display = 'flex';
-            if(type === 'finance' || type === 'report') {
-                if(currentUser) {
-                    showDashboard(type);
+            const modal = document.getElementById(type + '-modal');
+            modal.style.display = 'flex';
+
+            // ADMIN LOGIC
+            if(isAdmin) {
+                if(type === 'register') {
+                    document.getElementById('guest-register-view').style.display = 'none';
+                    document.getElementById('admin-candidates-view').style.display = 'block';
+                    loadAdminData();
+                } else if(type === 'finance') {
+                    document.getElementById('student-finance-container').style.display = 'none';
+                    document.getElementById('admin-finance-view').style.display = 'block';
+                    loadAdminData();
+                }
+            }
+            // COACH LOGIC
+            else if(currentUser && currentUser.role === 'coach' && type === 'report') {
+                document.getElementById('student-report-container').style.display = 'none';
+                document.getElementById('coach-report-view').style.display = 'block';
+                // Set default dates if empty
+                if(!document.getElementById('att-date').value) {
+                    document.getElementById('att-date').valueAsDate = new Date();
+                }
+                if(!document.getElementById('eval-month').value) {
+                    const d = new Date();
+                    const m = d.getMonth() + 1;
+                    const y = d.getFullYear();
+                    document.getElementById('eval-month').value = `${y}-${m.toString().padStart(2,'0')}`;
+                }
+                loadCoachData('attendance'); // Load default tab
+            }
+            // STUDENT/GUEST LOGIC
+            else {
+                // Reset views to default
+                if(type === 'register') {
+                    document.getElementById('guest-register-view').style.display = 'block';
+                    document.getElementById('admin-candidates-view').style.display = 'none';
+                } else if(type === 'finance') {
+                    document.getElementById('student-finance-container').style.display = 'block';
+                    document.getElementById('admin-finance-view').style.display = 'none';
+                    if(currentUser && currentUser.role === 'student') showDashboard('finance');
+                } else if(type === 'report') {
+                    document.getElementById('student-report-container').style.display = 'block';
+                    document.getElementById('coach-report-view').style.display = 'none';
+                    if(currentUser && currentUser.role === 'student') showDashboard('report');
                 }
             }
         }
@@ -1587,7 +1782,7 @@ HTML_UR_FC = """
             .then(data => {
                 if(data.success) {
                     currentUser = data.user;
-                    showDashboard(context);
+                    location.reload(); // Reload to update navbar state
                 } else {
                     alert("Login Gagal: " + data.error);
                 }
@@ -1595,11 +1790,8 @@ HTML_UR_FC = """
         }
         
         function logoutAcademy() {
-            currentUser = null;
-            document.getElementById('finance-login-view').style.display = 'block';
-            document.getElementById('finance-dashboard-view').style.display = 'none';
-            document.getElementById('report-login-view').style.display = 'block';
-            document.getElementById('report-dashboard-view').style.display = 'none';
+            // Replaced by main /logout route, but kept for modal inner buttons if needed
+            location.href = '/logout';
         }
 
         function showDashboard(type) {
@@ -1614,6 +1806,178 @@ HTML_UR_FC = """
                 document.getElementById('rep-student-name').innerText = currentUser.name;
                 loadReport();
             }
+        }
+
+        // ADMIN FUNCTIONS
+        function loadAdminData() {
+            fetch('/api/academy/admin/data')
+            .then(res => res.json())
+            .then(data => {
+                // Candidates
+                const cList = document.getElementById('candidates-list');
+                cList.innerHTML = '';
+                if(data.candidates.length === 0) cList.innerHTML = '<p class="text-muted">Tidak ada pendaftar baru.</p>';
+
+                data.candidates.forEach(c => {
+                    cList.innerHTML += `
+                        <div class="card mb-2 p-2 shadow-sm">
+                            <div class="d-flex gap-2">
+                                <img src="/uploads/${c.photo_path || 'logo-tahkil-fc.png'}" style="width:60px; height:60px; object-fit:cover; border-radius:5px;">
+                                <div class="flex-grow-1">
+                                    <h6 class="fw-bold mb-0">${c.name} (${c.position})</h6>
+                                    <small class="d-block text-muted">User ID: ${c.requested_userid || '-'}</small>
+                                    <small class="d-block text-muted">DOB: ${c.dob} | Guardian: ${c.guardian}</small>
+                                </div>
+                                <button onclick="approveCandidate('${c.id}')" class="btn btn-success btn-sm align-self-center">TERIMA</button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                // Finance
+                const fList = document.getElementById('finance-verify-list');
+                if(fList) {
+                    fList.innerHTML = '';
+                    if(data.bills.length === 0) fList.innerHTML = '<p class="text-muted">Tidak ada pembayaran pending.</p>';
+
+                    data.bills.forEach(b => {
+                        fList.innerHTML += `
+                             <div class="card mb-2 p-2 shadow-sm">
+                                <div class="d-flex justify-content-between">
+                                    <h6 class="fw-bold">${b.student_name} - SPP ${b.month}</h6>
+                                    <span class="badge bg-warning text-dark">Pending</span>
+                                </div>
+                                <div class="my-2 text-center bg-light p-1">
+                                    <a href="/uploads/${b.proof_path}" target="_blank">
+                                        <img src="/uploads/${b.proof_path}" style="max-height:150px; max-width:100%;">
+                                    </a>
+                                </div>
+                                <button onclick="verifyPayment('${b.id}')" class="btn btn-primary btn-sm w-100">VALIDASI LUNAS</button>
+                             </div>
+                        `;
+                    });
+                }
+            });
+        }
+
+        function approveCandidate(id) {
+            if(!confirm("Approve siswa ini?")) return;
+            fetch('/api/academy/approve', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: id })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    alert("Siswa disetujui! Username: " + data.username);
+                    loadAdminData();
+                } else alert("Gagal: " + data.error);
+            });
+        }
+
+        function verifyPayment(id) {
+            if(!confirm("Validasi pembayaran ini?")) return;
+             fetch('/api/academy/finance/verify', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: id })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    loadAdminData();
+                }
+            });
+        }
+
+        // COACH FUNCTIONS
+        let coachStudents = [];
+
+        function loadCoachData(type) {
+             fetch('/api/academy/coach/data')
+             .then(res => res.json())
+             .then(data => {
+                 coachStudents = data.students;
+                 if(type === 'attendance') renderAttendanceForm();
+                 else renderEvaluationForm();
+             });
+        }
+
+        function renderAttendanceForm() {
+            const list = document.getElementById('coach-att-list');
+            list.innerHTML = '';
+            coachStudents.forEach(s => {
+                list.innerHTML += `
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                        <span class="fw-bold">${s.name}</span>
+                        <div>
+                            <div class="btn-group" role="group">
+                                <input type="radio" class="btn-check" name="att_${s.id}" id="att_${s.id}_p" value="present" checked>
+                                <label class="btn btn-outline-success btn-sm" for="att_${s.id}_p">Hadir</label>
+
+                                <input type="radio" class="btn-check" name="att_${s.id}" id="att_${s.id}_s" value="sick">
+                                <label class="btn btn-outline-warning btn-sm" for="att_${s.id}_s">Sakit</label>
+
+                                <input type="radio" class="btn-check" name="att_${s.id}" id="att_${s.id}_a" value="alpha">
+                                <label class="btn btn-outline-danger btn-sm" for="att_${s.id}_a">Alpha</label>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderEvaluationForm() {
+            const list = document.getElementById('coach-eval-list');
+            list.innerHTML = '';
+            coachStudents.forEach(s => {
+                list.innerHTML += `
+                    <div class="card mb-3 p-3 shadow-sm">
+                        <h6 class="fw-bold border-bottom pb-2">${s.name}</h6>
+                        <div class="row g-2">
+                            <div class="col-4"><small>Passing</small><input type="number" class="form-control form-control-sm eval-input" data-sid="${s.id}" data-cat="passing" max="100"></div>
+                            <div class="col-4"><small>Shooting</small><input type="number" class="form-control form-control-sm eval-input" data-sid="${s.id}" data-cat="shooting" max="100"></div>
+                            <div class="col-4"><small>Stamina</small><input type="number" class="form-control form-control-sm eval-input" data-sid="${s.id}" data-cat="stamina" max="100"></div>
+                            <div class="col-4"><small>Attitude</small><input type="number" class="form-control form-control-sm eval-input" data-sid="${s.id}" data-cat="attitude" max="100"></div>
+                            <div class="col-4"><small>Teamwork</small><input type="number" class="form-control form-control-sm eval-input" data-sid="${s.id}" data-cat="teamwork" max="100"></div>
+                            <div class="col-4"><small>Discipline</small><input type="number" class="form-control form-control-sm eval-input" data-sid="${s.id}" data-cat="discipline" max="100"></div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function submitCoachData(type) {
+            const payload = { type: type };
+            if(type === 'attendance') {
+                payload.date = document.getElementById('att-date').value;
+                payload.items = [];
+                coachStudents.forEach(s => {
+                    const status = document.querySelector(`input[name="att_${s.id}"]:checked`).value;
+                    payload.items.push({ student_id: s.id, status: status });
+                });
+            } else {
+                payload.month = document.getElementById('eval-month').value;
+                payload.items = [];
+                coachStudents.forEach(s => {
+                    const scores = {};
+                    document.querySelectorAll(`.eval-input[data-sid="${s.id}"]`).forEach(inp => {
+                        scores[inp.dataset.cat] = parseInt(inp.value) || 0;
+                    });
+                    payload.items.push({ student_id: s.id, scores: scores });
+                });
+            }
+
+            fetch('/api/academy/coach/submit', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) alert("Data Tersimpan!");
+            });
         }
 
         function loadBills() {
@@ -2214,6 +2578,8 @@ def academy_register():
         pos = request.form.get('position')
         guard = request.form.get('guardian')
         wa = request.form.get('guardian_wa')
+        userid = request.form.get('userid')
+        password = request.form.get('password')
         
         photo_path = None
         if 'photo' in request.files:
@@ -2225,12 +2591,22 @@ def academy_register():
         
         conn = get_db_connection()
         c = conn.cursor()
+
+        # Check if userid exists
+        if userid:
+            exist = c.execute("SELECT 1 FROM academy_users WHERE username=?", (userid,)).fetchone()
+            if exist:
+                conn.close()
+                return jsonify({'success': False, 'error': 'User ID sudah digunakan'})
+
         cid = f"cand_{int(time.time())}"
         # Simple Age Category Logic
         cat = 'U-12' 
         
-        c.execute("INSERT INTO candidates (id, name, dob, category, position, guardian, guardian_wa, photo_path) VALUES (?,?,?,?,?,?,?,?)",
-                  (cid, name, dob, cat, pos, guard, wa, photo_path))
+        pwd_hash = generate_password_hash(password) if password else None
+
+        c.execute("INSERT INTO candidates (id, name, dob, category, position, guardian, guardian_wa, photo_path, requested_userid, requested_password_hash) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                  (cid, name, dob, cat, pos, guard, wa, photo_path, userid, pwd_hash))
         conn.commit()
         conn.close()
         return jsonify({'success': True})
@@ -2332,20 +2708,31 @@ def academy_approve():
     if cand:
         # Move to students
         sid = f"stu_{int(time.time())}"
+        
         # Create User
-        username = cand['name'].replace(' ', '').lower() + str(int(time.time())%1000)
-        pwd_hash = generate_password_hash("123456") 
+        username = cand['requested_userid']
+        pwd_hash = cand['requested_password_hash']
         
-        c.execute("INSERT INTO academy_users (username, password_hash, role, related_id) VALUES (?,?,?,?)", 
-                  (username, pwd_hash, 'student', sid))
+        # Fallback if old data
+        if not username:
+             username = cand['name'].replace(' ', '').lower() + str(int(time.time())%1000)
+        if not pwd_hash:
+             pwd_hash = generate_password_hash("123456")
         
-        c.execute("INSERT INTO academy_students (id, name, dob, category, position, guardian, guardian_wa, photo_path, user_id) VALUES (?,?,?,?,?,?,?,?,?)",
-                  (sid, cand['name'], cand['dob'], cand['category'], cand['position'], cand['guardian'], cand['guardian_wa'], cand['photo_path'], username))
-        
-        c.execute("DELETE FROM candidates WHERE id=?", (cand_id,))
-        conn.commit()
-        conn.close()
-        return jsonify({'success': True, 'username': username})
+        try:
+            c.execute("INSERT INTO academy_users (username, password_hash, role, related_id) VALUES (?,?,?,?)",
+                      (username, pwd_hash, 'student', sid))
+
+            c.execute("INSERT INTO academy_students (id, name, dob, category, position, guardian, guardian_wa, photo_path, user_id) VALUES (?,?,?,?,?,?,?,?,?)",
+                      (sid, cand['name'], cand['dob'], cand['category'], cand['position'], cand['guardian'], cand['guardian_wa'], cand['photo_path'], username))
+
+            c.execute("DELETE FROM candidates WHERE id=?", (cand_id,))
+            conn.commit()
+            conn.close()
+            return jsonify({'success': True, 'username': username})
+        except sqlite3.IntegrityError:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Username conflict or DB error'})
     
     conn.close()
     return jsonify({'success': False})
@@ -2382,6 +2769,82 @@ def print_receipt(bill_id):
         <button onclick="window.print()">Print</button>
     </div>
     """
+
+@app.route('/api/academy/admin/data', methods=['GET'])
+def academy_admin_data():
+    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    # Candidates
+    c.execute("SELECT * FROM candidates ORDER BY created_at DESC")
+    candidates = [dict(row) for row in c.fetchall()]
+
+    # Finance Bills (Pending only for verification queue, or all if needed. Prompt implies verification workflow)
+    # Joining with student name for clarity
+    c.execute("""
+        SELECT f.*, s.name as student_name
+        FROM finance_bills f
+        JOIN academy_students s ON f.student_id = s.id
+        WHERE f.status = 'pending'
+        ORDER BY f.created_at ASC
+    """)
+    bills = [dict(row) for row in c.fetchall()]
+
+    conn.close()
+    return jsonify({'candidates': candidates, 'bills': bills})
+
+@app.route('/api/academy/coach/data', methods=['GET'])
+def academy_coach_data():
+    user = session.get('academy_user')
+    if not user or user['role'] != 'coach': return jsonify({'error': 'Unauthorized'}), 403
+
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    # Get all students
+    c.execute("SELECT id, name FROM academy_students ORDER BY name ASC")
+    students = [dict(row) for row in c.fetchall()]
+
+    conn.close()
+    return jsonify({'students': students})
+
+@app.route('/api/academy/coach/submit', methods=['POST'])
+def academy_coach_submit():
+    user = session.get('academy_user')
+    if not user or user['role'] != 'coach': return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.json
+    type = data.get('type') # 'attendance' or 'evaluation'
+
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    if type == 'attendance':
+        # items: [{student_id: '...', status: 'present'|'sick'|'alpha'}]
+        date = data.get('date', datetime.datetime.now().strftime('%Y-%m-%d'))
+        items = data.get('items', [])
+
+        for item in items:
+            aid = f"att_{item['student_id']}_{date}"
+            c.execute("INSERT OR REPLACE INTO academy_attendance (id, date, student_id, status, coach_id) VALUES (?,?,?,?,?)",
+                      (aid, date, item['student_id'], item['status'], user['username']))
+
+    elif type == 'evaluation':
+        # items: [{student_id: '...', scores: {...}}]
+        month = data.get('month', datetime.datetime.now().strftime('%Y-%m'))
+        items = data.get('items', [])
+
+        for item in items:
+            eid = f"eval_{item['student_id']}_{month}"
+            scores_json = json.dumps(item['scores'])
+            c.execute("INSERT OR REPLACE INTO academy_evaluations (id, month, student_id, coach_id, data) VALUES (?,?,?,?,?)",
+                      (eid, month, item['student_id'], user['username'], scores_json))
+
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
