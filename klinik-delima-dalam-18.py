@@ -4,6 +4,7 @@ import time
 import datetime
 import json
 import io
+import re
 import base64
 import qrcode
 from functools import wraps
@@ -15,6 +16,14 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB Limit
 app.secret_key = "supersecretkey"
+
+# Load Symptom Data
+try:
+    with open('symptom_data.json', 'r') as f:
+        SYMPTOM_RULES = json.load(f)
+except Exception as e:
+    print(f"Error loading symptom data: {e}")
+    SYMPTOM_RULES = []
 
 @app.context_processor
 def inject_rbac():
@@ -1048,36 +1057,41 @@ def api_qr_generate():
 
 @app.route('/symptom-checker')
 def symptom_checker_page():
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-user-md').replace('{{ page_title }}', 'AI SYMPTOM CHECKER')
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'fas fa-user-md').replace('{{ page_title }}', 'SYMPTOM CHECKER')
     return render_template_string(HTML_SYMPTOM.replace('{{ navbar|safe }}', navbar))
 
 @app.route('/api/symptom/check', methods=['POST'])
 def api_symptom_check():
     text = request.json.get('text', '').lower()
     
-    # Simple Rule-Based AI
-    result = "Gejala umum, perbanyak istirahat. Jika berlanjut, hubungi dokter."
-    confidence = "Rendah"
-    disease = "Tidak Spesifik"
+    best_match = None
+    max_score = 0
     
-    if 'bintik' in text and ('panas' in text or 'demam' in text):
-        disease = "Demam Berdarah (DBD)"
-        result = "Waspada tanda DBD. Segera cek trombosit jika demam > 3 hari."
-        confidence = "Tinggi"
-    elif 'sesak' in text:
-        disease = "ISPA / Asma / Pneumonia"
-        result = "Segera ke IGD jika sesak memberat."
-        confidence = "Sedang"
-    elif 'batuk' in text and 'pilek' in text:
-        disease = "Common Cold / Influenza"
-        result = "Istirahat cukup, minum air hangat."
-        confidence = "Tinggi"
-    elif 'diare' in text:
-        disease = "Gastroenteritis"
-        result = "Cegah dehidrasi, minum oralit."
-        confidence = "Tinggi"
+    for rule in SYMPTOM_RULES:
+        matches = 0
+        total_keywords = len(rule['keywords'])
+
+        if total_keywords == 0: continue
+
+        for kw in rule['keywords']:
+            if kw in text:
+                matches += 1
+
+        score = matches # Use raw match count to favor diseases with more matching details
+        if score > max_score:
+            max_score = score
+            best_match = rule
+
+    if best_match and max_score >= 1: # At least 1 keyword match
+        disease = f"{best_match['name']} ({best_match['code']})" if best_match['code'] else best_match['name']
+        advice = f"Gejala terdeteksi mirip dengan: {best_match['raw_symptoms']}. Segera konsultasi dokter untuk diagnosa pasti."
+        confidence = "Tinggi" if max_score >= 3 else "Sedang"
+    else:
+        disease = "Tidak Spesifik / Belum Dikenali"
+        advice = "Gejala tidak cocok dengan database 99 penyakit kami. Perbanyak istirahat dan hubungi dokter jika berlanjut."
+        confidence = "Rendah"
         
-    return jsonify({'disease': disease, 'advice': result, 'confidence': confidence})
+    return jsonify({'disease': disease, 'advice': advice, 'confidence': confidence})
 
 @app.route('/peta-sebaran')
 @role_required(['doctor'])
@@ -1921,7 +1935,7 @@ HTML_SYMPTOM = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Symptom Checker</title>
+    <title>Symptom Checker</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
@@ -1929,7 +1943,7 @@ HTML_SYMPTOM = """
 <body>
     {{ navbar|safe }}
     <div class="container py-5">
-        <h2 class="mb-4 fw-bold text-center text-primary"><i class="fas fa-robot me-2"></i> AI Symptom Checker (Deteksi Dini)</h2>
+        <h2 class="mb-4 fw-bold text-center text-primary"><i class="fas fa-clipboard-check me-2"></i> Symptom Checker (Deteksi Dini)</h2>
         
         <div class="card shadow border-0 rounded-4" style="max-width: 700px; margin: auto;">
             <div class="card-body p-5">

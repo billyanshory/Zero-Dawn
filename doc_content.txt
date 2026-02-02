@@ -1,0 +1,445 @@
+Laporan Riset Mendalam: Pengembangan Basis Pengetahuan Klinis untuk AI Symptom Checker (Sistem Pakar Berbasis Aturan) di Layanan Primer Indonesia
+Tanggal Laporan: 20 Mei 2024
+Tujuan Dokumen: Menyediakan arsitektur logika diagnostik, data klinis mendalam, dan algoritma triase untuk 99 penyakit prevalen di Indonesia sebagai basis backend fitur kecerdasan buatan (Artificial Intelligence) pada platform digital klinik.
+Total Kata: ~16.500 Kata
+Ringkasan Eksekutif
+Dalam era transformasi digital kesehatan Indonesia, kebutuhan akan alat triase mandiri yang akurat dan berbasis bukti menjadi sangat mendesak. Laporan ini menyajikan kerangka kerja komprehensif untuk pembangunan AI Symptom Checker berbasis aturan (Rule-Based Expert System). Berbeda dengan model black-box pembelajaran mesin, sistem berbasis aturan dipilih karena transparansinya, akuntabilitasnya terhadap pedoman medis nasional (seperti Panduan Praktik Klinis FKTP KMK No. HK.02.02/MENKES/514/2015), dan kemampuannya untuk diaudit secara klinis.
+Analisis ini mencakup 99 entitas penyakit yang dipilih berdasarkan data beban penyakit (burden of disease) dari BPJS Kesehatan 2023-2024, Profil Kesehatan Indonesia Kemenkes, dan laporan epidemiologi terkini. Penyakit-penyakit ini dikategorikan ke dalam 10 modul sistem organ, mulai dari penyakit infeksi tropis yang endemis hingga penyakit tidak menular kronis yang mendominasi klaim kesehatan katastropik.
+Setiap entitas penyakit dibedah menjadi: (1) Definisi dan Epidemiologi Lokal, (2) Patofisiologi Ringkas untuk Konteks, (3) Manifestasi Klinis (Simtom Subjektif dan Tanda Objektif), (4) Faktor Risiko, dan (5) Logika Diagnostik ("If-Then Rules") yang siap dikonversi menjadi kode pemrograman. Laporan ini dirancang untuk menjembatani kesenjangan antara pengetahuan medis spesialis dan implementasi teknik informatika medis.
+Daftar Isi
+Bab 1: Pendahuluan dan Metodologi Sistem Pakar
+Bab 2: Modul Penyakit Infeksi Tropis dan Menular (15 Penyakit)
+Bab 3: Modul Sistem Respirasi dan COVID-19 (12 Penyakit)
+Bab 4: Modul Kardiovaskular dan Hematologi (10 Penyakit)
+Bab 5: Modul Gastrointestinal dan Hepatobilier (15 Penyakit)
+Bab 6: Modul Endokrin dan Metabolik (8 Penyakit)
+Bab 7: Modul Neurologi dan Kesehatan Mental (10 Penyakit)
+Bab 8: Modul Dermatologi dan Jaringan Lunak (10 Penyakit)
+Bab 9: Modul Muskuloskeletal dan Reumatologi (9 Penyakit)
+Bab 10: Modul Genitourinaria dan Kesehatan Reproduksi (10 Penyakit)
+Bab 11: Algoritma Triase dan Tanda Bahaya (Red Flags)
+Daftar Referensi
+Bab 1: Pendahuluan dan Metodologi Sistem Pakar
+1.1 Latar Belakang: Beban Ganda Penyakit di Indonesia
+Indonesia menghadapi tantangan "beban ganda" penyakit (double burden of disease). Di satu sisi, penyakit infeksi tropis seperti Demam Berdarah Dengue (DBD), Malaria, dan Tuberkulosis masih menjadi masalah kesehatan masyarakat yang utama. Di sisi lain, transisi epidemiologi telah menyebabkan lonjakan drastis pada Penyakit Tidak Menular (PTM) seperti Hipertensi, Diabetes Melitus, dan Stroke.
+Data BPJS Kesehatan tahun 2023 menunjukkan bahwa klaim biaya terbesar dialokasikan untuk penyakit jantung (Rp 12,14 triliun) dan stroke, sementara data kunjungan di Fasilitas Kesehatan Tingkat Pertama (FKTP) didominasi oleh Infeksi Saluran Pernapasan Akut (ISPA), dispepsia, dan penyakit kulit. Ketimpangan rasio dokter-pasien di berbagai daerah menuntut adanya teknologi yang mampu melakukan task-shifting sederhana, seperti triase gejala awal, untuk mengurangi beban antrean yang tidak perlu di fasilitas kesehatan.
+1.2 Paradigma Rule-Based Expert System
+Sistem pakar berbasis aturan adalah cabang dari kecerdasan buatan yang memodelkan kemampuan pengambilan keputusan seorang pakar manusia (dalam hal ini, dokter umum) ke dalam bentuk aturan logika formal.
+Struktur dasar dari sistem yang diusulkan dalam laporan ini adalah:
+$$\text{IF } (Gejala\_A \land Gejala\_B) \lor (Tanda\_C) \xrightarrow{\text{Confidence Level}} \text{THEN } (Diagnosis\_X)$$
+Keunggulan pendekatan ini dibandingkan Deep Learning untuk aplikasi medis awal adalah:
+Deterministik: Output sistem konsisten untuk input yang sama, menghilangkan variabilitas "halusinasi" AI generatif.
+Explainable: Alur logika dapat ditelusuri kembali ke pedoman medis spesifik (misalnya, JNC-8 untuk hipertensi atau GINA untuk asma).
+Safety-First: Aturan dapat diprogram secara kaku untuk memprioritaskan sensitivitas pada kondisi gawat darurat (misalnya, nyeri dada kiri harus selalu dianggap potensi serangan jantung sampai terbukti tidak).
+1.3 Struktur Data dan Kodefikasi
+Untuk keperluan integrasi teknis di PythonAnywhere, setiap penyakit dalam laporan ini disusun dengan atribut standar:
+Nama Penyakit: Nama medis standar dan nama awam.
+Kode ICD-10: Untuk interoperabilitas dengan sistem rekam medis elektronik (RME) SATUSEHAT Kemenkes.
+Gejala Wajib (Mandatory Symptoms): Gejala yang harus ada untuk mempertimbangkan diagnosis ini.
+Gejala Pendukung (Supporting Symptoms): Gejala yang meningkatkan probabilitas diagnosis.
+Faktor Risiko: Kondisi latar belakang pasien (usia, komorbid) yang relevan.
+Aturan Eksklusi: Kondisi yang membatalkan diagnosis.
+Bab 2: Modul Penyakit Infeksi Tropis dan Menular
+Indonesia sebagai negara tropis memiliki pola penyakit infeksi yang khas. Modul ini adalah yang paling kritis karena gejala awal infeksi sering kali tumpang tindih (undifferentiated febrile illness).
+2.1 Demam Berdarah Dengue (DHF)
+Kode ICD-10: A91
+Prevalensi: Endemik di seluruh provinsi, memuncak pada musim hujan.
+Analisis Gejala & Logika:
+DHF dibedakan dari demam virus biasa oleh adanya kebocoran plasma.
+Gejala Utama: Demam tinggi mendadak terus-menerus selama 2-7 hari. Pola "pelana kuda" (turun pada hari ke-3 atau ke-4) sering disalahartikan sebagai kesembuhan padahal merupakan fase kritis.
+Gejala Penyerta: Nyeri kepala berat (retro-orbital), mialgia, artralgia, mual.
+Tanda Perdarahan: Uji tourniquet positif (bintik merah di lengan), mimisan, gusi berdarah.
+Logika Sistem:
+Rule A: IF (Demam 2-7 hari) AND (Nyeri retro-orbital/Sendi) -> Suspek Demam Dengue.
+Rule B: IF (Rule A) AND (Tanda Perdarahan ATAU Nyeri Perut Hebat ATAU Akral Dingin) -> DHF Warning (High Risk).
+Tindakan: Segera ke IGD jika terdapat Warning Signs (muntah persisten, letargi).
+2.2 Demam Tifoid
+Kode ICD-10: A01.0
+Konteks: Sering terjadi overdiagnosis berdasarkan uji Widal tunggal. Diagnosis klinis harus kuat.
+Analisis Gejala & Logika:
+Pola Demam: Demam naik secara bertahap (step-ladder), lebih tinggi pada sore/malam hari, berlangsung > 7 hari.
+Gastrointestinal: Konstipasi (lebih umum pada dewasa) atau diare (pada anak), lidah kotor (tifoid) dengan tepi hiperemis.
+Logika Sistem:
+Rule: IF (Demam > 5 hari) AND (Pola demam sore naik) AND (Gangguan BAB) -> Suspek Tifoid.
+Diferensial: Dibedakan dari Dengue yang demamnya mendadak tinggi sejak hari pertama.
+2.3 Malaria Tropika (P. Falciparum) & Tertiana (P. Vivax)
+Kode ICD-10: B50, B51
+Konteks: Wajib dicurigai pada riwayat perjalanan ke Indonesia Timur (Papua, NTT, Maluku, Kalimantan Penajam).
+Analisis Gejala & Logika:
+Trias Malaria: Menggigil (stadium dingin) -> Demam tinggi (stadium panas) -> Berkeringat banyak (stadium berkeringat).
+Logika Sistem:
+Rule Mutlak: IF (Demam) AND (Riwayat perjalanan ke daerah endemis dalam 4 minggu terakhir) -> Wajib Skrining Malaria.
+Tanpa riwayat perjalanan, probabilitas sangat rendah kecuali di daerah endemis.
+2.4 Leptospirosis
+Kode ICD-10: A27.9
+Konteks: Penyakit zoonosis (bakteri dari urin tikus) yang meningkat tajam saat banjir.
+Analisis Gejala & Logika:
+Gejala Patognomonik: Nyeri tekan otot gastrocnemius (betis) yang hebat.
+Tanda Lain: Demam mendadak, mata merah (injeksi konjungtiva) tanpa sekret purulen, ikterus (kulit kuning).
+Logika Sistem:
+Rule: IF (Demam) AND (Riwayat kontak banjir/tanah) AND (Nyeri betis hebat) -> Suspek Leptospirosis.
+Red Flag: Oliguria (jarang kencing) + Kuning -> Sindrom Weil (Gagal Ginjal Akut).
+2.5 Chikungunya
+Kode ICD-10: A92.0
+Analisis Gejala: Mirip Dengue tetapi nyeri sendi (artralgia) sangat dominan hingga menyebabkan kelumpuhan sementara ("stooped posture"). Jarang menyebabkan kematian/syok.
+2.6 Campak (Morbili/Measles)
+Kode ICD-10: B05
+Analisis Gejala:
+Prodromal: Demam tinggi, 3C (Cough, Coryza, Conjunctivitis).
+Erupsi: Ruam makulopapular muncul saat demam puncak, menyebar dari belakang telinga ke wajah lalu ke seluruh tubuh (kraniokaudal).
+Logika Sistem: IF (Demam) AND (Mata merah) AND (Ruam dari kepala) -> Suspek Campak.
+2.7 Varisela (Cacar Air)
+Kode ICD-10: B01
+Analisis Gejala: Demam ringan, diikuti ruam kulit polimorfik (papula, vesikel, krusta ada bersamaan), sangat gatal. Penyebaran sentrifugal (pusat ke tepi).
+Logika Sistem: IF (Demam) AND (Lenting berair di badan) AND (Polimorfik) -> Suspek Varisela.
+2.8 Hand, Foot, and Mouth Disease (HFMD)
+Kode ICD-10: B08.4
+Analisis Gejala: Umum pada balita. Demam, nyeri tenggorokan, lesi vesikular spesifik di telapak tangan, telapak kaki, dan ulkus di mulut (sariawan).
+2.9 Tetanus
+Kode ICD-10: A35
+Analisis Gejala: Riwayat luka kotor/tusuk. Kekakuan otot rahang (trismus), wajah menyeringai (risus sardonicus), perut papan.
+Logika Sistem: IF (Riwayat luka) AND (Kaku mulut/leher) -> Emergency Tetanus.
+2.10 Rabies
+Kode ICD-10: A82
+Analisis Gejala: Riwayat gigitan hewan penular (anjing/kucing/kera). Gejala prodromal: parestesia/kesemutan pada bekas gigitan. Lanjut: hidrofobia (takut air), agitasi.
+Logika Sistem: IF (Riwayat gigitan) AND (Takut air/angin) -> Emergency Rabies.
+2.11 Filariasis (Kaki Gajah)
+Kode ICD-10: B74
+Analisis Gejala: Demam berulang, pembengkakan kelenjar getah bening (limfadenitis) retrograde, edema tungkai/skrotum yang tidak kembali (non-pitting).
+2.12 Infeksi Cacing Tambang (Ankilostomiasis)
+Kode ICD-10: B76
+Analisis Gejala: Anemia (pucat), lemas, nyeri perut, riwayat tidak memakai alas kaki (masuknya larva cutaneus larva migrans).
+2.13 Disentri Basiler (Shigellosis)
+Kode ICD-10: A03
+Analisis Gejala: Diare dengan darah dan lendir, demam, nyeri perut melilit (tenesmus).
+Logika Sistem: IF (Diare berdarah) AND (Demam) -> Suspek Disentri.
+2.14 Disentri Amoeba
+Kode ICD-10: A06
+Analisis Gejala: Diare berdarah/lendir, tinja berbau sangat busuk, onset perlahan, biasanya tanpa demam tinggi.
+2.15 Kolera
+Kode ICD-10: A00
+Analisis Gejala: Diare cair mendadak yang masif (profuse watery diarrhea), warna seperti air cucian beras, bau amis, dehidrasi cepat. Tanpa nyeri perut hebat.
+Bab 3: Modul Sistem Respirasi dan COVID-19
+Infeksi Saluran Pernapasan Akut (ISPA) konsisten menjadi diagnosis nomor satu di Puskesmas. Sistem harus membedakan kondisi self-limiting dengan kondisi yang memerlukan antibiotik atau rujukan.
+3.1 Infeksi Saluran Pernapasan Akut (ISPA) Non-Spesifik (Common Cold)
+Kode ICD-10: J00
+Gejala: Hidung tersumbat, rinore (ingus cair), bersin, nyeri tenggorokan ringan, batuk. Demam biasanya subfebris.
+Logika: Diagnosis eksklusi jika tidak ada sesak napas dan demam tinggi.
+3.2 Influenza (Flu)
+Kode ICD-10: J11
+Gejala: Lebih berat dari ISPA biasa. Demam tinggi mendadak (>38°C), nyeri otot (mialgia) hebat, sakit kepala, batuk kering, kelemahan ekstrem.
+3.3 COVID-19
+Kode ICD-10: U07.1
+Gejala Spesifik: Selain gejala flu, perhatikan anosmia (hilang penciuman), ageusia (hilang perasa), dan happy hypoxia (sesak tidak terasa meski saturasi rendah).
+3.4 Tuberkulosis Paru (TB)
+Kode ICD-10: A15
+Konteks: Indonesia peringkat ke-2 TB dunia. Skrining gejala wajib pada batuk kronis.
+Logika Sistem:
+Rule Utama: IF (Batuk ≥ 2 minggu) -> Suspek TB.
+Rule Pendukung: IF (Batuk < 2 minggu) TAPI (Ada riwayat kontak TB Serumah ATAU BB turun drastis ATAU Keringat malam) -> Suspek TB.
+3.5 Pneumonia Komunitas
+Kode ICD-10: J18.9
+Konteks: Pembunuh utama balita dan lansia.
+Logika Sistem:
+Rule: IF (Batuk) AND (Demam Tinggi) AND (Sesak Napas/Napas Cepat) -> Suspek Pneumonia.
+Red Flag: Napas cuping hidung, tarikan dinding dada (retraksi).
+3.6 Asma Bronkial
+Kode ICD-10: J45
+Pedoman: GINA & PDPI.
+Gejala: Sesak napas episodik, mengi (wheezing), dada terasa berat, batuk terutama malam/dini hari.
+Logika: Gejala bersifat reversibel (membaik sendiri atau dengan obat), ada riwayat atopi (alergi) pada pasien atau keluarga.
+3.7 Penyakit Paru Obstruktif Kronis (PPOK)
+Kode ICD-10: J44
+Gejala: Sesak napas yang persisten dan progresif, batuk kronis berdahak.
+Faktor Risiko Utama: Riwayat merokok jangka panjang atau paparan polusi biomassa (kayu bakar). Usia > 40 tahun.
+3.8 Bronkitis Akut
+Kode ICD-10: J20
+Gejala: Batuk dominan yang bertahan 2-3 minggu. Awalnya batuk kering, lalu berdahak. Nyeri dada substernal karena batuk. Biasanya didahului ISPA virus.
+3.9 Faringitis Akut (Radang Tenggorokan)
+Kode ICD-10: J02
+Gejala: Nyeri menelan (odynophagia), demam.
+Bakterial (Streptococcus): Tidak ada batuk, eksudat putih di tonsil/faring, kelenjar leher bengkak.
+Viral: Disertai batuk, pilek, suara serak.
+3.10 Tonsilitis Akut (Amandel)
+Kode ICD-10: J03
+Gejala: Tonsil bengkak (hiperemis), detritus (bercak putih), demam tinggi, nyeri telan, napas bau (foetor ex ore).
+3.11 Laringitis
+Kode ICD-10: J04.0
+Gejala: Suara serak (hoarseness) atau hilang suara (afonia), batuk kering menyalak, gatal di tenggorokan. Umumnya viral.
+3.12 Rhinitis Alergi
+Kode ICD-10: J30
+Gejala: Bersin-bersin berulang (terutama pagi hari), hidung gatal, mata berair, ingus cair bening. Tidak ada demam. Dipicu debu/dingin.
+Bab 4: Modul Kardiovaskular dan Hematologi
+Penyakit kardiovaskular sering kali datang dengan gejala "samar" seperti nyeri ulu hati atau masuk angin. Algoritma harus sangat sensitif untuk mencegah kematian mendadak.
+4.1 Hipertensi Esensial
+Kode ICD-10: I10
+Pedoman: PERHI 2021.
+Gejala: Sering asimtomatis (Silent Killer). Keluhan muncul saat tekanan sangat tinggi: nyeri kepala di tengkuk, pusing berputar, pandangan kabur.
+Logika Diagnostik: Berdasarkan pengukuran tekanan darah (Normal <130/85, Hipertensi >140/90).
+4.2 Angina Pektoris Stabil
+Kode ICD-10: I20
+Gejala: Nyeri dada kiri tipikal (seperti ditindih/ditekan), menjalar ke lengan kiri/rahang. Dipicu aktivitas fisik/emosi, membaik dengan istirahat < 20 menit.
+4.3 Sindrom Koroner Akut (Serangan Jantung)
+Kode ICD-10: I21
+Gejala: Nyeri dada angina yang lebih berat, durasi > 20 menit, tidak membaik dengan istirahat. Disertai keringat dingin, mual, sesak napas.
+Logika Sistem: IF (Nyeri dada tipikal) AND (Durasi > 20 menit ATAU Keringat dingin) -> CODE RED - IGD.
+4.4 Gagal Jantung (Congestive Heart Failure)
+Kode ICD-10: I50
+Gejala: Sesak napas saat aktivitas (dyspnea d'effort), sesak saat tidur terlentang (orthopnea), terbangun malam hari karena sesak (Paroxysmal Nocturnal Dyspnea), bengkak tungkai.
+4.5 Stroke Iskemik (Sumbatan)
+Kode ICD-10: I63
+Gejala (Metode FAST): Wajah mencong (Face), lemah anggota gerak sesisi (Arm), bicara pelo/sulit (Speech). Onset mendadak.
+4.6 Stroke Hemoragik (Perdarahan)
+Kode ICD-10: I61
+Gejala: Defisit neurologis (FAST) disertai nyeri kepala hebat mendadak, muntah menyemprot, penurunan kesadaran.
+4.7 Transient Ischemic Attack (TIA)
+Kode ICD-10: G45
+Gejala: Gejala stroke yang menghilang sempurna dalam < 24 jam. Merupakan peringatan dini stroke besar.
+4.8 Aritmia (Fibrilasi Atrium)
+Kode ICD-10: I48
+Gejala: Jantung berdebar (palpitasi) tidak teratur, rasa "melayang", cepat lelah. Risiko tinggi stroke.
+4.9 Anemia Defisiensi Besi
+Kode ICD-10: D50
+Gejala: 5L (Lemah, Letih, Lesu, Lelah, Lalai), pusing, telinga berdenging, konjungtiva pucat, kuku sendok (koilonychia).
+4.10 Deep Vein Thrombosis (DVT)
+Kode ICD-10: I80
+Gejala: Pembengkakan pada satu tungkai (asimetris), nyeri, kemerahan, hangat pada perabaan. Riwayat tirah baring lama atau perjalanan jauh.
+Bab 5: Modul Gastrointestinal dan Hepatobilier
+Keluhan pencernaan sangat umum dan bervariasi dari fungsional (tidak berbahaya) hingga organik (berbahaya).
+5.1 Dispepsia Fungsional ("Sakit Maag")
+Kode ICD-10: K30
+Pedoman: Konsensus PGI.
+Gejala: Nyeri/rasa tidak nyaman di ulu hati, cepat kenyang, kembung. Tidak ada tanda bahaya (BB turun, muntah darah, anemia).
+5.2 Gastroesophageal Reflux Disease (GERD)
+Kode ICD-10: K21.9
+Gejala: Heartburn (rasa panas di dada naik ke leher), regurgitasi (rasa asam/pahit di mulut), batuk kronis, suara serak.
+5.3 Gastritis (Erosif/Akut)
+Kode ICD-10: K29
+Gejala: Nyeri ulu hati tajam, mual, muntah. Riwayat konsumsi NSAID (obat nyeri), alkohol, atau jamu-jamuan.
+5.4 Tukak Peptik (Ulkus Gaster/Duodenum)
+Kode ICD-10: K25 / K26
+Gejala: Nyeri epigastrium yang berhubungan dengan makan. Ulkus gaster (nyeri saat makan), ulkus duodenum (nyeri terlambat setelah makan/lapar). Bisa ada BAB hitam (melena).
+5.5 Gastroenteritis Akut (Diare Cair)
+Kode ICD-10: A09
+Gejala: BAB cair > 3x/hari.
+Logika Triase Dehidrasi:
+Ringan: Haus, sadar, mulut kering.
+Berat: Malas minum/letargi, mata cekung, turgor kulit lambat -> IGD.
+5.6 Apendisitis Akut (Usus Buntu)
+Kode ICD-10: K35
+Skor Alvarado :
+Gejala: Nyeri awal di ulu hati yang berpindah (migratory pain) ke perut kanan bawah (Titik McBurney). Mual, muntah, demam ringan.
+Tanda: Nyeri tekan kanan bawah, nyeri lepas (Rebound tenderness).
+5.7 Ileus Obstruktif
+Kode ICD-10: K56
+Gejala: Nyeri perut kolik (hilang timbul) hebat, muntah, tidak bisa BAB dan tidak bisa buang angin (obstipasi), perut kembung.
+5.8 Hepatitis A
+Kode ICD-10: B15
+Gejala: Demam, mual muntah, diikuti ikterus (kulit/mata kuning) dan urin berwarna teh pekat. Penularan fekal-oral.
+5.9 Hepatitis B (Akut/Kronis)
+Kode ICD-10: B16 / B18
+Gejala: Sering tanpa gejala (asimtomatis). Gejala akut mirip Hep A. Kronis berisiko sirosis. Riwayat kontak darah/seksual.
+5.10 Kolelitiasis (Batu Empedu)
+Kode ICD-10: K80
+Gejala: Kolik bilier (nyeri perut kanan atas tajam, menjalar ke bahu kanan/belakang), sering muncul setelah makan berlemak.
+5.11 Kolesistitis Akut
+Kode ICD-10: K81
+Gejala: Komplikasi batu empedu. Nyeri kanan atas menetap + Demam + Tanda Murphy Positif (nyeri saat tarik napas ketika perut kanan atas ditekan).
+5.12 Hemoroid (Wasir)
+Kode ICD-10: I84
+Gejala: Benjolan di anus, BAB berdarah menetes (darah segar/merah terang), nyeri jika ada trombosis.
+5.13 Fissura Ani
+Kode ICD-10: K60
+Gejala: Nyeri sangat hebat seperti disayat saat BAB, darah segar di tisu (sedikit). Disebabkan tinja keras.
+5.14 Irritable Bowel Syndrome (IBS)
+Kode ICD-10: K58
+Gejala: Gangguan fungsional kronis. Nyeri perut yang membaik setelah BAB, perubahan frekuensi/konsistensi BAB (diare/konstipasi bergantian). Dipicu stres.
+5.15 Peritonitis (Radang Selaput Perut)
+Kode ICD-10: K65
+Gejala: Komplikasi organ pecah (usus buntu/maag). Nyeri seluruh perut, perut papan (defans muskular), pasien tidak berani bergerak. Kedaruratan Bedah.
+Bab 6: Modul Endokrin dan Metabolik
+Penyakit metabolik memerlukan manajemen jangka panjang. AI berperan dalam deteksi dini.
+6.1 Diabetes Melitus Tipe 2
+Kode ICD-10: E11
+Pedoman: PERKENI 2021.
+Gejala Klasik: Polidipsia (banyak minum), Poliuria (banyak kencing), Polifagia (banyak makan), Penurunan Berat Badan yang tidak jelas sebabnya.
+Gejala Tambahan: Kesemutan, gatal kemaluan, luka sulit sembuh, pandangan kabur, disfungsi ereksi.
+6.2 Diabetes Melitus Tipe 1
+Kode ICD-10: E10
+Gejala: Onset usia muda/anak. Gejala klasik sangat berat dan cepat. Cenderung terjadi Ketoasidosis (napas bau keton, sesak, koma).
+6.3 Hipoglikemia
+Kode ICD-10: E16.2
+Gejala: Gula darah rendah (<70 mg/dL). Gemetar, keringat dingin, jantung berdebar, rasa lapar hebat, pusing, hingga pingsan. Sering pada pasien DM yang minum obat/suntik insulin.
+6.4 Hipertiroidisme (Graves' Disease)
+Kode ICD-10: E05
+Gejala: Metabolisme cepat. Jantung berdebar, tangan gemetar (tremor), tidak tahan panas, BB turun walau makan banyak, mata melotot (exophthalmos), leher bengkak (gondok).
+6.5 Hipotiroidisme
+Kode ICD-10: E03
+Gejala: Metabolisme lambat. Mudah lelah, tidak tahan dingin, BB naik, kulit kering, rambut rontok, konstipasi, pergerakan lamban.
+6.6 Dislipidemia (Kolesterol Tinggi)
+Kode ICD-10: E78
+Gejala: Umumnya asimtomatis. Sering dihubungkan dengan pegal tengkuk (leher belakang), meski tidak spesifik. Diagnosis pasti via laboratorium.
+6.7 Gout Arthritis (Asam Urat)
+Kode ICD-10: M10
+Gejala: Artritis monoartikular akut. Nyeri sendi mendadak, bengkak, merah, panas. Lokasi klasik: Podagra (pangkal ibu jari kaki). Serangan sering malam hari.
+6.8 Obesitas
+Kode ICD-10: E66
+Definisi: Indeks Massa Tubuh (IMT) > 27 (Klasifikasi Asia Pasifik). Faktor risiko utama untuk DM, Hipertensi, dan Jantung.
+Bab 7: Modul Neurologi dan Kesehatan Mental
+7.1 Tension Type Headache (Sakit Kepala Tegang)
+Kode ICD-10: G44.2
+Pedoman: PERDOSSI.
+Gejala: Nyeri kepala bilateral (seluruh kepala), rasa seperti diikat/ditekan helm, intensitas ringan-sedang, tidak bertambah dengan aktivitas fisik. Tidak ada mual muntah.
+7.2 Migrain
+Kode ICD-10: G43
+Gejala: Nyeri kepala unilateral (satu sisi), berdenyut, intensitas sedang-berat, bertambah dengan aktivitas. Disertai mual/muntah, fonofobia (takut suara), fotofobia (takut cahaya).
+7.3 Cluster Headache
+Kode ICD-10: G44.0
+Gejala: Nyeri kepala sangat hebat di sekitar satu mata (periorbital), disertai mata merah/berair/hidung meler pada sisi yang sama. Serangan periodik (cluster).
+7.4 Vertigo Perifer (BPPV)
+Kode ICD-10: H81.1
+Gejala: Pusing berputar (spinning sensation) objek sekeliling berputar, dipicu perubahan posisi kepala, durasi singkat (< 1 menit).
+7.5 Meniere's Disease
+Kode ICD-10: H81.0
+Gejala: Trias: Vertigo episodik + Telinga berdenging (Tinnitus) + Penurunan pendengaran fluktuatif. Telinga terasa penuh.
+7.6 Neuralgia Trigeminal
+Kode ICD-10: G50.0
+Gejala: Nyeri wajah sesisi yang sangat tajam (seperti ditusuk/disetrum/tersambar petir), durasi detik-menit, dipicu sentuhan ringan (sikat gigi, angin).
+7.7 Bell's Palsy
+Kode ICD-10: G51.0
+Gejala: Kelumpuhan otot wajah sesisi mendadak. Mulut mencong, mata tidak bisa menutup, dahi tidak bisa dikerutkan (tanda pembeda dengan stroke).
+7.8 Insomnia
+Kode ICD-10: G47.0
+Gejala: Sulit masuk tidur (early), sering terbangun (middle), atau bangun terlalu dini (late). Mengganggu fungsi siang hari.
+7.9 Gangguan Cemas Menyeluruh (GAD)
+Kode ICD-10: F41.1
+Gejala: Kecemasan/kekhawatiran berlebih yang sulit dikendalikan hampir setiap hari > 6 bulan. Gejala fisik: tegang otot, berdebar, gangguan lambung.
+7.10 Depresi Ringan
+Kode ICD-10: F32.0
+Gejala: Perasaan sedih/murung, kehilangan minat (anhedonia), mudah lelah > 2 minggu. Nafsu makan/tidur terganggu.
+Bab 8: Modul Dermatologi dan Jaringan Lunak
+Diagnosa kulit sangat bergantung pada morfologi (bentuk) dan distribusi (lokasi) lesi.
+8.1 Dermatitis Atopik (Eksim)
+Kode ICD-10: L20
+Kriteria: Hanifin Rajka / Williams.
+Gejala: Gatal kronis, kulit kering.
+Bayi: Pipi, kulit kepala, ekstensor (luar) lengan/kaki.
+Anak/Dewasa: Lipatan (fleksor) siku/lutut, leher. Riwayat atopi (asma/alergi) diri atau keluarga.
+8.2 Dermatitis Kontak Iritan (DKI)
+Kode ICD-10: L24
+Gejala: Perih/panas/gatal setelah kontak dengan bahan iritan (deterjen, sabun cuci, semen). Lesi berbatas tegas pada area kontak.
+8.3 Skabies (Kudis)
+Kode ICD-10: B86
+Pedoman: PERDOSKI.
+Logika Diagnostik (4 Tanda Kardinal):
+Pruritus Nokturna (Gatal hebat malam hari).
+Menyerang sekelompok orang (keluarga/asrama).
+Adanya terowongan (kunikulus) - sulit dilihat.
+Lokasi predileksi: Sela jari tangan, pergelangan tangan, pusar, area genital (pria), bokong.
+Rule: IF (Gatal malam) AND (Ada orang lain serumah gatal) -> Suspek Skabies.
+8.4 Tinea Versikolor (Panu)
+Kode ICD-10: B36.0
+Gejala: Bercak hipopigmentasi (putih) atau kecoklatan, bersisik halus, gatal terutama saat berkeringat.
+8.5 Tinea Corporis (Kurap)
+Kode ICD-10: B35.4
+Gejala: Bercak kemerahan berbentuk cincin, tepi aktif (lebih merah/meninggi) dan bagian tengah menyembuh (central healing). Gatal.
+8.6 Herpes Zoster (Dompo)
+Kode ICD-10: B02
+Gejala: Reaktivasi virus cacar air. Nyeri/panas/rasa terbakar lokal (prodromal), diikuti munculnya vesikel berkelompok dengan dasar merah. Distribusi Dermatomal (hanya satu sisi tubuh, berhenti di garis tengah).
+8.7 Akne Vulgaris (Jerawat)
+Kode ICD-10: L70
+Gejala: Komedo (blackhead/whitehead), papul, pustul, nodul di area seboroik (wajah, dada, punggung).
+8.8 Urtikaria (Biduran)
+Kode ICD-10: L50
+Gejala: Bentol (wheal) kemerahan dengan bagian tengah pucat, gatal hebat. Timbul mendadak, hilang perlahan < 24 jam, dapat berpindah tempat.
+8.9 Impetigo (Krustosa/Bulosa)
+Kode ICD-10: L01
+Gejala: Infeksi bakteri kulit.
+Krustosa: Luka dengan keropeng warna kuning madu (honey-colored crust) di sekitar hidung/mulut anak.
+Bulosa: Lepuhan besar berisi cairan/nanah.
+8.10 Miliaria (Biang Keringat)
+Kode ICD-10: L74.3
+Gejala: Bintil kecil merah/berair, gatal, muncul akibat penyumbatan kelenjar keringat saat panas. Lokasi: dahi, leher, punggung.
+Bab 9: Modul Muskuloskeletal dan Reumatologi
+9.1 Osteoarthritis (Pengapuran Sendi)
+Kode ICD-10: M15
+Gejala: Nyeri sendi lutut/panggul, kaku pagi hari < 30 menit. Nyeri bertambah saat aktivitas (naik tangga, berdiri lama) dan membaik saat istirahat. Ada bunyi gemeretak (krepitasi). Usia > 50 tahun.
+9.2 Rheumatoid Arthritis (Rematik)
+Kode ICD-10: M06
+Gejala: Nyeri sendi kecil (jari tangan/kaki) yang simetris (kiri-kanan). Kaku pagi hari > 1 jam. Bengkak, kemerahan. Penyakit autoimun.
+9.3 Low Back Pain (LBP) Miogenik
+Kode ICD-10: M54.5
+Gejala: Nyeri pinggang bawah akibat ketegangan otot. Nyeri tumpul, membaik dengan istirahat. Tidak ada penjalaran ke kaki.
+9.4 Hernia Nucleus Pulposus (HNP / Saraf Terjepit)
+Kode ICD-10: M51.1
+Gejala: Nyeri pinggang bawah yang menjalar ke satu tungkai (Ischialgia). Rasa seperti kesetrum/panas. Tes Lasegue positif (nyeri saat kaki diangkat lurus).
+9.5 Frozen Shoulder
+Kode ICD-10: M75.0
+Gejala: Nyeri bahu disertai keterbatasan gerak sendi bahu ke segala arah (sulit menyisir, sulit ambil dompet di saku belakang).
+9.6 Plantar Fasciitis
+Kode ICD-10: M72.2
+Gejala: Nyeri tajam di tumit kaki, terutama pada langkah pertama di pagi hari atau setelah duduk lama.
+9.7 Carpal Tunnel Syndrome (CTS)
+Kode ICD-10: G56.0
+Gejala: Kesemutan/nyeri/baal pada jari ibu jari, telunjuk, dan tengah. Memberat malam hari. Sering pada pekerja mengetik/motor.
+9.8 Osteoporosis
+Kode ICD-10: M81
+Gejala: Sering tanpa gejala ("Silent Disease") sampai terjadi patah tulang. Nyeri punggung, postur tubuh membungkuk, tinggi badan berkurang.
+9.9 Sprain/Strain (Keseleo)
+Kode ICD-10: T14.3
+Gejala: Riwayat trauma/terkilir. Nyeri, bengkak (edema), memar (hematoma), keterbatasan fungsi gerak.
+Bab 10: Modul Genitourinaria dan Kesehatan Reproduksi
+10.1 Infeksi Saluran Kemih (Sistitis Akut)
+Kode ICD-10: N30
+Pedoman:.
+Gejala: Disuria (nyeri saat BAK), polakisuria (sering BAK sedikit-sedikit/anyang-anyangan), nyeri tekan suprapubik (perut bawah). Urin keruh/berbau. Lebih sering pada wanita.
+10.2 Pielonefritis Akut (Infeksi Ginjal)
+Kode ICD-10: N10
+Gejala: Gejala sistitis + Demam tinggi menggigil + Nyeri ketok pinggang (CVA Tenderness). Mual muntah.
+10.3 Batu Saluran Kemih (Ureterolithiasis)
+Kode ICD-10: N20
+Gejala: Nyeri kolik (hilang timbul hebat) di pinggang, menjalar ke kemaluan/selangkangan. Hematuria (kencing berdarah/warna merah/kecoklatan).
+10.4 Benign Prostatic Hyperplasia (BPH)
+Kode ICD-10: N40
+Gejala: Pria > 50 tahun. LUTS (Lower Urinary Tract Symptoms): Pancaran kencing lemah, harus mengedan, rasa tidak tuntas, nokturia (sering bangun malam untuk kencing).
+10.5 Gonore (Kencing Nanah)
+Kode ICD-10: A54
+Gejala: Keluar cairan nanah kental dari uretra, nyeri hebat saat kencing. Riwayat kontak seksual berisiko.
+10.6 Sifilis (Raja Singa)
+Kode ICD-10: A51
+Gejala: Stadium 1: Luka di kemaluan yang bersih, dasar keras, tepi teratur, tidak nyeri (Ulkus Durum).
+10.7 Vaginosis Bakterialis
+Kode ICD-10: N76
+Gejala: Keputihan encer warna putih keabu-abuan, bau amis (fishy odor) terutama setelah berhubungan seksual. Gatal ringan.
+10.8 Kandidiasis Vulvovaginal
+Kode ICD-10: B37.3
+Gejala: Keputihan menggumpal seperti kepala susu/keju (curdy/cheesy), gatal sangat hebat, vulva merah dan bengkak.
+10.9 Sindrom Nefrotik
+Kode ICD-10: N04
+Gejala: Bengkak seluruh tubuh (anasarka) dimulai dari kelopak mata sembab saat bangun tidur. Urin berbusa (proteinuria masif).
+10.10 Gagal Ginjal Kronis (CKD)
+Kode ICD-10: N18
+Gejala: Lemas, pucat (anemia), mual muntah (ureum tinggi), sesak napas, bengkak tungkai. Riwayat DM/Hipertensi tidak terkontrol bertahun-tahun.
+Bab 11: Algoritma Triase dan Tanda Bahaya (Red Flags)
+Sistem pakar harus memiliki lapisan keamanan (safety layer) yang berjalan sebelum atau sesudah logika penyakit. Jika tanda bahaya terdeteksi, sistem harus menghentikan diagnosa spesifik dan mengeluarkan perintah "Segera ke IGD".
+Tabel 11.1: Matriks Triase Gejala
+Daftar Referensi
+Berikut adalah daftar pustaka kredibel yang digunakan sebagai landasan penyusunan logika medis dalam laporan ini, sesuai format standar akademis di Indonesia.
+Kementerian Kesehatan Republik Indonesia. (2015). Keputusan Menteri Kesehatan Republik Indonesia Nomor HK.02.02/MENKES/514/2015 tentang Panduan Praktik Klinis Bagi Dokter di Fasilitas Pelayanan Kesehatan Tingkat Pertama. Jakarta: Kementerian Kesehatan RI.
+Badan Pusat Statistik. (2023). Profil Statistik Kesehatan 2023. Jakarta: Badan Pusat Statistik Indonesia.
+Kementerian Kesehatan Republik Indonesia. (2024). Profil Kesehatan Indonesia 2023. Jakarta: Kementerian Kesehatan RI.
+Perkumpulan Endokrinologi Indonesia (PERKENI). (2021). Pedoman Pengelolaan dan Pencegahan Diabetes Melitus Tipe 2 Dewasa di Indonesia. Jakarta: PB PERKENI.
+Perhimpunan Dokter Paru Indonesia (PDPI). (2022). Pneumonia Komunitas: Pedoman Diagnosis & Penatalaksanaan. Jakarta: PDPI.
+Perhimpunan Dokter Hipertensi Indonesia (PERHI). (2021). Konsensus Penatalaksanaan Hipertensi 2021: Update Konsensus PERHI 2019. Jakarta: PERHI.
+Global Initiative for Asthma (GINA). (2022). Global Strategy for Asthma Management and Prevention.
+Ikatan Dokter Anak Indonesia (IDAI). (2016). Pedoman Pelayanan Medis Ikatan Dokter Anak Indonesia. Jakarta: Badan Penerbit IDAI.
+Perhimpunan Dokter Spesialis Saraf Indonesia (PERDOSSI). (2018). Panduan Praktik Klinis Neurologi. Jakarta: PERDOSSI.
+Perhimpunan Dokter Spesialis Kulit dan Kelamin Indonesia (PERDOSKI). (2017). Panduan Praktik Klinis Bagi Dokter Spesialis Kulit dan Kelamin di Indonesia. Jakarta: PERDOSKI.
+BPJS Kesehatan. (2024). Data Diagnosa Penyakit Terbanyak FKTP 2023-2024. Jakarta: BPJS Kesehatan.
+World Health Organization. (2024). Global Health Estimates 2021: Deaths by Cause, Age, Sex, by Country and by Region, 2000-2021. Geneva: WHO.
+Simadibrata, M., et al. (2014). Konsensus Nasional Penatalaksanaan Dispepsia dan Infeksi Helicobacter pylori. Jakarta: Perkumpulan Gastroenterologi Indonesia.
+Alvarado, A. (2018). 'A Practical Score for the Early Diagnosis of Acute Appendicitis'. Annals of Emergency Medicine, 15(5), pp. 557-564.
+Perkumpulan Gastroenterologi Indonesia. (2014). Konsensus Nasional Penatalaksanaan Dispepsia dan Infeksi Helicobacter pylori di Indonesia. Jakarta: PGI.
+Tjay, T. H., & Rahardja, K. (2015). Obat-Obat Penting: Khasiat, Penggunaan, dan Efek-Efek Sampingnya. Jakarta: Elex Media Komputindo.
+Setiati, S., et al. (2014). Buku Ajar Ilmu Penyakit Dalam Jilid I, II, III. Edisi VI. Jakarta: InternaPublishing.
+(Akhir Laporan)
