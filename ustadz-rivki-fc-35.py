@@ -234,6 +234,38 @@ def get_all_data():
         'settings': settings
     }
 
+def generate_monthly_bills():
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    start_date = datetime.date(2026, 2, 1)
+    now = datetime.date.today()
+
+    if now < start_date:
+        start_date = datetime.date(now.year, now.month, 1)
+
+    current = start_date
+    while current <= now:
+        months_id = {1:'Januari', 2:'Februari', 3:'Maret', 4:'April', 5:'Mei', 6:'Juni', 7:'Juli', 8:'Agustus', 9:'September', 10:'Oktober', 11:'November', 12:'Desember'}
+        month_name = f"{months_id[current.month]} {current.year}"
+
+        c.execute("SELECT id FROM academy_students")
+        students = c.fetchall()
+        for s in students:
+            c.execute("SELECT 1 FROM finance_bills WHERE student_id=? AND month=?", (s['id'], month_name))
+            if not c.fetchone():
+                bid = f"bill_{s['id']}_{current.strftime('%Y%m')}"
+                c.execute("INSERT INTO finance_bills (id, student_id, month, amount, status) VALUES (?,?,?,?, 'unpaid')",
+                          (bid, s['id'], month_name, 150000))
+
+        if current.month == 12:
+            current = datetime.date(current.year + 1, 1, 1)
+        else:
+            current = datetime.date(current.year, current.month + 1, 1)
+
+    conn.commit()
+    conn.close()
+
 # --- ROUTES ---
 
 def render_page(content, **kwargs):
@@ -1889,9 +1921,9 @@ HTML_UR_FC = """
                                     <small class="text-muted">Lahir: ${c.dob} | Wali: ${c.guardian}</small><br>
                                     <small class="text-primary">User: ${c.username}</small>
                                 </div>
-                                <div class="d-flex gap-2">
-                                    <button onclick="approveCandidate('${c.id}')" class="btn btn-sm btn-success" style="width:100px;"><i class="fas fa-check"></i> Terima</button>
-                                    <button onclick="rejectCandidate('${c.id}')" class="btn btn-sm btn-danger" style="width:100px;"><i class="fas fa-times"></i> Tolak</button>
+                                <div class="d-flex flex-column gap-2">
+                                    <button onclick="approveCandidate('${c.id}')" class="btn btn-sm btn-success w-100"><i class="fas fa-check"></i> Terima</button>
+                                    <button onclick="rejectCandidate('${c.id}')" class="btn btn-sm btn-danger w-100"><i class="fas fa-times"></i> Tolak</button>
                                 </div>
                             </div>
                         </div>
@@ -2172,34 +2204,61 @@ HTML_UR_FC = """
             .then(data => {
                 const list = document.getElementById('finance-bills-list');
                 list.innerHTML = '';
+
+                if(data.bills.length > 0) {
+                     list.innerHTML += '<h6 class="fw-bold text-muted mb-3"><i class="fas fa-file-invoice-dollar"></i> KARTU TAGIHAN SPP</h6>';
+                }
+
                 if(data.bills.length === 0) {
                     list.innerHTML = '<div class="alert alert-success">Tidak ada tagihan aktif.</div>';
                     return;
                 }
+
                 data.bills.forEach(bill => {
                     const statusClass = bill.status === 'paid' ? 'status-paid' : (bill.status === 'pending' ? 'status-pending' : 'status-unpaid');
                     const statusText = bill.status === 'paid' ? 'LUNAS' : (bill.status === 'pending' ? 'VERIFIKASI' : 'BELUM BAYAR');
                     
-                    let actionBtn = '';
+                    let actionArea = '';
+
                     if(bill.status === 'unpaid') {
-                        actionBtn = `<button class="btn btn-sm btn-primary mt-2" onclick="triggerUpload('${bill.id}')">Upload Bukti</button>
-                                     <form id="upload-form-${bill.id}" style="display:none">
-                                        <input type="file" id="file-${bill.id}" onchange="uploadProof('${bill.id}')">
-                                     </form>`;
+                        actionArea = `
+                            <div class="mt-3 border-top pt-2">
+                                <small class="text-danger d-block mb-2"><i class="fas fa-exclamation-circle"></i> Silakan transfer dan upload bukti.</small>
+                                <button class="btn btn-primary w-100" onclick="triggerUpload('${bill.id}')">
+                                    <i class="fas fa-upload"></i> Upload Bukti Transfer
+                                </button>
+                                <form id="upload-form-${bill.id}" style="display:none">
+                                    <input type="file" id="file-${bill.id}" accept="image/*" onchange="uploadProof('${bill.id}')">
+                                </form>
+                            </div>
+                        `;
                     } else if (bill.status === 'paid') {
-                        actionBtn = `<a href="/print-receipt/${bill.id}" target="_blank" class="btn btn-sm btn-outline-success mt-2"><i class="fas fa-print"></i> Kwitansi</a>`;
+                         actionArea = `
+                            <div class="mt-3 border-top pt-2">
+                                <a href="/print-receipt/${bill.id}" target="_blank" class="btn btn-outline-success w-100">
+                                    <i class="fas fa-print"></i> Cetak Kwitansi
+                                </a>
+                            </div>
+                        `;
+                    } else if (bill.status === 'pending') {
+                         actionArea = `
+                            <div class="mt-3 border-top pt-2 text-center text-muted">
+                                <small><i class="fas fa-clock"></i> Menunggu Verifikasi Admin</small>
+                            </div>
+                         `;
                     }
 
                     const html = `
-                        <div class="card mb-2 p-3 shadow-sm border-0 bg-light">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="fw-bold mb-1">SPP ${bill.month}</h6>
-                                    <small class="text-muted">Rp ${bill.amount.toLocaleString()}</small>
-                                </div>
+                        <div class="card mb-3 shadow border-0" style="border-radius:10px; overflow:hidden;">
+                            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                                <span>SPP ${bill.month}</span>
                                 <span class="status-badge ${statusClass}">${statusText}</span>
                             </div>
-                            ${actionBtn}
+                            <div class="card-body">
+                                <h3 class="fw-bold text-center my-2">Rp ${bill.amount.toLocaleString()}</h3>
+                                <div class="text-center text-muted small mb-2">ID Tagihan: ${bill.id}</div>
+                                ${actionArea}
+                            </div>
                         </div>
                     `;
                     list.innerHTML += html;
@@ -2792,6 +2851,7 @@ def academy_data():
     data = {}
     
     if type == 'bills' and user['role'] == 'student':
+        generate_monthly_bills()
         c.execute("SELECT * FROM finance_bills WHERE student_id = ? ORDER BY created_at DESC", (user['related_id'],))
         bills = [dict(row) for row in c.fetchall()]
         data['bills'] = bills
@@ -2890,9 +2950,26 @@ def academy_reject():
     conn.close()
     return jsonify({'success': True})
 
+@app.route('/api/academy/student/delete', methods=['POST'])
+def academy_student_delete():
+    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    id = request.json.get('id')
+    conn = get_db_connection()
+    row = conn.execute("SELECT user_id FROM academy_students WHERE id=?", (id,)).fetchone()
+    if row:
+        conn.execute("DELETE FROM academy_users WHERE username=?", (row['user_id'],))
+    conn.execute("DELETE FROM academy_students WHERE id=?", (id,))
+    conn.execute("DELETE FROM finance_bills WHERE student_id=?", (id,))
+    conn.execute("DELETE FROM academy_attendance WHERE student_id=?", (id,))
+    conn.execute("DELETE FROM academy_evaluations WHERE student_id=?", (id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
 @app.route('/api/academy/admin/finance', methods=['GET'])
 def academy_admin_finance():
     if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    generate_monthly_bills()
     conn = get_db_connection()
     c = conn.cursor()
     # Get pending bills with student info
@@ -3025,6 +3102,7 @@ HTML_PLAYER_LIST = """
                                 <th>Nama Lengkap</th>
                                 <th>Posisi</th>
                                 <th>Kategori</th>
+                                {% if admin %}<th>Aksi</th>{% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -3038,9 +3116,14 @@ HTML_PLAYER_LIST = """
                                 <td class="fw-bold">{{ s.name }}</td>
                                 <td><span class="badge bg-dark text-warning">{{ s.position }}</span></td>
                                 <td>{{ s.category }}</td>
+                                {% if admin %}
+                                <td>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteStudent('{{ s.id }}')"><i class="fas fa-trash"></i> Hapus</button>
+                                </td>
+                                {% endif %}
                             </tr>
                             {% else %}
-                            <tr><td colspan="5" class="text-center py-4">Belum ada data pemain resmi.</td></tr>
+                            <tr><td colspan="{% if admin %}6{% else %}5{% endif %}" class="text-center py-4">Belum ada data pemain resmi.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -3049,6 +3132,25 @@ HTML_PLAYER_LIST = """
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function deleteStudent(id) {
+            if(!confirm("Yakin ingin menghapus pemain ini dari daftar resmi? Data user & tagihan juga akan terhapus.")) return;
+            fetch('/api/academy/student/delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: id })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    alert("Pemain berhasil dihapus.");
+                    location.reload();
+                } else {
+                    alert("Gagal menghapus: " + data.error);
+                }
+            });
+        }
+    </script>
 </body>
 </html>
 """
@@ -3199,16 +3301,17 @@ def list_players():
     conn = get_db_connection()
     students = conn.execute("SELECT * FROM academy_students ORDER BY name ASC").fetchall()
     conn.close()
-    return render_page(HTML_PLAYER_LIST, data=data, students=students)
+    return render_page(HTML_PLAYER_LIST, data=data, students=students, admin=session.get('admin', False))
 
 @app.route('/daftar-tagihan-pemain')
 def list_bills():
+    if not session.get('admin'): return redirect(url_for('index'))
     data = get_all_data()
     conn = get_db_connection()
     # Join to get student names
     bills = conn.execute("SELECT f.*, s.name as student_name FROM finance_bills f JOIN academy_students s ON f.student_id = s.id ORDER BY f.created_at DESC").fetchall()
     conn.close()
-    return render_page(HTML_BILL_LIST, data=data, bills=bills)
+    return render_page(HTML_BILL_LIST, data=data, bills=bills, admin=session.get('admin', False))
 
 @app.route('/daftar-rapor-pemain')
 def list_reports():
@@ -3237,7 +3340,7 @@ def list_reports():
         report_data.append({'name': s['name'], 'attendance': pct, 'score': avg})
         
     conn.close()
-    return render_page(HTML_REPORT_LIST, data=data, reports=report_data)
+    return render_page(HTML_REPORT_LIST, data=data, reports=report_data, admin=session.get('admin', False))
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
