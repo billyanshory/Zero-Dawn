@@ -654,6 +654,91 @@ NAVBAR_HTML = """
         <button onclick="document.getElementById('login-modal').style.display='none'" class="btn btn-link w-100 mt-2">Cancel</button>
     </div>
 </div>
+
+<!-- SHARED ASSETS INJECTED VIA NAVBAR -->
+<!-- HISTORY MODAL -->
+<div id="history-modal" class="modal-overlay" onclick="closeHistoryModal()">
+    <div class="modal-content-custom" onclick="event.stopPropagation()">
+        <h2 style="color:var(--gold);">Sejarah TAHKIL FC</h2>
+        <div style="width:100%; aspect-ratio:16/9; background:#eee; margin-bottom:20px; position:relative; overflow:hidden;">
+            {% set history_img = data['settings'].get('history_image') %}
+            <img id="history-main-img" src="{{ '/uploads/' + history_img if history_img else url_for('static', filename='logo-tahkil-fc.png') }}" style="width:100%; height:100%; object-fit:cover;">
+            {% if admin %}
+            <form action="/upload/history/main" method="post" enctype="multipart/form-data" class="position-absolute bottom-0 end-0 p-2">
+                <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="history-upload">
+                <label for="history-upload" class="btn btn-sm btn-warning"><i class="fas fa-camera"></i> Change Image</label>
+            </form>
+            {% endif %}
+        </div>
+        {% if admin %}
+        <textarea id="history-text-input" class="form-control mb-3" rows="10"></textarea>
+        <div>
+            <button class="modal-btn btn-cancel" onclick="closeHistoryModal()">Cancel</button>
+            <button class="modal-btn btn-save" onclick="saveHistory()">Save</button>
+        </div>
+        {% else %}
+        <div id="history-text-view" style="white-space: pre-wrap;">{{ data['settings'].get('history_text', '') }}</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- LOGO POPUP -->
+<div id="logo-popup" class="logo-popup-overlay" onclick="toggleLogoPopup()">
+    <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="logo-popup-img">
+</div>
+
+<script>
+    // SHARED SCRIPTS
+    function toggleMobileMenu() {
+        document.getElementById('mobile-menu').classList.toggle('active');
+        document.body.classList.toggle('no-scroll');
+    }
+    function toggleLogoPopup() {
+        const popup = document.getElementById('logo-popup');
+        popup.style.display = (popup.style.display === 'flex') ? 'none' : 'flex';
+    }
+    function toggleFullScreen() {
+        var doc = window.document;
+        var docEl = doc.documentElement;
+        var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+        var cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+        if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+            requestFullScreen.call(docEl);
+        } else {
+            cancelFullScreen.call(doc);
+        }
+    }
+
+    // History
+    function openHistoryModal() {
+        document.getElementById('history-modal').style.display = 'flex';
+            const val = `{{ data['settings'].get('history_text', '') | safe }}`;
+            if (document.getElementById('history-text-input')) {
+            document.getElementById('history-text-input').value = val;
+        }
+    }
+    function closeHistoryModal() { document.getElementById('history-modal').style.display = 'none'; }
+    function saveHistory() {
+            const val = document.getElementById('history-text-input').value;
+            saveText('site_settings', 'history_text', 'value', {value: val});
+    }
+
+    // Save Text Helper
+    function saveText(table, id, field, el_or_obj) {
+        let value;
+        if (el_or_obj.value !== undefined) value = el_or_obj.value;
+        else value = el_or_obj.innerText;
+
+        fetch('/api/update-text', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ table, id, field, value })
+        }).then(() => {
+            if(table === 'site_settings' && id === 'next_match_time') location.reload();
+            else if(table === 'site_settings' && id === 'history_text') location.reload();
+        });
+    }
+</script>
 """
 
 STYLES_HTML = """
@@ -949,6 +1034,37 @@ STYLES_HTML = """
     .status-paid { background: #d1e7dd; color: #0f5132; }
     .status-unpaid { background: #f8d7da; color: #842029; }
     .status-pending { background: #fff3cd; color: #664d03; }
+
+    /* LOADER OVERLAY */
+    .loader-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(255, 255, 255, 0.95); z-index: 10000;
+        display: none; flex-direction: column; justify-content: center; align-items: center;
+    }
+    .sketch-ball {
+        font-size: 80px; color: #FFD700;
+        animation: spin 3s linear infinite;
+        filter: drop-shadow(2px 2px 0px #000);
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    .check-mark-container {
+        display: none;
+        position: relative;
+        width: 100px; height: 100px;
+        border: 5px solid #FFD700;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        animation: scaleUp 0.5s ease-out;
+    }
+    .check-icon {
+        font-size: 50px; color: #FFD700;
+    }
+    @keyframes scaleUp { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+
+    .loading-text {
+        margin-top: 20px; font-weight: bold; color: #333; font-size: 1.2rem;
+    }
 </style>
 """
 
@@ -997,6 +1113,15 @@ HTML_UR_FC = """
 </head>
 <body>
     {{ navbar|safe }}
+
+    <!-- LOADER -->
+    <div id="loader-overlay" class="loader-overlay">
+        <div id="loader-ball" class="sketch-ball"><i class="fas fa-futbol"></i></div>
+        <div id="loader-success" style="display:none;" class="check-mark-container">
+            <i class="fas fa-check check-icon"></i>
+        </div>
+        <div id="loader-text" class="loading-text">Memproses Data...</div>
+    </div>
     
     <!-- HERO SECTION -->
     <div class="container-fluid p-0 mb-4" id="hero">
@@ -1377,36 +1502,6 @@ HTML_UR_FC = """
         </div>
     </div>
 
-    <!-- HISTORY MODAL -->
-    <div id="history-modal" class="modal-overlay" onclick="closeHistoryModal()">
-        <div class="modal-content-custom" onclick="event.stopPropagation()">
-            <h2 style="color:var(--gold);">Sejarah TAHKIL FC</h2>
-            
-            <!-- History Image Container 16:9 -->
-            <div style="width:100%; aspect-ratio:16/9; background:#eee; margin-bottom:20px; position:relative; overflow:hidden;">
-                {% set history_img = data['settings'].get('history_image') %}
-                <img id="history-main-img" src="{{ '/uploads/' + history_img if history_img else url_for('static', filename='logo-tahkil-fc.png') }}" style="width:100%; height:100%; object-fit:cover;">
-                
-                {% if admin %}
-                <form action="/upload/history/main" method="post" enctype="multipart/form-data" class="position-absolute bottom-0 end-0 p-2">
-                    <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="history-upload">
-                    <label for="history-upload" class="btn btn-sm btn-warning"><i class="fas fa-camera"></i> Change Image</label>
-                </form>
-                {% endif %}
-            </div>
-            
-            {% if admin %}
-            <textarea id="history-text-input" class="form-control mb-3" rows="10"></textarea>
-            <div>
-                <button class="modal-btn btn-cancel" onclick="closeHistoryModal()">Cancel</button>
-                <button class="modal-btn btn-save" onclick="saveHistory()">Save</button>
-            </div>
-            {% else %}
-            <div id="history-text-view" style="white-space: pre-wrap;">{{ data['settings'].get('history_text', '') }}</div>
-            {% endif %}
-        </div>
-    </div>
-
     <!-- NEWS DETAIL MODAL -->
     <div id="news-modal" class="modal-overlay" onclick="document.getElementById('news-modal').style.display='none'">
         <div class="modal-content-custom" onclick="event.stopPropagation()" style="text-align:left; max-width:900px;">
@@ -1450,11 +1545,6 @@ HTML_UR_FC = """
             </div>
             {% endif %}
         </div>
-    </div>
-    
-    <!-- LOGO POPUP -->
-    <div id="logo-popup" class="logo-popup-overlay" onclick="toggleLogoPopup()">
-        <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="logo-popup-img">
     </div>
     
     <footer class="bg-black text-white py-5 text-center mt-5">
@@ -1723,6 +1813,17 @@ HTML_UR_FC = """
             const form = document.getElementById('reg-form');
             const formData = new FormData(form);
             
+            // Show Loader
+            const loader = document.getElementById('loader-overlay');
+            const ball = document.getElementById('loader-ball');
+            const success = document.getElementById('loader-success');
+            const text = document.getElementById('loader-text');
+
+            loader.style.display = 'flex';
+            ball.style.display = 'block';
+            success.style.display = 'none';
+            text.innerText = "Mengupload Data Siswa...";
+
             fetch('/api/academy/register', {
                 method: 'POST',
                 body: formData
@@ -1730,12 +1831,25 @@ HTML_UR_FC = """
             .then(res => res.json())
             .then(data => {
                 if(data.success) {
-                    alert("Pendaftaran Berhasil! Data Anda sedang diverifikasi admin.");
-                    closeAcademyModals();
-                    form.reset();
+                    // Animation Transformation
+                    ball.style.display = 'none';
+                    success.style.display = 'flex';
+                    text.innerText = "Upload Berhasil!";
+
+                    setTimeout(() => {
+                        loader.style.display = 'none';
+                        alert("Pendaftaran Berhasil! Data Anda sedang diverifikasi admin.");
+                        closeAcademyModals();
+                        form.reset();
+                    }, 2000);
                 } else {
+                    loader.style.display = 'none';
                     alert("Gagal: " + data.error);
                 }
+            })
+            .catch(err => {
+                loader.style.display = 'none';
+                alert("Error: " + err);
             });
         }
 
@@ -1775,7 +1889,10 @@ HTML_UR_FC = """
                                     <small class="text-muted">Lahir: ${c.dob} | Wali: ${c.guardian}</small><br>
                                     <small class="text-primary">User: ${c.username}</small>
                                 </div>
-                                <button onclick="approveCandidate('${c.id}')" class="btn btn-sm btn-success">Terima (Approve)</button>
+                                <div class="d-flex gap-2">
+                                    <button onclick="approveCandidate('${c.id}')" class="btn btn-sm btn-success" style="width:100px;"><i class="fas fa-check"></i> Terima</button>
+                                    <button onclick="rejectCandidate('${c.id}')" class="btn btn-sm btn-danger" style="width:100px;"><i class="fas fa-times"></i> Tolak</button>
+                                </div>
                             </div>
                         </div>
                    `; 
@@ -1794,6 +1911,24 @@ HTML_UR_FC = """
             .then(data => {
                 if(data.success) {
                     alert("Siswa berhasil di-approve! Otomatis masuk daftar resmi.");
+                    loadCandidates();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            });
+        }
+
+        function rejectCandidate(id) {
+            if(!confirm("Tolak calon siswa ini? Data akan dihapus permanen.")) return;
+            fetch('/api/academy/reject', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: id })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    alert("Siswa ditolak dan data dihapus.");
                     loadCandidates();
                 } else {
                     alert("Error: " + data.error);
@@ -2370,15 +2505,6 @@ HTML_UR_FC = """
         }
 
         // --- UI UTILS ---
-        function toggleMobileMenu() { 
-            document.getElementById('mobile-menu').classList.toggle('active');
-            document.body.classList.toggle('no-scroll');
-        }
-        function toggleLogoPopup() {
-            const popup = document.getElementById('logo-popup');
-            popup.style.display = (popup.style.display === 'flex') ? 'none' : 'flex';
-        }
-        
         function scrollHorizontally(btn, dir) {
             const container = btn.parentElement.querySelector('.horizontal-scroll-container');
             const scrollAmount = 300;
@@ -2413,20 +2539,6 @@ HTML_UR_FC = """
         });
 
         // --- API & SAVING ---
-        function saveText(table, id, field, el_or_obj) {
-            let value;
-            if (el_or_obj.value !== undefined) value = el_or_obj.value;
-            else value = el_or_obj.innerText;
-            
-            fetch('/api/update-text', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ table, id, field, value })
-            }).then(() => {
-                if(table === 'site_settings' && id === 'next_match_time') location.reload();
-            });
-        }
-        
         function addCard(type, sectionOrRole) {
              let body = { type };
              if (type === 'agenda') body.section = sectionOrRole;
@@ -2506,23 +2618,6 @@ HTML_UR_FC = """
             }).then(() => location.reload());
         }
 
-        // History
-        function openHistoryModal() {
-            document.getElementById('history-modal').style.display = 'flex';
-             const val = `{{ data['settings'].get('history_text', '') | safe }}`;
-             if (document.getElementById('history-text-input')) {
-                document.getElementById('history-text-input').value = val;
-            } 
-        }
-        function closeHistoryModal() { document.getElementById('history-modal').style.display = 'none'; }
-        function saveHistory() {
-             const val = document.getElementById('history-text-input').value;
-             fetch('/api/update-text', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ table: 'site_settings', id: 'history_text', value: val })
-            }).then(() => location.reload());
-        }
-
         // News Modal
         let currentNewsId = null;
         function openNewsModal(newsId, type) {
@@ -2599,20 +2694,6 @@ HTML_UR_FC = """
             card.addEventListener('mouseleave', () => { card.style.transform = 'scale(1)'; card.style.zIndex = '1'; });
         });
 
-        // Full Screen Toggle
-        function toggleFullScreen() {
-            var doc = window.document;
-            var docEl = doc.documentElement;
-
-            var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
-            var cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
-
-            if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
-                requestFullScreen.call(docEl);
-            } else {
-                cancelFullScreen.call(doc);
-            }
-        }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
@@ -2796,6 +2877,18 @@ def academy_approve():
     
     conn.close()
     return jsonify({'success': False, 'error': 'Candidate not found'})
+
+@app.route('/api/academy/reject', methods=['POST'])
+def academy_reject():
+    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    cand_id = request.json.get('id')
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM candidates WHERE id=?", (cand_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
 
 @app.route('/api/academy/admin/finance', methods=['GET'])
 def academy_admin_finance():
