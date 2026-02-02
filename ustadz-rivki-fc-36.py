@@ -1036,6 +1036,26 @@ STYLES_HTML = """
     .camera-btn:hover { transform: scale(1.1); background: #fff; }
     
     /* ACADEMY STYLES */
+    .mode-toggle-btn {
+        width: 100%;
+        background-color: #FFD700;
+        color: black;
+        border: none;
+        padding: 4px 0;
+        font-size: 0.8rem;
+        font-weight: 700;
+        margin-top: 5px;
+        margin-bottom: 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: 0.2s;
+        text-transform: uppercase;
+    }
+    .mode-toggle-btn:hover {
+        background-color: #e6c200;
+        transform: translateY(-1px);
+    }
+
     .bottom-nav {
         position: fixed; bottom: 0; left: 0; width: 100%; height: 75px;
         background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(15px);
@@ -1616,12 +1636,12 @@ HTML_UR_FC = """
         <div class="modal-content-custom" onclick="event.stopPropagation()">
             <div class="d-flex align-items-center justify-content-center gap-3 mb-2">
                 <h3 class="section-title m-0">PENDAFTARAN SISWA BARU</h3>
-                <button onclick="toggleRegAdmin()" class="btn btn-sm btn-outline-dark">Admin Mode</button>
             </div>
             
             <!-- User View -->
             <div id="reg-user-view">
                 <p class="text-muted">Isi formulir untuk bergabung dengan Akademi TAHKIL FC</p>
+                <button onclick="toggleRegAdmin()" class="mode-toggle-btn">Admin Mode</button>
                 <form id="reg-form" onsubmit="event.preventDefault(); submitRegistration();" class="text-start">
                     <div class="mb-2">
                         <label>Nama Lengkap:</label>
@@ -1679,6 +1699,7 @@ HTML_UR_FC = """
             <!-- Admin View -->
             <div id="reg-admin-view" style="display:none;" class="text-start">
                 <h5 class="fw-bold text-danger mb-3">Verifikasi Calon Siswa</h5>
+                <button onclick="toggleRegAdmin()" class="mode-toggle-btn">Admin Mode</button>
                 <div id="candidates-list" style="max-height:400px; overflow-y:auto;">
                     <div class="alert alert-info">Memuat data...</div>
                 </div>
@@ -1691,12 +1712,12 @@ HTML_UR_FC = """
         <div class="modal-content-custom" onclick="event.stopPropagation()">
             <div class="d-flex align-items-center justify-content-center gap-3 mb-2">
                 <h3 class="section-title m-0">MANAJEMEN KEUANGAN & SPP</h3>
-                <button onclick="toggleFinAdmin()" class="btn btn-sm btn-outline-dark">Admin Mode</button>
             </div>
             
             <!-- User Login View -->
             <div id="finance-login-view">
                 <p>Silakan login siswa untuk cek tagihan.</p>
+                <button onclick="toggleFinAdmin()" class="mode-toggle-btn">Admin Mode</button>
                 <input type="text" id="login-user" class="form-control mb-2" placeholder="Username">
                 <input type="password" id="login-pass" class="form-control mb-3" placeholder="Password">
                 <button onclick="loginAcademy('finance')" class="btn btn-primary w-100">LOGIN SISWA</button>
@@ -1716,6 +1737,7 @@ HTML_UR_FC = """
             <!-- Admin View -->
             <div id="finance-admin-view" style="display:none;" class="text-start">
                 <h5 class="fw-bold text-success mb-3">Verifikasi Pembayaran</h5>
+                <button onclick="toggleFinAdmin()" class="mode-toggle-btn">Admin Mode</button>
                 <div id="finance-admin-list" style="max-height:400px; overflow-y:auto;">
                     <div class="alert alert-info">Memuat data...</div>
                 </div>
@@ -1728,12 +1750,12 @@ HTML_UR_FC = """
         <div class="modal-content-custom" onclick="event.stopPropagation()">
             <div class="d-flex align-items-center justify-content-center gap-3 mb-2">
                 <h3 class="section-title m-0">RAPOR & ABSENSI DIGITAL</h3>
-                <button onclick="toggleCoachMode()" class="btn btn-sm btn-outline-dark">Coach Mode</button>
             </div>
              
             <!-- Student Login View -->
             <div id="report-login-view">
                 <p>Silakan login untuk melihat rapor perkembangan.</p>
+                <button onclick="toggleCoachMode()" class="mode-toggle-btn">Coach Mode</button>
                 <input type="text" id="report-user" class="form-control mb-2" placeholder="Username">
                 <input type="password" id="report-pass" class="form-control mb-3" placeholder="Password">
                 <button onclick="loginAcademy('report')" class="btn btn-primary w-100">LOGIN</button>
@@ -1770,6 +1792,7 @@ HTML_UR_FC = """
             <!-- Coach Login View -->
             <div id="coach-login-view" style="display:none;">
                 <h5 class="fw-bold text-primary mb-3">Coach Login</h5>
+                <button onclick="toggleCoachMode()" class="mode-toggle-btn">Coach Mode</button>
                 <input type="text" id="coach-user" class="form-control mb-2" placeholder="Coach ID">
                 <input type="password" id="coach-pass" class="form-control mb-3" placeholder="Password">
                 <button onclick="loginCoach()" class="btn btn-primary w-100">LOGIN COACH</button>
