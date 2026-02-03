@@ -729,6 +729,10 @@ NAVBAR_HTML = """
         const popup = document.getElementById('logo-popup');
         popup.style.display = (popup.style.display === 'flex') ? 'none' : 'flex';
     }
+    function toggleDevModal() {
+        const modal = document.getElementById('dev-modal');
+        modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+    }
     function toggleFullScreen() {
         var doc = window.document;
         var docEl = doc.documentElement;
@@ -1650,19 +1654,101 @@ HTML_UR_FC = """
         </div>
     </div>
     
-    <footer class="bg-black text-white py-5 text-center mt-5">
+    <footer class="bg-black text-white py-5 text-center mt-5" style="padding-bottom: 120px !important;">
         <div class="container">
             <h3 class="fw-bold mb-3">TAHFIZH <span class="text-warning">KILAT FC</span></h3>
             <p contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('site_settings', 'footer_text', 'value', this)">
                 {{ data['settings'].get('footer_text', '© 2026 TAHKIL FC. All rights reserved.') }}
             </p>
+
+            <div class="d-none d-lg-block mt-3">
+                <button onclick="toggleDevModal()" class="btn btn-outline-light btn-sm rounded-pill px-4" style="border-color: #333; color: #aaa;">Pembuat Website</button>
+            </div>
+
             <div class="d-lg-none d-flex justify-content-center gap-4 mt-3">
                 <a href="https://wa.me/6281528455350" class="social-icon-link" target="_blank"><i class="fab fa-whatsapp"></i></a>
                 <a href="https://maps.app.goo.gl/4deg1ha8WaxWKdPC9" class="social-icon-link" target="_blank"><i class="fas fa-map-marker-alt"></i></a>
                 <a href="https://www.instagram.com/rivkycahyahakikiori/" class="social-icon-link" target="_blank"><i class="fab fa-instagram"></i></a>
             </div>
+
+            <div class="d-lg-none mt-4">
+                <button onclick="toggleDevModal()" class="btn btn-outline-light btn-sm rounded-pill px-4" style="border-color: #333; color: #aaa;">Pembuat Website</button>
+            </div>
         </div>
     </footer>
+
+    <!-- DEVELOPER MODAL -->
+    <div id="dev-modal" class="modal-overlay" onclick="toggleDevModal()">
+        <div class="modal-content-custom"
+             style="background: rgba(20, 20, 20, 0.85); color: white; border: 1px solid #444; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); max-width: 400px;"
+             onclick="event.stopPropagation()">
+
+            <div class="d-flex flex-column align-items-center gap-3">
+                <div>
+                    <div id="dev-title" style="font-family: 'Inter', sans-serif; text-transform: uppercase; letter-spacing: 2px; color: #aaa; font-size: {{ data['settings'].get('dev_title_size', '14') }}px;">
+                        Developer
+                    </div>
+                    <div id="dev-name" style="font-family: 'Inter', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #fff; margin-top: 5px; font-size: {{ data['settings'].get('dev_name_size', '20') }}px;">
+                        Samarinda Web Creative
+                    </div>
+                    <img id="dev-logo" src="{{ url_for('static', filename='Samarinda_Web_Creative_Logo-removebg-preview.png') }}"
+                         style="width: {{ data['settings'].get('dev_logo_size', '150') }}px; height: auto; margin-top: 10px;">
+                </div>
+
+                <hr style="width: 50%; border-color: #555;">
+
+                <div>
+                    <div id="party-title" style="font-family: 'Inter', sans-serif; text-transform: uppercase; letter-spacing: 2px; color: #aaa; font-size: {{ data['settings'].get('party_title_size', '14') }}px;">
+                        Pihak Ketiga
+                    </div>
+                    <div class="d-flex flex-column align-items-center gap-2 mt-3">
+                        <img id="party-logo-1" src="{{ url_for('static', filename='pythonanywherelogo-removebg.png') }}"
+                             style="width: {{ data['settings'].get('party_logo_size', '120') }}px; height: auto;">
+                        <img id="party-logo-2" src="{{ url_for('static', filename='pythonlogo.png') }}"
+                             style="width: {{ data['settings'].get('party_logo_size', '120') }}px; height: auto;">
+                        <img id="party-logo-3" src="{{ url_for('static', filename='godaddylogo.png') }}"
+                             style="width: {{ data['settings'].get('party_logo_size', '120') }}px; height: auto;">
+                    </div>
+                </div>
+            </div>
+
+            {% if admin %}
+            <div class="mt-4 p-3 rounded" style="background: rgba(255,255,255,0.1); text-align: left;">
+                <h6 class="text-warning text-center mb-3">Admin Settings</h6>
+
+                <small>Dev Title Size</small>
+                <input type="range" class="form-range custom-range-slider" min="10" max="30"
+                       value="{{ data['settings'].get('dev_title_size', '14') }}"
+                       oninput="document.getElementById('dev-title').style.fontSize = this.value + 'px'"
+                       onchange="saveText('site_settings', 'dev_title_size', 'value', this)">
+
+                <small>Dev Name Size</small>
+                <input type="range" class="form-range custom-range-slider" min="10" max="40"
+                       value="{{ data['settings'].get('dev_name_size', '20') }}"
+                       oninput="document.getElementById('dev-name').style.fontSize = this.value + 'px'"
+                       onchange="saveText('site_settings', 'dev_name_size', 'value', this)">
+
+                <small>Dev Logo Size</small>
+                <input type="range" class="form-range custom-range-slider" min="50" max="300"
+                       value="{{ data['settings'].get('dev_logo_size', '150') }}"
+                       oninput="document.getElementById('dev-logo').style.width = this.value + 'px'"
+                       onchange="saveText('site_settings', 'dev_logo_size', 'value', this)">
+
+                <small>Party Title Size</small>
+                <input type="range" class="form-range custom-range-slider" min="10" max="30"
+                       value="{{ data['settings'].get('party_title_size', '14') }}"
+                       oninput="document.getElementById('party-title').style.fontSize = this.value + 'px'"
+                       onchange="saveText('site_settings', 'party_title_size', 'value', this)">
+
+                <small>Party Logos Size</small>
+                <input type="range" class="form-range custom-range-slider" min="50" max="300"
+                       value="{{ data['settings'].get('party_logo_size', '120') }}"
+                       oninput="document.getElementById('party-logo-1').style.width = this.value + 'px'; document.getElementById('party-logo-2').style.width = this.value + 'px'; document.getElementById('party-logo-3').style.width = this.value + 'px';"
+                       onchange="saveText('site_settings', 'party_logo_size', 'value', this)">
+            </div>
+            {% endif %}
+        </div>
+    </div>
 
     <!-- STICKY BOTTOM NAV -->
     <div class="bottom-nav">
