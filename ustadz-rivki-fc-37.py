@@ -1117,6 +1117,56 @@ STYLES_HTML = """
     .loading-text {
         margin-top: 20px; font-weight: bold; color: #333; font-size: 1.2rem;
     }
+
+    /* NEW UI UPDATES */
+    .hard-card-bg {
+        background: radial-gradient(circle at 10% 20%, #004d40 0%, #111 90%),
+                    repeating-linear-gradient(45deg, rgba(255,215,0,0.05) 0px, rgba(255,215,0,0.05) 2px, transparent 2px, transparent 10px);
+        border: 2px solid #FFD700;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        color: white;
+        border-radius: 15px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+    .hard-card-bg::before {
+        content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background-image: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+        background-size: 20px 20px;
+        opacity: 0.3; pointer-events: none;
+    }
+    .coach-notebook-bg {
+        background-color: #fdfbf7;
+        background-image: linear-gradient(#e1e1e1 1px, transparent 1px);
+        background-size: 100% 1.5em;
+        padding: 30px;
+        border: 1px solid #d3d3d3;
+        box-shadow: 5px 5px 15px rgba(0,0,0,0.1);
+        font-family: 'Patrick Hand', cursive;
+        color: #333;
+        border-radius: 5px;
+        position: relative;
+    }
+    .coach-notebook-bg::before {
+        content: ''; position: absolute; top: 0; left: 20px; bottom: 0; width: 2px; background: #ff9999;
+    }
+    .font-sketch { font-family: 'Patrick Hand', cursive; }
+    .btn-thin-red {
+        width: 100%;
+        background-color: #d32f2f;
+        color: white;
+        padding: 4px 0;
+        font-size: 0.8rem;
+        font-weight: 700;
+        border: none;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: 0.3s;
+    }
+    .btn-thin-red:hover { background-color: #b71c1c; color: white; }
 </style>
 """
 
@@ -1131,6 +1181,7 @@ HTML_UR_FC = """
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">
     {{ styles|safe }}
     {% if admin %}
     <style>
@@ -1698,7 +1749,7 @@ HTML_UR_FC = """
 
             <!-- Admin View -->
             <div id="reg-admin-view" style="display:none;" class="text-start">
-                <h5 class="fw-bold text-danger mb-3">Verifikasi Calon Siswa</h5>
+                <h5 class="fw-bold text-danger mb-3 text-center">Verifikasi Calon Siswa</h5>
                 <button onclick="toggleRegAdmin()" class="mode-toggle-btn">Admin Mode</button>
                 <div id="candidates-list" style="max-height:400px; overflow-y:auto;">
                     <div class="alert alert-info">Memuat data...</div>
@@ -1725,10 +1776,8 @@ HTML_UR_FC = """
 
             <!-- User Dashboard View -->
             <div id="finance-dashboard-view" style="display:none;">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 id="fin-student-name" class="fw-bold m-0"></h5>
-                    <button onclick="logoutAcademy()" class="btn btn-sm btn-outline-danger">Logout</button>
-                </div>
+                <button onclick="logoutAcademy()" class="btn-thin-red">Logout</button>
+                <h5 id="fin-student-name" class="fw-bold text-center mb-3"></h5>
                 <div id="finance-bills-list" class="text-start" style="max-height: 400px; overflow-y: auto;">
                     <div class="alert alert-info">Memuat data tagihan...</div>
                 </div>
@@ -1736,7 +1785,7 @@ HTML_UR_FC = """
 
             <!-- Admin View -->
             <div id="finance-admin-view" style="display:none;" class="text-start">
-                <h5 class="fw-bold text-success mb-3">Verifikasi Pembayaran</h5>
+                <h5 class="fw-bold text-success mb-3 text-center">Verifikasi Pembayaran</h5>
                 <button onclick="toggleFinAdmin()" class="mode-toggle-btn">Admin Mode</button>
                 <div id="finance-admin-list" style="max-height:400px; overflow-y:auto;">
                     <div class="alert alert-info">Memuat data...</div>
@@ -1763,28 +1812,29 @@ HTML_UR_FC = """
 
             <!-- Student Dashboard View -->
             <div id="report-dashboard-view" style="display:none;">
-                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 id="rep-student-name" class="fw-bold text-success m-0"></h5>
-                    <button onclick="logoutAcademy()" class="btn btn-sm btn-outline-danger">Logout</button>
-                </div>
-                <div class="row mt-3">
-                    <div class="col-6">
-                        <div class="bg-light p-3 rounded">
-                            <h5>Kehadiran</h5>
-                            <h2 class="fw-bold" id="att-percentage">--%</h2>
+                <button onclick="logoutAcademy()" class="btn-thin-red">Logout</button>
+                <h5 id="rep-student-name" class="fw-bold text-center text-success mb-3"></h5>
+
+                <div class="hard-card-bg">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <small class="text-white-50">Kehadiran</small>
+                                <h2 class="fw-bold text-warning" id="att-percentage">--%</h2>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <small class="text-white-50">Skor Rata-rata</small>
+                                <h2 class="fw-bold text-warning" id="avg-score">--</h2>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-6">
-                        <div class="bg-light p-3 rounded">
-                            <h5>Skor Rata-rata</h5>
-                            <h2 class="fw-bold" id="avg-score">--</h2>
+                    <div class="text-start">
+                        <h6 class="fw-bold text-white mb-2">Grafik Perkembangan</h6>
+                        <div id="score-bars" class="d-flex flex-column gap-2">
+                            <!-- Bars injected via JS -->
                         </div>
-                    </div>
-                </div>
-                <div class="mt-3 text-start">
-                    <h5>Grafik Perkembangan (Bulan Ini)</h5>
-                    <div id="score-bars" class="d-flex flex-column gap-2">
-                        <!-- Bars injected via JS -->
                     </div>
                 </div>
             </div>
@@ -1800,17 +1850,16 @@ HTML_UR_FC = """
 
             <!-- Coach Dashboard View -->
             <div id="coach-dashboard-view" style="display:none;" class="text-start">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold text-primary m-0">Coach Dashboard</h5>
-                    <button onclick="logoutCoach()" class="btn btn-sm btn-outline-danger">Logout</button>
-                </div>
+                <button onclick="logoutCoach()" class="btn-thin-red">Logout</button>
+                <h5 class="fw-bold text-primary text-center mb-3">Coach Dashboard</h5>
                 
-                <ul class="nav nav-tabs mb-3">
-                    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-absensi">Absensi</a></li>
-                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-evaluasi">Evaluasi</a></li>
-                </ul>
+                <div class="coach-notebook-bg font-sketch">
+                    <ul class="nav nav-tabs mb-3 border-bottom border-dark">
+                        <li class="nav-item"><a class="nav-link active fw-bold text-dark" data-bs-toggle="tab" href="#tab-absensi">Absensi</a></li>
+                        <li class="nav-item"><a class="nav-link fw-bold text-dark" data-bs-toggle="tab" href="#tab-evaluasi">Evaluasi</a></li>
+                    </ul>
 
-                <div class="tab-content">
+                    <div class="tab-content">
                     <div class="tab-pane fade show active" id="tab-absensi">
                         <div class="mb-2">
                             <label>Tanggal Latihan:</label>
@@ -1838,6 +1887,7 @@ HTML_UR_FC = """
                         </div>
                         <button onclick="saveEvaluation()" class="btn btn-primary w-100 mt-2">SIMPAN NILAI</button>
                     </div>
+                </div>
                 </div>
             </div>
         </div>
@@ -2272,16 +2322,16 @@ HTML_UR_FC = """
                     }
 
                     const html = `
-                        <div class="card mb-3 shadow border-0" style="border-radius:10px; overflow:hidden;">
-                            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
-                                <span>SPP ${bill.month}</span>
+                        <div class="hard-card-bg mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-warning pb-2">
+                                <span class="fw-bold text-warning">SPP ${bill.month}</span>
                                 <span class="status-badge ${statusClass}">${statusText}</span>
                             </div>
-                            <div class="card-body">
-                                <h3 class="fw-bold text-center my-2">Rp ${bill.amount.toLocaleString()}</h3>
-                                <div class="text-center text-muted small mb-2">ID Tagihan: ${bill.id}</div>
-                                ${actionArea}
+                            <div class="text-center my-3">
+                                <h2 class="fw-bold m-0" style="color:#fff;">Rp ${bill.amount.toLocaleString()}</h2>
+                                <small class="text-white-50">ID: ${bill.id}</small>
                             </div>
+                            ${actionArea}
                         </div>
                     `;
                     list.innerHTML += html;
