@@ -1716,10 +1716,13 @@ HTML_UR_FC = """
 
             <!-- Right Panel: Settings -->
             <div style="width: 350px; background: rgba(0,0,0,0.9); padding: 20px; overflow-y: auto; border-left: 1px solid #444; color: white; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
-                <h4 class="text-warning text-center mb-4">Admin Settings</h4>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="text-warning m-0">Admin Settings</h4>
+                    <button type="button" class="btn-close btn-close-white" onclick="toggleDevModal()"></button>
+                </div>
                 
                 <div class="mb-3">
-                    <label class="small text-muted mb-1">Dev Title Size</label>
+                    <label class="small text-white mb-1">Dev Title Size</label>
                     <input type="range" class="form-range custom-range-slider" min="10" max="100" 
                            value="{{ data['settings'].get('dev_title_size', '14') }}"
                            oninput="document.getElementById('dev-title').style.fontSize = this.value + 'px'"
@@ -1727,7 +1730,7 @@ HTML_UR_FC = """
                 </div>
 
                 <div class="mb-3">
-                    <label class="small text-muted mb-1">Dev Name Size</label>
+                    <label class="small text-white mb-1">Dev Name Size</label>
                     <input type="range" class="form-range custom-range-slider" min="10" max="100" 
                            value="{{ data['settings'].get('dev_name_size', '20') }}"
                            oninput="document.getElementById('dev-name').style.fontSize = this.value + 'px'"
@@ -1735,7 +1738,7 @@ HTML_UR_FC = """
                 </div>
 
                 <div class="mb-3">
-                    <label class="small text-muted mb-1">Dev Logo Size</label>
+                    <label class="small text-white mb-1">Dev Logo Size</label>
                     <input type="range" class="form-range custom-range-slider" min="50" max="500" 
                            value="{{ data['settings'].get('dev_logo_size', '150') }}"
                            oninput="document.getElementById('dev-logo').style.width = this.value + 'px'"
@@ -1745,7 +1748,7 @@ HTML_UR_FC = """
                 <hr class="border-secondary">
 
                 <div class="mb-3">
-                    <label class="small text-muted mb-1">Party Title Size</label>
+                    <label class="small text-white mb-1">Party Title Size</label>
                     <input type="range" class="form-range custom-range-slider" min="10" max="100" 
                            value="{{ data['settings'].get('party_title_size', '14') }}"
                            oninput="document.getElementById('party-title').style.fontSize = this.value + 'px'"
@@ -1753,7 +1756,7 @@ HTML_UR_FC = """
                 </div>
 
                 <div class="mb-3">
-                    <label class="small text-muted mb-1">Party Logo 1 Size (PythonAnywhere)</label>
+                    <label class="small text-white mb-1">Party Logo 1 Size (PythonAnywhere)</label>
                     <input type="range" class="form-range custom-range-slider" min="20" max="400" 
                            value="{{ data['settings'].get('party_logo_size_1', data['settings'].get('party_logo_size', '120')) }}"
                            oninput="document.getElementById('party-logo-1').style.width = this.value + 'px'"
@@ -1761,7 +1764,7 @@ HTML_UR_FC = """
                 </div>
                 
                 <div class="mb-3">
-                    <label class="small text-muted mb-1">Party Logo 2 Size (Python)</label>
+                    <label class="small text-white mb-1">Party Logo 2 Size (Python)</label>
                     <input type="range" class="form-range custom-range-slider" min="20" max="400" 
                            value="{{ data['settings'].get('party_logo_size_2', data['settings'].get('party_logo_size', '120')) }}"
                            oninput="document.getElementById('party-logo-2').style.width = this.value + 'px'"
@@ -1769,7 +1772,7 @@ HTML_UR_FC = """
                 </div>
                 
                 <div class="mb-3">
-                    <label class="small text-muted mb-1">Party Logo 3 Size (GoDaddy)</label>
+                    <label class="small text-white mb-1">Party Logo 3 Size (GoDaddy)</label>
                     <input type="range" class="form-range custom-range-slider" min="20" max="400" 
                            value="{{ data['settings'].get('party_logo_size_3', data['settings'].get('party_logo_size', '120')) }}"
                            oninput="document.getElementById('party-logo-3').style.width = this.value + 'px'"
@@ -2056,6 +2059,20 @@ HTML_UR_FC = """
         function openAcademyModal(type) {
             closeAcademyModals();
             document.getElementById(type + '-modal').style.display = 'flex';
+
+            // iOS Fix for Register Modal
+            if (type === 'register') {
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                if (isIOS) {
+                     const modalContent = document.querySelector('#register-modal .modal-content-custom');
+                     if (modalContent) {
+                         modalContent.style.maxHeight = '85vh';
+                         modalContent.style.overflowY = 'auto';
+                         modalContent.style.webkitOverflowScrolling = 'touch';
+                     }
+                }
+            }
+
             if(type === 'finance' || type === 'report') {
                 if(currentUser) {
                     showDashboard(type);
