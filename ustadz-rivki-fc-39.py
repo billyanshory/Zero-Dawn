@@ -1678,76 +1678,145 @@ HTML_UR_FC = """
     </footer>
 
     <!-- DEVELOPER MODAL -->
-    <div id="dev-modal" class="modal-overlay" onclick="toggleDevModal()">
-        <div class="modal-content-custom" 
-             style="background: rgba(20, 20, 20, 0.85); color: white; border: 1px solid #444; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); max-width: 400px;" 
-             onclick="event.stopPropagation()">
-            
-            <div class="d-flex flex-column align-items-center gap-3">
-                <div>
-                    <div id="dev-title" style="font-family: 'Inter', sans-serif; text-transform: uppercase; letter-spacing: 2px; color: #aaa; font-size: {{ data['settings'].get('dev_title_size', '14') }}px;">
-                        Developer
+    <div id="dev-modal" class="modal-overlay" onclick="toggleDevModal()" style="display: none; align-items: stretch; padding: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);">
+        {% if admin %}
+        <!-- ADMIN VIEW (Split Screen) -->
+        <div style="display: flex; width: 100%; height: 100vh;">
+            <!-- Left Panel: Preview -->
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative;" onclick="event.stopPropagation()">
+                <div class="d-flex flex-column align-items-center gap-3">
+                    <div>
+                        <div id="dev-title" style="font-family: 'Inter', sans-serif; text-transform: uppercase; letter-spacing: 2px; color: #aaa; font-size: {{ data['settings'].get('dev_title_size', '14') }}px; text-align: center;">
+                            Developer
+                        </div>
+                        <div id="dev-name" style="font-family: 'Inter', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #fff; margin-top: 5px; font-size: {{ data['settings'].get('dev_name_size', '20') }}px; text-align: center;">
+                            Samarinda Web Creative
+                        </div>
+                        <img id="dev-logo" src="{{ url_for('static', filename='Samarinda_Web_Creative_Logo-removebg-preview.png') }}"
+                             style="width: {{ data['settings'].get('dev_logo_size', '150') }}px; height: auto; margin-top: 10px; display: block; margin-left: auto; margin-right: auto;">
                     </div>
-                    <div id="dev-name" style="font-family: 'Inter', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #fff; margin-top: 5px; font-size: {{ data['settings'].get('dev_name_size', '20') }}px;">
-                        Samarinda Web Creative
+
+                    <hr style="width: 50%; border-color: #555;">
+
+                    <div>
+                        <div id="party-title" style="font-family: 'Inter', sans-serif; text-transform: uppercase; letter-spacing: 2px; color: #aaa; font-size: {{ data['settings'].get('party_title_size', '14') }}px; text-align: center;">
+                            Pihak Ketiga
+                        </div>
+                        <div class="d-flex flex-column align-items-center gap-2 mt-3">
+                            <img id="party-logo-1" src="{{ url_for('static', filename='pythonanywherelogo-removebg.png') }}"
+                                 style="width: {{ data['settings'].get('party_logo_size_1', data['settings'].get('party_logo_size', '120')) }}px; height: auto;">
+                            <img id="party-logo-2" src="{{ url_for('static', filename='pythonlogo.png') }}"
+                                 style="width: {{ data['settings'].get('party_logo_size_2', data['settings'].get('party_logo_size', '120')) }}px; height: auto;">
+                            <img id="party-logo-3" src="{{ url_for('static', filename='godaddylogo.png') }}"
+                                 style="width: {{ data['settings'].get('party_logo_size_3', data['settings'].get('party_logo_size', '120')) }}px; height: auto;">
+                        </div>
                     </div>
-                    <img id="dev-logo" src="{{ url_for('static', filename='Samarinda_Web_Creative_Logo-removebg-preview.png') }}" 
-                         style="width: {{ data['settings'].get('dev_logo_size', '150') }}px; height: auto; margin-top: 10px;">
+                </div>
+            </div>
+
+            <!-- Right Panel: Settings -->
+            <div style="width: 350px; background: rgba(0,0,0,0.9); padding: 20px; overflow-y: auto; border-left: 1px solid #444; color: white; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
+                <h4 class="text-warning text-center mb-4">Admin Settings</h4>
+
+                <div class="mb-3">
+                    <label class="small text-muted mb-1">Dev Title Size</label>
+                    <input type="range" class="form-range custom-range-slider" min="10" max="100"
+                           value="{{ data['settings'].get('dev_title_size', '14') }}"
+                           oninput="document.getElementById('dev-title').style.fontSize = this.value + 'px'"
+                           onchange="saveText('site_settings', 'dev_title_size', 'value', this)">
                 </div>
 
-                <hr style="width: 50%; border-color: #555;">
+                <div class="mb-3">
+                    <label class="small text-muted mb-1">Dev Name Size</label>
+                    <input type="range" class="form-range custom-range-slider" min="10" max="100"
+                           value="{{ data['settings'].get('dev_name_size', '20') }}"
+                           oninput="document.getElementById('dev-name').style.fontSize = this.value + 'px'"
+                           onchange="saveText('site_settings', 'dev_name_size', 'value', this)">
+                </div>
+
+                <div class="mb-3">
+                    <label class="small text-muted mb-1">Dev Logo Size</label>
+                    <input type="range" class="form-range custom-range-slider" min="50" max="500"
+                           value="{{ data['settings'].get('dev_logo_size', '150') }}"
+                           oninput="document.getElementById('dev-logo').style.width = this.value + 'px'"
+                           onchange="saveText('site_settings', 'dev_logo_size', 'value', this)">
+                </div>
+
+                <hr class="border-secondary">
+
+                <div class="mb-3">
+                    <label class="small text-muted mb-1">Party Title Size</label>
+                    <input type="range" class="form-range custom-range-slider" min="10" max="100"
+                           value="{{ data['settings'].get('party_title_size', '14') }}"
+                           oninput="document.getElementById('party-title').style.fontSize = this.value + 'px'"
+                           onchange="saveText('site_settings', 'party_title_size', 'value', this)">
+                </div>
+
+                <div class="mb-3">
+                    <label class="small text-muted mb-1">Party Logo 1 Size (PythonAnywhere)</label>
+                    <input type="range" class="form-range custom-range-slider" min="20" max="400"
+                           value="{{ data['settings'].get('party_logo_size_1', data['settings'].get('party_logo_size', '120')) }}"
+                           oninput="document.getElementById('party-logo-1').style.width = this.value + 'px'"
+                           onchange="saveText('site_settings', 'party_logo_size_1', 'value', this)">
+                </div>
+
+                <div class="mb-3">
+                    <label class="small text-muted mb-1">Party Logo 2 Size (Python)</label>
+                    <input type="range" class="form-range custom-range-slider" min="20" max="400"
+                           value="{{ data['settings'].get('party_logo_size_2', data['settings'].get('party_logo_size', '120')) }}"
+                           oninput="document.getElementById('party-logo-2').style.width = this.value + 'px'"
+                           onchange="saveText('site_settings', 'party_logo_size_2', 'value', this)">
+                </div>
+
+                <div class="mb-3">
+                    <label class="small text-muted mb-1">Party Logo 3 Size (GoDaddy)</label>
+                    <input type="range" class="form-range custom-range-slider" min="20" max="400"
+                           value="{{ data['settings'].get('party_logo_size_3', data['settings'].get('party_logo_size', '120')) }}"
+                           oninput="document.getElementById('party-logo-3').style.width = this.value + 'px'"
+                           onchange="saveText('site_settings', 'party_logo_size_3', 'value', this)">
+                </div>
+
+                <div class="mt-auto">
+                    <button class="btn btn-outline-light w-100 btn-sm" onclick="toggleDevModal()">Close Panel</button>
+                </div>
+            </div>
+        </div>
+
+        {% else %}
+        <!-- USER VIEW (Full Screen Overlay) -->
+        <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative;" onclick="event.stopPropagation()">
+             <div class="d-flex flex-column align-items-center gap-3">
+                <div>
+                    <div style="font-family: 'Inter', sans-serif; text-transform: uppercase; letter-spacing: 2px; color: #eee; font-size: {{ data['settings'].get('dev_title_size', '14') }}px; text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">
+                        Developer
+                    </div>
+                    <div style="font-family: 'Inter', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #fff; margin-top: 5px; font-size: {{ data['settings'].get('dev_name_size', '20') }}px; text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">
+                        Samarinda Web Creative
+                    </div>
+                    <img src="{{ url_for('static', filename='Samarinda_Web_Creative_Logo-removebg-preview.png') }}"
+                         style="width: {{ data['settings'].get('dev_logo_size', '150') }}px; height: auto; margin-top: 10px; display: block; margin-left: auto; margin-right: auto; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.5));">
+                </div>
+
+                <hr style="width: 50%; border-color: rgba(255,255,255,0.5);">
 
                 <div>
-                    <div id="party-title" style="font-family: 'Inter', sans-serif; text-transform: uppercase; letter-spacing: 2px; color: #aaa; font-size: {{ data['settings'].get('party_title_size', '14') }}px;">
+                    <div style="font-family: 'Inter', sans-serif; text-transform: uppercase; letter-spacing: 2px; color: #eee; font-size: {{ data['settings'].get('party_title_size', '14') }}px; text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">
                         Pihak Ketiga
                     </div>
                     <div class="d-flex flex-column align-items-center gap-2 mt-3">
-                        <img id="party-logo-1" src="{{ url_for('static', filename='pythonanywherelogo-removebg.png') }}" 
-                             style="width: {{ data['settings'].get('party_logo_size', '120') }}px; height: auto;">
-                        <img id="party-logo-2" src="{{ url_for('static', filename='pythonlogo.png') }}" 
-                             style="width: {{ data['settings'].get('party_logo_size', '120') }}px; height: auto;">
-                        <img id="party-logo-3" src="{{ url_for('static', filename='godaddylogo.png') }}" 
-                             style="width: {{ data['settings'].get('party_logo_size', '120') }}px; height: auto;">
+                        <img src="{{ url_for('static', filename='pythonanywherelogo-removebg.png') }}"
+                             style="width: {{ data['settings'].get('party_logo_size_1', data['settings'].get('party_logo_size', '120')) }}px; height: auto; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));">
+                        <img src="{{ url_for('static', filename='pythonlogo.png') }}"
+                             style="width: {{ data['settings'].get('party_logo_size_2', data['settings'].get('party_logo_size', '120')) }}px; height: auto; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));">
+                        <img src="{{ url_for('static', filename='godaddylogo.png') }}"
+                             style="width: {{ data['settings'].get('party_logo_size_3', data['settings'].get('party_logo_size', '120')) }}px; height: auto; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));">
                     </div>
                 </div>
             </div>
 
-            {% if admin %}
-            <div class="mt-4 p-3 rounded" style="background: rgba(255,255,255,0.1); text-align: left;">
-                <h6 class="text-warning text-center mb-3">Admin Settings</h6>
-                
-                <small>Dev Title Size</small>
-                <input type="range" class="form-range custom-range-slider" min="10" max="30" 
-                       value="{{ data['settings'].get('dev_title_size', '14') }}"
-                       oninput="document.getElementById('dev-title').style.fontSize = this.value + 'px'"
-                       onchange="saveText('site_settings', 'dev_title_size', 'value', this)">
-                       
-                <small>Dev Name Size</small>
-                <input type="range" class="form-range custom-range-slider" min="10" max="40" 
-                       value="{{ data['settings'].get('dev_name_size', '20') }}"
-                       oninput="document.getElementById('dev-name').style.fontSize = this.value + 'px'"
-                       onchange="saveText('site_settings', 'dev_name_size', 'value', this)">
-
-                <small>Dev Logo Size</small>
-                <input type="range" class="form-range custom-range-slider" min="50" max="300" 
-                       value="{{ data['settings'].get('dev_logo_size', '150') }}"
-                       oninput="document.getElementById('dev-logo').style.width = this.value + 'px'"
-                       onchange="saveText('site_settings', 'dev_logo_size', 'value', this)">
-
-                <small>Party Title Size</small>
-                <input type="range" class="form-range custom-range-slider" min="10" max="30" 
-                       value="{{ data['settings'].get('party_title_size', '14') }}"
-                       oninput="document.getElementById('party-title').style.fontSize = this.value + 'px'"
-                       onchange="saveText('site_settings', 'party_title_size', 'value', this)">
-
-                <small>Party Logos Size</small>
-                <input type="range" class="form-range custom-range-slider" min="50" max="300" 
-                       value="{{ data['settings'].get('party_logo_size', '120') }}"
-                       oninput="document.getElementById('party-logo-1').style.width = this.value + 'px'; document.getElementById('party-logo-2').style.width = this.value + 'px'; document.getElementById('party-logo-3').style.width = this.value + 'px';"
-                       onchange="saveText('site_settings', 'party_logo_size', 'value', this)">
-            </div>
-            {% endif %}
+            <button class="btn btn-sm btn-outline-light rounded-pill px-4 mt-5" onclick="toggleDevModal()">Close</button>
         </div>
+        {% endif %}
     </div>
 
     <!-- STICKY BOTTOM NAV -->
