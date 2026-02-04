@@ -1628,28 +1628,81 @@ MEDICAL_NAVBAR_TEMPLATE = """
     </div>
 </div>
 
-<!-- Game Modal -->
-<div id="gameModal" class="login-modal-overlay">
-    <div class="login-modal-box p-0" style="width: 320px; overflow: hidden; background: transparent; box-shadow: none;">
-        <div style="background: white; border-radius: 15px; padding: 20px; text-align: center; position: relative;">
-            <button type="button" onclick="document.getElementById('gameModal').style.display='none'" style="position:absolute; top:10px; right:15px; z-index:100; border:none; background:none; font-size:1.2rem; cursor:pointer;">&times;</button>
-            <h5 class="fw-bold mb-2">Usap Debu Kecemasan 🧹</h5>
-            <p class="text-muted small mb-3">Usap layar untuk membersihkan debu...</p>
-            
-            <div style="position: relative; width: 280px; height: 280px; margin: 0 auto;">
-                <!-- Happy Layer (Bottom) -->
-                <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: #f1f8e9; border-radius: 15px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center;">
-                    <i class="fas fa-smile-beam text-warning" style="font-size: 3rem; margin: 15px;"></i>
-                    <i class="fas fa-grin-hearts text-danger" style="font-size: 3rem; margin: 15px;"></i>
-                    <i class="fas fa-laugh-squint text-primary" style="font-size: 3rem; margin: 15px;"></i>
-                    <i class="fas fa-smile-wink text-success" style="font-size: 3rem; margin: 15px;"></i>
-                    <div style="width:100%; text-align:center; font-weight:bold; color: #555; margin-top: -10px;">Semua Akan Baik Saja!</div>
-                </div>
-                
-                <!-- Canvas Layer (Top) -->
-                <canvas id="gameCanvas" width="280" height="280" style="position: absolute; top:0; left:0; border-radius: 15px;"></canvas>
-            </div>
+<!-- Game Modal (Full Screen) -->
+<div id="gameModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:white;">
+    <!-- Close Button -->
+    <button type="button" onclick="document.getElementById('gameModal').style.display='none'"
+        style="position:absolute; top:20px; right:20px; z-index:10000; border:none; background:rgba(0,0,0,0.5); color:white; width:50px; height:50px; border-radius:50%; font-size:1.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">&times;</button>
+
+    <!-- Container -->
+    <div style="position:relative; width:100%; height:100%; overflow:hidden; background:#f0f0f0;">
+
+        <!-- Background Layer (Characters) -->
+        <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center;">
+             <!-- SVG Characters Here -->
+             <svg width="100%" height="100%" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid slice">
+                <defs>
+                    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="5"/>
+                        <feOffset dx="5" dy="5" result="offsetblur"/>
+                        <feComponentTransfer>
+                            <feFuncA type="linear" slope="0.3"/>
+                        </feComponentTransfer>
+                        <feMerge>
+                            <feMergeNode in="offsetblur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+                </defs>
+                <g transform="translate(50, 50)" filter="url(#shadow)">
+                    <!-- 2. Si Balok Ungu (Back Left) -->
+                    <!-- Rect 100x450. Color #8A2BE2. Eyes: inverted C. Mouth: short line. -->
+                    <rect x="50" y="50" width="100" height="450" fill="#6A0DAD" />
+                    <!-- Eyes -->
+                    <path d="M 70 120 Q 85 100 100 120" stroke="white" stroke-width="4" fill="none" />
+                    <path d="M 110 120 Q 125 100 140 120" stroke="white" stroke-width="4" fill="none" />
+                    <!-- Mouth -->
+                    <line x1="95" y1="160" x2="115" y2="160" stroke="black" stroke-width="4" />
+
+                    <!-- 3. Si Pengintip Hitam (Middle Back) -->
+                    <!-- Rect. Behind Orange. Between Purple and Yellow. -->
+                    <rect x="160" y="100" width="120" height="400" fill="#111111" />
+                    <!-- Eyes looking right -->
+                    <circle cx="200" cy="160" r="15" fill="white" />
+                    <circle cx="210" cy="160" r="5" fill="black" />
+                    <circle cx="240" cy="160" r="15" fill="white" />
+                    <circle cx="250" cy="160" r="5" fill="black" />
+
+                    <!-- 4. Si Lonjong Kuning (Right) -->
+                    <!-- Oblong/Capsule -->
+                    <rect x="290" y="150" width="100" height="350" rx="50" ry="50" fill="#E1AD01" />
+                    <!-- Fill bottom corners to make it stand flat -->
+                    <rect x="290" y="300" width="100" height="200" fill="#E1AD01" />
+                    <!-- Eye (Side Profile) -->
+                    <circle cx="360" cy="200" r="5" fill="black" />
+                    <!-- Mouth (Protruding Line) -->
+                    <line x1="360" y1="240" x2="420" y2="240" stroke="black" stroke-width="6" stroke-linecap="round" />
+
+                    <!-- 1. Si Gundukan Oranye (Front Left/Center) -->
+                    <!-- Semicircle/Mound -->
+                    <path d="M 20 500 A 100 120 0 0 1 260 500" fill="#FF8C00" />
+                    <!-- Eyes far apart -->
+                    <circle cx="100" cy="420" r="5" fill="black" />
+                    <circle cx="180" cy="420" r="5" fill="black" />
+                    <!-- Smile -->
+                    <path d="M 120 450 Q 140 480 160 450" stroke="black" stroke-width="3" fill="none" />
+                </g>
+             </svg>
         </div>
+
+        <!-- Canvas Layer (Scratch) -->
+        <canvas id="gameCanvas" style="position:absolute; top:0; left:0; width:100%; height:100%; touch-action:none;"></canvas>
+
+        <!-- Instruction Text -->
+        <div id="gameInstruction" style="position:absolute; bottom:80px; width:100%; text-align:center; pointer-events:none; color:#333; font-size:1.5rem; font-weight:bold; text-shadow:0 0 10px white;">
+            Usap layar untuk menemukan mereka!
+        </div>
+
     </div>
 </div>
 {% endif %}
@@ -1795,27 +1848,37 @@ MEDICAL_NAVBAR_TEMPLATE = """
     let canvas, ctx, isDrawing = false;
     
     function openGame() {
-        document.getElementById('gameModal').style.display = 'flex';
+        document.getElementById('gameModal').style.display = 'block';
         initGame();
     }
     
     function initGame() {
         canvas = document.getElementById('gameCanvas');
         if(!canvas) return; // Might not exist if role != patient
+        
         ctx = canvas.getContext('2d');
         
-        // Reset composite
-        ctx.globalCompositeOperation = 'source-over';
+        const resizeCanvas = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            // Reset composite
+            ctx.globalCompositeOperation = 'source-over';
+
+            // Draw Dust
+            ctx.fillStyle = '#95a5a6';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Add text "Usap Aku" on dust
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 30px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText("Usap layar untuk membersihkan...", canvas.width/2, canvas.height/2);
+        };
         
-        // Draw Dust
-        ctx.fillStyle = '#95a5a6';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Add text "Usap Aku" on dust
-        ctx.fillStyle = '#fff';
-        ctx.font = '20px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText("Usap Layar...", canvas.width/2, canvas.height/2);
+        // Initial sizing
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
         
         // Set up wiping
         canvas.addEventListener('mousedown', startDraw);
