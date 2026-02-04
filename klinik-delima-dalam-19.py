@@ -595,6 +595,50 @@ def api_queue_archive():
         
     return jsonify(grouped)
 
+@app.route('/api/patient/my-card', methods=['POST'])
+def api_patient_card():
+    data = request.json
+    phone = data.get('phone', '')
+    if not phone:
+        return jsonify({'error': 'No phone number provided'}), 400
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    # Get the latest visit
+    c.execute("SELECT * FROM queue WHERE phone = ? ORDER BY created_at DESC LIMIT 1", (phone,))
+    row = c.fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({'error': 'Patient not found'}), 404
+
+    return jsonify(dict(row))
+
+@app.route('/api/patient/my-lab', methods=['POST'])
+def api_patient_lab():
+    data = request.json
+    phone = data.get('phone', '')
+    if not phone:
+        return jsonify({'error': 'No phone number provided'}), 400
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    # Get all patient IDs for this phone
+    c.execute("SELECT id FROM queue WHERE phone = ?", (phone,))
+    patient_ids = [r['id'] for r in c.fetchall()]
+
+    if not patient_ids:
+        conn.close()
+        return jsonify([])
+
+    # Get lab results
+    placeholders = ','.join('?' * len(patient_ids))
+    c.execute(f"SELECT * FROM lab_results WHERE patient_id IN ({placeholders}) ORDER BY created_at DESC", patient_ids)
+    results = [dict(r) for r in c.fetchall()]
+    conn.close()
+
+    return jsonify(results)
+
 @app.route('/api/queue/action', methods=['POST'])
 @role_required(['admin', 'doctor'])
 def api_queue_action():
@@ -1404,6 +1448,212 @@ MEDICAL_NAVBAR_TEMPLATE = """
     </div>
 </div>
 
+<!-- Bottom Navigation for Patients -->
+{% if role == 'patient' %}
+<style>
+    .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-top: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: space-around;
+        padding: 10px 0;
+        z-index: 9999;
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+    }
+    .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        color: #7f8c8d;
+        text-decoration: none;
+        font-size: 0.75rem;
+        font-weight: 700;
+        transition: 0.3s;
+        cursor: pointer;
+        width: 33%;
+    }
+    .nav-item i {
+        font-size: 1.4rem;
+        margin-bottom: 4px;
+        transition: 0.3s;
+    }
+    .nav-item:hover, .nav-item:active {
+        color: #2ecc71;
+        transform: translateY(-2px);
+    }
+    .nav-item:hover i {
+        transform: scale(1.1);
+    }
+
+    /* Hard Card Style */
+    .hard-card-wrapper {
+        background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+        border-radius: 15px;
+        padding: 20px;
+        color: white;
+        box-shadow: 0 10px 25px rgba(46, 204, 113, 0.4);
+        position: relative;
+        overflow: hidden;
+        min-height: 200px;
+    }
+    .hard-card-wrapper::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%);
+        transform: rotate(30deg);
+        pointer-events: none;
+    }
+    .hc-chip {
+        width: 40px; height: 30px;
+        background: linear-gradient(135deg, #f1c40f 0%, #f39c12 100%);
+        border-radius: 5px;
+        margin-bottom: 15px;
+        position: relative;
+        overflow: hidden;
+    }
+    .hc-chip::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        border: 1px solid rgba(0,0,0,0.2);
+        border-radius: 5px;
+        background: repeating-linear-gradient(90deg, transparent, transparent 5px, rgba(0,0,0,0.1) 5px, rgba(0,0,0,0.1) 6px);
+    }
+
+    /* Game Canvas */
+    #gameCanvas {
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        cursor: pointer;
+        touch-action: none;
+    }
+</style>
+
+<div class="bottom-nav">
+    <div class="nav-item" onclick="openMyCard()">
+        <i class="fas fa-id-card"></i>
+        <span>KARTU SAYA</span>
+    </div>
+    <div class="nav-item" onclick="openMyLab()">
+        <i class="fas fa-file-medical-alt"></i>
+        <span>HASIL LAB</span>
+    </div>
+    <div class="nav-item" onclick="openGame()">
+        <i class="fas fa-gamepad"></i>
+        <span>GAME</span>
+    </div>
+</div>
+
+<!-- My Card Modal -->
+<div id="myCardModal" class="login-modal-overlay">
+    <div class="login-modal-box" style="width: 350px;">
+        <button type="button" onclick="document.getElementById('myCardModal').style.display='none'" style="position:absolute; top:10px; right:15px; border:none; background:none; font-size:1.2rem; cursor:pointer;">&times;</button>
+        <h4 class="text-center mb-4 fw-bold text-success">Kartu Pasien Digital</h4>
+
+        <div id="card-login-step">
+            <p class="text-center text-muted small mb-3">Masukkan No. WhatsApp untuk melihat kartu Anda.</p>
+            <div class="input-group mb-3">
+                <span class="input-group-text bg-white"><i class="fab fa-whatsapp text-success"></i></span>
+                <input type="tel" id="card-phone" class="form-control" placeholder="08..." onkeypress="if(event.keyCode==13) fetchMyCard()">
+            </div>
+            <button class="btn btn-success w-100 fw-bold rounded-pill" onclick="fetchMyCard()">LIHAT KARTU</button>
+        </div>
+
+        <div id="card-display-step" style="display:none;">
+            <div class="hard-card-wrapper">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="hc-chip"></div>
+                    <i class="fas fa-hospital-alt fa-2x rgba-white-5"></i>
+                </div>
+                <h5 class="fw-bold mb-0 text-uppercase" id="hc-name">NAMA PASIEN</h5>
+                <p class="small mb-3 opacity-75" id="hc-phone">08xxx</p>
+
+                <div class="row g-2 small">
+                    <div class="col-6">
+                        <span class="d-block opacity-75" style="font-size:0.6rem">STATUS</span>
+                        <strong id="hc-status">DONE</strong>
+                    </div>
+                    <div class="col-6 text-end">
+                        <span class="d-block opacity-75" style="font-size:0.6rem">TANGGAL</span>
+                        <strong id="hc-date">27 JAN</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-3 p-3 bg-light rounded small border">
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted">Diagnosa:</span>
+                    <span class="fw-bold text-dark" id="hc-diag">-</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Resep:</span>
+                    <span class="fw-bold text-dark" id="hc-presc">-</span>
+                </div>
+            </div>
+
+            <button class="btn btn-outline-secondary btn-sm w-100 mt-3" onclick="resetCardView()">Cari Nomor Lain</button>
+        </div>
+    </div>
+</div>
+
+<!-- My Lab Modal -->
+<div id="myLabModal" class="login-modal-overlay">
+    <div class="login-modal-box" style="width: 350px;">
+        <button type="button" onclick="document.getElementById('myLabModal').style.display='none'" style="position:absolute; top:10px; right:15px; border:none; background:none; font-size:1.2rem; cursor:pointer;">&times;</button>
+        <h4 class="text-center mb-4 fw-bold text-primary">Hasil Lab Digital</h4>
+
+        <div id="lab-login-step">
+            <div class="input-group mb-3">
+                <span class="input-group-text bg-white"><i class="fab fa-whatsapp text-primary"></i></span>
+                <input type="tel" id="lab-phone" class="form-control" placeholder="No. WhatsApp..." onkeypress="if(event.keyCode==13) fetchMyLab()">
+            </div>
+            <button class="btn btn-primary w-100 fw-bold rounded-pill" onclick="fetchMyLab()">CARI HASIL</button>
+        </div>
+
+        <div id="lab-list-step" style="display:none;">
+            <div id="lab-results-container" style="max-height: 300px; overflow-y: auto;"></div>
+            <button class="btn btn-outline-secondary btn-sm w-100 mt-3" onclick="resetLabView()">Kembali</button>
+        </div>
+    </div>
+</div>
+
+<!-- Game Modal -->
+<div id="gameModal" class="login-modal-overlay">
+    <div class="login-modal-box p-0" style="width: 320px; overflow: hidden; background: transparent; box-shadow: none;">
+        <div style="background: white; border-radius: 15px; padding: 20px; text-align: center; position: relative;">
+            <button type="button" onclick="document.getElementById('gameModal').style.display='none'" style="position:absolute; top:10px; right:15px; z-index:100; border:none; background:none; font-size:1.2rem; cursor:pointer;">&times;</button>
+            <h5 class="fw-bold mb-2">Usap Debu Kecemasan 🧹</h5>
+            <p class="text-muted small mb-3">Usap layar untuk membersihkan debu...</p>
+
+            <div style="position: relative; width: 280px; height: 280px; margin: 0 auto;">
+                <!-- Happy Layer (Bottom) -->
+                <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: #f1f8e9; border-radius: 15px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center;">
+                    <i class="fas fa-smile-beam text-warning" style="font-size: 3rem; margin: 15px;"></i>
+                    <i class="fas fa-grin-hearts text-danger" style="font-size: 3rem; margin: 15px;"></i>
+                    <i class="fas fa-laugh-squint text-primary" style="font-size: 3rem; margin: 15px;"></i>
+                    <i class="fas fa-smile-wink text-success" style="font-size: 3rem; margin: 15px;"></i>
+                    <div style="width:100%; text-align:center; font-weight:bold; color: #555; margin-top: -10px;">Semua Akan Baik Saja!</div>
+                </div>
+
+                <!-- Canvas Layer (Top) -->
+                <canvas id="gameCanvas" width="280" height="280" style="position: absolute; top:0; left:0; border-radius: 15px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <script>
     // Highlight active menu
     document.addEventListener("DOMContentLoaded", function() {
@@ -1448,6 +1698,167 @@ MEDICAL_NAVBAR_TEMPLATE = """
         if (event.target == modal) {
             modal.style.display = "none";
         }
+    }
+
+    // --- PATIENT FEATURES ---
+    function openMyCard() {
+        document.getElementById('myCardModal').style.display = 'flex';
+        // Auto-focus
+        setTimeout(() => document.getElementById('card-phone').focus(), 100);
+    }
+
+    function fetchMyCard() {
+        const phone = document.getElementById('card-phone').value;
+        if(!phone) return;
+
+        fetch('/api/patient/my-card', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({phone: phone})
+        }).then(r => r.json()).then(data => {
+            if(data.error) {
+                alert('Data tidak ditemukan. Pastikan nomor WhatsApp sesuai pendaftaran.');
+            } else {
+                document.getElementById('card-login-step').style.display = 'none';
+                document.getElementById('card-display-step').style.display = 'block';
+
+                document.getElementById('hc-name').innerText = data.name;
+                document.getElementById('hc-phone').innerText = data.phone;
+                document.getElementById('hc-status').innerText = data.status.toUpperCase();
+
+                // Date logic
+                let dateStr = data.created_at;
+                if(data.finished_at) dateStr = data.finished_at;
+                try {
+                    const d = new Date(dateStr.replace(' ', 'T'));
+                    const m = ["JAN", "FEB", "MAR", "APR", "MEI", "JUN", "JUL", "AGU", "SEP", "OKT", "NOV", "DES"];
+                    document.getElementById('hc-date').innerText = d.getDate() + ' ' + m[d.getMonth()];
+                } catch(e) {}
+
+                document.getElementById('hc-diag').innerText = data.diagnosis || '-';
+                document.getElementById('hc-presc').innerText = data.prescription || '-';
+            }
+        });
+    }
+
+    function resetCardView() {
+        document.getElementById('card-login-step').style.display = 'block';
+        document.getElementById('card-display-step').style.display = 'none';
+        document.getElementById('card-phone').value = '';
+    }
+
+    function openMyLab() {
+        document.getElementById('myLabModal').style.display = 'flex';
+        const cardPhone = document.getElementById('card-phone').value;
+        if(cardPhone) {
+            document.getElementById('lab-phone').value = cardPhone;
+            fetchMyLab(); // Auto fetch if phone known
+        }
+    }
+
+    function fetchMyLab() {
+        const phone = document.getElementById('lab-phone').value;
+        if(!phone) return;
+
+        fetch('/api/patient/my-lab', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({phone: phone})
+        }).then(r => r.json()).then(data => {
+            document.getElementById('lab-login-step').style.display = 'none';
+            document.getElementById('lab-list-step').style.display = 'block';
+            const cont = document.getElementById('lab-results-container');
+            cont.innerHTML = '';
+
+            if(data.length === 0) {
+                cont.innerHTML = '<div class="text-center text-muted py-3">Tidak ada hasil lab ditemukan.</div>';
+            } else {
+                data.forEach(item => {
+                    cont.innerHTML += `
+                        <div class="d-flex align-items-center justify-content-between p-2 border-bottom">
+                            <div>
+                                <div class="fw-bold small">${item.description || 'Dokumen Lab'}</div>
+                                <div class="text-muted" style="font-size:0.7rem;">${item.created_at}</div>
+                            </div>
+                            <a href="/uploads/${item.file_path}" target="_blank" class="btn btn-sm btn-primary rounded-pill"><i class="fas fa-eye"></i></a>
+                        </div>
+                    `;
+                });
+            }
+        });
+    }
+
+    function resetLabView() {
+        document.getElementById('lab-login-step').style.display = 'block';
+        document.getElementById('lab-list-step').style.display = 'none';
+    }
+
+    // --- GAME LOGIC ---
+    let canvas, ctx, isDrawing = false;
+
+    function openGame() {
+        document.getElementById('gameModal').style.display = 'flex';
+        initGame();
+    }
+
+    function initGame() {
+        canvas = document.getElementById('gameCanvas');
+        if(!canvas) return; // Might not exist if role != patient
+        ctx = canvas.getContext('2d');
+
+        // Reset composite
+        ctx.globalCompositeOperation = 'source-over';
+
+        // Draw Dust
+        ctx.fillStyle = '#95a5a6';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Add text "Usap Aku" on dust
+        ctx.fillStyle = '#fff';
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText("Usap Layar...", canvas.width/2, canvas.height/2);
+
+        // Set up wiping
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDraw);
+        canvas.addEventListener('touchstart', startDraw, {passive: false});
+        canvas.addEventListener('touchmove', draw, {passive: false});
+        canvas.addEventListener('touchend', stopDraw);
+    }
+
+    function startDraw(e) {
+        isDrawing = true;
+        draw(e);
+    }
+
+    function stopDraw() {
+        isDrawing = false;
+        ctx.beginPath();
+    }
+
+    function draw(e) {
+        if (!isDrawing) return;
+        e.preventDefault(); // Prevent scroll on touch
+
+        const rect = canvas.getBoundingClientRect();
+        let x, y;
+
+        if(e.type.includes('touch')) {
+            x = e.touches[0].clientX - rect.left;
+            y = e.touches[0].clientY - rect.top;
+        } else {
+            x = e.clientX - rect.left;
+            y = e.clientY - rect.top;
+        }
+
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.lineWidth = 40;
+        ctx.lineCap = 'round';
+
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
     }
 </script>
 """
