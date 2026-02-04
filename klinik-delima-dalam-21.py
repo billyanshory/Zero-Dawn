@@ -1631,75 +1631,20 @@ MEDICAL_NAVBAR_TEMPLATE = """
 <!-- Game Modal (Full Screen) -->
 <div id="gameModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:white;">
     <!-- Close Button -->
-    <button type="button" onclick="document.getElementById('gameModal').style.display='none'" 
+    <button type="button" onclick="closeGameModal()"
         style="position:absolute; top:20px; right:20px; z-index:10000; border:none; background:rgba(0,0,0,0.5); color:white; width:50px; height:50px; border-radius:50%; font-size:1.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">&times;</button>
     
     <!-- Container -->
     <div style="position:relative; width:100%; height:100%; overflow:hidden; background:#f0f0f0;">
         
-        <!-- Background Layer (Characters) -->
-        <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center;">
-             <!-- SVG Characters Here -->
-             <svg width="100%" height="100%" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid slice">
-                <defs>
-                    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur in="SourceAlpha" stdDeviation="5"/>
-                        <feOffset dx="5" dy="5" result="offsetblur"/>
-                        <feComponentTransfer>
-                            <feFuncA type="linear" slope="0.3"/>
-                        </feComponentTransfer>
-                        <feMerge>
-                            <feMergeNode in="offsetblur"/>
-                            <feMergeNode in="SourceGraphic"/>
-                        </feMerge>
-                    </filter>
-                </defs>
-                <g transform="translate(50, 50)" filter="url(#shadow)">
-                    <!-- 2. Si Balok Ungu (Back Left) -->
-                    <!-- Rect 100x450. Color #8A2BE2. Eyes: inverted C. Mouth: short line. -->
-                    <rect x="50" y="50" width="100" height="450" fill="#6A0DAD" />
-                    <!-- Eyes -->
-                    <path d="M 70 120 Q 85 100 100 120" stroke="white" stroke-width="4" fill="none" />
-                    <path d="M 110 120 Q 125 100 140 120" stroke="white" stroke-width="4" fill="none" />
-                    <!-- Mouth -->
-                    <line x1="95" y1="160" x2="115" y2="160" stroke="black" stroke-width="4" />
+        <!-- Background Layer (Animated Characters) -->
+        <canvas id="charCanvas" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; background:#f0f0f0;"></canvas>
 
-                    <!-- 3. Si Pengintip Hitam (Middle Back) -->
-                    <!-- Rect. Behind Orange. Between Purple and Yellow. -->
-                    <rect x="160" y="100" width="120" height="400" fill="#111111" />
-                    <!-- Eyes looking right -->
-                    <circle cx="200" cy="160" r="15" fill="white" />
-                    <circle cx="210" cy="160" r="5" fill="black" />
-                    <circle cx="240" cy="160" r="15" fill="white" />
-                    <circle cx="250" cy="160" r="5" fill="black" />
-
-                    <!-- 4. Si Lonjong Kuning (Right) -->
-                    <!-- Oblong/Capsule -->
-                    <rect x="290" y="150" width="100" height="350" rx="50" ry="50" fill="#E1AD01" />
-                    <!-- Fill bottom corners to make it stand flat -->
-                    <rect x="290" y="300" width="100" height="200" fill="#E1AD01" /> 
-                    <!-- Eye (Side Profile) -->
-                    <circle cx="360" cy="200" r="5" fill="black" />
-                    <!-- Mouth (Protruding Line) -->
-                    <line x1="360" y1="240" x2="420" y2="240" stroke="black" stroke-width="6" stroke-linecap="round" />
-
-                    <!-- 1. Si Gundukan Oranye (Front Left/Center) -->
-                    <!-- Semicircle/Mound -->
-                    <path d="M 20 500 A 100 120 0 0 1 260 500" fill="#FF8C00" />
-                    <!-- Eyes far apart -->
-                    <circle cx="100" cy="420" r="5" fill="black" />
-                    <circle cx="180" cy="420" r="5" fill="black" />
-                    <!-- Smile -->
-                    <path d="M 120 450 Q 140 480 160 450" stroke="black" stroke-width="3" fill="none" />
-                </g>
-             </svg>
-        </div>
-
-        <!-- Canvas Layer (Scratch) -->
-        <canvas id="gameCanvas" style="position:absolute; top:0; left:0; width:100%; height:100%; touch-action:none;"></canvas>
+        <!-- Canvas Layer (Scratch/Dust) -->
+        <canvas id="gameCanvas" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:2; touch-action:none;"></canvas>
         
         <!-- Instruction Text -->
-        <div id="gameInstruction" style="position:absolute; bottom:80px; width:100%; text-align:center; pointer-events:none; color:#333; font-size:1.5rem; font-weight:bold; text-shadow:0 0 10px white;">
+        <div id="gameInstruction" style="position:absolute; bottom:80px; width:100%; text-align:center; pointer-events:none; color:#333; font-size:1.5rem; font-weight:bold; text-shadow:0 0 10px white; z-index:3;">
             Usap layar untuk menemukan mereka!
         </div>
 
@@ -1844,84 +1789,333 @@ MEDICAL_NAVBAR_TEMPLATE = """
         document.getElementById('lab-list-step').style.display = 'none';
     }
 
-    // --- GAME LOGIC ---
-    let canvas, ctx, isDrawing = false;
+    // --- GAME & ANIMATION LOGIC ---
+    let gameCanvas, gameCtx, isDrawing = false;
+    let charCanvas, charCtx;
+    let animId = null;
+    let characters = [];
+    let mouseX = 0, mouseY = 0;
+
+    // Define handlers globally to prevent memory leaks
+    const handleMouseMove = (e) => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+    };
+    
+    const handleTouchMove = (e) => {
+        if(e.touches.length > 0) {
+            mouseX = e.touches[0].clientX;
+            mouseY = e.touches[0].clientY;
+        }
+    };
+    
+    const handleResize = () => {
+        if(!gameCanvas || !charCanvas) return;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        gameCanvas.width = w;
+        gameCanvas.height = h;
+        charCanvas.width = w;
+        charCanvas.height = h;
+        
+        // Reset Dust
+        if(gameCtx) {
+            gameCtx.globalCompositeOperation = 'source-over';
+            gameCtx.fillStyle = '#95a5a6';
+            gameCtx.fillRect(0, 0, w, h);
+
+            gameCtx.fillStyle = '#fff';
+            gameCtx.font = 'bold 30px sans-serif';
+            gameCtx.textAlign = 'center';
+            gameCtx.fillText("Usap layar untuk membersihkan...", w/2, h/2);
+        }
+    };
+
+    class Character {
+        constructor(type, xPct, yPct, scale, color) {
+            this.type = type;
+            this.xPct = xPct; // Base X % from left
+            this.yPct = yPct; // Base Y % from top
+            this.scale = scale;
+            this.color = color;
+
+            this.x = 0;
+            this.y = 0;
+            this.breathOffset = Math.random() * 100;
+
+            // Eye tracking state
+            this.pupilX = 0;
+            this.pupilY = 0;
+        }
+        
+        update(w, h, mx, my, time) {
+            // Responsive Base Unit
+            const s = Math.min(w, h) / 1000;
+            this.currentScale = this.scale * s;
+            
+            const baseX = w * this.xPct;
+            const baseY = h * this.yPct;
+            
+            // 1. Breathing (Idle)
+            const breathY = Math.sin(time * 0.002 + this.breathOffset) * 10 * s;
+            
+            // 2. Parallax Leaning
+            const dx = (mx - w/2) / (w/2); // -1 to 1
+            const dy = (my - h/2) / (h/2);
+            const parallaxFactor = (this.type === 'black' || this.type === 'purple') ? 15 : 30; // Back moves less
+
+            const targetX = baseX + (dx * parallaxFactor * s);
+            const targetY = baseY + breathY + (dy * parallaxFactor * s);
+
+            // Lerp Position
+            this.x += (targetX - this.x) * 0.1;
+            this.y += (targetY - this.y) * 0.1;
+
+            // 3. Eye Tracking
+            // Approx head positions relative to body center
+            let headYOffset = 0;
+            if(this.type === 'purple') headYOffset = -150;
+            if(this.type === 'yellow') headYOffset = -100;
+            if(this.type === 'orange') headYOffset = -50;
+            if(this.type === 'black') headYOffset = -100;
+
+            const headX = this.x;
+            const headY = this.y + (headYOffset * this.currentScale);
+
+            const angle = Math.atan2(my - headY, mx - headX);
+            const eyeRadius = 5 * this.currentScale; // Max pupil movement
+
+            const targetPupilX = Math.cos(angle) * eyeRadius;
+            const targetPupilY = Math.sin(angle) * eyeRadius;
+
+            this.pupilX += (targetPupilX - this.pupilX) * 0.15;
+            this.pupilY += (targetPupilY - this.pupilY) * 0.15;
+        }
+
+        draw(ctx) {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.scale(this.currentScale, this.currentScale);
+
+            if (this.type === 'orange') this.drawOrange(ctx);
+            else if (this.type === 'purple') this.drawPurple(ctx);
+            else if (this.type === 'black') this.drawBlack(ctx);
+            else if (this.type === 'yellow') this.drawYellow(ctx);
+
+            ctx.restore();
+        }
+
+        drawOrange(ctx) {
+            // Orange Mound
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.moveTo(-100, 0);
+            // Semicircle-ish mound
+            ctx.bezierCurveTo(-100, -120, 100, -120, 100, 0);
+            ctx.fill();
+
+            // Eyes
+            ctx.fillStyle = 'black';
+            ctx.beginPath(); ctx.arc(-40 + this.pupilX, -50 + this.pupilY, 6, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(40 + this.pupilX, -50 + this.pupilY, 6, 0, Math.PI*2); ctx.fill();
+
+            // Smile
+            ctx.beginPath();
+            ctx.moveTo(-30, -20);
+            ctx.quadraticCurveTo(0, 10, 30, -20);
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+        }
+
+        drawPurple(ctx) {
+            // Tall Rectangle
+            ctx.fillStyle = this.color;
+            ctx.fillRect(-60, -350, 120, 350);
+
+            // Eyes (Inverted C)
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+
+            // Left Eye
+            ctx.beginPath();
+            ctx.arc(-25 + this.pupilX*0.5, -280 + this.pupilY*0.5, 12, Math.PI, 0);
+            ctx.stroke();
+            // Right Eye
+            ctx.beginPath();
+            ctx.arc(25 + this.pupilX*0.5, -280 + this.pupilY*0.5, 12, Math.PI, 0);
+            ctx.stroke();
+
+            // Mouth (Stoic line)
+            ctx.beginPath();
+            ctx.moveTo(-10, -240);
+            ctx.lineTo(10, -240);
+            ctx.strokeStyle = 'black';
+            ctx.stroke();
+        }
+        
+        drawBlack(ctx) {
+            // Rectangle
+            ctx.fillStyle = this.color;
+            ctx.fillRect(-40, -250, 80, 250);
+
+            // Eyes
+            ctx.fillStyle = 'white';
+            ctx.beginPath(); ctx.arc(-20, -200, 12, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(20, -200, 12, 0, Math.PI*2); ctx.fill();
+
+            // Pupils (Look Right Bias)
+            ctx.fillStyle = 'black';
+            const biasX = 5;
+            ctx.beginPath(); ctx.arc(-20 + this.pupilX + biasX, -200 + this.pupilY, 4, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(20 + this.pupilX + biasX, -200 + this.pupilY, 4, 0, Math.PI*2); ctx.fill();
+        }
+        
+        drawYellow(ctx) {
+            // Capsule / Tombstone
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            // Draw manual round rect if roundRect not supported everywhere, but most browsers support it now or polyfill
+            // Using arcs for safety
+            ctx.moveTo(-50, -250);
+            ctx.lineTo(50, -250);
+            ctx.arc(0, -250, 50, Math.PI, 0); // Top cap? No, this arc draws bottom...
+            // Let's use rect + circle top
+            ctx.fillRect(-50, -250, 100, 250);
+            ctx.beginPath();
+            ctx.arc(0, -250, 50, Math.PI, 0);
+            ctx.fill();
+
+            // Eye (Profile - One dot)
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(20 + this.pupilX, -200 + this.pupilY, 6, 0, Math.PI*2);
+            ctx.fill();
+
+            // Mouth (Beak/Line)
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(20, -160);
+            ctx.lineTo(70, -160);
+            ctx.stroke();
+        }
+    }
     
     function openGame() {
         document.getElementById('gameModal').style.display = 'block';
         initGame();
     }
     
+    function closeGameModal() {
+        document.getElementById('gameModal').style.display = 'none';
+        if(animId) cancelAnimationFrame(animId);
+
+        // Remove global listeners to clean up
+        window.removeEventListener('resize', handleResize);
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('touchmove', handleTouchMove);
+    }
+    
     function initGame() {
-        canvas = document.getElementById('gameCanvas');
-        if(!canvas) return; // Might not exist if role != patient
+        gameCanvas = document.getElementById('gameCanvas');
+        charCanvas = document.getElementById('charCanvas');
         
-        ctx = canvas.getContext('2d');
+        if(!gameCanvas || !charCanvas) return;
         
-        const resizeCanvas = () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            
-            // Reset composite
-            ctx.globalCompositeOperation = 'source-over';
-            
-            // Draw Dust
-            ctx.fillStyle = '#95a5a6';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Add text "Usap Aku" on dust
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 30px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText("Usap layar untuk membersihkan...", canvas.width/2, canvas.height/2);
+        gameCtx = gameCanvas.getContext('2d');
+        charCtx = charCanvas.getContext('2d');
+
+        // Setup listeners (remove first to be safe, though not strictly necessary if closed properly)
+        window.removeEventListener('resize', handleResize);
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('touchmove', handleTouchMove);
+
+        window.addEventListener('resize', handleResize);
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('touchmove', handleTouchMove);
+        
+        // Initial setup
+        handleResize();
+
+        // Init Characters (Type, X%, Y%, Scale, Color)
+        // Order matters for Z-index drawing (First = Back)
+        characters = [
+            // Purple (Back Left)
+            new Character('purple', 0.25, 0.9, 1.2, '#8A2BE2'),
+            // Black (Back Middle)
+            new Character('black', 0.5, 0.9, 1.1, '#222'),
+            // Yellow (Back Right)
+            new Character('yellow', 0.75, 0.9, 1.1, '#E1AD01'),
+            // Orange (Front Left/Center)
+            new Character('orange', 0.35, 1.0, 1.3, '#FF8C00')
+        ];
+
+        // Start Loops
+        if(animId) cancelAnimationFrame(animId);
+        animateChars();
+
+        // Wipe Events
+        setupWipeEvents();
+    }
+
+    function animateChars() {
+        const w = charCanvas.width;
+        const h = charCanvas.height;
+        const time = Date.now();
+
+        charCtx.clearRect(0, 0, w, h);
+
+        // Draw floor shadow/gradient
+        const grad = charCtx.createLinearGradient(0, h-100, 0, h);
+        grad.addColorStop(0, 'transparent');
+        grad.addColorStop(1, 'rgba(0,0,0,0.2)');
+        charCtx.fillStyle = grad;
+        charCtx.fillRect(0, h-100, w, 100);
+
+        characters.forEach(c => {
+            c.update(w, h, mouseX, mouseY, time);
+            c.draw(charCtx);
+        });
+
+        animId = requestAnimationFrame(animateChars);
+    }
+
+    function setupWipeEvents() {
+        const start = (e) => { isDrawing = true; wipe(e); };
+        const end = () => { isDrawing = false; gameCtx.beginPath(); };
+        const move = (e) => { if(isDrawing) wipe(e); };
+
+        const wipe = (e) => {
+            e.preventDefault();
+            const rect = gameCanvas.getBoundingClientRect();
+            let x, y;
+            if(e.touches) {
+                x = e.touches[0].clientX - rect.left;
+                y = e.touches[0].clientY - rect.top;
+            } else {
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
+
+            gameCtx.globalCompositeOperation = 'destination-out';
+            gameCtx.lineWidth = 60;
+            gameCtx.lineCap = 'round';
+            gameCtx.lineTo(x, y);
+            gameCtx.stroke();
+            gameCtx.beginPath();
+            gameCtx.moveTo(x, y);
         };
         
-        // Initial sizing
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-        
-        // Set up wiping
-        canvas.addEventListener('mousedown', startDraw);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDraw);
-        canvas.addEventListener('touchstart', startDraw, {passive: false});
-        canvas.addEventListener('touchmove', draw, {passive: false});
-        canvas.addEventListener('touchend', stopDraw);
-    }
-    
-    function startDraw(e) {
-        isDrawing = true;
-        draw(e);
-    }
-    
-    function stopDraw() {
-        isDrawing = false;
-        ctx.beginPath();
-    }
-    
-    function draw(e) {
-        if (!isDrawing) return;
-        e.preventDefault(); // Prevent scroll on touch
-        
-        const rect = canvas.getBoundingClientRect();
-        let x, y;
-        
-        if(e.type.includes('touch')) {
-            x = e.touches[0].clientX - rect.left;
-            y = e.touches[0].clientY - rect.top;
-        } else {
-            x = e.clientX - rect.left;
-            y = e.clientY - rect.top;
-        }
-        
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.lineWidth = 40;
-        ctx.lineCap = 'round';
-        
-        ctx.lineTo(x, y);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x, y);
+        gameCanvas.onmousedown = start;
+        gameCanvas.onmouseup = end;
+        gameCanvas.onmousemove = move;
+        gameCanvas.ontouchstart = start;
+        gameCanvas.ontouchend = end;
+        gameCanvas.ontouchmove = move;
     }
 </script>
 """
