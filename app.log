@@ -1,0 +1,18 @@
+Error loading symptom data: [Errno 2] No such file or directory: 'symptom_data.json'
+ * Serving Flask app 'klinik-delima-dalam-27'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [05/Feb/2026 14:15:45] "GET /antrean HTTP/1.1" 200 -
+127.0.0.1 - - [05/Feb/2026 14:15:45] "[33mGET /static/gigibersih.png HTTP/1.1[0m" 404 -
+127.0.0.1 - - [05/Feb/2026 14:15:45] "[33mGET /static/sikatgigi.png HTTP/1.1[0m" 404 -
+127.0.0.1 - - [05/Feb/2026 14:15:46] "GET /api/queue/status HTTP/1.1" 200 -
+127.0.0.1 - - [05/Feb/2026 14:15:47] "GET /antrean HTTP/1.1" 200 -
+127.0.0.1 - - [05/Feb/2026 14:15:47] "[33mGET /static/gigibersih.png HTTP/1.1[0m" 404 -
+127.0.0.1 - - [05/Feb/2026 14:15:47] "[33mGET /static/sikatgigi.png HTTP/1.1[0m" 404 -
+127.0.0.1 - - [05/Feb/2026 14:15:47] "GET /api/queue/status HTTP/1.1" 200 -
+127.0.0.1 - - [05/Feb/2026 14:16:21] "GET /antrean HTTP/1.1" 200 -
+127.0.0.1 - - [05/Feb/2026 14:16:21] "[33mGET /static/sikatgigi.png HTTP/1.1[0m" 404 -
+127.0.0.1 - - [05/Feb/2026 14:16:21] "[33mGET /static/gigibersih.png HTTP/1.1[0m" 404 -
+127.0.0.1 - - [05/Feb/2026 14:16:21] "GET /api/queue/status HTTP/1.1" 200 -
