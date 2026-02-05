@@ -1397,14 +1397,12 @@ MEDICAL_NAVBAR_TEMPLATE = """
     .role-btn-admin { background: var(--blue); color: white; }
     .role-btn-dokter { background: var(--gold); color: black; }
 
-    /* Dark Mode Styles */
+    /* Dark Mode Styles - Enhanced */
     body.dark-mode {
         background: #121212 !important;
         color: #e0e0e0 !important;
     }
-    body.dark-mode .medical-top-bar {
-        background: #1e1e1e !important;
-    }
+    body.dark-mode .medical-top-bar,
     body.dark-mode .medical-horizontal-menu {
         background: #1e1e1e !important;
         border-bottom-color: #333;
@@ -1418,48 +1416,120 @@ MEDICAL_NAVBAR_TEMPLATE = """
         background: #333;
         color: var(--green);
     }
+
+    /* Container & Card Backgrounds */
     body.dark-mode .card, 
     body.dark-mode .glass-panel,
     body.dark-mode .glass-panel-custom,
     body.dark-mode .modal-content,
     body.dark-mode .modal-card,
     body.dark-mode .list-group-item,
-    body.dark-mode .bg-white {
+    body.dark-mode .bg-white,
+    body.dark-mode .bottom-nav {
         background-color: #1e1e1e !important;
         color: #e0e0e0 !important;
         border-color: #444 !important;
     }
-    body.dark-mode .text-dark, 
-    body.dark-mode .text-muted {
+
+    /* Headers & Titles */
+    body.dark-mode .medical-title,
+    body.dark-mode h1, body.dark-mode h2, body.dark-mode h3,
+    body.dark-mode h4, body.dark-mode h5, body.dark-mode h6,
+    body.dark-mode .card-header,
+    body.dark-mode .modal-header {
+        color: #fff !important;
+    }
+    body.dark-mode .card-header,
+    body.dark-mode .modal-header {
+        background-color: #252525 !important;
+        border-bottom-color: #444 !important;
+    }
+
+    /* Footer */
+    body.dark-mode footer {
+        background: #1e1e1e !important;
+        border-top-color: #333 !important;
         color: #bbb !important;
     }
+    body.dark-mode footer h5 {
+        color: #fff !important;
+    }
+    body.dark-mode footer small {
+        color: #888 !important;
+    }
+
+    /* Text Colors */
+    body.dark-mode .text-dark { color: #ddd !important; }
+    body.dark-mode .text-muted { color: #aaa !important; }
+    body.dark-mode .text-primary { color: #64b5f6 !important; }
+    body.dark-mode .text-success { color: #81c784 !important; }
+    body.dark-mode .text-danger { color: #e57373 !important; }
+    body.dark-mode label { color: #ddd !important; }
+
+    /* Tables */
     body.dark-mode .table {
         color: #e0e0e0 !important;
         border-color: #444;
     }
-    body.dark-mode .table-light {
+    /* Ensure all cells have dark bg */
+    body.dark-mode .table th,
+    body.dark-mode .table td {
+        background-color: #1e1e1e !important;
+        color: #e0e0e0 !important;
+        border-color: #444 !important;
+    }
+    /* Headers lighter */
+    body.dark-mode .table thead th {
         background-color: #2d2d2d !important;
         color: #fff !important;
     }
-    body.dark-mode .form-control {
-        background-color: #2d2d2d;
-        border-color: #444;
-        color: #fff;
-    }
-    body.dark-mode .bottom-nav {
-        background: rgba(30, 30, 30, 0.95) !important;
-        border-top-color: #444;
-    }
-    body.dark-mode .medical-title {
+    /* Table light overrides */
+    body.dark-mode .table-light,
+    body.dark-mode .table-light th,
+    body.dark-mode .table-light td {
+        background-color: #2d2d2d !important;
         color: #fff !important;
     }
+    /* Table success overrides */
+    body.dark-mode .table-success,
+    body.dark-mode .table-success th,
+    body.dark-mode .table-success td {
+        background-color: #1b5e20 !important;
+        color: #e8f5e9 !important;
+        border-color: #2e7d32 !important;
+    }
+    /* Hover - must target td to override the specific td rule above */
+    body.dark-mode .table-hover tbody tr:hover,
+    body.dark-mode .table-hover tbody tr:hover td,
+    body.dark-mode .table-hover tbody tr:hover th {
+        background-color: #333 !important;
+        color: #fff !important;
+    }
+
+    /* Forms & Inputs */
+    body.dark-mode .form-control,
+    body.dark-mode .form-select,
+    body.dark-mode input,
+    body.dark-mode select,
+    body.dark-mode textarea {
+        background-color: #2d2d2d !important;
+        border-color: #444 !important;
+        color: #fff !important;
+    }
+    body.dark-mode .form-control::placeholder { color: #888; }
     body.dark-mode .input-group-text {
         background-color: #333 !important;
         border-color: #444;
-        color: #eee;
+        color: #eee !important;
     }
-    body.dark-mode .close-btn {
-        color: #fff !important;
+
+    /* Buttons & Misc */
+    body.dark-mode .close-btn,
+    body.dark-mode .btn-close {
+        filter: invert(1) grayscale(100%) brightness(200%);
+    }
+    body.dark-mode #map-container {
+        background-color: #2d2d2d !important;
     }
 
     /* Login Modal */
