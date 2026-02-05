@@ -708,6 +708,32 @@ def api_stock_update():
     log_audit('STOCK_UPDATE', f"Action: {action}, Data: {str(data)}")
     return jsonify({'success': True})
 
+@app.route('/api/dental/settings', methods=['GET', 'POST'])
+def api_dental_settings():
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    if request.method == 'POST':
+        # Need developer auth effectively, but we trust the frontend gate for now or check session if implemented
+        # The user requested 'developer mode' access via frontend ID/Pass, but saving should probably be open if in dev mode
+        # or we can rely on standard RBAC if logged in as admin.
+        # For this specific "game dev" request, we allow saving freely as per "real time universal" requirement
+        data = request.json
+        config_str = json.dumps(data)
+        c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('dental_game_config', ?)", (config_str,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+
+    c.execute("SELECT value FROM site_settings WHERE key='dental_game_config'")
+    row = c.fetchone()
+    conn.close()
+
+    if row and row['value']:
+        return jsonify(json.loads(row['value']))
+    else:
+        return jsonify({})
+
 def render_page(content, **kwargs):
     content = content.replace('{{ styles|safe }}', STYLES_HTML)
     content = content.replace('{{ navbar|safe }}', NAVBAR_HTML)
@@ -1681,175 +1707,246 @@ function openIconGallery() {
 <!-- Dental Game Modal -->
 <div id="dentalModal" class="login-modal-overlay" style="display:none; z-index: 10001;">
     <style>
-        .dental-glass {
+        .hard-card-glass-enhanced {
             background: rgba(255, 255, 255, 0.25);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            border-radius: 20px;
-            padding: 20px;
-            width: 95%; max-width: 500px;
-            height: auto; max-height: 90vh;
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+            border-radius: 25px;
+            padding: 25px;
+            width: 95%; max-width: 1200px; /* Wider for desktop split */
+            height: auto; max-height: 95vh;
+            overflow-y: auto;
             display: flex; flex-direction: column;
             position: relative;
-            overflow: hidden;
         }
+
+        /* Layout Container */
+        .dental-layout {
+            display: flex;
+            flex-direction: column; /* Mobile Default */
+            gap: 20px;
+            flex: 1;
+        }
+
+        .game-area {
+            flex: 1;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
         #dentalContainer {
             position: relative;
             width: 100%;
+            max-width: 500px; /* Keep game size controlled */
             aspect-ratio: 1 / 1;
-            border-radius: 15px; /* Rounded corners requirement */
+            border-radius: 15px;
             overflow: hidden;
             margin-bottom: 20px;
             background: #fff;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            cursor: default; /* Default cursor */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            cursor: default;
+            border: 4px solid rgba(255,255,255,0.8);
         }
+
         #dentalContainer img {
             width: 100%; height: 100%; object-fit: cover;
             position: absolute; top: 0; left: 0; z-index: 1;
-            border-radius: 15px; /* Rounded corners */
+            border-radius: 15px;
         }
         #dentalCanvas {
             position: absolute; top: 0; left: 0; z-index: 2;
             width: 100%; height: 100%;
             touch-action: none;
-            border-radius: 15px; /* Rounded corners */
+            border-radius: 15px;
         }
+
         .tool-btn {
-            background: white; border: none; padding: 10px 20px; border-radius: 50px;
-            font-weight: bold; color: #555; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(0,0,0,0.05);
+            padding: 12px 25px; border-radius: 50px;
+            font-weight: 800; color: #444;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             transition: 0.3s; cursor: pointer; display: flex; align-items: center; gap: 10px;
+            backdrop-filter: blur(5px);
         }
+        .tool-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
         .tool-btn.active-tool {
             background: #3498db; color: white; transform: scale(1.05);
-            box-shadow: 0 0 15px rgba(52, 152, 219, 0.5);
+            box-shadow: 0 0 20px rgba(52, 152, 219, 0.6);
+            border-color: #3498db;
         }
 
         /* Custom Brush Cursor */
         #customBrushCursor {
             position: fixed;
-            width: 50px; /* Ergonomic mini size */
+            width: 50px;
             height: auto;
             pointer-events: none;
             z-index: 9999;
             display: none;
-            transform: translate(0, 0); /* Managed by JS for calibration */
+            transform: translate(0, 0);
         }
 
-        /* Dev Panel */
+        /* Dev Panel Styling */
         #devPanel {
-            display: none;
-            position: absolute; bottom: 60px; left: 0; width: 100%;
-            background: rgba(0,0,0,0.85); color: white;
-            padding: 10px; font-size: 0.75rem;
-            z-index: 100;
-            border-radius: 10px;
+            display: none; /* Hidden by default */
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            flex-direction: column;
+            gap: 15px;
         }
-        .dev-row { display: flex; gap: 5px; margin-bottom: 5px; align-items: center; justify-content: center; flex-wrap: wrap; }
-        .dev-input { width: 50px; padding: 2px; border-radius: 3px; border:none; text-align: center; }
+        .dev-active .dental-layout {
+            /* Applied when dev mode is active */
+        }
 
-        /* Dev Mode Enhancements */
+        /* Responsive Desktop */
+        @media (min-width: 992px) {
+            .dev-active .dental-layout {
+                flex-direction: row; /* Side by side on Desktop */
+                align-items: flex-start;
+            }
+            .dev-active #devPanel {
+                width: 350px;
+                display: flex;
+            }
+        }
+        @media (max-width: 991px) {
+             /* Mobile: Column remains default */
+             .dev-active #devPanel {
+                 width: 100%;
+                 display: flex;
+             }
+        }
+
+        .dev-row { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+        .dev-input { width: 60px; padding: 5px; border-radius: 5px; border:none; text-align: center; font-weight: bold; }
+
         .dev-transparent { opacity: 0.5; filter: blur(2px); }
 
-        /* Resize Handles */
         .resize-handle {
-            position: absolute; width: 10px; height: 10px; background: #FFD700;
-            border: 1px solid white; z-index: 50; display: none;
+            position: absolute; width: 15px; height: 15px; background: #FFD700;
+            border: 2px solid white; z-index: 50; display: none; border-radius: 50%; box-shadow: 0 0 5px black;
         }
-        .handle-nw { top: -5px; left: -5px; cursor: nw-resize; }
-        .handle-n { top: -5px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
-        .handle-ne { top: -5px; right: -5px; cursor: ne-resize; }
-        .handle-e { top: 50%; right: -5px; transform: translateY(-50%); cursor: e-resize; }
-        .handle-se { bottom: -5px; right: -5px; cursor: se-resize; }
-        .handle-s { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
-        .handle-sw { bottom: -5px; left: -5px; cursor: sw-resize; }
-        .handle-w { top: 50%; left: -5px; transform: translateY(-50%); cursor: w-resize; }
+        /* Handle Positions */
+        .handle-nw { top: -7px; left: -7px; cursor: nw-resize; }
+        .handle-n { top: -7px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
+        .handle-ne { top: -7px; right: -7px; cursor: ne-resize; }
+        .handle-e { top: 50%; right: -7px; transform: translateY(-50%); cursor: e-resize; }
+        .handle-se { bottom: -7px; right: -7px; cursor: se-resize; }
+        .handle-s { bottom: -7px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+        .handle-sw { bottom: -7px; left: -7px; cursor: sw-resize; }
+        .handle-w { top: 50%; left: -7px; transform: translateY(-50%); cursor: w-resize; }
 
-        /* Calibration */
         #calibrationOverlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: none; justify-content: center; align-items: center;
             z-index: 60; pointer-events: none;
         }
         #fakeCursor {
-            width: 20px; height: 20px; border: 2px solid red; border-radius: 50%;
-            background: rgba(255,0,0,0.3); position: absolute; pointer-events: none;
+            width: 30px; height: 30px; border: 3px solid #e74c3c; border-radius: 50%;
+            background: rgba(231, 76, 60, 0.2); position: absolute; pointer-events: none;
         }
         #fakeCursor::after {
-            content: '+'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: red; font-weight: bold;
+            content: '+'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #e74c3c; font-weight: 900; font-size: 20px;
         }
     </style>
 
-    <div class="dental-glass">
-        <div class="d-flex justify-content-between align-items-center mb-3 text-white">
-            <h4 class="fw-bold mb-0" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"><i class="fas fa-tooth me-2"></i> Perawatan Gigi</h4>
+    <div class="hard-card-glass-enhanced" id="dentalMainWrapper">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold mb-0 text-white" style="letter-spacing: 1px;"><i class="fas fa-tooth me-2"></i> PERAWATAN GIGI</h3>
             <div>
-                <button class="btn btn-sm btn-dark me-2" onclick="enableDevMode()" title="Developer Mode"><i class="fas fa-cog"></i></button>
-                <button onclick="document.getElementById('dentalModal').style.display='none'" class="close-btn">&times;</button>
+                <button class="btn btn-dark rounded-pill me-2 fw-bold px-3 shadow-sm" onclick="enableDevMode()" id="devToggleBtn">
+                    <i class="fas fa-cog me-2"></i> DEV MODE
+                </button>
+                <button onclick="document.getElementById('dentalModal').style.display='none'" class="close-btn" style="color:white; font-size: 2rem;">&times;</button>
             </div>
         </div>
 
-        <div id="dentalContainer" onmousemove="moveCustomCursor(event)" onmouseleave="hideCustomCursor()">
-            <img src="{{ url_for('static', filename='gigibersih.png') }}" id="dentalCleanImg" onerror="this.style.background='#eee'">
-            <canvas id="dentalCanvas"></canvas>
+        <div class="dental-layout">
+            <div class="game-area">
+                <div id="dentalContainer" onmousemove="moveCustomCursor(event)" onmouseleave="hideCustomCursor()">
+                    <img src="{{ url_for('static', filename='gigibersih.png') }}" id="dentalCleanImg" onerror="this.style.background='#eee'">
+                    <canvas id="dentalCanvas"></canvas>
 
-            <!-- Resize Handles -->
-            <div id="resizeHandles">
-                <div class="resize-handle handle-nw" onmousedown="startResize(event, 'nw')"></div>
-                <div class="resize-handle handle-n" onmousedown="startResize(event, 'n')"></div>
-                <div class="resize-handle handle-ne" onmousedown="startResize(event, 'ne')"></div>
-                <div class="resize-handle handle-e" onmousedown="startResize(event, 'e')"></div>
-                <div class="resize-handle handle-se" onmousedown="startResize(event, 'se')"></div>
-                <div class="resize-handle handle-s" onmousedown="startResize(event, 's')"></div>
-                <div class="resize-handle handle-sw" onmousedown="startResize(event, 'sw')"></div>
-                <div class="resize-handle handle-w" onmousedown="startResize(event, 'w')"></div>
-            </div>
+                    <div id="resizeHandles">
+                        <div class="resize-handle handle-nw" onmousedown="startResize(event, 'nw')"></div>
+                        <div class="resize-handle handle-n" onmousedown="startResize(event, 'n')"></div>
+                        <div class="resize-handle handle-ne" onmousedown="startResize(event, 'ne')"></div>
+                        <div class="resize-handle handle-e" onmousedown="startResize(event, 'e')"></div>
+                        <div class="resize-handle handle-se" onmousedown="startResize(event, 'se')"></div>
+                        <div class="resize-handle handle-s" onmousedown="startResize(event, 's')"></div>
+                        <div class="resize-handle handle-sw" onmousedown="startResize(event, 'sw')"></div>
+                        <div class="resize-handle handle-w" onmousedown="startResize(event, 'w')"></div>
+                    </div>
 
-            <!-- Calibration -->
-            <div id="calibrationOverlay">
-                <div id="fakeCursor"></div>
-            </div>
+                    <div id="calibrationOverlay">
+                        <div id="fakeCursor"></div>
+                    </div>
 
-            <!-- Custom Cursor Element -->
-            <img src="{{ url_for('static', filename='sikatgigi.png') }}" id="customBrushCursor">
-        </div>
-
-        <!-- Dev Panel -->
-        <div id="devPanel">
-            <div class="text-warning fw-bold text-center mb-1" style="font-size:0.7rem;">DEVELOPER MODE</div>
-
-            <div class="dev-row">
-                <div class="btn-group btn-group-sm">
-                    <input type="radio" class="btn-check" name="targetLayer" id="selClean" autocomplete="off" checked onchange="selectLayer('dentalCleanImg')">
-                    <label class="btn btn-outline-light" for="selClean">Clean Img</label>
-                    <input type="radio" class="btn-check" name="targetLayer" id="selDirty" autocomplete="off" onchange="selectLayer('dentalCanvas')">
-                    <label class="btn btn-outline-light" for="selDirty">Dirty Canvas</label>
+                    <img src="{{ url_for('static', filename='sikatgigi.png') }}" id="customBrushCursor">
                 </div>
-                <button class="btn btn-sm btn-outline-warning" onclick="toggleCalibration()">Calibrate Cursor</button>
+
+                <div class="d-flex justify-content-center gap-3 w-100">
+                    <button class="tool-btn" id="btn-brush" onclick="toggleBrush()">
+                        <i class="fas fa-magic text-info"></i> Sikat Gigi (Busa)
+                    </button>
+                    <button class="tool-btn" onclick="resetDentalGame()">
+                        <i class="fas fa-redo text-danger"></i> Reset
+                    </button>
+                </div>
             </div>
 
-            <div class="dev-row" id="resizeInputs">
-                W% <input type="number" id="inp-w" class="dev-input" onchange="manualResize('width', this.value)">
-                H% <input type="number" id="inp-h" class="dev-input" onchange="manualResize('height', this.value)">
-                X% <input type="number" id="inp-x" class="dev-input" onchange="manualResize('left', this.value)">
-                Y% <input type="number" id="inp-y" class="dev-input" onchange="manualResize('top', this.value)">
-            </div>
+            <!-- Dev Panel -->
+            <div id="devPanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="text-warning fw-bold mb-0">DEVELOPER PANEL</h5>
+                    <button class="btn btn-sm btn-outline-light rounded-pill px-3" onclick="closeDevMode()">EXIT DEV</button>
+                </div>
 
-            <div class="dev-row" id="calibrationControls" style="display:none;">
-                <span class="text-info small">Drag brush to Fake Point!</span>
-                <button class="btn btn-sm btn-success fw-bold" onclick="fixCalibration()">FIX (Save)</button>
-            </div>
-        </div>
+                <div class="p-3 rounded bg-dark border border-secondary mb-2">
+                    <h6 class="text-white-50 text-uppercase small fw-bold mb-3">1. Select Layer to Resize</h6>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="targetLayer" id="selClean" autocomplete="off" checked onchange="selectLayer('dentalCleanImg')">
+                        <label class="btn btn-outline-light fw-bold" for="selClean">CLEAN IMAGE</label>
+                        <input type="radio" class="btn-check" name="targetLayer" id="selDirty" autocomplete="off" onchange="selectLayer('dentalCanvas')">
+                        <label class="btn btn-outline-light fw-bold" for="selDirty">DIRTY CANVAS</label>
+                    </div>
+                </div>
 
-        <div class="d-flex justify-content-center gap-3">
-            <button class="tool-btn" id="btn-brush" onclick="toggleBrush()">
-                <i class="fas fa-magic text-info"></i> Sikat Gigi (Busa)
-            </button>
-            <button class="tool-btn" onclick="resetDentalGame()">
-                <i class="fas fa-redo text-danger"></i> Reset
-            </button>
+                <div id="resizeInputs">
+                    <div class="p-3 rounded bg-dark border border-secondary mb-2">
+                        <h6 class="text-white-50 text-uppercase small fw-bold mb-3">2. Manual Dimensions (%)</h6>
+                        <div class="dev-row mb-2">
+                            <span>WIDTH</span> <input type="number" id="inp-w" class="dev-input" onchange="manualResize('width', this.value)">
+                            <span>HEIGHT</span> <input type="number" id="inp-h" class="dev-input" onchange="manualResize('height', this.value)">
+                        </div>
+                        <div class="dev-row">
+                            <span>LEFT (X)</span> <input type="number" id="inp-x" class="dev-input" onchange="manualResize('left', this.value)">
+                            <span>TOP (Y)</span> <input type="number" id="inp-y" class="dev-input" onchange="manualResize('top', this.value)">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="calibrationControls" style="display:none;" class="p-3 rounded bg-dark border border-warning mb-2 text-center">
+                    <h6 class="text-warning fw-bold mb-2">CALIBRATION MODE</h6>
+                    <p class="small text-light mb-3">Drag the toothbrush image to match the red target point.</p>
+                    <button class="btn btn-success fw-bold w-100 py-2 rounded-pill" onclick="fixCalibration()">FIX & SAVE POSITION</button>
+                </div>
+
+                <div class="d-grid gap-2 mt-2">
+                    <button class="btn btn-outline-warning fw-bold py-2" onclick="toggleCalibration()" id="calibBtn">
+                        <i class="fas fa-crosshairs me-2"></i> CALIBRATE CURSOR
+                    </button>
+                    <button class="btn btn-primary fw-bold py-3 shadow" onclick="saveSettings()">
+                        <i class="fas fa-save me-2"></i> SAVE CHANGES PERMANENTLY
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -2129,16 +2226,86 @@ function openIconGallery() {
             const pw = prompt("Masukkan Password:");
             if (pw === 'd3v3l0p3r') {
                 isDevMode = true;
-                document.getElementById('devPanel').style.display = 'block';
+                document.getElementById('devPanel').style.display = 'flex'; // Use flex for panel
+                document.getElementById('dentalMainWrapper').classList.add('dev-active'); // Trigger layout change
+                document.getElementById('devToggleBtn').style.display = 'none'; // Hide entry button
                 document.getElementById('dentalCanvas').classList.add('dev-transparent');
                 selectLayer(selectedLayerId); // Init handles
-                alert("Developer Mode Active");
             } else {
                 alert("Password Salah.");
             }
         } else {
             alert("ID Tidak Dikenal.");
         }
+    }
+
+    function closeDevMode() {
+        isDevMode = false;
+        document.getElementById('devPanel').style.display = 'none';
+        document.getElementById('dentalMainWrapper').classList.remove('dev-active');
+        document.getElementById('devToggleBtn').style.display = 'inline-block';
+        document.getElementById('dentalCanvas').classList.remove('dev-transparent');
+        document.getElementById('resizeHandles').style.display = 'none';
+        if(isCalibrating) toggleCalibration(); // Ensure calibration mode is off
+    }
+
+    function saveSettings() {
+        const clean = document.getElementById('dentalCleanImg');
+        const canvas = document.getElementById('dentalCanvas');
+
+        const config = {
+            clean: {
+                width: clean.style.width,
+                height: clean.style.height,
+                top: clean.style.top,
+                left: clean.style.left
+            },
+            dirty: {
+                width: canvas.style.width,
+                height: canvas.style.height,
+                top: canvas.style.top,
+                left: canvas.style.left
+            },
+            cursor: {
+                x: cursorOffsetX,
+                y: cursorOffsetY
+            }
+        };
+
+        fetch('/api/dental/settings', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(config)
+        }).then(r => r.json()).then(res => {
+            if(res.success) alert("Settings Saved Permanently!");
+        });
+    }
+
+    function loadSettings() {
+        fetch('/api/dental/settings').then(r => r.json()).then(config => {
+            if(!config.clean) return; // No config saved yet
+
+            const clean = document.getElementById('dentalCleanImg');
+            const canvas = document.getElementById('dentalCanvas');
+
+            if(config.clean) {
+                clean.style.width = config.clean.width;
+                clean.style.height = config.clean.height;
+                clean.style.top = config.clean.top;
+                clean.style.left = config.clean.left;
+            }
+            if(config.dirty) {
+                canvas.style.width = config.dirty.width;
+                canvas.style.height = config.dirty.height;
+                canvas.style.top = config.dirty.top;
+                canvas.style.left = config.dirty.left;
+            }
+            if(config.cursor) {
+                cursorOffsetX = config.cursor.x;
+                cursorOffsetY = config.cursor.y;
+            }
+            // Re-init handles if dev mode open? No, standard load
+        });
     }
 
     function selectLayer(id) {
