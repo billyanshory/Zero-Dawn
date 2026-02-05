@@ -1397,6 +1397,71 @@ MEDICAL_NAVBAR_TEMPLATE = """
     .role-btn-admin { background: var(--blue); color: white; }
     .role-btn-dokter { background: var(--gold); color: black; }
 
+    /* Dark Mode Styles */
+    body.dark-mode {
+        background: #121212 !important;
+        color: #e0e0e0 !important;
+    }
+    body.dark-mode .medical-top-bar {
+        background: #1e1e1e !important;
+    }
+    body.dark-mode .medical-horizontal-menu {
+        background: #1e1e1e !important;
+        border-bottom-color: #333;
+    }
+    body.dark-mode .feature-btn {
+        background: #2d2d2d;
+        color: #bbb;
+        border-color: #444;
+    }
+    body.dark-mode .feature-btn:hover {
+        background: #333;
+        color: var(--green);
+    }
+    body.dark-mode .card,
+    body.dark-mode .glass-panel,
+    body.dark-mode .glass-panel-custom,
+    body.dark-mode .modal-content,
+    body.dark-mode .modal-card,
+    body.dark-mode .list-group-item,
+    body.dark-mode .bg-white {
+        background-color: #1e1e1e !important;
+        color: #e0e0e0 !important;
+        border-color: #444 !important;
+    }
+    body.dark-mode .text-dark,
+    body.dark-mode .text-muted {
+        color: #bbb !important;
+    }
+    body.dark-mode .table {
+        color: #e0e0e0 !important;
+        border-color: #444;
+    }
+    body.dark-mode .table-light {
+        background-color: #2d2d2d !important;
+        color: #fff !important;
+    }
+    body.dark-mode .form-control {
+        background-color: #2d2d2d;
+        border-color: #444;
+        color: #fff;
+    }
+    body.dark-mode .bottom-nav {
+        background: rgba(30, 30, 30, 0.95) !important;
+        border-top-color: #444;
+    }
+    body.dark-mode .medical-title {
+        color: #fff !important;
+    }
+    body.dark-mode .input-group-text {
+        background-color: #333 !important;
+        border-color: #444;
+        color: #eee;
+    }
+    body.dark-mode .close-btn {
+        color: #fff !important;
+    }
+
     /* Login Modal */
     .login-modal-overlay {
         display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -1427,6 +1492,9 @@ MEDICAL_NAVBAR_TEMPLATE = """
     <div class="medical-title">{{ page_title }}</div>
     
     <div class="role-btn-group">
+        <button onclick="toggleTheme()" class="role-btn" style="background: #34495e; color: white;" title="Mode Gelap/Terang">
+            <i id="theme-icon" class="fas fa-moon"></i> <span id="theme-text">Dark</span>
+        </button>
         <a href="/logout" class="role-btn role-btn-pasien" title="Mode Pasien">
             <i class="fas fa-user"></i> <span>Pasien</span>
         </a>
@@ -1505,6 +1573,30 @@ MEDICAL_NAVBAR_TEMPLATE = """
 function openIconGallery() {
     document.getElementById('iconGalleryModal').style.display = 'flex';
 }
+
+function toggleTheme() {
+    const body = document.body;
+    body.classList.toggle('dark-mode');
+    const isDark = body.classList.contains('dark-mode');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    updateThemeIcon();
+}
+
+function updateThemeIcon() {
+    const isDark = document.body.classList.contains('dark-mode');
+    const icon = document.getElementById('theme-icon');
+    const text = document.getElementById('theme-text');
+    if(icon) icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+    if(text) text.innerText = isDark ? 'Light' : 'Dark';
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+    }
+    updateThemeIcon();
+});
 </script>
 
 <!-- Bottom Navigation for Patients -->
@@ -4374,6 +4466,15 @@ NAVBAR_HTML = """
         <button onclick="document.getElementById('login-modal').style.display='none'" class="btn btn-link w-100 mt-2">Cancel</button>
     </div>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+    }
+});
+</script>
 """
 
 STYLES_HTML = """
@@ -4637,6 +4738,38 @@ STYLES_HTML = """
         cursor: pointer; transition: 0.3s; z-index: 20;
     }
     .camera-btn:hover { transform: scale(1.1); background: #fff; }
+
+    /* Dark Mode Styles */
+    body.dark-mode {
+        background: #121212 !important;
+        color: #e0e0e0 !important;
+    }
+    body.dark-mode .card,
+    body.dark-mode .modal-content-custom,
+    body.dark-mode .glass-panel,
+    body.dark-mode .person-card {
+        background-color: #1e1e1e !important;
+        color: #e0e0e0 !important;
+        border-color: #444 !important;
+    }
+    body.dark-mode .text-muted {
+        color: #bbb !important;
+    }
+    body.dark-mode .form-control {
+        background-color: #2d2d2d;
+        border-color: #444;
+        color: #fff;
+    }
+    body.dark-mode .main-navbar {
+        background-color: #1e1e1e !important;
+        border-bottom: 1px solid #444;
+    }
+    body.dark-mode .nav-item-custom {
+        color: #ddd;
+    }
+    body.dark-mode footer {
+        background-color: #000 !important;
+    }
 </style>
 """
 
