@@ -1532,6 +1532,90 @@ MEDICAL_NAVBAR_TEMPLATE = """
         background-color: #2d2d2d !important;
     }
 
+    /* Clean Mode - Dark Minimalist Aesthetic */
+    body.clean-mode {
+        background: #000000 !important;
+        background-image: none !important;
+        color: #ffffff !important;
+    }
+    body.clean-mode .medical-top-bar {
+        background: #000000 !important;
+        border-bottom: 2px solid #333 !important;
+        box-shadow: none !important;
+    }
+    body.clean-mode .medical-logo-icon,
+    body.clean-mode .medical-title,
+    body.clean-mode .feature-btn i,
+    body.clean-mode h1, body.clean-mode h2, body.clean-mode h3,
+    body.clean-mode h4, body.clean-mode h5, body.clean-mode h6,
+    body.clean-mode .text-dark,
+    body.clean-mode .text-muted,
+    body.clean-mode .nav-item {
+        color: #ffffff !important;
+    }
+    body.clean-mode .feature-btn {
+        background: #000000 !important;
+        border: 2px solid #ffffff !important;
+        color: #ffffff !important;
+        box-shadow: none !important;
+        border-radius: 8px !important;
+    }
+    body.clean-mode .feature-btn:hover,
+    body.clean-mode .feature-btn.active {
+        border-color: #FF6D00 !important;
+        color: #FF6D00 !important;
+    }
+    body.clean-mode .feature-btn:hover i,
+    body.clean-mode .feature-btn.active i {
+        color: #FF6D00 !important;
+    }
+    body.clean-mode .card,
+    body.clean-mode .glass-panel,
+    body.clean-mode .glass-panel-custom,
+    body.clean-mode .modal-content,
+    body.clean-mode .modal-card,
+    body.clean-mode .list-group-item,
+    body.clean-mode .bg-white,
+    body.clean-mode .bottom-nav,
+    body.clean-mode .card-header,
+    body.clean-mode .modal-header,
+    body.clean-mode footer,
+    body.clean-mode .table th,
+    body.clean-mode .table td,
+    body.clean-mode .input-group-text,
+    body.clean-mode #iconGalleryModal .login-modal-box {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+        border-color: #ffffff !important;
+        box-shadow: none !important;
+    }
+    body.clean-mode .table-light,
+    body.clean-mode .table-hover tbody tr:hover {
+        background-color: #111 !important;
+    }
+    body.clean-mode .form-control,
+    body.clean-mode .form-select,
+    body.clean-mode input,
+    body.clean-mode select,
+    body.clean-mode textarea {
+        background-color: #000000 !important;
+        border: 1px solid #ffffff !important;
+        color: #ffffff !important;
+    }
+    body.clean-mode .form-control:focus {
+        border-color: #FF6D00 !important;
+    }
+    body.clean-mode .btn-primary {
+        border-color: #FF6D00 !important;
+        color: #FF6D00 !important;
+        background: #000 !important;
+    }
+    body.clean-mode .btn-primary:hover {
+        background-color: #FF6D00 !important;
+        color: #000000 !important;
+    }
+    body.clean-mode .bottom-nav { border-top: 1px solid #ffffff !important; }
+
     /* Login Modal */
     .login-modal-overlay {
         display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -1562,9 +1646,22 @@ MEDICAL_NAVBAR_TEMPLATE = """
     <div class="medical-title">{{ page_title }}</div>
     
     <div class="role-btn-group">
-        <button onclick="toggleTheme()" class="role-btn" style="background: #34495e; color: white;" title="Mode Gelap/Terang">
-            <i id="theme-icon" class="fas fa-moon"></i> <span id="theme-text">Dark</span>
-        </button>
+        <div class="theme-switch-wrapper" style="position:relative; display:inline-block;">
+            <button onclick="toggleThemeMenu()" class="role-btn" style="background: #34495e; color: white;" title="Ganti Tema">
+                <i id="theme-main-icon" class="fas fa-palette"></i> <span id="theme-text">Tema</span>
+            </button>
+            <div id="theme-menu-dropdown" style="display:none; position:absolute; top:110%; left:50%; transform:translateX(-50%); background:white; border-radius:10px; box-shadow:0 5px 15px rgba(0,0,0,0.2); overflow:hidden; z-index:2000; min-width:120px; border:1px solid #eee;">
+                <button onclick="setTheme('light')" style="width:100%; text-align:left; padding:10px 15px; border:none; background:white; cursor:pointer; display:flex; align-items:center; gap:10px; color:#333; font-weight:bold; font-size:0.8rem; border-bottom:1px solid #f0f0f0;">
+                    <i class="fas fa-sun text-warning"></i> Light
+                </button>
+                <button onclick="setTheme('dark')" style="width:100%; text-align:left; padding:10px 15px; border:none; background:white; cursor:pointer; display:flex; align-items:center; gap:10px; color:#333; font-weight:bold; font-size:0.8rem; border-bottom:1px solid #f0f0f0;">
+                    <i class="fas fa-moon text-dark"></i> Dark
+                </button>
+                <button onclick="setTheme('clean')" style="width:100%; text-align:left; padding:10px 15px; border:none; background:white; cursor:pointer; display:flex; align-items:center; gap:10px; color:#333; font-weight:bold; font-size:0.8rem;">
+                    <i class="fas fa-sparkles" style="color:#FF6D00"></i> Clean
+                </button>
+            </div>
+        </div>
         <a href="/logout" class="role-btn role-btn-pasien" title="Mode Pasien">
             <i class="fas fa-user"></i> <span>Pasien</span>
         </a>
@@ -1644,28 +1741,35 @@ function openIconGallery() {
     document.getElementById('iconGalleryModal').style.display = 'flex';
 }
 
-function toggleTheme() {
-    const body = document.body;
-    body.classList.toggle('dark-mode');
-    const isDark = body.classList.contains('dark-mode');
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-    updateThemeIcon();
+function toggleThemeMenu() {
+    const menu = document.getElementById('theme-menu-dropdown');
+    menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
 }
 
-function updateThemeIcon() {
-    const isDark = document.body.classList.contains('dark-mode');
-    const icon = document.getElementById('theme-icon');
-    const text = document.getElementById('theme-text');
-    if(icon) icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
-    if(text) text.innerText = isDark ? 'Light' : 'Dark';
+window.addEventListener('click', function(e) {
+    const wrapper = document.querySelector('.theme-switch-wrapper');
+    if (wrapper && !wrapper.contains(e.target)) {
+        document.getElementById('theme-menu-dropdown').style.display = 'none';
+    }
+});
+
+function setTheme(mode) {
+    const body = document.body;
+    body.classList.remove('dark-mode', 'clean-mode');
+
+    if (mode === 'dark') {
+        body.classList.add('dark-mode');
+    } else if (mode === 'clean') {
+        body.classList.add('clean-mode');
+    }
+
+    localStorage.setItem('theme', mode);
+    document.getElementById('theme-menu-dropdown').style.display = 'none';
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-        document.body.classList.add('dark-mode');
-    }
-    updateThemeIcon();
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    setTheme(savedTheme);
 });
 </script>
 
