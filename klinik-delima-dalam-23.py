@@ -1699,45 +1699,95 @@ function openIconGallery() {
             position: relative;
             width: 100%;
             aspect-ratio: 1 / 1;
-            border-radius: 15px;
+            border-radius: 15px; /* Rounded corners requirement */
             overflow: hidden;
             margin-bottom: 20px;
             background: #fff;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            cursor: default; /* Default cursor */
         }
         #dentalContainer img {
             width: 100%; height: 100%; object-fit: cover;
             position: absolute; top: 0; left: 0; z-index: 1;
+            border-radius: 15px; /* Rounded corners */
         }
         #dentalCanvas {
             position: absolute; top: 0; left: 0; z-index: 2;
             width: 100%; height: 100%;
-            cursor: crosshair;
             touch-action: none;
+            border-radius: 15px; /* Rounded corners */
         }
         .tool-btn {
             background: white; border: none; padding: 10px 20px; border-radius: 50px;
             font-weight: bold; color: #555; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             transition: 0.3s; cursor: pointer; display: flex; align-items: center; gap: 10px;
         }
-        .tool-btn.active {
+        .tool-btn.active-tool {
             background: #3498db; color: white; transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(52, 152, 219, 0.5);
         }
+
+        /* Custom Brush Cursor */
+        #customBrushCursor {
+            position: fixed;
+            width: 50px; /* Ergonomic mini size */
+            height: auto;
+            pointer-events: none;
+            z-index: 9999;
+            display: none;
+            transform: translate(-50%, -50%); /* Center on mouse */
+        }
+
+        /* Dev Panel */
+        #devPanel {
+            display: none;
+            position: absolute; bottom: 60px; left: 0; width: 100%;
+            background: rgba(0,0,0,0.8); color: white;
+            padding: 10px; font-size: 0.8rem;
+            z-index: 100;
+            border-radius: 10px;
+        }
+        .dev-row { display: flex; gap: 10px; margin-bottom: 5px; align-items: center; justify-content: center; }
+        .dev-input { width: 60px; padding: 2px; border-radius: 3px; border:none; }
     </style>
 
     <div class="dental-glass">
         <div class="d-flex justify-content-between align-items-center mb-3 text-white">
             <h4 class="fw-bold mb-0" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"><i class="fas fa-tooth me-2"></i> Perawatan Gigi</h4>
-            <button onclick="document.getElementById('dentalModal').style.display='none'" class="close-btn">&times;</button>
+            <div>
+                <button class="btn btn-sm btn-dark me-2" onclick="enableDevMode()" title="Developer Mode"><i class="fas fa-cog"></i></button>
+                <button onclick="document.getElementById('dentalModal').style.display='none'" class="close-btn">&times;</button>
+            </div>
         </div>
 
-        <div id="dentalContainer">
+        <div id="dentalContainer" onmousemove="moveCustomCursor(event)" onmouseleave="hideCustomCursor()">
             <img src="{{ url_for('static', filename='gigibersih.png') }}" id="dentalCleanImg" onerror="this.style.background='#eee'">
             <canvas id="dentalCanvas"></canvas>
+            <!-- Custom Cursor Element -->
+            <img src="{{ url_for('static', filename='sikatgigi.png') }}" id="customBrushCursor">
+        </div>
+
+        <!-- Dev Panel -->
+        <div id="devPanel">
+            <div class="text-warning fw-bold text-center mb-1">DEVELOPER MODE: RESIZE</div>
+            <div class="dev-row">
+                <span>Clean Img:</span>
+                W% <input type="number" class="dev-input" onchange="updateLayer('dentalCleanImg', 'width', this.value + '%')" value="100">
+                H% <input type="number" class="dev-input" onchange="updateLayer('dentalCleanImg', 'height', this.value + '%')" value="100">
+                X% <input type="number" class="dev-input" onchange="updateLayer('dentalCleanImg', 'left', this.value + '%')" value="0">
+                Y% <input type="number" class="dev-input" onchange="updateLayer('dentalCleanImg', 'top', this.value + '%')" value="0">
+            </div>
+            <div class="dev-row">
+                <span>Dirty Cvs:</span>
+                W% <input type="number" class="dev-input" onchange="updateLayer('dentalCanvas', 'width', this.value + '%')" value="100">
+                H% <input type="number" class="dev-input" onchange="updateLayer('dentalCanvas', 'height', this.value + '%')" value="100">
+                X% <input type="number" class="dev-input" onchange="updateLayer('dentalCanvas', 'left', this.value + '%')" value="0">
+                Y% <input type="number" class="dev-input" onchange="updateLayer('dentalCanvas', 'top', this.value + '%')" value="0">
+            </div>
         </div>
 
         <div class="d-flex justify-content-center gap-3">
-            <button class="tool-btn active" id="tool-brush">
+            <button class="tool-btn" id="btn-brush" onclick="toggleBrush()">
                 <i class="fas fa-magic text-info"></i> Sikat Gigi (Busa)
             </button>
             <button class="tool-btn" onclick="resetDentalGame()">
@@ -1874,10 +1924,17 @@ function openIconGallery() {
     // --- DENTAL GAME JS ---
     let dentalCanvas, dentalCtx;
     let isDrawing = false;
+    let isBrushActive = false;
 
     function openDentalGame() {
         document.getElementById('gameMenuModal').style.display = 'none';
         document.getElementById('dentalModal').style.display = 'flex';
+        // Reset state
+        isBrushActive = false;
+        document.getElementById('btn-brush').classList.remove('active-tool');
+        document.getElementById('customBrushCursor').style.display = 'none';
+        document.getElementById('dentalCanvas').style.cursor = 'default';
+
         setTimeout(initDentalGame, 100);
     }
 
@@ -1893,7 +1950,6 @@ function openIconGallery() {
 
         imgDirty.onload = function() {
             dentalCtx.drawImage(imgDirty, 0, 0, dentalCanvas.width, dentalCanvas.height);
-            // Default composite operation is source-over
         };
         imgDirty.src = "{{ url_for('static', filename='gigikotor.png') }}";
 
@@ -1907,6 +1963,52 @@ function openIconGallery() {
         dentalCanvas.addEventListener('touchmove', draw, {passive: false});
         dentalCanvas.addEventListener('touchend', stopDraw);
     }
+
+    function toggleBrush() {
+        isBrushActive = !isBrushActive;
+        const btn = document.getElementById('btn-brush');
+        const cursor = document.getElementById('customBrushCursor');
+        const canvas = document.getElementById('dentalCanvas');
+
+        if (isBrushActive) {
+            btn.classList.add('active-tool');
+            cursor.style.display = 'block';
+            canvas.style.cursor = 'none'; // Hide default cursor
+        } else {
+            btn.classList.remove('active-tool');
+            cursor.style.display = 'none';
+            canvas.style.cursor = 'default';
+        }
+    }
+
+    function moveCustomCursor(e) {
+        if (!isBrushActive) return;
+        const cursor = document.getElementById('customBrushCursor');
+        // Handle touch vs mouse
+        let x, y;
+        if(e.type.includes('touch')) {
+             if (e.touches && e.touches[0]) {
+                x = e.touches[0].clientX;
+                y = e.touches[0].clientY;
+             }
+        } else {
+            x = e.clientX;
+            y = e.clientY;
+        }
+
+        if (x !== undefined) {
+            cursor.style.left = x + 'px';
+            cursor.style.top = y + 'px';
+        }
+    }
+
+    function hideCustomCursor() {
+        if (!isBrushActive) return;
+        // Optionally hide if leaving container, but keep it active state
+    }
+
+    // Pass move event from canvas to container handler for cursor
+    // (Already handled by container bubbling)
 
     function getPos(e) {
         const rect = dentalCanvas.getBoundingClientRect();
@@ -1927,13 +2029,15 @@ function openIconGallery() {
     }
 
     function startDraw(e) {
+        if (!isBrushActive) return; // Guard
         if(e.type === 'touchstart') e.preventDefault();
         isDrawing = true;
         draw(e);
     }
 
     function draw(e) {
-        if(!isDrawing) return;
+        moveCustomCursor(e); // Ensure cursor updates even if dragging on canvas
+        if(!isDrawing || !isBrushActive) return;
         if(e.type === 'touchmove') e.preventDefault();
 
         const pos = getPos(e);
@@ -1951,6 +2055,29 @@ function openIconGallery() {
 
     function resetDentalGame() {
         initDentalGame();
+    }
+
+    // Developer Mode
+    function enableDevMode() {
+        const id = prompt("Masukkan Developer ID:");
+        if (id === 'developer') {
+            const pw = prompt("Masukkan Password:");
+            if (pw === 'd3v3l0p3r') {
+                document.getElementById('devPanel').style.display = 'block';
+                alert("Developer Mode Active: You can now resize layers.");
+            } else {
+                alert("Password Salah.");
+            }
+        } else {
+            alert("ID Tidak Dikenal.");
+        }
+    }
+
+    function updateLayer(elementId, property, value) {
+        const el = document.getElementById(elementId);
+        if (el) {
+            el.style[property] = value;
+        }
     }
 
     function initPuzzle(lvl) {
