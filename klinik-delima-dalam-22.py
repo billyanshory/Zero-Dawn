@@ -2323,6 +2323,10 @@ HTML_LANDING = """
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
+
+    <script>
+        // --- AVATAR LOGIC ---
+    </script>
 </body>
 </html>
 """
@@ -2849,6 +2853,19 @@ HTML_QUEUE = """
             border: 2px dashed #2ecc71; background: #e8f5e9; padding: 20px; border-radius: 10px;
             text-align: center; margin-top: 20px; display: none;
         }
+
+        /* Avatar Animations */
+        @keyframes heartbeat { 0% { transform: scale(1); } 5% { transform: scale(1.05); } 10% { transform: scale(1); } 15% { transform: scale(1.05); } 20% { transform: scale(1); } 100% { transform: scale(1); } }
+        .heart-idle { animation: heartbeat 2s infinite; transform-origin: center; }
+
+        @keyframes jump { 0% { transform: translateY(0); } 50% { transform: translateY(-30px); } 100% { transform: translateY(0); } }
+        .heart-jump { animation: jump 0.6s infinite; }
+
+        .particle { animation: floatUp 1s ease-out forwards; transform-origin: center; }
+        @keyframes floatUp {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+        }
     </style>
 </head>
 <body>
@@ -2907,16 +2924,45 @@ HTML_QUEUE = """
                                 <button type="submit" class="btn btn-success w-100 py-3 fw-bold rounded-pill shadow-sm">AMBIL NOMOR SEKARANG</button>
                             </form>
                         </div>
-                        <div class="col-md-6 d-flex align-items-center justify-content-center">
-                            <div id="ticket-view" class="ticket w-100">
+                        <div class="col-md-6 d-flex flex-column align-items-center justify-content-center position-relative">
+                            <!-- Avatar Container -->
+                            <div id="heart-avatar-container" class="mb-3">
+                                <svg id="heart-svg" viewBox="0 0 200 200" width="180" height="180" style="overflow:visible;">
+                                    <defs>
+                                        <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                                    </defs>
+                                    <g id="heart-body-group">
+                                        <line id="arm-l" x1="50" y1="100" x2="20" y2="140" stroke="#c0392b" stroke-width="5" stroke-linecap="round" />
+                                        <line id="arm-r" x1="150" y1="100" x2="180" y2="140" stroke="#c0392b" stroke-width="5" stroke-linecap="round" />
+                                        <g id="prop-phone" style="display:none; transform-origin: 180px 140px; transform: rotate(-20deg) translate(-20px, -40px);">
+                                            <rect x="160" y="80" width="30" height="50" rx="3" fill="#333" />
+                                            <rect x="163" y="85" width="24" height="35" rx="1" fill="#fff" />
+                                        </g>
+                                        <path id="heart-shape" d="M100,180 C20,130 0,90 0,60 C0,30 30,0 60,0 C80,0 95,15 100,30 C105,15 120,0 140,0 C170,0 200,30 200,60 C200,90 180,130 100,180 Z" fill="#e74c3c" filter="url(#glow)" />
+                                        <g id="eyes">
+                                            <ellipse cx="65" cy="70" rx="15" ry="20" fill="white" />
+                                            <ellipse cx="135" cy="70" rx="15" ry="20" fill="white" />
+                                            <circle id="pupil-l" cx="65" cy="70" r="5" fill="#333" />
+                                            <circle id="pupil-r" cx="135" cy="70" r="5" fill="#333" />
+                                        </g>
+                                        <path id="mouth" d="M70,110 Q100,130 130,110" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" />
+                                        <g id="prop-plaster" style="display:none;">
+                                            <rect x="40" y="25" width="40" height="15" rx="3" fill="#f1c40f" transform="rotate(-15 60 32)" stroke="#e67e22" stroke-width="1" />
+                                        </g>
+                                    </g>
+                                    <g id="particles" style="display:none;"></g>
+                                </svg>
+                            </div>
+
+                            <div id="ticket-view" class="ticket w-100" style="display:none; position:relative; z-index:10;">
                                 <h4 class="text-uppercase text-muted mb-4">Nomor Antrean Anda</h4>
                                 <div class="display-1 fw-bold text-success mb-3" id="my-number">0</div>
                                 <p class="mb-4">Mohon menunggu panggilan dari perawat kami.</p>
                                 <button class="btn btn-outline-success rounded-pill px-4" onclick="location.reload()">Selesai / Ambil Baru</button>
                             </div>
-                            <div id="ticket-placeholder" class="text-center text-muted opacity-50">
-                                <i class="fas fa-print fa-5x mb-3"></i>
-                                <p>Tiket akan muncul di sini setelah Anda mendaftar.</p>
+
+                            <div id="ticket-placeholder" class="text-center text-muted opacity-75">
+                                <p>Halo! Aku Si Jantung Sehat ❤️<br>Isi data di samping ya!</p>
                             </div>
                         </div>
                     </div>
@@ -2948,10 +2994,14 @@ HTML_QUEUE = """
                 body: JSON.stringify(data)
             }).then(r => r.json()).then(res => {
                 if(res.ticket) {
+                    if(typeof celebrateSuccess === 'function') celebrateSuccess();
+
                     document.getElementById('queue-form').reset();
-                    document.getElementById('ticket-placeholder').style.display = 'none';
-                    document.getElementById('ticket-view').style.display = 'block';
-                    document.getElementById('my-number').innerText = res.ticket;
+
+                    setTimeout(() => {
+                        document.getElementById('ticket-view').style.display = 'block';
+                        document.getElementById('my-number').innerText = res.ticket;
+                    }, 1000);
                 }
             });
         }
@@ -2964,6 +3014,119 @@ HTML_QUEUE = """
             const params = new URLSearchParams(window.location.search);
             if(params.has('name')) document.getElementById('q-name').value = params.get('name');
             if(params.has('phone')) document.getElementById('q-phone').value = params.get('phone');
+        }
+
+        // --- HEART AVATAR JS ---
+        const heartBody = document.getElementById('heart-body-group');
+        const pupilL = document.getElementById('pupil-l');
+        const pupilR = document.getElementById('pupil-r');
+        const mouth = document.getElementById('mouth');
+        const plaster = document.getElementById('prop-plaster');
+        const phoneProp = document.getElementById('prop-phone');
+        const armL = document.getElementById('arm-l');
+        const armR = document.getElementById('arm-r');
+        const avatarInst = document.getElementById('avatar-instruction');
+
+        // Initial State
+        if(heartBody) heartBody.classList.add('heart-idle');
+
+        // Eye Tracking
+        document.addEventListener('mousemove', (e) => {
+            if(!pupilL) return;
+            const svg = document.getElementById('heart-svg');
+            if(!svg) return;
+            const rect = svg.getBoundingClientRect();
+            const cx = rect.left + rect.width/2;
+            const cy = rect.top + rect.height/2;
+
+            const dx = (e.clientX - cx) / (window.innerWidth/2); // -1 to 1
+            const dy = (e.clientY - cy) / (window.innerHeight/2);
+
+            const maxMove = 3;
+            pupilL.setAttribute('cx', 65 + (dx * maxMove));
+            pupilL.setAttribute('cy', 70 + (dy * maxMove));
+            pupilR.setAttribute('cx', 135 + (dx * maxMove));
+            pupilR.setAttribute('cy', 70 + (dy * maxMove));
+        });
+
+        function setMood(mood) {
+            if(!mouth) return;
+            // Reset
+            mouth.setAttribute('d', 'M70,110 Q100,130 130,110'); // Smile
+            if(plaster) plaster.style.display = 'none';
+            if(phoneProp) phoneProp.style.display = 'none';
+            if(armR) { armR.setAttribute('x2', '180'); armR.setAttribute('y2', '140'); } // Arm down
+
+            if(mood === 'sad') {
+                mouth.setAttribute('d', 'M70,120 Q100,100 130,120'); // Frown
+                if(plaster) plaster.style.display = 'block';
+            } else if(mood === 'happy') {
+                mouth.setAttribute('d', 'M60,110 Q100,150 140,110'); // Big Smile
+            } else if(mood === 'phone') {
+                if(phoneProp) phoneProp.style.display = 'block';
+                if(armR) { armR.setAttribute('x2', '165'); armR.setAttribute('y2', '100'); } // Arm up
+            } else if(mood === 'curious') {
+                mouth.setAttribute('d', 'M80,115 Q100,115 120,115'); // O face / small mouth
+            }
+        }
+
+        // Input Listeners
+        const inpName = document.getElementById('q-name');
+        const inpPhone = document.getElementById('q-phone');
+        const inpAddr = document.getElementById('q-address');
+        const inpComp = document.getElementById('q-complaint');
+
+        if(inpName) inpName.addEventListener('focus', () => setMood('happy'));
+        if(inpPhone) inpPhone.addEventListener('focus', () => setMood('phone'));
+        if(inpAddr) inpAddr.addEventListener('focus', () => setMood('curious'));
+
+        if(inpComp) {
+            inpComp.addEventListener('input', (e) => {
+                const val = e.target.value.toLowerCase();
+                if(val.length > 0) setMood('sad'); // Any typing in complaint makes him worried
+                else setMood('normal');
+            });
+            inpComp.addEventListener('focus', () => {
+                if(inpComp.value.length > 0) setMood('sad');
+                else setMood('curious');
+            });
+        }
+
+        // Success Logic
+        function celebrateSuccess() {
+            setMood('happy');
+            if(heartBody) {
+                heartBody.classList.remove('heart-idle');
+                heartBody.classList.add('heart-jump');
+            }
+
+            // Particles
+            const pGroup = document.getElementById('particles');
+            if(pGroup) {
+                pGroup.style.display = 'block';
+                for(let i=0; i<15; i++) {
+                    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    p.setAttribute("d", "M10,30 A20,20 0,0,1 50,30 A20,20 0,0,1 90,30 Q90,60 50,90 Q10,60 10,30 Z");
+                    const colors = ['#FFD700', '#ff69b4', '#e74c3c', '#ffffff'];
+                    p.setAttribute("fill", colors[Math.floor(Math.random() * colors.length)]);
+
+                    // Random Explosion
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = 100 + Math.random() * 100;
+                    const tx = 100 + Math.cos(angle) * dist;
+                    const ty = 100 + Math.sin(angle) * dist;
+
+                    p.style.setProperty('--tx', `${tx}px`);
+                    p.style.setProperty('--ty', `${ty}px`);
+
+                    p.setAttribute("transform", `translate(${100}, ${100}) scale(0.1)`);
+                    p.classList.add("particle");
+                    pGroup.appendChild(p);
+                }
+            }
+
+            const inst = document.getElementById('ticket-placeholder');
+            if(inst) inst.style.display = 'none';
         }
     </script>
     <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
