@@ -2324,9 +2324,6 @@ HTML_LANDING = """
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
 
-    <script>
-        // --- AVATAR LOGIC ---
-    </script>
 </body>
 </html>
 """
@@ -2854,18 +2851,53 @@ HTML_QUEUE = """
             text-align: center; margin-top: 20px; display: none;
         }
 
-        /* Avatar Animations */
-        @keyframes heartbeat { 0% { transform: scale(1); } 5% { transform: scale(1.05); } 10% { transform: scale(1); } 15% { transform: scale(1.05); } 20% { transform: scale(1); } 100% { transform: scale(1); } }
-        .heart-idle { animation: heartbeat 2s infinite; transform-origin: center; }
+        /* JOGGING MASCOT ANIMATION */
+        :root { --run-speed: 0.6s; }
 
-        @keyframes jump { 0% { transform: translateY(0); } 50% { transform: translateY(-30px); } 100% { transform: translateY(0); } }
-        .heart-jump { animation: jump 0.6s infinite; }
+        @keyframes jog-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+        @keyframes limb-swing-l { 0% { transform: rotate(15deg); } 50% { transform: rotate(-15deg); } 100% { transform: rotate(15deg); } }
+        @keyframes limb-swing-r { 0% { transform: rotate(-15deg); } 50% { transform: rotate(15deg); } 100% { transform: rotate(-15deg); } }
 
-        .particle { animation: floatUp 1s ease-out forwards; transform-origin: center; }
-        @keyframes floatUp {
-            0% { transform: translate(0, 0) scale(1); opacity: 1; }
-            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+        /* Leg cycles */
+        @keyframes leg-cycle-l {
+            0% { transform: rotate(-10deg); }
+            25% { transform: translateY(-5px) rotate(10deg); }
+            50% { transform: rotate(25deg); }
+            75% { transform: translateY(0) rotate(5deg); }
+            100% { transform: rotate(-10deg); }
         }
+        @keyframes leg-cycle-r {
+            0% { transform: rotate(25deg); }
+            25% { transform: translateY(0) rotate(5deg); }
+            50% { transform: rotate(-10deg); }
+            75% { transform: translateY(-5px) rotate(10deg); }
+            100% { transform: rotate(25deg); }
+        }
+
+        @keyframes sweat-fly { 0% { opacity: 0; transform: scale(0.5); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(-20px, -20px) scale(1); } }
+        @keyframes success-jump { 0% { transform: translateY(0); } 50% { transform: translateY(-30px) scale(1.1); } 100% { transform: translateY(0); } }
+
+        /* Classes */
+        .jog-body { animation: jog-bounce var(--run-speed) infinite ease-in-out; transform-origin: 100px 170px; }
+        .jog-arm-l { animation: limb-swing-l var(--run-speed) infinite ease-in-out; transform-origin: 50px 90px; }
+        .jog-arm-r { animation: limb-swing-r var(--run-speed) infinite ease-in-out; transform-origin: 150px 90px; }
+        .jog-leg-l { animation: leg-cycle-l var(--run-speed) infinite linear; transform-origin: 80px 150px; }
+        .jog-leg-r { animation: leg-cycle-r var(--run-speed) infinite linear; transform-origin: 120px 150px; }
+
+        .sweat-drop { opacity: 0; animation: sweat-fly 1s infinite linear; }
+        .sd-1 { animation-delay: 0s; }
+        .sd-2 { animation-delay: 0.25s; }
+        .sd-3 { animation-delay: 0.5s; }
+        .sd-4 { animation-delay: 0.75s; }
+
+        /* Modifiers */
+        .is-tired .jog-body, .is-tired .jog-arm-l, .is-tired .jog-arm-r, .is-tired .jog-leg-l, .is-tired .jog-leg-r { animation-play-state: paused; }
+        .is-tired .sweat-drop { animation: none; opacity: 0; }
+        .is-tired #mouth-shape { ry: 1 !important; rx: 5 !important; height: 2px; }
+
+        .is-success .jog-body { animation: success-jump 0.5s infinite; }
+        .particle { animation: floatUp 1s ease-out forwards; transform-origin: center; }
+        @keyframes floatUp { 0% { opacity:1; transform:translate(0,0) scale(1); } 100% { opacity:0; transform:translate(var(--tx), var(--ty)) scale(0); } }
     </style>
 </head>
 <body>
@@ -2925,31 +2957,84 @@ HTML_QUEUE = """
                             </form>
                         </div>
                         <div class="col-md-6 d-flex flex-column align-items-center justify-content-center position-relative">
-                            <!-- Avatar Container -->
+                            <!-- Avatar Container: Jogging Heart -->
                             <div id="heart-avatar-container" class="mb-3">
-                                <svg id="heart-svg" viewBox="0 0 200 200" width="180" height="180" style="overflow:visible;">
+                                <svg id="heart-svg" viewBox="0 0 200 240" width="220" height="260" style="overflow:visible;">
                                     <defs>
-                                        <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                                        <filter id="shadow-f"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.3"/></filter>
                                     </defs>
-                                    <g id="heart-body-group">
-                                        <line id="arm-l" x1="50" y1="100" x2="20" y2="140" stroke="#c0392b" stroke-width="5" stroke-linecap="round" />
-                                        <line id="arm-r" x1="150" y1="100" x2="180" y2="140" stroke="#c0392b" stroke-width="5" stroke-linecap="round" />
-                                        <g id="prop-phone" style="display:none; transform-origin: 180px 140px; transform: rotate(-20deg) translate(-20px, -40px);">
-                                            <rect x="160" y="80" width="30" height="50" rx="3" fill="#333" />
-                                            <rect x="163" y="85" width="24" height="35" rx="1" fill="#fff" />
-                                        </g>
-                                        <path id="heart-shape" d="M100,180 C20,130 0,90 0,60 C0,30 30,0 60,0 C80,0 95,15 100,30 C105,15 120,0 140,0 C170,0 200,30 200,60 C200,90 180,130 100,180 Z" fill="#e74c3c" filter="url(#glow)" />
-                                        <g id="eyes">
-                                            <ellipse cx="65" cy="70" rx="15" ry="20" fill="white" />
-                                            <ellipse cx="135" cy="70" rx="15" ry="20" fill="white" />
-                                            <circle id="pupil-l" cx="65" cy="70" r="5" fill="#333" />
-                                            <circle id="pupil-r" cx="135" cy="70" r="5" fill="#333" />
-                                        </g>
-                                        <path id="mouth" d="M70,110 Q100,130 130,110" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" />
-                                        <g id="prop-plaster" style="display:none;">
-                                            <rect x="40" y="25" width="40" height="15" rx="3" fill="#f1c40f" transform="rotate(-15 60 32)" stroke="#e67e22" stroke-width="1" />
+
+                                    <!-- Back Limbs (Right) -->
+                                    <g id="leg-r-group" class="jog-leg-r">
+                                        <path d="M120,150 Q140,190 145,210 L155,210" fill="none" stroke="black" stroke-width="12" stroke-linecap="round" />
+                                        <path d="M120,150 Q140,190 145,210 L155,210" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" />
+                                        <!-- Shoe -->
+                                        <path d="M135,210 L160,210 Q165,210 165,220 L135,220 Z" fill="white" stroke="black" stroke-width="3" />
+                                        <path d="M135,220 L165,220" stroke="#800000" stroke-width="4" />
+                                    </g>
+                                    <g id="arm-r-group" class="jog-arm-r">
+                                        <path d="M150,90 Q180,120 170,140" fill="none" stroke="black" stroke-width="12" stroke-linecap="round" />
+                                        <path d="M150,90 Q180,120 170,140" fill="none" stroke="#FF7F50" stroke-width="8" stroke-linecap="round" />
+                                        <!-- Wristband -->
+                                        <rect x="160" y="125" width="20" height="10" transform="rotate(60 170 130)" fill="white" stroke="black" stroke-width="2" />
+                                        <!-- Fist -->
+                                        <circle cx="170" cy="140" r="12" fill="#FF7F50" stroke="black" stroke-width="3" />
+                                    </g>
+
+                                    <!-- Body Group -->
+                                    <g id="body-group" class="jog-body">
+                                        <!-- Upper Body (Crimson) -->
+                                        <path d="M50,70 Q100,20 150,70 L150,100 L50,100 Z" fill="#DC143C" stroke="black" stroke-width="4" />
+
+                                        <!-- Vessels (Top) -->
+                                        <path d="M80,40 L80,70" stroke="#8B0000" stroke-width="8" stroke-linecap="round" />
+                                        <path d="M100,35 L100,70" stroke="#8B0000" stroke-width="8" stroke-linecap="round" />
+                                        <path d="M120,40 L120,70" stroke="#8B0000" stroke-width="8" stroke-linecap="round" />
+                                        <path d="M60,50 L50,75" stroke="#87CEFA" stroke-width="8" stroke-linecap="round" /> <!-- Vena Cava -->
+                                        <circle cx="140" cy="60" r="6" fill="#87CEFA" stroke="black" stroke-width="2" /> <!-- Valve Spot -->
+
+                                        <!-- Lower Body (Coral) -->
+                                        <path d="M50,100 L150,100 Q140,180 100,200 Q60,180 50,100 Z" fill="#FF7F50" stroke="black" stroke-width="4" />
+
+                                        <!-- Headband -->
+                                        <rect x="48" y="85" width="104" height="15" rx="2" fill="white" stroke="black" stroke-width="3" />
+
+                                        <!-- Face -->
+                                        <g id="face-group">
+                                            <circle id="eye-l" cx="80" cy="120" r="8" fill="black" />
+                                            <circle id="eye-r" cx="120" cy="120" r="8" fill="black" />
+                                            <!-- Mouth -->
+                                            <ellipse id="mouth-shape" cx="100" cy="140" rx="6" ry="8" fill="black" />
+                                            <path d="M96,144 Q100,148 104,144" fill="none" stroke="pink" stroke-width="2" /> <!-- Tongue -->
                                         </g>
                                     </g>
+
+                                    <!-- Front Limbs (Left) -->
+                                    <g id="leg-l-group" class="jog-leg-l">
+                                        <path d="M80,150 Q60,190 55,210 L45,210" fill="none" stroke="black" stroke-width="12" stroke-linecap="round" />
+                                        <path d="M80,150 Q60,190 55,210 L45,210" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" />
+                                        <!-- Shoe -->
+                                        <path d="M35,210 L60,210 Q65,210 65,220 L35,220 Z" fill="white" stroke="black" stroke-width="3" />
+                                        <path d="M35,220 L65,220" stroke="#800000" stroke-width="4" />
+                                    </g>
+                                    <g id="arm-l-group" class="jog-arm-l">
+                                        <path d="M50,90 Q20,120 30,140" fill="none" stroke="black" stroke-width="12" stroke-linecap="round" />
+                                        <path d="M50,90 Q20,120 30,140" fill="none" stroke="#FF7F50" stroke-width="8" stroke-linecap="round" />
+                                        <!-- Wristband -->
+                                        <rect x="20" y="125" width="20" height="10" transform="rotate(-60 30 130)" fill="white" stroke="black" stroke-width="2" />
+                                        <!-- Fist -->
+                                        <circle cx="30" cy="140" r="12" fill="#FF7F50" stroke="black" stroke-width="3" />
+                                    </g>
+
+                                    <!-- Sweat Drops -->
+                                    <g id="sweat-particles">
+                                        <path class="sweat-drop sd-1" d="M160,50 Q165,40 170,50 Q175,60 165,60 Q155,60 160,50" fill="white" stroke="#DC143C" stroke-width="2" />
+                                        <path class="sweat-drop sd-2" d="M40,60 Q45,50 50,60 Q55,70 45,70 Q35,70 40,60" fill="white" stroke="#DC143C" stroke-width="2" />
+                                        <path class="sweat-drop sd-3" d="M170,80 Q175,70 180,80 Q185,90 175,90 Q165,90 170,80" fill="white" stroke="#DC143C" stroke-width="2" />
+                                        <path class="sweat-drop sd-4" d="M30,90 Q35,80 40,90 Q45,100 35,100 Q25,100 30,90" fill="white" stroke="#DC143C" stroke-width="2" />
+                                    </g>
+
+                                    <!-- Particles for Success -->
                                     <g id="particles" style="display:none;"></g>
                                 </svg>
                             </div>
@@ -2962,7 +3047,7 @@ HTML_QUEUE = """
                             </div>
 
                             <div id="ticket-placeholder" class="text-center text-muted opacity-75">
-                                <p>Halo! Aku Si Jantung Sehat ❤️<br>Isi data di samping ya!</p>
+                                <p>Ayo Hidup Sehat! ❤️<br>Isi data untuk ambil antrean.</p>
                             </div>
                         </div>
                     </div>
@@ -3017,22 +3102,15 @@ HTML_QUEUE = """
         }
 
         // --- HEART AVATAR JS ---
-        const heartBody = document.getElementById('heart-body-group');
-        const pupilL = document.getElementById('pupil-l');
-        const pupilR = document.getElementById('pupil-r');
-        const mouth = document.getElementById('mouth');
-        const plaster = document.getElementById('prop-plaster');
-        const phoneProp = document.getElementById('prop-phone');
-        const armL = document.getElementById('arm-l');
-        const armR = document.getElementById('arm-r');
-        const avatarInst = document.getElementById('avatar-instruction');
+        const avatarContainer = document.getElementById('heart-avatar-container');
+        const eyeL = document.getElementById('eye-l');
+        const eyeR = document.getElementById('eye-r');
 
         // Initial State
-        if(heartBody) heartBody.classList.add('heart-idle');
 
         // Eye Tracking
         document.addEventListener('mousemove', (e) => {
-            if(!pupilL) return;
+            if(!eyeL) return;
             const svg = document.getElementById('heart-svg');
             if(!svg) return;
             const rect = svg.getBoundingClientRect();
@@ -3042,84 +3120,66 @@ HTML_QUEUE = """
             const dx = (e.clientX - cx) / (window.innerWidth/2); // -1 to 1
             const dy = (e.clientY - cy) / (window.innerHeight/2);
 
-            const maxMove = 3;
-            pupilL.setAttribute('cx', 65 + (dx * maxMove));
-            pupilL.setAttribute('cy', 70 + (dy * maxMove));
-            pupilR.setAttribute('cx', 135 + (dx * maxMove));
-            pupilR.setAttribute('cy', 70 + (dy * maxMove));
+            const maxMove = 2;
+            eyeL.setAttribute('cx', 80 + (dx * maxMove));
+            eyeL.setAttribute('cy', 120 + (dy * maxMove));
+            eyeR.setAttribute('cx', 120 + (dx * maxMove));
+            eyeR.setAttribute('cy', 120 + (dy * maxMove));
         });
 
         function setMood(mood) {
-            if(!mouth) return;
-            // Reset
-            mouth.setAttribute('d', 'M70,110 Q100,130 130,110'); // Smile
-            if(plaster) plaster.style.display = 'none';
-            if(phoneProp) phoneProp.style.display = 'none';
-            if(armR) { armR.setAttribute('x2', '180'); armR.setAttribute('y2', '140'); } // Arm down
+            if(!avatarContainer) return;
+
+            avatarContainer.classList.remove('is-tired', 'is-success');
 
             if(mood === 'sad') {
-                mouth.setAttribute('d', 'M70,120 Q100,100 130,120'); // Frown
-                if(plaster) plaster.style.display = 'block';
+                avatarContainer.classList.add('is-tired');
             } else if(mood === 'happy') {
-                mouth.setAttribute('d', 'M60,110 Q100,150 140,110'); // Big Smile
-            } else if(mood === 'phone') {
-                if(phoneProp) phoneProp.style.display = 'block';
-                if(armR) { armR.setAttribute('x2', '165'); armR.setAttribute('y2', '100'); } // Arm up
-            } else if(mood === 'curious') {
-                mouth.setAttribute('d', 'M80,115 Q100,115 120,115'); // O face / small mouth
+                // Normal running
+            } else if(mood === 'success') {
+                avatarContainer.classList.add('is-success');
             }
         }
 
         // Input Listeners
-        const inpName = document.getElementById('q-name');
-        const inpPhone = document.getElementById('q-phone');
-        const inpAddr = document.getElementById('q-address');
         const inpComp = document.getElementById('q-complaint');
-
-        if(inpName) inpName.addEventListener('focus', () => setMood('happy'));
-        if(inpPhone) inpPhone.addEventListener('focus', () => setMood('phone'));
-        if(inpAddr) inpAddr.addEventListener('focus', () => setMood('curious'));
 
         if(inpComp) {
             inpComp.addEventListener('input', (e) => {
                 const val = e.target.value.toLowerCase();
-                if(val.length > 0) setMood('sad'); // Any typing in complaint makes him worried
-                else setMood('normal');
+                if(val.length > 0) setMood('sad'); // Stops running when worried about complaint
+                else setMood('happy');
             });
             inpComp.addEventListener('focus', () => {
                 if(inpComp.value.length > 0) setMood('sad');
-                else setMood('curious');
             });
+            inpComp.addEventListener('blur', () => setMood('happy'));
         }
 
         // Success Logic
         function celebrateSuccess() {
-            setMood('happy');
-            if(heartBody) {
-                heartBody.classList.remove('heart-idle');
-                heartBody.classList.add('heart-jump');
-            }
+            setMood('success');
 
             // Particles
             const pGroup = document.getElementById('particles');
             if(pGroup) {
                 pGroup.style.display = 'block';
-                for(let i=0; i<15; i++) {
-                    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                    p.setAttribute("d", "M10,30 A20,20 0,0,1 50,30 A20,20 0,0,1 90,30 Q90,60 50,90 Q10,60 10,30 Z");
-                    const colors = ['#FFD700', '#ff69b4', '#e74c3c', '#ffffff'];
+                for(let i=0; i<20; i++) {
+                    const p = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    p.setAttribute("r", 5 + Math.random()*5);
+                    const colors = ['#FFD700', '#ff69b4', '#e74c3c', '#ffffff', '#87CEFA'];
                     p.setAttribute("fill", colors[Math.floor(Math.random() * colors.length)]);
 
                     // Random Explosion
                     const angle = Math.random() * Math.PI * 2;
-                    const dist = 100 + Math.random() * 100;
+                    const dist = 120 + Math.random() * 80;
                     const tx = 100 + Math.cos(angle) * dist;
                     const ty = 100 + Math.sin(angle) * dist;
 
                     p.style.setProperty('--tx', `${tx}px`);
                     p.style.setProperty('--ty', `${ty}px`);
 
-                    p.setAttribute("transform", `translate(${100}, ${100}) scale(0.1)`);
+                    p.setAttribute("transform", `translate(${100}, ${100})`);
                     p.classList.add("particle");
                     pGroup.appendChild(p);
                 }
