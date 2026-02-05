@@ -1661,8 +1661,94 @@ function openIconGallery() {
     </div>
 </div>
 
+<!-- Game Menu Modal -->
+<div id="gameMenuModal" class="login-modal-overlay" style="display:none; z-index: 10000;">
+    <div class="login-modal-box" style="width: 350px; text-align: center; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(15px);">
+        <button type="button" onclick="document.getElementById('gameMenuModal').style.display='none'" style="position:absolute; top:10px; right:15px; border:none; background:none; font-size:1.2rem; cursor:pointer;">&times;</button>
+        <h4 class="mb-4 fw-bold text-success" style="letter-spacing: 1px;">PILIH PERMAINAN</h4>
+
+        <div class="d-grid gap-3">
+            <button onclick="openPuzzleGame()" class="btn btn-outline-success btn-lg fw-bold py-3 rounded-pill shadow-sm" style="display:flex; align-items:center; justify-content:center; gap:10px;">
+                <i class="fas fa-puzzle-piece fa-lg"></i> Puzzle Gambar
+            </button>
+            <button onclick="openDentalGame()" class="btn btn-outline-info btn-lg fw-bold py-3 rounded-pill shadow-sm" style="display:flex; align-items:center; justify-content:center; gap:10px;">
+                <i class="fas fa-tooth fa-lg"></i> Perawatan Gigi
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Dental Game Modal -->
+<div id="dentalModal" class="login-modal-overlay" style="display:none; z-index: 10001;">
+    <style>
+        .dental-glass {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            border-radius: 20px;
+            padding: 20px;
+            width: 95%; max-width: 500px;
+            height: auto; max-height: 90vh;
+            display: flex; flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        #dentalContainer {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            background: #fff;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        #dentalContainer img {
+            width: 100%; height: 100%; object-fit: cover;
+            position: absolute; top: 0; left: 0; z-index: 1;
+        }
+        #dentalCanvas {
+            position: absolute; top: 0; left: 0; z-index: 2;
+            width: 100%; height: 100%;
+            cursor: crosshair;
+            touch-action: none;
+        }
+        .tool-btn {
+            background: white; border: none; padding: 10px 20px; border-radius: 50px;
+            font-weight: bold; color: #555; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: 0.3s; cursor: pointer; display: flex; align-items: center; gap: 10px;
+        }
+        .tool-btn.active {
+            background: #3498db; color: white; transform: scale(1.05);
+        }
+    </style>
+
+    <div class="dental-glass">
+        <div class="d-flex justify-content-between align-items-center mb-3 text-white">
+            <h4 class="fw-bold mb-0" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"><i class="fas fa-tooth me-2"></i> Perawatan Gigi</h4>
+            <button onclick="document.getElementById('dentalModal').style.display='none'" class="close-btn">&times;</button>
+        </div>
+
+        <div id="dentalContainer">
+            <img src="{{ url_for('static', filename='gigibersih.png') }}" id="dentalCleanImg" onerror="this.style.background='#eee'">
+            <canvas id="dentalCanvas"></canvas>
+        </div>
+
+        <div class="d-flex justify-content-center gap-3">
+            <button class="tool-btn active" id="tool-brush">
+                <i class="fas fa-magic text-info"></i> Sikat Gigi (Busa)
+            </button>
+            <button class="tool-btn" onclick="resetDentalGame()">
+                <i class="fas fa-redo text-danger"></i> Reset
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Puzzle Game Modal -->
-<div id="gameModal" class="login-modal-overlay" style="display:none;">
+<div id="gameModal" class="login-modal-overlay" style="display:none; z-index: 10001;">
     <style>
         .hard-card-glass {
             background: rgba(255, 255, 255, 0.15);
@@ -1776,8 +1862,95 @@ function openIconGallery() {
     let rows = 3, cols = 2;
 
     function openGame() {
+        document.getElementById('gameMenuModal').style.display = 'flex';
+    }
+
+    function openPuzzleGame() {
+        document.getElementById('gameMenuModal').style.display = 'none';
         document.getElementById('gameModal').style.display = 'flex';
         initPuzzle(currentLevel);
+    }
+
+    // --- DENTAL GAME JS ---
+    let dentalCanvas, dentalCtx;
+    let isDrawing = false;
+
+    function openDentalGame() {
+        document.getElementById('gameMenuModal').style.display = 'none';
+        document.getElementById('dentalModal').style.display = 'flex';
+        setTimeout(initDentalGame, 100);
+    }
+
+    function initDentalGame() {
+        dentalCanvas = document.getElementById('dentalCanvas');
+        dentalCtx = dentalCanvas.getContext('2d');
+        const container = document.getElementById('dentalContainer');
+        const imgDirty = new Image();
+
+        // Resize canvas to match container
+        dentalCanvas.width = container.clientWidth;
+        dentalCanvas.height = container.clientHeight;
+
+        imgDirty.onload = function() {
+            dentalCtx.drawImage(imgDirty, 0, 0, dentalCanvas.width, dentalCanvas.height);
+            // Default composite operation is source-over
+        };
+        imgDirty.src = "{{ url_for('static', filename='gigikotor.png') }}";
+
+        // Events
+        dentalCanvas.onmousedown = startDraw;
+        dentalCanvas.onmousemove = draw;
+        dentalCanvas.onmouseup = stopDraw;
+        dentalCanvas.onmouseleave = stopDraw;
+
+        dentalCanvas.addEventListener('touchstart', startDraw, {passive: false});
+        dentalCanvas.addEventListener('touchmove', draw, {passive: false});
+        dentalCanvas.addEventListener('touchend', stopDraw);
+    }
+
+    function getPos(e) {
+        const rect = dentalCanvas.getBoundingClientRect();
+        let clientX = e.clientX;
+        let clientY = e.clientY;
+        if(e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        }
+
+        const scaleX = dentalCanvas.width / rect.width;
+        const scaleY = dentalCanvas.height / rect.height;
+
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+    }
+
+    function startDraw(e) {
+        if(e.type === 'touchstart') e.preventDefault();
+        isDrawing = true;
+        draw(e);
+    }
+
+    function draw(e) {
+        if(!isDrawing) return;
+        if(e.type === 'touchmove') e.preventDefault();
+
+        const pos = getPos(e);
+        const radius = 30;
+
+        dentalCtx.globalCompositeOperation = 'destination-out';
+        dentalCtx.beginPath();
+        dentalCtx.arc(pos.x, pos.y, radius, 0, Math.PI * 2, false);
+        dentalCtx.fill();
+    }
+
+    function stopDraw() {
+        isDrawing = false;
+    }
+
+    function resetDentalGame() {
+        initDentalGame();
     }
 
     function initPuzzle(lvl) {
