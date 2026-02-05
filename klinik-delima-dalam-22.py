@@ -1285,7 +1285,8 @@ MEDICAL_NAVBAR_TEMPLATE = """
         position: absolute; bottom: 0; left: 0; width: 100%; height: 3px;
         background: linear-gradient(90deg, var(--green) 50%, var(--gold) 50%);
     }
-    .medical-logo-area { display: flex; align-items: center; gap: 15px; }
+    .medical-logo-area { display: flex; align-items: center; gap: 15px; cursor: pointer; transition: transform 0.2s; }
+    .medical-logo-area:hover { transform: scale(1.05); }
     .medical-logo-icon { font-size: 2rem; color: {% if role in ['admin', 'doctor'] %}white{% else %}var(--green){% endif %}; }
     .medical-title { 
         font-weight: 800; font-size: 1.5rem; text-transform: uppercase; 
@@ -1393,7 +1394,7 @@ MEDICAL_NAVBAR_TEMPLATE = """
 </style>
 
 <div class="medical-top-bar">
-    <div class="medical-logo-area">
+    <div class="medical-logo-area" onclick="openIconGallery()" title="Lihat Semua Fitur">
         <i class="fas fa-clinic-medical medical-logo-icon"></i>
     </div>
     
@@ -1447,6 +1448,38 @@ MEDICAL_NAVBAR_TEMPLATE = """
         </form>
     </div>
 </div>
+
+<!-- Icon Gallery Modal -->
+<div id="iconGalleryModal" class="login-modal-overlay" style="display:none; z-index: 11000;">
+    <div class="login-modal-box" style="width: 95%; max-width: 900px; padding: 30px; max-height: 90vh; overflow-y: auto;">
+        <button type="button" onclick="document.getElementById('iconGalleryModal').style.display='none'" style="position:absolute; top:15px; right:20px; border:none; background:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+        <h4 class="text-center mb-4 fw-bold text-dark" style="letter-spacing: 1px;">SEMUA FITUR & LAYANAN</h4>
+
+        <style>
+            .gallery-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+            @media(max-width: 500px) { .gallery-grid { gap: 8px; } }
+        </style>
+
+        <div class="gallery-grid">
+            {% for item in menu_items %}
+            <a href="{{ item.route }}" class="feature-btn" style="width: 100%; height: auto; min-height: 100px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #eee;">
+                <i class="{{ item.icon }}" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                <span style="font-size: 0.75rem;">{{ item.label }}</span>
+            </a>
+            {% endfor %}
+        </div>
+
+        <div class="text-center mt-4">
+            <button class="btn btn-secondary btn-sm rounded-pill px-4" onclick="document.getElementById('iconGalleryModal').style.display='none'">Tutup Jendela</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openIconGallery() {
+    document.getElementById('iconGalleryModal').style.display = 'flex';
+}
+</script>
 
 <!-- Bottom Navigation for Patients -->
 {% if role == 'patient' %}
@@ -1628,28 +1661,233 @@ MEDICAL_NAVBAR_TEMPLATE = """
     </div>
 </div>
 
-<!-- Game Modal (Full Screen) -->
-<div id="gameModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:white;">
-    <!-- Close Button -->
-    <button type="button" onclick="closeGameModal()" 
-        style="position:absolute; top:20px; right:20px; z-index:10000; border:none; background:rgba(0,0,0,0.5); color:white; width:50px; height:50px; border-radius:50%; font-size:1.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">&times;</button>
-    
-    <!-- Container -->
-    <div style="position:relative; width:100%; height:100%; overflow:hidden; background:#f0f0f0;">
-        
-        <!-- Background Layer (Animated Characters) -->
-        <canvas id="charCanvas" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; background:#f0f0f0;"></canvas>
+<!-- Puzzle Game Modal -->
+<div id="gameModal" class="login-modal-overlay" style="display:none;">
+    <style>
+        .hard-card-glass {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            border-radius: 20px;
+            padding: 20px;
+            width: 95%; max-width: 450px;
+            height: 85vh;
+            display: flex; flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.5s;
+        }
+        .game-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; color: #333; }
+        .game-title { margin: 0; font-weight: 800; font-size: 1.2rem; text-shadow: 0 1px 2px rgba(255,255,255,0.5); color: #fff; }
+        .close-btn { background: none; border: none; color: #fff; font-size: 2rem; cursor: pointer; line-height: 1;}
 
-        <!-- Canvas Layer (Scratch/Dust) -->
-        <canvas id="gameCanvas" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:2; touch-action:none;"></canvas>
+        .game-controls { margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .level-buttons { display: flex; gap: 5px; justify-content: center; }
+        .btn-level { flex: 1; padding: 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.2); color: white; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 0.8rem; }
+        .btn-level:hover, .btn-level.active { background: #FFD700; color: black; border-color: #FFD700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+
+        .image-controls { display: flex; gap: 5px; justify-content: center; }
+        .btn-control { padding: 6px 12px; border-radius: 15px; border: none; background: white; color: #333; font-weight: bold; cursor: pointer; font-size: 0.75rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .btn-control:hover { transform: translateY(-2px); }
+
+        .puzzle-board {
+            flex: 1;
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+            margin: 0 auto;
+            width: 100%;
+            display: grid;
+            gap: 1px;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .puzzle-piece {
+            background-repeat: no-repeat;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .puzzle-piece.selected {
+            z-index: 10;
+            box-shadow: 0 0 15px #FFD700;
+            transform: scale(0.92);
+            border: 2px solid #FFD700;
+        }
+
+        .win-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, rgba(255,215,0,0.6), rgba(255,255,255,0.6));
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 20;
+            animation: fadeIn 0.5s;
+            backdrop-filter: blur(5px);
+        }
+        .win-message {
+            font-size: 2rem; font-weight: 900; color: white;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.5); padding: 20px; border-radius: 15px;
+            margin-bottom: 20px;
+        }
         
-        <!-- Instruction Text -->
-        <div id="gameInstruction" style="position:absolute; bottom:80px; width:100%; text-align:center; pointer-events:none; color:#333; font-size:1.5rem; font-weight:bold; text-shadow:0 0 10px white; z-index:3;">
-            Usap layar untuk menemukan mereka!
+        .shiny-win {
+            box-shadow: 0 0 50px 20px rgba(255, 255, 255, 0.8), inset 0 0 50px 20px rgba(255, 215, 0, 0.5);
+            border: 2px solid rgba(255,255,255,0.9);
+        }
+    </style>
+
+    <div class="hard-card-glass" id="gameContainer">
+        <div class="game-header">
+            <h3 class="game-title">PUZZLE GAME</h3>
+            <button onclick="document.getElementById('gameModal').style.display='none'" class="close-btn">&times;</button>
+        </div>
+        
+        <div class="game-controls">
+            <div class="level-buttons">
+                <button onclick="initPuzzle(1)" class="btn-level" id="btn-lvl-1">LVL 1 (3x2)</button>
+                <button onclick="initPuzzle(2)" class="btn-level" id="btn-lvl-2">LVL 2 (6x2)</button>
+                <button onclick="initPuzzle(3)" class="btn-level" id="btn-lvl-3">LVL 3 (9x2)</button>
+            </div>
+            <div class="image-controls">
+                <input type="file" id="uploadGameImg" accept="image/*" onchange="handleGameImageUpload(this)" hidden>
+                <button onclick="document.getElementById('uploadGameImg').click()" class="btn-control"><i class="fas fa-camera text-primary"></i> Upload Foto</button>
+                <button onclick="resetGameImage()" class="btn-control"><i class="fas fa-undo text-danger"></i> Reset Default</button>
+            </div>
         </div>
 
+        <div id="puzzleBoard" class="puzzle-board"></div>
+
+        <div id="winOverlay" class="win-overlay" style="display:none;">
+            <div class="win-message">SELESAI! 🎉</div>
+            <button onclick="initPuzzle(currentLevel)" class="btn btn-light fw-bold rounded-pill shadow">Main Lagi</button>
+        </div>
     </div>
 </div>
+
+<script>
+    let currentLevel = 1;
+    let puzzleImage = "{{ url_for('static', filename='monalisa.png') }}";
+    let gridState = []; // Array of piece IDs
+    let selectedPiece = null;
+    let rows = 3, cols = 2;
+
+    function openGame() {
+        document.getElementById('gameModal').style.display = 'flex';
+        initPuzzle(currentLevel);
+    }
+
+    function initPuzzle(lvl) {
+        currentLevel = lvl;
+
+        // Reset UI
+        document.querySelectorAll('.btn-level').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-lvl-' + lvl).classList.add('active');
+        document.getElementById('winOverlay').style.display = 'none';
+        document.getElementById('gameContainer').classList.remove('shiny-win');
+
+        // Config
+        cols = 2;
+        if (lvl === 1) rows = 3;
+        else if (lvl === 2) rows = 6;
+        else if (lvl === 3) rows = 9;
+
+        // Generate Pieces
+        const total = rows * cols;
+        gridState = Array.from({length: total}, (_, i) => i);
+
+        // Shuffle (Fisher-Yates)
+        for (let i = gridState.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [gridState[i], gridState[j]] = [gridState[j], gridState[i]];
+        }
+
+        renderBoard();
+    }
+
+    function renderBoard() {
+        const board = document.getElementById('puzzleBoard');
+        board.innerHTML = '';
+        board.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        board.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+        const bgWidth = cols * 100;
+        const bgHeight = rows * 100;
+
+        gridState.forEach((pieceId, index) => {
+            const div = document.createElement('div');
+            div.className = 'puzzle-piece';
+            div.style.backgroundImage = `url('${puzzleImage}')`;
+            div.style.backgroundSize = `${bgWidth}% ${bgHeight}%`;
+
+            const correctRow = Math.floor(pieceId / cols);
+            const correctCol = pieceId % cols;
+
+            const xPct = cols > 1 ? (correctCol / (cols - 1)) * 100 : 0;
+            const yPct = rows > 1 ? (correctRow / (rows - 1)) * 100 : 0;
+
+            div.style.backgroundPosition = `${xPct}% ${yPct}%`;
+            div.onclick = () => handlePieceClick(index);
+
+            if (selectedPiece === index) div.classList.add('selected');
+
+            board.appendChild(div);
+        });
+    }
+
+    function handlePieceClick(index) {
+        if (selectedPiece === null) {
+            selectedPiece = index;
+            renderBoard();
+        } else {
+            if (selectedPiece !== index) {
+                // Swap
+                [gridState[selectedPiece], gridState[index]] = [gridState[index], gridState[selectedPiece]];
+                selectedPiece = null;
+                renderBoard();
+                checkWin();
+            } else {
+                selectedPiece = null;
+                renderBoard();
+            }
+        }
+    }
+
+    function checkWin() {
+        let won = true;
+        for (let i = 0; i < gridState.length; i++) {
+            if (gridState[i] !== i) {
+                won = false;
+                break;
+            }
+        }
+
+        if (won) {
+            document.getElementById('winOverlay').style.display = 'flex';
+            document.getElementById('gameContainer').classList.add('shiny-win');
+        }
+    }
+
+    function handleGameImageUpload(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                puzzleImage = e.target.result;
+                initPuzzle(currentLevel);
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function resetGameImage() {
+        puzzleImage = "{{ url_for('static', filename='monalisa.png') }}";
+        initPuzzle(currentLevel);
+    }
+</script>
+
 {% endif %}
 
 <script>
@@ -1789,334 +2027,6 @@ MEDICAL_NAVBAR_TEMPLATE = """
         document.getElementById('lab-list-step').style.display = 'none';
     }
 
-    // --- GAME & ANIMATION LOGIC ---
-    let gameCanvas, gameCtx, isDrawing = false;
-    let charCanvas, charCtx;
-    let animId = null;
-    let characters = [];
-    let mouseX = 0, mouseY = 0;
-
-    // Define handlers globally to prevent memory leaks
-    const handleMouseMove = (e) => {
-        mouseX = e.clientX;
-        mouseY = e.clientY;
-    };
-    
-    const handleTouchMove = (e) => {
-        if(e.touches.length > 0) {
-            mouseX = e.touches[0].clientX;
-            mouseY = e.touches[0].clientY;
-        }
-    };
-    
-    const handleResize = () => {
-        if(!gameCanvas || !charCanvas) return;
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-        gameCanvas.width = w;
-        gameCanvas.height = h;
-        charCanvas.width = w;
-        charCanvas.height = h;
-        
-        // Reset Dust
-        if(gameCtx) {
-            gameCtx.globalCompositeOperation = 'source-over';
-            gameCtx.fillStyle = '#95a5a6';
-            gameCtx.fillRect(0, 0, w, h);
-            
-            gameCtx.fillStyle = '#fff';
-            gameCtx.font = 'bold 30px sans-serif';
-            gameCtx.textAlign = 'center';
-            gameCtx.fillText("Usap layar untuk membersihkan...", w/2, h/2);
-        }
-    };
-
-    class Character {
-        constructor(type, xPct, yPct, scale, color) {
-            this.type = type;
-            this.xPct = xPct; // Base X % from left
-            this.yPct = yPct; // Base Y % from top
-            this.scale = scale;
-            this.color = color;
-            
-            this.x = 0;
-            this.y = 0;
-            this.breathOffset = Math.random() * 100;
-            
-            // Eye tracking state
-            this.pupilX = 0;
-            this.pupilY = 0;
-        }
-        
-        update(w, h, mx, my, time) {
-            // Responsive Base Unit
-            const s = Math.min(w, h) / 1000; 
-            this.currentScale = this.scale * s;
-            
-            const baseX = w * this.xPct;
-            const baseY = h * this.yPct;
-            
-            // 1. Breathing (Idle)
-            const breathY = Math.sin(time * 0.002 + this.breathOffset) * 10 * s;
-            
-            // 2. Parallax Leaning
-            const dx = (mx - w/2) / (w/2); // -1 to 1
-            const dy = (my - h/2) / (h/2); 
-            const parallaxFactor = (this.type === 'black' || this.type === 'purple') ? 15 : 30; // Back moves less
-            
-            const targetX = baseX + (dx * parallaxFactor * s);
-            const targetY = baseY + breathY + (dy * parallaxFactor * s);
-            
-            // Lerp Position
-            this.x += (targetX - this.x) * 0.1;
-            this.y += (targetY - this.y) * 0.1;
-            
-            // 3. Eye Tracking
-            // Approx head positions relative to body center
-            let headYOffset = 0;
-            if(this.type === 'purple') headYOffset = -150;
-            if(this.type === 'yellow') headYOffset = -100;
-            if(this.type === 'orange') headYOffset = -50;
-            if(this.type === 'black') headYOffset = -100;
-            
-            const headX = this.x;
-            const headY = this.y + (headYOffset * this.currentScale);
-            
-            const angle = Math.atan2(my - headY, mx - headX);
-            const eyeRadius = 5 * this.currentScale; // Max pupil movement
-            
-            const targetPupilX = Math.cos(angle) * eyeRadius;
-            const targetPupilY = Math.sin(angle) * eyeRadius;
-            
-            this.pupilX += (targetPupilX - this.pupilX) * 0.15;
-            this.pupilY += (targetPupilY - this.pupilY) * 0.15;
-        }
-        
-        draw(ctx) {
-            ctx.save();
-            ctx.translate(this.x, this.y);
-            ctx.scale(this.currentScale, this.currentScale);
-            
-            if (this.type === 'orange') this.drawOrange(ctx);
-            else if (this.type === 'purple') this.drawPurple(ctx);
-            else if (this.type === 'black') this.drawBlack(ctx);
-            else if (this.type === 'yellow') this.drawYellow(ctx);
-            
-            ctx.restore();
-        }
-        
-        drawOrange(ctx) {
-            // Orange Mound
-            ctx.fillStyle = this.color;
-            ctx.beginPath();
-            ctx.moveTo(-100, 0);
-            // Semicircle-ish mound
-            ctx.bezierCurveTo(-100, -120, 100, -120, 100, 0);
-            ctx.fill();
-            
-            // Eyes
-            ctx.fillStyle = 'black';
-            ctx.beginPath(); ctx.arc(-40 + this.pupilX, -50 + this.pupilY, 6, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(40 + this.pupilX, -50 + this.pupilY, 6, 0, Math.PI*2); ctx.fill();
-            
-            // Smile
-            ctx.beginPath();
-            ctx.moveTo(-30, -20);
-            ctx.quadraticCurveTo(0, 10, 30, -20);
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 4;
-            ctx.lineCap = 'round';
-            ctx.stroke();
-        }
-
-        drawPurple(ctx) {
-            // Tall Rectangle
-            ctx.fillStyle = this.color;
-            ctx.fillRect(-60, -350, 120, 350);
-            
-            // Eyes (Inverted C)
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 5;
-            ctx.lineCap = 'round';
-            
-            // Left Eye
-            ctx.beginPath();
-            ctx.arc(-25 + this.pupilX*0.5, -280 + this.pupilY*0.5, 12, Math.PI, 0); 
-            ctx.stroke();
-            // Right Eye
-            ctx.beginPath();
-            ctx.arc(25 + this.pupilX*0.5, -280 + this.pupilY*0.5, 12, Math.PI, 0);
-            ctx.stroke();
-            
-            // Mouth (Stoic line)
-            ctx.beginPath();
-            ctx.moveTo(-10, -240);
-            ctx.lineTo(10, -240);
-            ctx.strokeStyle = 'black';
-            ctx.stroke();
-        }
-        
-        drawBlack(ctx) {
-            // Rectangle
-            ctx.fillStyle = this.color;
-            ctx.fillRect(-40, -250, 80, 250);
-            
-            // Eyes
-            ctx.fillStyle = 'white';
-            ctx.beginPath(); ctx.arc(-20, -200, 12, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(20, -200, 12, 0, Math.PI*2); ctx.fill();
-            
-            // Pupils (Look Right Bias)
-            ctx.fillStyle = 'black';
-            const biasX = 5; 
-            ctx.beginPath(); ctx.arc(-20 + this.pupilX + biasX, -200 + this.pupilY, 4, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(20 + this.pupilX + biasX, -200 + this.pupilY, 4, 0, Math.PI*2); ctx.fill();
-        }
-        
-        drawYellow(ctx) {
-            // Capsule / Tombstone
-            ctx.fillStyle = this.color;
-            ctx.beginPath();
-            // Draw manual round rect if roundRect not supported everywhere, but most browsers support it now or polyfill
-            // Using arcs for safety
-            ctx.moveTo(-50, -250);
-            ctx.lineTo(50, -250);
-            ctx.arc(0, -250, 50, Math.PI, 0); // Top cap? No, this arc draws bottom...
-            // Let's use rect + circle top
-            ctx.fillRect(-50, -250, 100, 250);
-            ctx.beginPath();
-            ctx.arc(0, -250, 50, Math.PI, 0);
-            ctx.fill();
-            
-            // Eye (Profile - One dot)
-            ctx.fillStyle = 'black';
-            ctx.beginPath();
-            ctx.arc(20 + this.pupilX, -200 + this.pupilY, 6, 0, Math.PI*2); 
-            ctx.fill();
-            
-            // Mouth (Beak/Line)
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 6;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(20, -160);
-            ctx.lineTo(70, -160); 
-            ctx.stroke();
-        }
-    }
-    
-    function openGame() {
-        document.getElementById('gameModal').style.display = 'block';
-        initGame();
-    }
-    
-    function closeGameModal() {
-        document.getElementById('gameModal').style.display = 'none';
-        if(animId) cancelAnimationFrame(animId);
-        
-        // Remove global listeners to clean up
-        window.removeEventListener('resize', handleResize);
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('touchmove', handleTouchMove);
-    }
-    
-    function initGame() {
-        gameCanvas = document.getElementById('gameCanvas');
-        charCanvas = document.getElementById('charCanvas');
-        
-        if(!gameCanvas || !charCanvas) return;
-        
-        gameCtx = gameCanvas.getContext('2d');
-        charCtx = charCanvas.getContext('2d');
-        
-        // Setup listeners (remove first to be safe, though not strictly necessary if closed properly)
-        window.removeEventListener('resize', handleResize);
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('touchmove', handleTouchMove);
-        
-        window.addEventListener('resize', handleResize);
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('touchmove', handleTouchMove);
-        
-        // Initial setup
-        handleResize();
-        
-        // Init Characters (Type, X%, Y%, Scale, Color)
-        // Order matters for Z-index drawing (First = Back)
-        characters = [
-            // Purple (Back Left)
-            new Character('purple', 0.25, 0.9, 1.2, '#8A2BE2'),
-            // Black (Back Middle)
-            new Character('black', 0.5, 0.9, 1.1, '#222'),
-            // Yellow (Back Right)
-            new Character('yellow', 0.75, 0.9, 1.1, '#E1AD01'),
-            // Orange (Front Left/Center)
-            new Character('orange', 0.35, 1.0, 1.3, '#FF8C00')
-        ];
-        
-        // Start Loops
-        if(animId) cancelAnimationFrame(animId);
-        animateChars();
-        
-        // Wipe Events
-        setupWipeEvents();
-    }
-    
-    function animateChars() {
-        const w = charCanvas.width;
-        const h = charCanvas.height;
-        const time = Date.now();
-        
-        charCtx.clearRect(0, 0, w, h);
-        
-        // Draw floor shadow/gradient
-        const grad = charCtx.createLinearGradient(0, h-100, 0, h);
-        grad.addColorStop(0, 'transparent');
-        grad.addColorStop(1, 'rgba(0,0,0,0.2)');
-        charCtx.fillStyle = grad;
-        charCtx.fillRect(0, h-100, w, 100);
-        
-        characters.forEach(c => {
-            c.update(w, h, mouseX, mouseY, time);
-            c.draw(charCtx);
-        });
-        
-        animId = requestAnimationFrame(animateChars);
-    }
-    
-    function setupWipeEvents() {
-        const start = (e) => { isDrawing = true; wipe(e); };
-        const end = () => { isDrawing = false; gameCtx.beginPath(); };
-        const move = (e) => { if(isDrawing) wipe(e); };
-        
-        const wipe = (e) => {
-            e.preventDefault();
-            const rect = gameCanvas.getBoundingClientRect();
-            let x, y;
-            if(e.touches) {
-                x = e.touches[0].clientX - rect.left;
-                y = e.touches[0].clientY - rect.top;
-            } else {
-                x = e.clientX - rect.left;
-                y = e.clientY - rect.top;
-            }
-            
-            gameCtx.globalCompositeOperation = 'destination-out';
-            gameCtx.lineWidth = 60;
-            gameCtx.lineCap = 'round';
-            gameCtx.lineTo(x, y);
-            gameCtx.stroke();
-            gameCtx.beginPath();
-            gameCtx.moveTo(x, y);
-        };
-        
-        gameCanvas.onmousedown = start;
-        gameCanvas.onmouseup = end;
-        gameCanvas.onmousemove = move;
-        gameCanvas.ontouchstart = start;
-        gameCanvas.ontouchend = end;
-        gameCanvas.ontouchmove = move;
-    }
 </script>
 """
 
