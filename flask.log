@@ -1,0 +1,10 @@
+Error loading symptom data: [Errno 2] No such file or directory: 'symptom_data.json'
+ * Serving Flask app 'klinik-delima-dalam-32'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [06/Feb/2026 07:57:52] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [06/Feb/2026 07:57:52] "[33mGET /static/gigibersih.png HTTP/1.1[0m" 404 -
+127.0.0.1 - - [06/Feb/2026 07:57:52] "[33mGET /static/sikatgigi.png HTTP/1.1[0m" 404 -
+127.0.0.1 - - [06/Feb/2026 07:57:52] "GET /api/queue/status HTTP/1.1" 200 -

@@ -2043,10 +2043,26 @@ document.addEventListener("DOMContentLoaded", function() {
             <button onclick="openPuzzleGame()" class="btn btn-outline-success btn-lg fw-bold py-3 rounded-pill shadow-sm" style="display:flex; align-items:center; justify-content:center; gap:10px;">
                 <i class="fas fa-puzzle-piece fa-lg"></i> Puzzle Gambar
             </button>
-            <button onclick="openDentalGame()" class="btn btn-outline-info btn-lg fw-bold py-3 rounded-pill shadow-sm" style="display:flex; align-items:center; justify-content:center; gap:10px;">
+            <button onclick="openDevPopup()" class="btn btn-outline-info btn-lg fw-bold py-3 rounded-pill shadow-sm" style="display:flex; align-items:center; justify-content:center; gap:10px;">
                 <i class="fas fa-tooth fa-lg"></i> Perawatan Gigi
             </button>
         </div>
+    </div>
+</div>
+
+<!-- Development Info Modal -->
+<div id="devInfoModal" class="login-modal-overlay" style="display:none; z-index: 12000;">
+    <div style="background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 2px solid rgba(255, 255, 255, 0.8); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37); border-radius: 25px; padding: 40px 30px; text-align: center; max-width: 400px; width: 85%; animation: slideIn 0.4s ease-out;">
+        <div class="mb-3" style="font-size: 3.5rem; color: #ffb703; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
+            <i class="fas fa-tools"></i>
+        </div>
+        <h3 class="fw-bold mb-3" style="color: #2c3e50; letter-spacing: 0.5px;">TAHAP PENGEMBANGAN</h3>
+        <p class="mb-4 fw-bold" style="font-size: 1.1rem; line-height: 1.6; color: #444;">
+            Mohon maaf, fitur ini <strong>Masih dalam Tahap Pengembangan</strong>.<br>Kami sedang menyiapkannya agar lebih sempurna untuk Anda.
+        </p>
+        <button onclick="closeDevPopup()" class="btn btn-dark rounded-pill px-5 py-2 fw-bold shadow-lg" style="transition: all 0.3s; letter-spacing: 1px;">
+            OKE, MENGERTI
+        </button>
     </div>
 </div>
 
@@ -2419,6 +2435,16 @@ document.addEventListener("DOMContentLoaded", function() {
         document.getElementById('gameMenuModal').style.display = 'none';
         document.getElementById('gameModal').style.display = 'flex';
         initPuzzle(currentLevel);
+    }
+
+    function openDevPopup() {
+        document.getElementById('gameMenuModal').style.display = 'none';
+        document.getElementById('devInfoModal').style.display = 'flex';
+    }
+
+    function closeDevPopup() {
+        document.getElementById('devInfoModal').style.display = 'none';
+        document.getElementById('gameMenuModal').style.display = 'flex';
     }
 
     // --- DENTAL GAME JS ---
