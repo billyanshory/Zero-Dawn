@@ -57,9 +57,9 @@ def format_date_indo(date_str):
 # --- RBAC CONFIGURATION ---
 MENU_ITEMS = [
     {'route': '/antrean', 'label': 'Antrean', 'icon': 'fas fa-users', 'roles': ['patient', 'admin', 'doctor']},
-    {'route': '/profil-klinik', 'label': 'Profil Klinik', 'icon': 'fas fa-hospital-user', 'roles': ['patient', 'admin', 'doctor']},
     {'route': '/symptom-checker', 'label': 'Cek Gejala', 'icon': 'fas fa-user-md', 'roles': ['patient', 'doctor']},
     {'route': '/booking', 'label': 'Booking', 'icon': 'fas fa-calendar-check', 'roles': ['patient', 'doctor']},
+    {'route': '/profil-klinik', 'label': 'Profil Klinik', 'icon': 'fas fa-hospital-user', 'roles': ['patient', 'admin', 'doctor']},
     {'route': '/booking-list', 'label': 'Daftar Janji', 'icon': 'fas fa-calendar-alt', 'roles': ['admin', 'doctor']},
     {'route': '/rekam-medis', 'label': 'Rekam Medis', 'icon': 'fas fa-notes-medical', 'roles': ['doctor']},
     {'route': '/stok-obat', 'label': 'Stok Obat', 'icon': 'fas fa-capsules', 'roles': ['admin', 'doctor']},
@@ -1423,6 +1423,7 @@ MEDICAL_NAVBAR_TEMPLATE = """
     body.dark-mode .glass-panel-custom,
     body.dark-mode .modal-content,
     body.dark-mode .modal-card,
+    body.dark-mode .login-modal-box,
     body.dark-mode .list-group-item,
     body.dark-mode .bg-white,
     body.dark-mode .bottom-nav {
@@ -1431,6 +1432,19 @@ MEDICAL_NAVBAR_TEMPLATE = """
         border-color: #444 !important;
     }
     
+    body.dark-mode #theme-menu-dropdown {
+        background-color: #1e1e1e !important;
+        border-color: #444 !important;
+    }
+    body.dark-mode #theme-menu-dropdown button {
+        background-color: #1e1e1e !important;
+        color: #e0e0e0 !important;
+        border-bottom-color: #444 !important;
+    }
+    body.dark-mode #theme-menu-dropdown button:hover {
+        background-color: #333 !important;
+    }
+
     /* Headers & Titles */
     body.dark-mode .medical-title,
     body.dark-mode h1, body.dark-mode h2, body.dark-mode h3, 
@@ -1639,7 +1653,7 @@ MEDICAL_NAVBAR_TEMPLATE = """
 </style>
 
 <div class="medical-top-bar">
-    <div class="medical-logo-area" onclick="openIconGallery()" title="Lihat Semua Fitur">
+    <div class="medical-logo-area" {% if role == 'doctor' %}onclick="openIconGallery()"{% endif %} title="Lihat Semua Fitur" style="cursor: {% if role == 'doctor' %}pointer{% else %}default{% endif %};">
         <i class="fas fa-clinic-medical medical-logo-icon"></i>
     </div>
     
@@ -1882,9 +1896,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
 <!-- My Card Modal -->
 <div id="myCardModal" class="login-modal-overlay">
-    <div class="login-modal-box" style="width: 350px;">
-        <button type="button" onclick="document.getElementById('myCardModal').style.display='none'" style="position:absolute; top:10px; right:15px; border:none; background:none; font-size:1.2rem; cursor:pointer;">&times;</button>
-        <h4 class="text-center mb-4 fw-bold text-success">Kartu Pasien Digital</h4>
+    <div class="login-modal-box" style="width: 95%; max-width: 450px; max-height: 85vh; overflow-y: auto;">
+        <button type="button" onclick="document.getElementById('myCardModal').style.display='none'" style="position:sticky; top:0; right:0; float:right; border:none; background:none; font-size:1.5rem; cursor:pointer; z-index: 100;">&times;</button>
+        <h4 class="text-center mb-4 fw-bold text-success" style="margin-top:10px;">Kartu Pasien Digital</h4>
         
         <div id="card-login-step">
             <p class="text-center text-muted small mb-3">Masukkan No. WhatsApp untuk melihat kartu Anda.</p>
@@ -1916,15 +1930,42 @@ document.addEventListener("DOMContentLoaded", function() {
                 </div>
             </div>
             
-            <div class="mt-3 p-3 bg-light rounded small border">
-                <div class="d-flex justify-content-between mb-1">
-                    <span class="text-muted">Diagnosa:</span>
-                    <span class="fw-bold text-dark" id="hc-diag">-</span>
-                </div>
-                <div class="d-flex justify-content-between">
-                    <span class="text-muted">Resep:</span>
-                    <span class="fw-bold text-dark" id="hc-presc">-</span>
-                </div>
+            <div class="mt-3">
+                <ul class="list-group list-group-flush small bg-transparent">
+                    <li class="list-group-item bg-transparent d-flex justify-content-between px-0">
+                        <span class="text-muted">Nama:</span> <strong id="d-name">...</strong>
+                    </li>
+                    <li class="list-group-item bg-transparent d-flex justify-content-between px-0">
+                        <span class="text-muted">HP:</span> <strong id="d-phone">...</strong>
+                    </li>
+                    <li class="list-group-item bg-transparent d-flex justify-content-between px-0">
+                        <span class="text-muted">STATUS:</span> <span class="badge bg-success" id="d-status">...</span>
+                    </li>
+                    <li class="list-group-item bg-transparent px-0">
+                         <div class="d-flex justify-content-between mb-1">
+                             <span class="text-muted">Masuk (In):</span> <strong id="d-in">...</strong>
+                         </div>
+                         <div class="d-flex justify-content-between">
+                             <span class="text-muted">Keluar (Out):</span> <strong id="d-out">...</strong>
+                         </div>
+                    </li>
+                    <li class="list-group-item bg-transparent px-0">
+                        <strong class="d-block text-muted mb-1">Keluhan:</strong>
+                        <div id="d-complaint" class="fw-bold text-dark">...</div>
+                    </li>
+                    <li class="list-group-item bg-transparent px-0">
+                        <strong class="d-block text-muted mb-1">Diagnosa:</strong>
+                        <div id="d-diag" class="fw-bold text-dark">...</div>
+                    </li>
+                    <li class="list-group-item bg-transparent px-0">
+                        <strong class="d-block text-muted mb-1">Resep Obat:</strong>
+                        <div id="d-presc" class="fw-bold text-dark">...</div>
+                    </li>
+                     <li class="list-group-item bg-transparent px-0">
+                        <strong class="d-block text-muted mb-1">Tindakan:</strong>
+                        <div id="d-action" class="fw-bold text-dark">...</div>
+                    </li>
+                </ul>
             </div>
             
             <button class="btn btn-outline-secondary btn-sm w-100 mt-3" onclick="resetCardView()">Cari Nomor Lain</button>
@@ -2943,21 +2984,42 @@ document.addEventListener("DOMContentLoaded", function() {
                 document.getElementById('card-login-step').style.display = 'none';
                 document.getElementById('card-display-step').style.display = 'block';
                 
+                // Hard Card
                 document.getElementById('hc-name').innerText = data.name;
                 document.getElementById('hc-phone').innerText = data.phone;
-                document.getElementById('hc-status').innerText = data.status.toUpperCase();
+                document.getElementById('hc-status').innerText = (data.status || 'waiting').toUpperCase();
                 
-                // Date logic
+                const fmtDate = (s) => {
+                    if(!s) return '-';
+                    try {
+                        const d = new Date(s.replace(' ', 'T'));
+                        const m = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+                        const min = d.getMinutes().toString().padStart(2, '0');
+                        return `${d.getDate()} ${m[d.getMonth()]} ${d.getHours()}:${min}`;
+                    } catch(e) { return s; }
+                };
+
+                // Date for Hard Card
                 let dateStr = data.created_at;
-                if(data.finished_at) dateStr = data.finished_at;
                 try {
                     const d = new Date(dateStr.replace(' ', 'T'));
                     const m = ["JAN", "FEB", "MAR", "APR", "MEI", "JUN", "JUL", "AGU", "SEP", "OKT", "NOV", "DES"];
                     document.getElementById('hc-date').innerText = d.getDate() + ' ' + m[d.getMonth()];
-                } catch(e) {}
+                } catch(e) {
+                     document.getElementById('hc-date').innerText = '-';
+                }
+
+                // Details List
+                document.getElementById('d-name').innerText = data.name;
+                document.getElementById('d-phone').innerText = data.phone;
+                document.getElementById('d-status').innerText = (data.status || 'waiting').toUpperCase();
+                document.getElementById('d-in').innerText = fmtDate(data.created_at);
+                document.getElementById('d-out').innerText = fmtDate(data.finished_at);
                 
-                document.getElementById('hc-diag').innerText = data.diagnosis || '-';
-                document.getElementById('hc-presc').innerText = data.prescription || '-';
+                document.getElementById('d-complaint').innerText = data.complaint || '-';
+                document.getElementById('d-diag').innerText = data.diagnosis || '-';
+                document.getElementById('d-presc').innerText = data.prescription || '-';
+                document.getElementById('d-action').innerText = data.medical_action || '-';
             }
         });
     }
