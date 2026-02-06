@@ -1266,8 +1266,9 @@ def upload_lab():
         
         conn = get_db_connection()
         c = conn.cursor()
-        c.execute("INSERT INTO lab_results (patient_id, description, file_path) VALUES (?, ?, ?)", 
-                  (patient_id, desc, filename))
+        now_wita = get_wita_now().strftime("%Y-%m-%d %H:%M:%S")
+        c.execute("INSERT INTO lab_results (patient_id, description, file_path, created_at) VALUES (?, ?, ?, ?)",
+                  (patient_id, desc, filename, now_wita))
         conn.commit()
         conn.close()
         log_audit('LAB_UPLOAD', f"Uploaded {filename} for patient {patient_id}")
@@ -1275,6 +1276,13 @@ def upload_lab():
     return redirect('/lab-results')
 
 # --- FRONTEND ASSETS ---
+
+MEDICAL_FOOTER_TEMPLATE = """
+<footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+    <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+</footer>
+"""
 
 MEDICAL_NAVBAR_TEMPLATE = """
 <style>
@@ -1650,6 +1658,20 @@ MEDICAL_NAVBAR_TEMPLATE = """
         .role-btn { padding: 8px; border-radius: 50%; width: 35px; height: 35px; justify-content: center; }
         .role-btn i { margin: 0; }
     }
+
+    /* Fixes for Queue/Symptom/Booking in Dark Mode */
+    body.dark-mode #ticket-view { background-color: #2d2d2d !important; color: white !important; border: 1px solid #444; padding: 20px; border-radius: 15px; }
+    body.dark-mode #result-box { background-color: #2d2d2d !important; color: white !important; border-color: #444 !important; }
+    body.dark-mode input[type="date"]::-webkit-calendar-picker-indicator,
+    body.dark-mode input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+
+    body.clean-mode #ticket-view { background-color: #000 !important; color: white !important; border: 1px solid white; padding: 20px; border-radius: 15px; }
+    body.clean-mode #result-box { background-color: #000 !important; color: white !important; border: 1px solid white !important; }
+    body.clean-mode input[type="date"]::-webkit-calendar-picker-indicator,
+    body.clean-mode input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+
+    /* Login Password Icon */
+    body.dark-mode #login-eye-icon { color: white !important; }
 </style>
 
 <div class="medical-top-bar">
@@ -1666,13 +1688,13 @@ MEDICAL_NAVBAR_TEMPLATE = """
             </button>
             <div id="theme-menu-dropdown" style="display:none; position:absolute; top:110%; left:50%; transform:translateX(-50%); background:white; border-radius:10px; box-shadow:0 5px 15px rgba(0,0,0,0.2); overflow:hidden; z-index:2000; min-width:120px; border:1px solid #eee;">
                 <button onclick="setTheme('light')" style="width:100%; text-align:left; padding:10px 15px; border:none; background:white; cursor:pointer; display:flex; align-items:center; gap:10px; color:#333; font-weight:bold; font-size:0.8rem; border-bottom:1px solid #f0f0f0;">
-                    <i class="fas fa-sun text-warning"></i> Light
+                    <i class="fas fa-sun text-warning" style="width:20px; text-align:center;"></i> Light
                 </button>
                 <button onclick="setTheme('dark')" style="width:100%; text-align:left; padding:10px 15px; border:none; background:white; cursor:pointer; display:flex; align-items:center; gap:10px; color:#333; font-weight:bold; font-size:0.8rem; border-bottom:1px solid #f0f0f0;">
-                    <i class="fas fa-moon text-dark"></i> Dark
+                    <i class="fas fa-moon text-dark" style="width:20px; text-align:center;"></i> Dark
                 </button>
                 <button onclick="setTheme('clean')" style="width:100%; text-align:left; padding:10px 15px; border:none; background:white; cursor:pointer; display:flex; align-items:center; gap:10px; color:#333; font-weight:bold; font-size:0.8rem;">
-                    <i class="fas fa-sparkles" style="color:#FF6D00"></i> Clean
+                    <i class="fas fa-sparkles" style="color:#FF6D00; width:20px; text-align:center;"></i> Clean
                 </button>
             </div>
         </div>
@@ -1717,6 +1739,9 @@ MEDICAL_NAVBAR_TEMPLATE = """
                  <div class="input-group">
                     <span class="input-group-text bg-light"><i class="fas fa-lock"></i></span>
                     <input type="password" name="password" id="loginPass" class="form-control" placeholder="Password" required>
+                    <button class="btn btn-outline-secondary" type="button" onclick="toggleLoginPass()">
+                        <i class="fas fa-eye" id="login-eye-icon"></i>
+                    </button>
                 </div>
             </div>
             <button type="submit" class="btn btn-primary w-100 fw-bold py-2 rounded-pill">MASUK SISTEM</button>
@@ -1779,6 +1804,20 @@ function setTheme(mode) {
     
     localStorage.setItem('theme', mode);
     document.getElementById('theme-menu-dropdown').style.display = 'none';
+}
+
+function toggleLoginPass() {
+    const x = document.getElementById("loginPass");
+    const icon = document.getElementById("login-eye-icon");
+    if (x.type === "password") {
+        x.type = "text";
+        icon.classList.remove("fa-eye");
+        icon.classList.add("fa-eye-slash");
+    } else {
+        x.type = "password";
+        icon.classList.remove("fa-eye-slash");
+        icon.classList.add("fa-eye");
+    }
 }
 
 document.addEventListener("DOMContentLoaded", function() {
@@ -1950,19 +1989,19 @@ document.addEventListener("DOMContentLoaded", function() {
                          </div>
                     </li>
                     <li class="list-group-item bg-transparent px-0">
-                        <strong class="d-block text-muted mb-1">Keluhan:</strong>
+                        <strong class="d-block text-warning mb-1"><i class="fas fa-comment-medical me-2"></i>Keluhan:</strong>
                         <div id="d-complaint" class="fw-bold text-dark">...</div>
                     </li>
                     <li class="list-group-item bg-transparent px-0">
-                        <strong class="d-block text-muted mb-1">Diagnosa:</strong>
+                        <strong class="d-block text-info mb-1"><i class="fas fa-stethoscope me-2"></i>Diagnosa:</strong>
                         <div id="d-diag" class="fw-bold text-dark">...</div>
                     </li>
                     <li class="list-group-item bg-transparent px-0">
-                        <strong class="d-block text-muted mb-1">Resep Obat:</strong>
+                        <strong class="d-block text-danger mb-1"><i class="fas fa-pills me-2"></i>Resep Obat:</strong>
                         <div id="d-presc" class="fw-bold text-dark">...</div>
                     </li>
                      <li class="list-group-item bg-transparent px-0">
-                        <strong class="d-block text-muted mb-1">Tindakan:</strong>
+                        <strong class="d-block text-success mb-1"><i class="fas fa-user-md me-2"></i>Tindakan:</strong>
                         <div id="d-action" class="fw-bold text-dark">...</div>
                     </li>
                 </ul>
@@ -3384,6 +3423,10 @@ HTML_LAB = """
             new bootstrap.Modal(document.getElementById('uploadModal')).show();
         }
     </script>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -3440,6 +3483,10 @@ HTML_STOCK_PRED = """
             </div>
         </div>
     </div>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -3551,6 +3598,10 @@ HTML_MAP = """
             list.innerHTML += `<div class="mt-3 p-3 bg-light rounded small"><strong>Saran Tindakan:</strong><br>Lakukan fogging atau penyuluhan kesehatan di wilayah ini.</div>`;
         }
     </script>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -3613,6 +3664,10 @@ HTML_SYMPTOM = """
             });
         }
     </script>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -3719,6 +3774,10 @@ HTML_QR_PAGE = """
             win.print();
         }
     </script>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -3771,6 +3830,10 @@ HTML_AUDIT = """
             </div>
         </div>
     </div>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -6077,6 +6140,10 @@ HTML_SICK_LIST = """
             </div>
         </div>
     </div>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -6237,6 +6304,10 @@ HTML_CASHIER = """
         calcTotal({{ p.id }});
         {% endfor %}
     </script>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -6296,6 +6367,10 @@ HTML_PATIENT_DB = """
             </div>
         </div>
     </div>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -6474,6 +6549,10 @@ HTML_SEARCH = """
             document.getElementById('player-card-modal').style.display = 'none';
         }
     </script>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -6525,6 +6604,10 @@ HTML_STATS = """
             }
         });
     </script>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -6749,6 +6832,10 @@ HTML_BOOKING = """
             });
         }
     </script>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -6818,6 +6905,10 @@ HTML_FINANCE = """
             }
         });
     </script>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -6893,6 +6984,10 @@ HTML_EXPIRY = """
             }).then(() => location.reload());
         }
     </script>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -6941,6 +7036,10 @@ HTML_RECEIPT_LIST = """
             </div>
         </div>
     </div>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -7032,6 +7131,10 @@ HTML_WA_REMINDER = """
             </div>
         </div>
     </div>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
@@ -7087,6 +7190,10 @@ HTML_BOOKING_LIST = """
             </div>
         </div>
     </div>
+    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+    </footer>
 </body>
 </html>
 """
