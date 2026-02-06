@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for
+from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response
 from werkzeug.utils import secure_filename
 
 # --- KONFIGURASI FLASK ---
@@ -9,6 +9,39 @@ app.secret_key = "supersecretkey"
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt', 'vtt'}
+
+# --- PWA CONFIGURATION ---
+MANIFEST_CONTENT = """
+{
+  "name": "hamiart.education",
+  "short_name": "hamiart",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#E5322D",
+  "icons": [
+    {
+      "src": "/uploads/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/uploads/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+"""
+
+SW_CONTENT = """
+self.addEventListener('install', (e) => {
+  console.log('[Service Worker] Install');
+});
+self.addEventListener('fetch', (e) => {
+  e.respondWith(fetch(e.request));
+});
+"""
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -127,6 +160,11 @@ NAVBAR_HTML = """
                             <i class="fas fa-image"></i>
                         </div>
                     </form>
+
+                    <!-- PWA Install Button -->
+                    <div id="pwa-install-btn" class="nav-icon-btn small-btn" style="display: flex;" title="Install Web App">
+                        <i class="fas fa-download"></i>
+                    </div>
                 </div>
             </div>
             
@@ -358,6 +396,33 @@ def upload_logo():
             
     return redirect(url_for('index'))
 
+@app.route('/manifest.json')
+def manifest():
+    return Response(MANIFEST_CONTENT, mimetype='application/json')
+
+@app.route('/service-worker.js')
+def service_worker():
+    return Response(SW_CONTENT, mimetype='application/javascript')
+
+@app.route('/uploads/icon-192.png')
+def icon_192():
+    if os.path.exists('logo_config.txt'):
+        with open('logo_config.txt', 'r') as f:
+            filename = f.read().strip()
+            if filename and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], filename)):
+                return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    # Fallback to static/hamiartlogo.png
+    return send_from_directory('static', 'hamiartlogo.png')
+
+@app.route('/uploads/icon-512.png')
+def icon_512():
+    if os.path.exists('logo_config.txt'):
+        with open('logo_config.txt', 'r') as f:
+            filename = f.read().strip()
+            if filename and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], filename)):
+                return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    return send_from_directory('static', 'hamiartlogo.png')
+
 @app.route('/wallpaper-blur/upload', methods=['POST'])
 def wallpaper_upload():
     if 'background' not in request.files:
@@ -381,6 +446,7 @@ HTML_DOREMI = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nada Dasar C | doremifasolasido</title>
+    <link rel="manifest" href="/manifest.json">
     <link rel="icon" href="{{ url_for('static', filename='hamiartlogo.png') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -722,6 +788,42 @@ HTML_DOREMI = """
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // PWA Installation Logic
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(() => console.log('Service Worker Registered'));
+        }
+
+        let deferredPrompt;
+        const pwaBtn = document.getElementById('pwa-install-btn');
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+        });
+
+        pwaBtn.addEventListener('click', () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted the A2HS prompt');
+                    } else {
+                        console.log('User dismissed the A2HS prompt');
+                    }
+                    deferredPrompt = null;
+                });
+            } else if (isIOS) {
+                // Show instruction for iOS
+                alert("To install on iOS: Tap the Share button and select 'Add to Home Screen'");
+            } else {
+                 // Fallback or if already installed/not supported
+                 alert("To install, look for 'Add to Home Screen' in your browser menu. If you have already installed the app, you can open it from your device menu.");
+            }
+        });
+    </script>
     <script>
         (function() {
             const savedTheme = localStorage.getItem('theme') || 'light';
