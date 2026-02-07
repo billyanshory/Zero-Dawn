@@ -2054,12 +2054,101 @@ document.addEventListener("DOMContentLoaded", function() {
         <h4 class="mb-4 fw-bold text-success" style="letter-spacing: 1px;">PILIH PERMAINAN</h4>
         
         <div class="d-grid gap-3">
-            <button onclick="openPuzzleGame()" class="btn btn-outline-success btn-lg fw-bold py-3 rounded-pill shadow-sm" style="display:flex; align-items:center; justify-content:center; gap:10px;">
+            <button onclick="document.getElementById('puzzleSelectModal').style.display='flex'; document.getElementById('gameMenuModal').style.display='none';" class="btn btn-outline-success btn-lg fw-bold py-3 rounded-pill shadow-sm" style="display:flex; align-items:center; justify-content:center; gap:10px;">
                 <i class="fas fa-puzzle-piece fa-lg"></i> Puzzle Gambar
             </button>
             <button onclick="openDevPopup()" class="btn btn-outline-info btn-lg fw-bold py-3 rounded-pill shadow-sm" style="display:flex; align-items:center; justify-content:center; gap:10px;">
                 <i class="fas fa-tooth fa-lg"></i> Perawatan Gigi
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- Puzzle Select Modal -->
+<div id="puzzleSelectModal" class="login-modal-overlay" style="display:none; z-index: 10001;">
+    <div class="login-modal-box" style="width: 350px; text-align: center;">
+        <button type="button" onclick="document.getElementById('puzzleSelectModal').style.display='none'; document.getElementById('gameMenuModal').style.display='flex';" style="position:absolute; top:10px; right:15px; border:none; background:none; font-size:1.2rem; cursor:pointer;">&times;</button>
+        <h4 class="mb-4 fw-bold text-primary">PILIH PUZZLE</h4>
+        <div class="d-grid gap-3">
+            <button onclick="openPuzzleGame()" class="btn btn-outline-dark fw-bold py-3 rounded-pill">
+                <i class="fas fa-image me-2"></i> Lukisan Monalisa
+            </button>
+            <button onclick="openMangkukGame()" class="btn btn-outline-warning fw-bold py-3 rounded-pill">
+                <i class="fas fa-wine-glass-alt me-2"></i> Mangkuk Cina
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Mangkuk Game Modal -->
+<div id="mangkukModal" class="login-modal-overlay" style="display:none; z-index: 10002;">
+    <style>
+        .hard-card-acrylic-mangkuk {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            border-radius: 25px;
+            width: 95%; height: 95%; /* Almost full screen */
+            max-width: 1200px;
+            display: flex; flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            padding: 20px;
+        }
+        #mangkukCanvas {
+            flex: 1;
+            width: 100%;
+            border-radius: 15px;
+            background: rgba(0,0,0,0.2);
+            cursor: grab;
+            touch-action: none;
+        }
+        .mangkuk-controls {
+            display: flex; justify-content: center; gap: 10px; margin-bottom: 15px;
+        }
+        .btn-mangkuk {
+            background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.5);
+            padding: 8px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; transition:0.3s;
+        }
+        .btn-mangkuk:hover, .btn-mangkuk.active {
+            background: #FFD700; color: black; border-color: #FFD700; box-shadow: 0 0 15px rgba(255,215,0,0.4);
+        }
+        #mangkukWinOverlay {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.7);
+            display:none; flex-direction:column; justify-content:center; align-items:center;
+            z-index: 50; backdrop-filter: blur(5px); text-align: center; color: #FFD700;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Zhi+Mang+Xing&display=swap');
+        .chinese-quote {
+            font-family: 'Zhi Mang Xing', cursive;
+            font-size: 2.5rem; margin: 20px;
+            text-shadow: 0 0 10px rgba(255,215,0,0.8);
+        }
+        @media(max-width:768px){
+            .chinese-quote{font-size: 1.5rem;}
+        }
+    </style>
+    <div class="hard-card-acrylic-mangkuk">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="fw-bold text-white mb-0" style="letter-spacing:1px;">MANGKUK CINA (KINTSUGI)</h3>
+            <button onclick="document.getElementById('mangkukModal').style.display='none'" class="close-btn" style="font-size:2rem; color:white;">&times;</button>
+        </div>
+
+        <div class="mangkuk-controls">
+            <button class="btn-mangkuk" onclick="initMangkuk(1)">LVL 1 (6)</button>
+            <button class="btn-mangkuk" onclick="initMangkuk(2)">LVL 2 (12)</button>
+            <button class="btn-mangkuk" onclick="initMangkuk(3)">LVL 3 (18)</button>
+            <button class="btn-mangkuk bg-danger border-0" onclick="initMangkuk(currentMangkukLevel)">RESET</button>
+        </div>
+
+        <canvas id="mangkukCanvas"></canvas>
+
+        <div id="mangkukWinOverlay">
+            <div class="chinese-quote">Sesuatu yang pernah pecah/sakit,<br>bisa menjadi lebih indah setelah disembuhkan.</div>
+            <button class="btn btn-warning rounded-pill fw-bold px-5 py-2 mt-4" onclick="document.getElementById('mangkukWinOverlay').style.display='none'">Selesai</button>
         </div>
     </div>
 </div>
@@ -2408,7 +2497,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     <div class="hard-card-glass" id="gameContainer">
         <div class="game-header">
-            <h3 class="game-title">PUZZLE GAME</h3>
+            <h3 class="game-title">LUKISAN MONALISA</h3>
             <button onclick="document.getElementById('gameModal').style.display='none'" class="close-btn">&times;</button>
         </div>
         
@@ -2447,8 +2536,254 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function openPuzzleGame() {
         document.getElementById('gameMenuModal').style.display = 'none';
+        document.getElementById('puzzleSelectModal').style.display = 'none';
         document.getElementById('gameModal').style.display = 'flex';
         initPuzzle(currentLevel);
+    }
+
+    function openPuzzleSelect() {
+        document.getElementById('gameMenuModal').style.display = 'none';
+        document.getElementById('puzzleSelectModal').style.display = 'flex';
+    }
+
+    // --- MANGKUK CINA GAME ---
+    let mangkukCanvas, mangkukCtx;
+    let mangkukImg = new Image();
+    let mangkukPieces = [];
+    let mangkukSelectedPiece = null;
+    let mangkukOffsetX, mangkukOffsetY;
+    let currentMangkukLevel = 1;
+    let mangkukWin = false;
+
+    function openMangkukGame() {
+        document.getElementById('puzzleSelectModal').style.display = 'none';
+        document.getElementById('mangkukModal').style.display = 'flex';
+        setTimeout(() => initMangkuk(currentMangkukLevel), 100);
+    }
+
+    function initMangkuk(level) {
+        currentMangkukLevel = level;
+        mangkukWin = false;
+        document.getElementById('mangkukWinOverlay').style.display = 'none';
+
+        mangkukCanvas = document.getElementById('mangkukCanvas');
+        mangkukCtx = mangkukCanvas.getContext('2d');
+
+        const container = document.querySelector('.hard-card-acrylic-mangkuk');
+        // Subtract controls height roughly
+        mangkukCanvas.width = container.clientWidth - 40;
+        mangkukCanvas.height = container.clientHeight - 100;
+
+        mangkukImg.src = "{{ url_for('static', filename='mangkukcina.png') }}";
+        mangkukImg.onload = () => {
+            createMangkukPieces(level);
+            drawMangkuk();
+        };
+
+        // Listeners
+        mangkukCanvas.onmousedown = handleMangkukDown;
+        mangkukCanvas.onmousemove = handleMangkukMove;
+        mangkukCanvas.onmouseup = handleMangkukUp;
+        mangkukCanvas.onmouseleave = handleMangkukUp;
+
+        mangkukCanvas.addEventListener('touchstart', handleMangkukDown, {passive: false});
+        mangkukCanvas.addEventListener('touchmove', handleMangkukMove, {passive: false});
+        mangkukCanvas.addEventListener('touchend', handleMangkukUp);
+    }
+
+    function createMangkukPieces(level) {
+        mangkukPieces = [];
+        let rows, cols;
+        if(level === 1) { rows=2; cols=3; }
+        else if(level === 2) { rows=3; cols=4; }
+        else { rows=3; cols=6; }
+
+        const scale = Math.min((mangkukCanvas.width * 0.8) / mangkukImg.width, (mangkukCanvas.height * 0.8) / mangkukImg.height);
+        const drawW = mangkukImg.width * scale;
+        const drawH = mangkukImg.height * scale;
+        const startX = (mangkukCanvas.width - drawW) / 2;
+        const startY = (mangkukCanvas.height - drawH) / 2;
+
+        const pieceW = drawW / cols;
+        const pieceH = drawH / rows;
+
+        // Generate Grid Points (Perturbed)
+        let points = [];
+        for(let r=0; r<=rows; r++) {
+            points[r] = [];
+            for(let c=0; c<=cols; c++) {
+                let x = startX + c * pieceW;
+                let y = startY + r * pieceH;
+
+                // Perturb internal points
+                if(r>0 && r<rows && c>0 && c<cols) {
+                    x += (Math.random() - 0.5) * (pieceW * 0.4);
+                    y += (Math.random() - 0.5) * (pieceH * 0.4);
+                }
+                points[r][c] = {x, y};
+            }
+        }
+
+        // Create Pieces
+        for(let r=0; r<rows; r++) {
+            for(let c=0; c<cols; c++) {
+                let p1 = points[r][c];
+                let p2 = points[r][c+1];
+                let p3 = points[r+1][c+1];
+                let p4 = points[r+1][c];
+
+                // Random Scatter Position
+                let randX = Math.random() * (mangkukCanvas.width - pieceW);
+                let randY = Math.random() * (mangkukCanvas.height - pieceH);
+
+                mangkukPieces.push({
+                    path: [p1, p2, p3, p4], // Correct Target Coords
+                    currentX: randX - p1.x, // Offset from target
+                    currentY: randY - p1.y,
+                    snapped: false,
+                    r: r, c: c,
+                    w: pieceW, h: pieceH
+                });
+            }
+        }
+    }
+
+    function drawMangkuk() {
+        mangkukCtx.clearRect(0,0, mangkukCanvas.width, mangkukCanvas.height);
+
+        mangkukPieces.forEach(p => {
+            if(p.snapped) drawOnePiece(p);
+        });
+        mangkukPieces.forEach(p => {
+            if(!p.snapped) drawOnePiece(p);
+        });
+    }
+
+    function drawOnePiece(p) {
+        mangkukCtx.save();
+        mangkukCtx.beginPath();
+
+        let path = p.path;
+        let dx = p.currentX;
+        let dy = p.currentY;
+
+        mangkukCtx.moveTo(path[0].x + dx, path[0].y + dy);
+        for(let i=1; i<path.length; i++) {
+            mangkukCtx.lineTo(path[i].x + dx, path[i].y + dy);
+        }
+        mangkukCtx.closePath();
+
+        mangkukCtx.clip();
+
+        const scale = Math.min((mangkukCanvas.width * 0.8) / mangkukImg.width, (mangkukCanvas.height * 0.8) / mangkukImg.height);
+        const drawW = mangkukImg.width * scale;
+        const drawH = mangkukImg.height * scale;
+        const startX = (mangkukCanvas.width - drawW) / 2;
+        const startY = (mangkukCanvas.height - drawH) / 2;
+
+        mangkukCtx.translate(dx, dy);
+        mangkukCtx.drawImage(mangkukImg, startX, startY, drawW, drawH);
+
+        if(p.snapped) {
+            mangkukCtx.lineWidth = 3;
+            mangkukCtx.strokeStyle = '#FFD700';
+            mangkukCtx.shadowColor = '#FFD700';
+            mangkukCtx.shadowBlur = 15;
+            mangkukCtx.stroke();
+        } else {
+            mangkukCtx.lineWidth = 1;
+            mangkukCtx.strokeStyle = 'rgba(255,255,255,0.5)';
+            mangkukCtx.stroke();
+        }
+
+        mangkukCtx.restore();
+    }
+
+    function getMangkukPos(e) {
+        const rect = mangkukCanvas.getBoundingClientRect();
+        let clientX = e.clientX;
+        let clientY = e.clientY;
+        if(e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        }
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function isInside(pos, p) {
+        let tx = p.path[0].x + p.currentX;
+        let ty = p.path[0].y + p.currentY;
+        return pos.x > tx && pos.x < tx + p.w && pos.y > ty && pos.y < ty + p.h;
+    }
+
+    function handleMangkukDown(e) {
+        if(e.type === 'touchstart') e.preventDefault();
+        const pos = getMangkukPos(e);
+
+        for(let i=mangkukPieces.length-1; i>=0; i--) {
+            let p = mangkukPieces[i];
+            if(!p.snapped && isInside(pos, p)) {
+                mangkukSelectedPiece = p;
+                mangkukOffsetX = pos.x - p.currentX;
+                mangkukOffsetY = pos.y - p.currentY;
+
+                mangkukPieces.splice(i, 1);
+                mangkukPieces.push(p);
+                drawMangkuk();
+                return;
+            }
+        }
+    }
+
+    function handleMangkukMove(e) {
+        if(!mangkukSelectedPiece) return;
+        if(e.type === 'touchmove') e.preventDefault();
+        const pos = getMangkukPos(e);
+
+        mangkukSelectedPiece.currentX = pos.x - mangkukOffsetX;
+        mangkukSelectedPiece.currentY = pos.y - mangkukOffsetY;
+        drawMangkuk();
+    }
+
+    function handleMangkukUp(e) {
+        if(!mangkukSelectedPiece) return;
+
+        if(Math.abs(mangkukSelectedPiece.currentX) < 20 && Math.abs(mangkukSelectedPiece.currentY) < 20) {
+            mangkukSelectedPiece.currentX = 0;
+            mangkukSelectedPiece.currentY = 0;
+            mangkukSelectedPiece.snapped = true;
+            playTing();
+            checkMangkukWin();
+        }
+
+        mangkukSelectedPiece = null;
+        drawMangkuk();
+    }
+
+    function playTing() {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1500, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.5);
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.0);
+            osc.start();
+            osc.stop(ctx.currentTime + 1.5);
+        } catch(e) {}
+    }
+
+    function checkMangkukWin() {
+        if(mangkukPieces.every(p => p.snapped)) {
+            setTimeout(() => {
+                document.getElementById('mangkukWinOverlay').style.display = 'flex';
+            }, 500);
+        }
     }
 
     function openDevPopup() {
