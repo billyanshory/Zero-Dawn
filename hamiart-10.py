@@ -649,9 +649,10 @@ STYLES_HTML = """
             justify-content: space-around;
             align-items: center;
             padding: 10px 0;
-            background: rgba(0, 0, 0, 0.85) !important; /* Stronger contrast */
-            backdrop-filter: blur(20px) !important;
+            background: rgba(255, 255, 255, 0.1) !important; /* Clear transparent */
+            backdrop-filter: blur(10px) !important; /* Modern Cool Blur */
             border-top: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
         }
         
         .bottom-nav-item {
@@ -1494,15 +1495,16 @@ METRONOME_HTML_CONTENT = """
             const osc = this.audioContext.createOscillator();
             const envelope = this.audioContext.createGain();
 
-            osc.frequency.value = (beatNumber % 4 === 0) ? 1000 : 800;
-            envelope.gain.value = 1;
-            envelope.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+            osc.type = 'square';
+            osc.frequency.value = (beatNumber % 4 === 0) ? 1200 : 1000;
+            envelope.gain.value = 3.0;
+            envelope.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
 
             osc.connect(envelope);
             envelope.connect(this.audioContext.destination);
 
             osc.start(time);
-            osc.stop(time + 0.05);
+            osc.stop(time + 0.1);
             
             const drawTime = (time - this.audioContext.currentTime) * 1000;
             setTimeout(() => {
@@ -1599,7 +1601,12 @@ EAR_TRAINING_HTML_CONTENT = """
         
         <div class="position-absolute top-0 start-0 w-100 h-100 bg-gradient-info opacity-10" style="z-index: -1;"></div>
 
-        <h2 class="text-white mb-4 fw-bold text-uppercase letter-spacing-1"><i class="fas fa-ear-listen me-2 text-warning"></i>Tebak Nada</h2>
+        <h2 class="text-white mb-4 fw-bold text-uppercase letter-spacing-1">
+            <i class="fas fa-ear-listen me-2 text-warning"></i>Tebak Nada
+            <button class="btn btn-sm btn-outline-light rounded-circle ms-2" onclick="toggleToneType()" title="Ganti Suara" style="width: 35px; height: 35px; vertical-align: middle;">
+                <i class="fas fa-music" id="tone-icon"></i>
+            </button>
+        </h2>
         
         <div class="d-flex justify-content-center gap-4 mb-5">
             <div class="text-center">
@@ -1652,6 +1659,17 @@ EAR_TRAINING_HTML_CONTENT = """
     let correct = 0;
     let wrong = 0;
     let isAnswered = false;
+    let soundType = 'sine';
+
+    function toggleToneType() {
+        soundType = (soundType === 'sine') ? 'piano' : 'sine';
+        const icon = document.getElementById('tone-icon');
+        if (soundType === 'piano') {
+            icon.className = 'fas fa-keyboard';
+        } else {
+            icon.className = 'fas fa-music';
+        }
+    }
 
     function initAudio() {
         if (!audioCtx) {
@@ -1687,9 +1705,60 @@ EAR_TRAINING_HTML_CONTENT = """
         if(!currentNote) {
             nextQuestion();
         } else {
-            playTone(currentNote.freq);
+            if (soundType === 'piano') {
+                playPianoTone(currentNote.freq);
+            } else {
+                playTone(currentNote.freq);
+            }
         }
         document.getElementById('instruction').innerText = "Tebak nada apa ini?";
+    }
+
+    function playPianoTone(freq) {
+        initAudio();
+        const now = audioCtx.currentTime;
+        const duration = 1.5;
+
+        // 3 Oscillators for richness
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const osc3 = audioCtx.createOscillator();
+
+        osc1.type = 'triangle';
+        osc2.type = 'triangle';
+        osc3.type = 'sawtooth';
+
+        osc1.frequency.value = freq;
+        osc2.frequency.value = freq;
+        osc3.frequency.value = freq;
+
+        osc2.detune.value = 10;
+        osc3.detune.value = -10;
+
+        const masterGain = audioCtx.createGain();
+        const filter = audioCtx.createBiquadFilter();
+
+        filter.type = 'lowpass';
+        filter.frequency.value = 2000;
+
+        osc1.connect(masterGain);
+        osc2.connect(masterGain);
+        osc3.connect(masterGain);
+
+        masterGain.connect(filter);
+        filter.connect(audioCtx.destination);
+
+        masterGain.gain.setValueAtTime(0, now);
+        masterGain.gain.linearRampToValueAtTime(0.6, now + 0.02);
+        masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc3.start(now);
+
+        osc1.stop(now + duration);
+        osc2.stop(now + duration);
+        osc3.stop(now + duration);
     }
 
     function generateOptions() {
