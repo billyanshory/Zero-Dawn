@@ -516,6 +516,77 @@ STYLES_HTML = """
             margin: 0 auto;
             padding: 20px;
         }
+
+        /* --- HARD ACRYLIC MODAL STYLES --- */
+        .hard-acrylic-modal .modal-dialog {
+            max-width: 95vw;
+            margin: 2.5vh auto;
+            height: 95vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hard-acrylic-modal .modal-content {
+            width: 100%;
+            height: 100%;
+            background: rgba(30, 30, 30, 0.85); /* Hard acrylic */
+            backdrop-filter: blur(25px) saturate(180%);
+            -webkit-backdrop-filter: blur(25px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.6);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .hard-acrylic-modal .modal-header {
+            background: rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 20px;
+        }
+
+        .hard-acrylic-modal .modal-body {
+            overflow-y: auto;
+            padding: 30px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.5) transparent;
+        }
+
+        .hard-acrylic-modal .modal-footer {
+            background: rgba(255, 255, 255, 0.05);
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 20px;
+        }
+
+        .hard-acrylic-modal input,
+        .hard-acrylic-modal textarea,
+        .hard-acrylic-modal select {
+            background: rgba(255, 255, 255, 0.1) !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            color: white !important;
+            border-radius: 12px;
+            padding: 15px;
+            font-size: 1rem;
+        }
+
+        .hard-acrylic-modal input:focus,
+        .hard-acrylic-modal textarea:focus,
+        .hard-acrylic-modal select:focus {
+            background: rgba(255, 255, 255, 0.2) !important;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.8) !important;
+        }
+
+        .hard-acrylic-modal label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            font-size: 0.95rem;
+        }
         
         /* TOP NAV (Feature Buttons) */
         .top-feature-nav {
@@ -571,13 +642,16 @@ STYLES_HTML = """
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 90px;
-            z-index: 1000;
+            min-height: 80px; /* Allow growth */
+            height: auto;
+            z-index: 9999; /* Ensure on top */
             display: flex;
             justify-content: space-around;
             align-items: center;
             padding: 10px 0;
-            /* Glassmorphism applied inline or via utility */
+            background: rgba(0, 0, 0, 0.85) !important; /* Stronger contrast */
+            backdrop-filter: blur(20px) !important;
+            border-top: 1px solid rgba(255,255,255,0.2);
         }
         
         .bottom-nav-item {
@@ -588,6 +662,16 @@ STYLES_HTML = """
             color: rgba(255,255,255,0.7);
             transition: 0.3s;
             font-size: 0.8rem;
+            padding: 5px;
+        }
+
+        .bottom-nav-item span {
+            display: block !important;
+            font-size: 0.75rem;
+            margin-top: 4px;
+            font-weight: 600;
+            text-align: center;
+            line-height: 1.2;
         }
         
         .bottom-nav-item i {
@@ -858,7 +942,7 @@ GALLERY_HTML_CONTENT = """
 
 <!-- Upload Modal -->
 <div class="modal fade" id="uploadModal" tabindex="-1" style="z-index: 99999;">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered hard-acrylic-modal">
         <div class="modal-content glass-panel text-white">
             <div class="modal-header border-0">
                 <h5 class="modal-title">Upload Karya Baru</h5>
@@ -948,7 +1032,7 @@ TUTORS_HTML_CONTENT = """
 
 <!-- Tutor Modal -->
 <div class="modal fade" id="tutorModal" tabindex="-1" style="z-index: 99999;">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered hard-acrylic-modal">
         <div class="modal-content glass-panel text-white">
             <div class="modal-header border-0">
                 <h5 class="modal-title">Tambah Pengajar Baru</h5>
@@ -1031,7 +1115,7 @@ PRICING_HTML_CONTENT = """
 
 <!-- Pricing Modal -->
 <div class="modal fade" id="pricingModal" tabindex="-1" style="z-index: 99999;">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered hard-acrylic-modal">
         <div class="modal-content glass-panel text-white">
             <div class="modal-header border-0">
                 <h5 class="modal-title">Tambah Paket Baru</h5>
@@ -1146,7 +1230,7 @@ SLOTS_HTML_CONTENT = """
 
 <!-- Slot Modal -->
 <div class="modal fade" id="slotModal" tabindex="-1" style="z-index: 99999;">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered hard-acrylic-modal">
         <div class="modal-content glass-panel text-white">
             <div class="modal-header border-0">
                 <h5 class="modal-title">Tambah Slot Jadwal</h5>
@@ -1313,7 +1397,7 @@ NEWS_HTML_CONTENT = """
 
 <!-- News Modal -->
 <div class="modal fade" id="newsModal" tabindex="-1" style="z-index: 99999;">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered hard-acrylic-modal">
         <div class="modal-content glass-panel text-white">
             <div class="modal-header border-0">
                 <h5 class="modal-title">Tambah Berita / Prestasi</h5>
