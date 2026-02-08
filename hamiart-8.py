@@ -132,6 +132,7 @@ NAVBAR_HTML = """
             background-color: transparent !important;
             box-shadow: none !important;
             padding-top: 20px;
+            z-index: 1020;
         }
         .navbar-box {
             display: flex;
@@ -161,12 +162,6 @@ NAVBAR_HTML = """
             }
         }
         
-        .nav-controls {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
         .nav-icon-btn {
             width: 45px;
             height: 45px;
@@ -190,14 +185,6 @@ NAVBAR_HTML = """
             transform: scale(1.05);
             box-shadow: 0 0 10px rgba(255,255,255,0.5);
         }
-        /* Smaller button modifier */
-        .nav-icon-btn.small-btn {
-            width: 35px;
-            height: 35px;
-        }
-        .nav-icon-btn.small-btn i {
-            font-size: 0.9rem;
-        }
         
         .nav-icon-btn img {
             width: 100%;
@@ -208,48 +195,141 @@ NAVBAR_HTML = """
             font-size: 1.1rem;
         }
 
-        /* Mobile Specific */
-        .navbar-toggler { display: none !important; }
-        .navbar-collapse { display: none !important; }
+        /* Menu Overlay Styles */
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .menu-overlay.active {
+            opacity: 1;
+        }
+        .menu-card {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            border-radius: 30px;
+            display: flex;
+            flex-direction: column;
+            padding: 40px;
+            color: white;
+        }
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: 0.2s;
+        }
+        .close-btn:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+        .menu-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 15px 20px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            font-size: 1.2rem;
+            transition: 0.2s;
+            color: white;
+            text-decoration: none;
+        }
+        .menu-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateX(5px);
+        }
     </style>
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
             <div class="navbar-box">
-                <a class="navbar-brand" href="/">hamiart.<span>education</span></a>
-                
-                <div class="nav-controls">
-                    <!-- Logo Upload -->
-                    <form action="/upload-logo" method="post" enctype="multipart/form-data" id="logo-form" style="margin: 0;">
-                        <input type="file" name="logo" id="logo-file" hidden onchange="document.getElementById('logo-form').submit()" accept="image/*">
-                        <div class="nav-icon-btn" onclick="document.getElementById('logo-file').click()" title="Upload Website Logo">
-                            {% if logo_file %}
-                                <img src="/uploads/{{ logo_file }}" alt="Logo">
-                            {% else %}
-                                <i class="fas fa-camera"></i>
-                            {% endif %}
-                        </div>
-                    </form>
-
-                    <!-- Wallpaper Upload (Moved from Body) -->
-                    <form action="/wallpaper-blur/upload" method="post" enctype="multipart/form-data" id="nav-wall-form" style="margin: 0;">
-                        <input type="file" name="background" id="nav-wall-file" hidden onchange="document.getElementById('nav-wall-form').submit()" accept="image/*">
-                        <div class="nav-icon-btn small-btn" onclick="document.getElementById('nav-wall-file').click()" title="Set Wallpaper">
-                            <i class="fas fa-image"></i>
-                        </div>
-                    </form>
-
-                    <!-- PWA Install Button -->
-                    <div id="pwa-install-btn" class="nav-icon-btn small-btn" style="display: flex;" title="Install Web App">
-                        <i class="fas fa-download"></i>
+                <!-- 1. Logo (Left) -->
+                <form action="/upload-logo" method="post" enctype="multipart/form-data" id="logo-form" style="margin: 0; margin-right: 15px;">
+                    <input type="file" name="logo" id="logo-file" hidden onchange="document.getElementById('logo-form').submit()" accept="image/*">
+                    <div class="nav-icon-btn" onclick="document.getElementById('logo-file').click()" title="Upload Website Logo">
+                        {% if logo_file %}
+                            <img src="/uploads/{{ logo_file }}" alt="Logo">
+                        {% else %}
+                            <i class="fas fa-camera"></i>
+                        {% endif %}
                     </div>
-                </div>
+                </form>
+
+                <!-- 2. Brand (Center/Left) -->
+                <a class="navbar-brand me-auto" href="/">hamiart.<span>education</span></a>
+
+                <!-- 3. Hamburger Menu (Right) -->
+                <button class="nav-icon-btn" onclick="toggleMenu()" style="border: none; background: transparent; color: white; display: flex;">
+                    <i class="fas fa-bars" style="font-size: 1.5rem;"></i>
+                </button>
             </div>
-            
-            <!-- Hidden Toggler/Collapse -->
-            <button class="navbar-toggler" type="button" style="display:none"></button>
-            <div class="collapse navbar-collapse" id="navbarNav" style="display:none"></div>
         </div>
     </nav>
+
+    <!-- Menu Overlay -->
+    <div id="menuOverlay" class="menu-overlay">
+        <div class="menu-card glass-panel">
+            <button class="close-btn" onclick="toggleMenu()">&times;</button>
+
+            <h2 class="text-white fw-bold mb-5 ps-2 border-start border-4 border-light">Menu</h2>
+
+            <div class="menu-items">
+                <!-- Wallpaper Upload -->
+                <form action="/wallpaper-blur/upload" method="post" enctype="multipart/form-data" id="nav-wall-form" style="margin: 0; width: 100%;">
+                    <input type="file" name="background" id="nav-wall-file" hidden onchange="document.getElementById('nav-wall-form').submit()" accept="image/*">
+                    <div class="menu-btn" onclick="document.getElementById('nav-wall-file').click()">
+                        <i class="fas fa-image me-3"></i> Set Wallpaper
+                    </div>
+                </form>
+
+                <!-- PWA Install Button -->
+                <div id="pwa-install-btn-menu" class="menu-btn" style="display: flex;">
+                    <i class="fas fa-download me-3"></i> Install App
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleMenu() {
+            const overlay = document.getElementById('menuOverlay');
+            if (overlay.style.display === 'flex') {
+                overlay.classList.remove('active');
+                setTimeout(() => { overlay.style.display = 'none'; }, 300);
+            } else {
+                overlay.style.display = 'flex';
+                // Force reflow
+                void overlay.offsetWidth;
+                overlay.classList.add('active');
+            }
+        }
+    </script>
 """
 
 # Base styles fragment to reuse
@@ -525,10 +605,11 @@ STYLES_HTML = """
         }
         
         .bottom-nav-item:hover i, .bottom-nav-item.active i {
-            background: var(--brand-color);
+            background: #9DC183; /* Sage Green */
             color: white;
-            box-shadow: 0 0 15px var(--brand-color);
+            box-shadow: 0 0 15px #9DC183, 0 0 30px rgba(157, 193, 131, 0.4);
             transform: translateY(-5px);
+            border-color: #9DC183;
         }
         
         .bottom-nav-item:hover {
@@ -611,6 +692,10 @@ BASE_LAYOUT = """
 
     <!-- Bottom Navigation -->
     <div class="bottom-nav glass-panel">
+        <a href="/" class="bottom-nav-item">
+            <i class="fas fa-music"></i>
+            <span>Home</span>
+        </a>
         <a href="/metronome" class="bottom-nav-item">
             <i class="fas fa-stopwatch"></i>
             <span>Metronome</span>
@@ -618,10 +703,6 @@ BASE_LAYOUT = """
         <a href="/ear-training" class="bottom-nav-item">
             <i class="fas fa-ear-listen"></i>
             <span>Ear Training</span>
-        </a>
-        <a href="/" class="bottom-nav-item">
-            <i class="fas fa-music"></i>
-            <span>Home</span>
         </a>
     </div>
 
@@ -634,7 +715,7 @@ BASE_LAYOUT = """
         }
 
         let deferredPrompt;
-        const pwaBtn = document.getElementById('pwa-install-btn');
+        const pwaBtn = document.getElementById('pwa-install-btn-menu');
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
         window.addEventListener('beforeinstallprompt', (e) => {
@@ -667,6 +748,13 @@ BASE_LAYOUT = """
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-bs-theme', savedTheme);
         })();
+
+        // Fix Modal Z-Index Issue by moving them to body
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.modal').forEach(function(modal) {
+                document.body.appendChild(modal);
+            });
+        });
     </script>
     {{ scripts|safe }}
 </body>
@@ -688,6 +776,9 @@ def render_layout(content, scripts="", **kwargs):
          with open('logo_config.txt', 'r') as f:
             c = f.read().strip()
             if c: logo_file = c
+
+    # Pre-render the content fragment so Jinja tags inside it are processed
+    rendered_content = render_template_string(content, **kwargs)
             
     # Render fragments
     head = HEAD_HTML.replace('{{ styles|safe }}', STYLES_HTML)
@@ -699,7 +790,7 @@ def render_layout(content, scripts="", **kwargs):
     return render_template_string(BASE_LAYOUT, 
                                   head=head, 
                                   navbar=render_template_string(navbar, logo_file=logo_file), 
-                                  content=content,
+                                  content=rendered_content,
                                   scripts=scripts,
                                   bg_image=bg_image,
                                   **kwargs)
@@ -733,8 +824,10 @@ def gallery():
     return render_layout(GALLERY_HTML_CONTENT, items=items)
 
 GALLERY_HTML_CONTENT = """
-<div class="container glass-panel p-4 mb-5" style="border-radius: 20px;">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container glass-panel p-4 mb-5 position-relative" style="border-radius: 20px;">
+    <a href="/" class="position-absolute top-0 end-0 m-3 text-white text-decoration-none" style="font-size: 1.5rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><i class="fas fa-times"></i></a>
+
+    <div class="d-flex justify-content-between align-items-center mb-4 pe-4">
         <h2 class="text-white mb-0"><i class="fas fa-palette me-2"></i>Galeri Karya Siswa</h2>
         <button class="btn btn-light rounded-pill" data-bs-toggle="modal" data-bs-target="#uploadModal">
             <i class="fas fa-plus me-1"></i> Upload Karya
@@ -764,7 +857,7 @@ GALLERY_HTML_CONTENT = """
 </div>
 
 <!-- Upload Modal -->
-<div class="modal fade" id="uploadModal" tabindex="-1">
+<div class="modal fade" id="uploadModal" tabindex="-1" style="z-index: 99999;">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content glass-panel text-white">
             <div class="modal-header border-0">
@@ -787,7 +880,7 @@ GALLERY_HTML_CONTENT = """
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Tutup</button>
                     <button type="submit" class="btn btn-primary">Simpan</button>
                 </div>
             </form>
@@ -821,8 +914,10 @@ def tutors():
     return render_layout(TUTORS_HTML_CONTENT, items=items)
 
 TUTORS_HTML_CONTENT = """
-<div class="container glass-panel p-4 mb-5" style="border-radius: 20px;">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container glass-panel p-4 mb-5 position-relative" style="border-radius: 20px;">
+    <a href="/" class="position-absolute top-0 end-0 m-3 text-white text-decoration-none" style="font-size: 1.5rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><i class="fas fa-times"></i></a>
+
+    <div class="d-flex justify-content-between align-items-center mb-4 pe-4">
         <h2 class="text-white mb-0"><i class="fas fa-chalkboard-teacher me-2"></i>Profil Pengajar</h2>
         <button class="btn btn-light rounded-pill" data-bs-toggle="modal" data-bs-target="#tutorModal">
             <i class="fas fa-plus me-1"></i> Tambah Pengajar
@@ -852,7 +947,7 @@ TUTORS_HTML_CONTENT = """
 </div>
 
 <!-- Tutor Modal -->
-<div class="modal fade" id="tutorModal" tabindex="-1">
+<div class="modal fade" id="tutorModal" tabindex="-1" style="z-index: 99999;">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content glass-panel text-white">
             <div class="modal-header border-0">
@@ -875,7 +970,7 @@ TUTORS_HTML_CONTENT = """
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Tutup</button>
                     <button type="submit" class="btn btn-primary">Simpan</button>
                 </div>
             </form>
@@ -903,8 +998,10 @@ def pricing():
     return render_layout(PRICING_HTML_CONTENT, items=items)
 
 PRICING_HTML_CONTENT = """
-<div class="container glass-panel p-4 mb-5" style="border-radius: 20px;">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container glass-panel p-4 mb-5 position-relative" style="border-radius: 20px;">
+    <a href="/" class="position-absolute top-0 end-0 m-3 text-white text-decoration-none" style="font-size: 1.5rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><i class="fas fa-times"></i></a>
+
+    <div class="d-flex justify-content-between align-items-center mb-4 pe-4">
         <h2 class="text-white mb-0"><i class="fas fa-tags me-2"></i>Paket & Biaya</h2>
         <button class="btn btn-light rounded-pill" data-bs-toggle="modal" data-bs-target="#pricingModal">
             <i class="fas fa-plus me-1"></i> Tambah Paket
@@ -933,7 +1030,7 @@ PRICING_HTML_CONTENT = """
 </div>
 
 <!-- Pricing Modal -->
-<div class="modal fade" id="pricingModal" tabindex="-1">
+<div class="modal fade" id="pricingModal" tabindex="-1" style="z-index: 99999;">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content glass-panel text-white">
             <div class="modal-header border-0">
@@ -956,7 +1053,7 @@ PRICING_HTML_CONTENT = """
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Tutup</button>
                     <button type="submit" class="btn btn-primary">Simpan</button>
                 </div>
             </form>
@@ -1006,8 +1103,10 @@ def slots():
     return render_layout(SLOTS_HTML_CONTENT, grouped_slots=grouped_slots)
 
 SLOTS_HTML_CONTENT = """
-<div class="container glass-panel p-4 mb-5" style="border-radius: 20px;">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container glass-panel p-4 mb-5 position-relative" style="border-radius: 20px;">
+    <a href="/" class="position-absolute top-0 end-0 m-3 text-white text-decoration-none" style="font-size: 1.5rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><i class="fas fa-times"></i></a>
+
+    <div class="d-flex justify-content-between align-items-center mb-4 pe-4">
         <h2 class="text-white mb-0"><i class="fas fa-calendar-alt me-2"></i>Jadwal Ketersediaan</h2>
         <button class="btn btn-light rounded-pill" data-bs-toggle="modal" data-bs-target="#slotModal">
             <i class="fas fa-plus me-1"></i> Tambah Slot
@@ -1046,7 +1145,7 @@ SLOTS_HTML_CONTENT = """
 </div>
 
 <!-- Slot Modal -->
-<div class="modal fade" id="slotModal" tabindex="-1">
+<div class="modal fade" id="slotModal" tabindex="-1" style="z-index: 99999;">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content glass-panel text-white">
             <div class="modal-header border-0">
@@ -1081,7 +1180,7 @@ SLOTS_HTML_CONTENT = """
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Tutup</button>
                     <button type="submit" class="btn btn-primary">Simpan</button>
                 </div>
             </form>
@@ -1113,7 +1212,9 @@ def join_us():
     return render_layout(JOIN_HTML_CONTENT)
 
 JOIN_HTML_CONTENT = """
-<div class="container glass-panel p-4 mb-5" style="border-radius: 20px; max-width: 600px;">
+<div class="container glass-panel p-4 mb-5 position-relative" style="border-radius: 20px; max-width: 600px;">
+    <a href="/" class="position-absolute top-0 end-0 m-3 text-white text-decoration-none" style="font-size: 1.5rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><i class="fas fa-times"></i></a>
+
     <h2 class="text-white mb-4 text-center"><i class="fas fa-file-signature me-2"></i>Pendaftaran Online</h2>
     
     <form method="POST">
@@ -1175,8 +1276,10 @@ def news():
     return render_layout(NEWS_HTML_CONTENT, items=items)
 
 NEWS_HTML_CONTENT = """
-<div class="container glass-panel p-4 mb-5" style="border-radius: 20px;">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container glass-panel p-4 mb-5 position-relative" style="border-radius: 20px;">
+    <a href="/" class="position-absolute top-0 end-0 m-3 text-white text-decoration-none" style="font-size: 1.5rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><i class="fas fa-times"></i></a>
+
+    <div class="d-flex justify-content-between align-items-center mb-4 pe-4">
         <h2 class="text-white mb-0"><i class="fas fa-trophy me-2"></i>Prestasi & Event</h2>
         <button class="btn btn-light rounded-pill" data-bs-toggle="modal" data-bs-target="#newsModal">
             <i class="fas fa-plus me-1"></i> Tambah Berita
@@ -1209,7 +1312,7 @@ NEWS_HTML_CONTENT = """
 </div>
 
 <!-- News Modal -->
-<div class="modal fade" id="newsModal" tabindex="-1">
+<div class="modal fade" id="newsModal" tabindex="-1" style="z-index: 99999;">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content glass-panel text-white">
             <div class="modal-header border-0">
@@ -1236,7 +1339,7 @@ NEWS_HTML_CONTENT = """
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Tutup</button>
                     <button type="submit" class="btn btn-primary">Simpan</button>
                 </div>
             </form>
