@@ -578,6 +578,20 @@ NAVBAR_HTML = """
         .top-bar { display: none; }
         .main-navbar { justify-content: space-between; padding: 0 20px; }
         .navbar-logo-img { height: 50px; }
+
+        .mobile-navbar-border {
+            position: relative;
+        }
+        .mobile-navbar-border::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(to right, #2ecc71 50%, #FFD700 50%);
+            z-index: 1045;
+        }
     }
 </style>
 
@@ -636,11 +650,13 @@ NAVBAR_HTML = """
 </div>
 
 <!-- Mobile Header -->
-<div class="main-navbar d-lg-none justify-content-between px-3">
+<div class="main-navbar d-lg-none justify-content-between px-3 mobile-navbar-border">
     <div class="navbar-logo-container" onclick="toggleLogoPopup()" style="position:static; transform:none;">
         <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="navbar-logo-img" style="height:50px;">
     </div>
-    <div class="fw-bold fs-4 position-absolute start-50 translate-middle-x" style="white-space: nowrap;">TAHFIZH KILAT FC</div>
+    <div class="fw-bold fs-4 position-absolute start-50 translate-middle-x"
+         style="white-space: nowrap; cursor: pointer;"
+         onclick="window.location.reload()">TAHFIZH KILAT FC</div>
     <button class="btn border-0" onclick="toggleMobileMenu()"><i class="fas fa-bars fa-2x"></i></button>
 </div>
 
