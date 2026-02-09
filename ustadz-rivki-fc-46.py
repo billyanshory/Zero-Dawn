@@ -3678,20 +3678,24 @@ HTML_FORMATION = """
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             align-items: center;
             padding: 0 15px;
-            justify-content: center;
+            justify-content: space-between;
+            gap: 10px;
         }
         .mobile-formation-btn {
             background: #111;
             color: #FFD700;
             border: 1px solid #FFD700;
-            padding: 5px 20px;
+            padding: 5px 10px;
             border-radius: 20px;
             font-weight: 700;
             text-transform: uppercase;
-            font-size: 0.9rem;
-            width: 100%;
+            font-size: 0.8rem;
+            width: 48%;
             text-align: center;
             cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         /* Mobile Bottom Bar */
@@ -3915,13 +3919,16 @@ HTML_FORMATION = """
             .mobile-bottom-bar { display: flex; }
             .bottom-controls { display: none; } /* Hide Desktop Controls */
             
-            .main-container { flex-direction: column; margin-top: 50px; }
+            .main-container { flex-direction: column; margin-top: 50px; height: calc(100vh - 110px); /* 50 top + 60 bottom */ }
             .sidebar-container { 
                 width: 100%; 
-                height: 150px; 
+                height: 180px;
                 border-left: none; 
                 border-top: 2px solid #333; 
                 padding-bottom: 60px; /* Space for bottom bar */
+                position: relative;
+                z-index: 50; /* Ensure above other elements if needed */
+                flex: none; /* Don't grow/shrink unexpectedly */
             }
             .bench-list { flex-direction: row; flex-wrap: nowrap; justify-content: flex-start; }
             .pitch-field { width: 95%; height: 95%; }
@@ -3942,6 +3949,9 @@ HTML_FORMATION = """
     <div class="mobile-top-bar">
         <button class="mobile-formation-btn" onclick="openFormationModal()">
             <i class="fas fa-list-ul me-2"></i> FORMASI FUTSAL
+        </button>
+        <button class="mobile-formation-btn" onclick="openFootballModal()">
+            <i class="fas fa-futbol me-2"></i> FORMASI SEPAK BOLA
         </button>
     </div>
 
@@ -4004,11 +4014,22 @@ HTML_FORMATION = """
     </div>
 
     <!-- MODALS -->
-    <!-- Selection Modal -->
+    <!-- Selection Modal (Futsal) -->
     <div id="formation-select-modal" class="formation-modal" onclick="closeModals()">
         <div class="formation-modal-content" onclick="event.stopPropagation()">
-            <h4 class="fw-bold mb-3">PILIH FORMASI</h4>
+            <h4 class="fw-bold mb-3">PILIH FORMASI FUTSAL</h4>
             <div id="formation-options-list">
+                <!-- Injected via JS -->
+            </div>
+            <button class="btn btn-secondary w-100 mt-2" onclick="closeModals()">Tutup</button>
+        </div>
+    </div>
+
+    <!-- Selection Modal (Football) -->
+    <div id="football-select-modal" class="formation-modal" onclick="closeModals()">
+        <div class="formation-modal-content" onclick="event.stopPropagation()">
+            <h4 class="fw-bold mb-3">PILIH FORMASI SEPAK BOLA</h4>
+            <div id="football-options-list">
                 <!-- Injected via JS -->
             </div>
             <button class="btn btn-secondary w-100 mt-2" onclick="closeModals()">Tutup</button>
@@ -4039,6 +4060,7 @@ HTML_FORMATION = """
         // Initialize State
         let fieldPlayers = {}; 
         let selectedFormationType = null;
+        let isFootballMode = false;
 
         const formationDetails = {
             '1-2-1': { title: '1-2-1 (Diamond)', desc: 'Formasi paling seimbang (1 Anchor, 2 Flank, 1 Pivot) untuk serangan dan pertahanan serta dianggap paling populer karena keseimbangannya' },
@@ -4047,6 +4069,45 @@ HTML_FORMATION = """
             '3-1': { title: '3-1 (Pyramid)', desc: 'Formasi ofensif (3 di belakang/tengah, 1 di depan) yang mengandalkan pivot kuat untuk menekan' },
             '4-0': { title: '4-0 (Flat)', desc: 'Formasi modern (semua pemain di depan) yang memaksimalkan ruang dan rotasi serta sering dipakai untuk permainan cepat dan taktis' },
             '2-1-1': { title: '2-1-1 (Counter)', desc: 'Formasi bertahan yang fleksibel, sering digunakan untuk serangan balik' }
+        };
+
+        const footballFormations = {
+            '4-3-3': {
+                title: '4-3-3 (The Attacking Standard)',
+                desc: 'Ini adalah formasi paling populer di sepak bola modern, Fokus pada penguasaan bola dan serangan dari sayap, Susunan: 4 Bek, 3 Gelandang, 3 Penyerang (1 Tengah, 2 Sayap), Gaya Main: Possession Football (Tiki-Taka) atau Gegenpressing, Tim Pengguna: FC Barcelona (Era Pep Guardiola & Xavi): Raja penguasaan bola, Liverpool (Era Jurgen Klopp): Menekan lawan habis-habisan (Pressing), Real Madrid (Era Zidane & Ancelotti): Serangan balik cepat lewat Vinicius Jr'
+            },
+            '4-2-3-1': {
+                title: '4-2-3-1 (The Perfect Balance)',
+                desc: 'Formasi paling seimbang antara bertahan dan menyerang, Sangat stabil karena menggunakan dua gelandang bertahan (Double Pivot), Susunan: 4 Bek, 2 Gelandang Bertahan, 3 Gelandang Serang, 1 Striker Tunggal, Gaya Main: Mengandalkan playmaker di posisi "Nomor 10" dan sayap yang cepat, Tim Pengguna: Bayern Munchen: Dominasi total lini tengah, Timnas Jerman (Piala Dunia 2014): Sangat efektif dan disiplin, Manchester United (Era Ten Hag/Mourinho): Sering dipakai untuk stabilitas'
+            },
+            '4-4-2': {
+                title: '4-4-2 (The Classic Flat)',
+                desc: 'Formasi klasik Inggris, Sederhana, solid, dan menutup ruang lawan dengan dua garis pertahanan yang rapat, Susunan: 4 Bek, 4 Gelandang sejajar, 2 Striker, Gaya Main: Bertahan rapat (Compact) dan serangan balik cepat (Counter Attack), Tim Pengguna: Atletico Madrid (Diego Simeone): Pertahanan "tembok baja", Leicester City (Juara EPL 2016): Serangan balik kilat Vardy & Mahrez, Manchester United (Era Sir Alex Ferguson): Mengandalkan sayap murni (Beckham/Giggs)'
+            },
+            '3-5-2': {
+                title: '3-5-2 (The Wing-Back System)',
+                desc: 'Mengorbankan satu bek sayap untuk menambah jumlah gelandang, Kuncinya ada di pemain sayap (Wing-back) yang harus lari naik-turun tanpa henti, Susunan: 3 Bek Tengah, 5 Gelandang (2 sayapnya mundur saat bertahan), 2 Striker, Gaya Main: Menang jumlah orang di lini tengah, Tim Pengguna: Inter Milan (Simone Inzaghi & Conte): Sangat dominan di Serie A, Timnas Belanda (Era Louis van Gaal): Taktis dan fleksibel'
+            },
+            '3-4-3': {
+                title: '3-4-3 (The Aggressive Press)',
+                desc: 'Varian menyerang dari 3 bek, Sangat berbahaya karena punya 3 penyerang di depan yang siap mencetak gol, Susunan: 3 Bek, 4 Gelandang, 3 Penyerang, Gaya Main: Menekan lawan di daerahnya sendiri, Tim Pengguna: Chelsea (Era Antonio Conte & Thomas Tuchel): Juara liga & Champions pakai ini, Bayer Leverkusen (Xabi Alonso): Unbeaten (Tak terkalahkan) musim lalu dengan gaya main ini'
+            },
+            '4-1-2-1-2': {
+                title: '4-1-2-1-2 (The Diamond Narrow)',
+                desc: 'Fokus menyerang lewat tengah, Tidak punya pemain sayap murni, tapi bek sayap (RB/LB) yang maju ke depan, Susunan: 4 Bek, 1 Gelandang Bertahan, 2 Gelandang Tengah, 1 Playmaker, 2 Striker, (Bentuk tengahnya seperti Berlian/Diamond), Gaya Main: Mengurung lawan di tengah lapangan, Tim Pengguna: AC Milan (Klasik - Era Kaka/Pirlo/Gattuso): Legendaris, Real Madrid (Era Zidane 3 UCL): Mengandalkan Isco sebagai playmaker di belakang Benzema & Ronaldo'
+            },
+            '4-3-2-1': {
+                title: '4-3-2-1 (The Christmas Tree)',
+                desc: 'Formasi unik yang berbentuk seperti Pohon Natal, Sangat jarang dipakai sekarang tapi sangat ikonik, Susunan: 4 Bek, 3 Gelandang Bertahan/Tengah, 2 Playmaker, 1 Striker, Gaya Main: Menumpuk pemain kreatif di belakang striker tunggal, Tim Pengguna: AC Milan (Carlo Ancelotti 2007): Juara Eropa dengan formasi ini'
+            },
+            '5-4-1': {
+                title: '5-4-1 (The Parking Bus)',
+                desc: 'Formasi ultra-defensif, Sering disebut "Parkir Bus", Tujuannya hanya satu: Jangan kebobolan, Susunan: 5 Bek, 4 Gelandang, 1 Striker kesepian di depan, Gaya Main: Bertahan total, membuat lawan frustrasi, Tim Pengguna: Timnas Maroko (Piala Dunia 2022): Berhasil ke semifinal dengan pertahanan ini, Tim Underdog: Tim kecil saat melawan tim raksasa seperti Man City'
+            },
+            '4-6-0': {
+                title: '4-6-0 (The False Nine)',
+                desc: 'Formasi tanpa striker murni, Striker diganti gelandang yang pura-pura jadi striker, Susunan: 4 Bek, 6 Gelandang (0 Striker), Gaya Main: Membingungkan bek lawan karena tidak ada orang yang harus dijaga di depan, Tim Pengguna: Timnas Spanyol (Euro 2012): Juara tanpa striker murni (Fabregas jadi False 9), Manchester City (Pep Guardiola): Sering main tanpa striker sebelum ada Haaland'
+            }
         };
         
         function init() {
@@ -4060,6 +4121,7 @@ HTML_FORMATION = """
                 }
             });
             renderFormationOptions();
+            renderFootballOptions();
         }
         
         function createPlayerToken(p, isStarter, x = 50, y = 50) {
@@ -4172,39 +4234,110 @@ HTML_FORMATION = """
         }
         
         function setFormation(type) {
-            // Get all players currently on pitch
-            const onPitch = Array.from(pitchField.children).filter(el => el.classList.contains('player-token'));
-            if (onPitch.length < 5) {
-                alert("Masukkan minimal 5 pemain ke lapangan untuk set formasi!");
-                return;
+            // Clear current selection visual
+            isFootballMode = Object.keys(footballFormations).includes(type);
+            const reqCount = isFootballMode ? 11 : 5;
+
+            // Auto-fill from bench if needed
+            let onPitch = Array.from(pitchField.children).filter(el => el.classList.contains('player-token'));
+            if (onPitch.length < reqCount) {
+                const needed = reqCount - onPitch.length;
+                const benchPlayers = Array.from(benchList.children).filter(el => el.classList.contains('player-token'));
+
+                if (benchPlayers.length >= needed) {
+                    for(let i=0; i<needed; i++) {
+                        const p = benchPlayers[i];
+                        p.classList.remove('is-bench');
+                        p.style.transform = 'translate(-50%, -50%)';
+                        p.removeAttribute('data-dx');
+                        p.removeAttribute('data-dy');
+                        pitchField.appendChild(p);
+                        onPitch.push(p);
+                    }
+                } else {
+                    alert(`Butuh ${reqCount} pemain! (Kurang ${needed}). Tambahkan pemain ke bench dulu.`);
+                    return;
+                }
             }
             
-            const formations = {
-                '1-2-1': [ // Diamond: GK, Defender, Left, Right, Pivot
-                    {x: 50, y: 90}, {x: 50, y: 75}, {x: 20, y: 50}, {x: 80, y: 50}, {x: 50, y: 25}
+            // Futsal Coords
+            const futsalCoords = {
+                '1-2-1': [{x: 50, y: 90}, {x: 50, y: 75}, {x: 20, y: 50}, {x: 80, y: 50}, {x: 50, y: 25}],
+                '2-2': [{x: 50, y: 90}, {x: 30, y: 70}, {x: 70, y: 70}, {x: 30, y: 30}, {x: 70, y: 30}],
+                '1-1-2': [{x: 50, y: 90}, {x: 50, y: 70}, {x: 50, y: 50}, {x: 30, y: 25}, {x: 70, y: 25}],
+                '3-1': [{x: 50, y: 90}, {x: 20, y: 70}, {x: 50, y: 70}, {x: 80, y: 70}, {x: 50, y: 25}],
+                '4-0': [{x: 50, y: 90}, {x: 20, y: 50}, {x: 40, y: 50}, {x: 60, y: 50}, {x: 80, y: 50}],
+                '2-1-1': [{x: 50, y: 90}, {x: 30, y: 80}, {x: 70, y: 80}, {x: 50, y: 50}, {x: 50, y: 20}]
+            };
+
+            // Football Coords (11 Players: GK + 10 Outfield)
+            // Normalized roughly for visual layout
+            const footballCoords = {
+                '4-3-3': [
+                    {x:50,y:95}, // GK
+                    {x:20,y:80}, {x:40,y:80}, {x:60,y:80}, {x:80,y:80}, // 4 Def
+                    {x:30,y:55}, {x:50,y:60}, {x:70,y:55}, // 3 Mid
+                    {x:20,y:30}, {x:50,y:25}, {x:80,y:30} // 3 Att
                 ],
-                '2-2': [ // Square: GK, 2 Def, 2 Att
-                    {x: 50, y: 90}, {x: 30, y: 70}, {x: 70, y: 70}, {x: 30, y: 30}, {x: 70, y: 30}
+                '4-2-3-1': [
+                    {x:50,y:95},
+                    {x:20,y:80}, {x:40,y:80}, {x:60,y:80}, {x:80,y:80},
+                    {x:40,y:65}, {x:60,y:65}, // 2 CDM
+                    {x:20,y:45}, {x:50,y:45}, {x:80,y:45}, // 3 CAM
+                    {x:50,y:25} // 1 ST
                 ],
-                '1-1-2': [ // Attack
-                     {x: 50, y: 90}, {x: 50, y: 70}, {x: 50, y: 50}, {x: 30, y: 25}, {x: 70, y: 25}
+                '4-4-2': [
+                    {x:50,y:95},
+                    {x:20,y:80}, {x:40,y:80}, {x:60,y:80}, {x:80,y:80},
+                    {x:15,y:55}, {x:40,y:55}, {x:60,y:55}, {x:85,y:55},
+                    {x:40,y:30}, {x:60,y:30}
                 ],
-                '3-1': [ // Pyramid: GK, 3 Def, 1 Att
-                     {x: 50, y: 90}, {x: 20, y: 70}, {x: 50, y: 70}, {x: 80, y: 70}, {x: 50, y: 25}
+                '3-5-2': [
+                    {x:50,y:95},
+                    {x:30,y:80}, {x:50,y:80}, {x:70,y:80}, // 3 CB
+                    {x:15,y:60}, {x:35,y:60}, {x:50,y:65}, {x:65,y:60}, {x:85,y:60}, // 5 Mid
+                    {x:40,y:30}, {x:60,y:30} // 2 ST
                 ],
-                '4-0': [ // Flat: GK, 4 Mid/Att (High line or mid line)
-                     {x: 50, y: 90}, {x: 20, y: 50}, {x: 40, y: 50}, {x: 60, y: 50}, {x: 80, y: 50}
+                '3-4-3': [
+                    {x:50,y:95},
+                    {x:30,y:80}, {x:50,y:80}, {x:70,y:80},
+                    {x:15,y:55}, {x:40,y:55}, {x:60,y:55}, {x:85,y:55},
+                    {x:20,y:30}, {x:50,y:25}, {x:80,y:30}
                 ],
-                '2-1-1': [ // Counter: GK, 2 Def, 1 Mid, 1 Att
-                     {x: 50, y: 90}, {x: 30, y: 80}, {x: 70, y: 80}, {x: 50, y: 50}, {x: 50, y: 20}
+                '4-1-2-1-2': [ // Diamond Narrow
+                    {x:50,y:95},
+                    {x:20,y:80}, {x:40,y:80}, {x:60,y:80}, {x:80,y:80},
+                    {x:50,y:70}, // CDM
+                    {x:35,y:55}, {x:65,y:55}, // CM
+                    {x:50,y:40}, // CAM
+                    {x:40,y:25}, {x:60,y:25} // ST
+                ],
+                '4-3-2-1': [ // Xmas Tree
+                    {x:50,y:95},
+                    {x:20,y:80}, {x:40,y:80}, {x:60,y:80}, {x:80,y:80},
+                    {x:30,y:65}, {x:50,y:65}, {x:70,y:65},
+                    {x:40,y:45}, {x:60,y:45},
+                    {x:50,y:25}
+                ],
+                '5-4-1': [ // Park Bus
+                    {x:50,y:95},
+                    {x:15,y:80}, {x:30,y:80}, {x:50,y:80}, {x:70,y:80}, {x:85,y:80},
+                    {x:20,y:60}, {x:40,y:60}, {x:60,y:60}, {x:80,y:60},
+                    {x:50,y:35}
+                ],
+                '4-6-0': [ // False 9
+                    {x:50,y:95},
+                    {x:20,y:80}, {x:40,y:80}, {x:60,y:80}, {x:80,y:80},
+                    {x:30,y:65}, {x:50,y:65}, {x:70,y:65}, // Deep
+                    {x:25,y:45}, {x:50,y:40}, {x:75,y:45} // High Mid
                 ]
             };
             
-            const coords = formations[type];
+            const coords = isFootballMode ? footballCoords[type] : futsalCoords[type];
             if (!coords) return;
             
-            // Assign coords to first 5 players
-            for(let i=0; i<5; i++) {
+            // Assign coords
+            for(let i=0; i<reqCount; i++) {
                 if (onPitch[i]) {
                     onPitch[i].style.left = coords[i].x + '%';
                     onPitch[i].style.top = coords[i].y + '%';
@@ -4236,9 +4369,10 @@ HTML_FORMATION = """
             })
             .then(res => res.json())
             .then(d => {
-                if(d.success) alert("Formasi tersimpan!");
-                else alert("Gagal menyimpan.");
-            });
+                if(d.success) alert("Formasi Berhasil Disimpan!");
+                else alert("Gagal menyimpan: " + (d.error || 'Unknown error'));
+            })
+            .catch(err => alert("Gagal menyimpan: " + err));
         }
 
         // --- MOBILE MODAL LOGIC ---
@@ -4247,7 +4381,20 @@ HTML_FORMATION = """
             list.innerHTML = '';
             for (const [key, val] of Object.entries(formationDetails)) {
                 list.innerHTML += `
-                    <div class="formation-option" onclick="selectFormationOption('${key}')">
+                    <div class="formation-option" onclick="selectFormationOption('${key}', false)">
+                        <span>${val.title}</span>
+                        <i class="fas fa-chevron-right text-muted"></i>
+                    </div>
+                `;
+            }
+        }
+
+        function renderFootballOptions() {
+            const list = document.getElementById('football-options-list');
+            list.innerHTML = '';
+            for (const [key, val] of Object.entries(footballFormations)) {
+                list.innerHTML += `
+                    <div class="formation-option" onclick="selectFormationOption('${key}', true)">
                         <span>${val.title}</span>
                         <i class="fas fa-chevron-right text-muted"></i>
                     </div>
@@ -4258,18 +4405,26 @@ HTML_FORMATION = """
         function openFormationModal() {
             document.getElementById('formation-select-modal').style.display = 'flex';
         }
+
+        function openFootballModal() {
+            document.getElementById('football-select-modal').style.display = 'flex';
+        }
         
         function closeModals() {
             document.getElementById('formation-select-modal').style.display = 'none';
+            document.getElementById('football-select-modal').style.display = 'none';
             document.getElementById('formation-info-modal').style.display = 'none';
         }
         
-        function selectFormationOption(type) {
+        function selectFormationOption(type, isFootball) {
             selectedFormationType = type;
-            // Close select, open info
+            isFootballMode = isFootball;
+
+            // Close selects
             document.getElementById('formation-select-modal').style.display = 'none';
+            document.getElementById('football-select-modal').style.display = 'none';
             
-            const info = formationDetails[type];
+            const info = isFootball ? footballFormations[type] : formationDetails[type];
             document.getElementById('info-title').innerText = info.title;
             document.getElementById('info-desc').innerText = info.desc;
             document.getElementById('formation-info-modal').style.display = 'flex';
@@ -4277,7 +4432,11 @@ HTML_FORMATION = """
         
         function backToSelect() {
             document.getElementById('formation-info-modal').style.display = 'none';
-            document.getElementById('formation-select-modal').style.display = 'flex';
+            if(isFootballMode) {
+                document.getElementById('football-select-modal').style.display = 'flex';
+            } else {
+                document.getElementById('formation-select-modal').style.display = 'flex';
+            }
         }
         
         function applyFormation() {
@@ -4348,6 +4507,16 @@ def formation_view():
     # Use personnel with role 'player'
     players = data['personnel']['player']
     
+    # Add placeholders if empty (for demo/initial state)
+    if not players:
+        for i in range(15): # Enough for 11 starters + bench
+            players.append({
+                'id': f'player_placeholder_{i}',
+                'name': f'Pemain {i+1}',
+                'position': 'POS',
+                'role': 'player'
+            })
+
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM team_formation")
@@ -4358,7 +4527,8 @@ def formation_view():
 
 @app.route('/api/formation/save', methods=['POST'])
 def save_formation():
-    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    # Allow public access for Game Plan Manager
+    # if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
     data = request.json.get('formation') # List of {id, x, y, isStarter}
     
     conn = get_db_connection()
@@ -4366,10 +4536,8 @@ def save_formation():
     
     for p in data:
         c.execute("""
-            INSERT INTO team_formation (player_id, x, y, is_starter) 
+            INSERT OR REPLACE INTO team_formation (player_id, x, y, is_starter)
             VALUES (?, ?, ?, ?)
-            ON CONFLICT(player_id) DO UPDATE SET
-            x=excluded.x, y=excluded.y, is_starter=excluded.is_starter
         """, (p['id'], p['x'], p['y'], 1 if p['isStarter'] else 0))
         
     conn.commit()
