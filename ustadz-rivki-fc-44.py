@@ -491,27 +491,52 @@ def api_delete_item():
 
 NAVBAR_HTML = """
 <style>
-    .top-bar {
-        background-color: #2ecc71;
-        height: 50px;
+    .top-bar { display: none !important; }
+
+    body { padding-top: 70px; }
+
+    .main-navbar {
+        background-color: white;
+        height: 70px;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 0 5%;
-        font-size: 0.9rem;
+        padding: 0 20px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        z-index: 1050;
+    }
+
+    .navbar-logo-img { height: 50px; }
+
+    .mobile-navbar-border {
         position: relative;
-        z-index: 1030;
     }
-    .next-match-mini {
-        background: rgba(0,0,0,0.2);
-        color: white;
-        padding: 5px 15px;
-        border-radius: 4px;
-        font-weight: 600;
-        transition: 0.2s;
-        margin-left: 150px;
+    .mobile-navbar-border::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(to right, #2ecc71 50%, #FFD700 50%);
+        z-index: 1045;
     }
+
+    /* Mobile Menu */
+    .mobile-menu-container {
+        position: fixed; top: 70px; right: -100%; width: 80%; max-width: 300px;
+        height: calc(100vh - 70px); background: white; z-index: 1040;
+        transition: right 0.3s ease-in-out; box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+        padding: 20px; padding-bottom: 100px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto;
+    }
+    .mobile-menu-container.active { right: 0; }
     
+    /* Other Shared Styles */
+    .next-match-mini { display: none; } /* Hide if used in top-bar */
     .history-btn {
         background: #FFD700;
         color: black;
@@ -529,149 +554,28 @@ NAVBAR_HTML = """
     .history-btn img { height: 20px; filter: brightness(0) invert(1); }
     .history-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 10px rgba(0,0,0,0.2); color: black; }
     
-    .social-icon-link { color: white; font-size: 1.2rem; transition: 0.2s; }
+    .mobile-nav-link {
+        font-size: 1.1rem; font-weight: 700; color: #333; text-decoration: none; padding: 10px 0; border-bottom: 1px solid #eee;
+    }
+    .mobile-next-match {
+        background: var(--green); color: white; padding: 10px; border-radius: 5px; font-weight: 600; text-align: center;
+    }
+    .monochrome-icon { filter: grayscale(100%) contrast(1.2); }
+    
+    /* Social Icons inside menu */
+    .social-icon-link { color: #333; font-size: 1.2rem; transition: 0.2s; margin-right: 15px; }
     .social-icon-link:hover { color: var(--gold); }
-    
-    .main-navbar {
-        background-color: white;
-        height: 70px;
-        display: flex;
-        align-items: center;
-        padding: 0 5%;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        position: sticky;
-        top: 0;
-        z-index: 1040;
-    }
-    .nav-item-custom {
-        color: #333; text-transform: uppercase; font-weight: 700; text-decoration: none; font-size: 0.9rem; position: relative;
-    }
-    .nav-item-custom:after {
-        content: ''; position: absolute; width: 0; height: 3px; bottom: -5px; left: 0; background-color: #FFD700; transition: width 0.3s;
-    }
-    .nav-item-custom:hover:after { width: 100%; }
-    
-    .nav-split-container {
-        display: flex;
-        width: 100%;
-        height: 100%;
-    }
-    .nav-box-left {
-        width: 50%;
-        display: flex;
-        align-items: center;
-        border-bottom: 3px solid #2ecc71;
-        padding-left: 5%;
-        position: relative;
-    }
-    .nav-box-right {
-        width: 50%;
-        display: flex;
-        align-items: center;
-        border-bottom: 3px solid #FFD700;
-        padding-left: 20px;
-        position: relative;
-    }
-    .nav-box-links {
-        display: flex;
-        gap: 20px;
-        margin-left: 30px;
-    }
-    .navbar-logo-desktop {
-        height: 85px; margin-top: -15px; transition: 0.3s; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.2)); cursor: pointer; z-index: 2000; position: relative;
-    }
-    .mobile-separator {
-        height: 1px; background-color: #ddd; margin: 15px 0; width: 100%;
-    }
 
-    @media (max-width: 992px) {
-        body { padding-top: 70px; }
-        .top-bar { display: none; }
-        .main-navbar { 
-            justify-content: space-between; 
-            padding: 0 20px;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-        }
-        .navbar-logo-img { height: 50px; }
-        
-        .mobile-navbar-border {
-            position: relative;
-        }
-        .mobile-navbar-border::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 3px; 
-            background: linear-gradient(to right, #2ecc71 50%, #FFD700 50%);
-            z-index: 1045;
-        }
-    }
+    .no-scroll { overflow: hidden; }
 </style>
 
-<div class="top-bar">
-    <div class="top-bar-left">
-        <div class="next-match-mini" {% if admin %}style="cursor: pointer;" onclick="openNextMatchModal()"{% else %}style="cursor: default;"{% endif %}>
-            <span id="next-match-display">{{ data['settings'].get('next_match_text', 'Next Match: TAHKIL FC (Jan 2026)') }}</span>
-        </div>
-    </div>
-    <div class="top-bar-right d-flex align-items-center gap-3">
-        {% if not admin %}
-        <button onclick="document.getElementById('login-modal').style.display='flex'" class="btn btn-outline-light btn-sm">Admin Login</button>
-        {% else %}
-        <a href="/logout" class="btn btn-danger btn-sm">Logout</a>
-        {% endif %}
-        
-        <div class="history-btn" onclick="openHistoryModal()">
-            <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="monochrome-icon">
-            Lihat Sejarah
-        </div>
-        <div class="d-none d-lg-flex gap-3 align-items-center">
-            <a href="https://wa.me/6281528455350" class="social-icon-link" target="_blank"><i class="fab fa-whatsapp"></i></a>
-            <a href="https://maps.app.goo.gl/4deg1ha8WaxWKdPC9" class="social-icon-link" target="_blank"><i class="fas fa-map-marker-alt"></i></a>
-            <a href="https://www.instagram.com/rivkycahyahakikiori/" class="social-icon-link" target="_blank"><i class="fab fa-instagram"></i></a>
-        </div>
-    </div>
-</div>
+<!-- Top Bar (Hidden) -->
+<div class="top-bar"></div>
 
-<div class="main-navbar p-0 d-none d-lg-flex">
-    <div class="nav-split-container">
-        <!-- Left Box (Green) -->
-        <div class="nav-box-left">
-            <div onclick="toggleLogoPopup()">
-                <a href="javascript:void(0)">
-                    <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="navbar-logo-desktop" alt="TAHKIL FC">
-                </a>
-            </div>
-            <div class="nav-box-links">
-                <a href="{{ url_for('index') }}#hero" class="nav-item-custom">Home</a>
-                <a href="{{ url_for('index') }}#players" class="nav-item-custom">Pemain</a>
-                <a href="{{ url_for('index') }}#coaches" class="nav-item-custom">Pelatih</a>
-                <a href="{{ url_for('index') }}#mvp" class="nav-item-custom">MVP</a>
-                <a href="{{ url_for('index') }}#agenda-latihan" class="nav-item-custom">Agenda</a>
-                <a href="{{ url_for('index') }}#main-partners" class="nav-item-custom">Sponsors</a>
-            </div>
-        </div>
-        <!-- Right Box (Yellow) -->
-        <div class="nav-box-right">
-             <div class="nav-box-links">
-                <a href="{{ url_for('list_players') }}" class="nav-item-custom">DAFTAR</a>
-                <a href="{{ url_for('list_bills') }}" class="nav-item-custom">KEUANGAN</a>
-                <a href="{{ url_for('list_reports') }}" class="nav-item-custom">RAPOR</a>
-                <a href="{{ url_for('formation_view') }}" class="nav-item-custom">FORMASI</a>
-             </div>
-        </div>
-    </div>
-</div>
-
-<!-- Mobile Header -->
-<div class="main-navbar d-lg-none justify-content-between px-3 mobile-navbar-border">
-    <div class="navbar-logo-container" onclick="toggleLogoPopup()" style="position:static; transform:none;">
-        <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="navbar-logo-img" style="height:50px;">
+<!-- Main Navbar (Unified) -->
+<div class="main-navbar mobile-navbar-border">
+    <div class="navbar-logo-container" onclick="toggleLogoPopup()" style="position:static; transform:none; cursor: pointer;">
+        <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="navbar-logo-img">
     </div>
     <div class="fw-bold fs-4 position-absolute start-50 translate-middle-x" 
          style="white-space: nowrap; cursor: pointer;" 
@@ -681,21 +585,21 @@ NAVBAR_HTML = """
 
 <div id="mobile-menu" class="mobile-menu-container">
     <div class="mobile-next-match">{{ data['settings'].get('next_match_text', 'Next Match: TAHKIL FC (Jan 2026)') }}</div>
-    <a href="#hero" class="mobile-nav-link">Home</a>
-    <a href="#players" class="mobile-nav-link">Pemain</a>
-    <a href="#coaches" class="mobile-nav-link">Pelatih</a>
-    <a href="#mvp" class="mobile-nav-link">MVP</a>
-    <a href="#agenda-latihan" class="mobile-nav-link">Agenda</a>
-    <a href="#main-partners" class="mobile-nav-link">Sponsors</a>
+    <a href="{{ url_for('index') }}#hero" class="mobile-nav-link">Home</a>
+    <a href="{{ url_for('index') }}#players" class="mobile-nav-link">Pemain</a>
+    <a href="{{ url_for('index') }}#coaches" class="mobile-nav-link">Pelatih</a>
+    <a href="{{ url_for('index') }}#mvp" class="mobile-nav-link">MVP</a>
+    <a href="{{ url_for('index') }}#agenda-latihan" class="mobile-nav-link">Agenda</a>
+    <a href="{{ url_for('index') }}#main-partners" class="mobile-nav-link">Sponsors</a>
     
-    <div class="mobile-separator"></div>
+    <div class="mobile-separator" style="height: 1px; background-color: #ddd; margin: 15px 0; width: 100%;"></div>
     <a href="{{ url_for('list_players') }}" class="mobile-nav-link">DAFTAR</a>
     <a href="{{ url_for('list_bills') }}" class="mobile-nav-link">KEUANGAN</a>
     <a href="{{ url_for('list_reports') }}" class="mobile-nav-link">RAPOR</a>
     <a href="{{ url_for('formation_view') }}" class="mobile-nav-link">FORMASI</a>
     
     <div class="mt-auto d-flex flex-column gap-3">
-        <div class="history-btn justify-content-center d-lg-none" onclick="toggleFullScreen()" style="background: #111; color: #FFD700;">
+        <div class="history-btn justify-content-center" onclick="toggleFullScreen()" style="background: #111; color: #FFD700;">
             <i class="fas fa-expand"></i>
             Layar Penuh
         </div>
@@ -3811,7 +3715,6 @@ HTML_FORMATION = """
     </style>
 </head>
 <body>
-    {{ navbar|safe }}
     
     <div class="formation-header">
         <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="formation-logo">
