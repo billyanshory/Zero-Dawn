@@ -3665,6 +3665,67 @@ HTML_FORMATION = """
         .team-title { font-weight: 800; font-size: 1.5rem; text-transform: uppercase; margin: 0; line-height: 1; }
         .sub-title { font-size: 0.9rem; color: #aaa; text-transform: uppercase; letter-spacing: 2px; }
         
+        /* Mobile Top Bar */
+        .mobile-top-bar {
+            display: none;
+            position: fixed;
+            top: 70px;
+            left: 0;
+            width: 100%;
+            height: 50px;
+            background: #fff;
+            z-index: 90;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            align-items: center;
+            padding: 0 15px;
+            justify-content: center;
+        }
+        .mobile-formation-btn {
+            background: #111;
+            color: #FFD700;
+            border: 1px solid #FFD700;
+            padding: 5px 20px;
+            border-radius: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            width: 100%;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        /* Mobile Bottom Bar */
+        .mobile-bottom-bar {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: #000;
+            z-index: 200;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 2px solid #2ecc71;
+        }
+        .mobile-action-btn {
+            background: none;
+            border: none;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+        .mobile-action-btn i {
+            font-size: 1.2rem;
+            margin-bottom: 3px;
+            color: #2ecc71;
+        }
+
         /* Main Layout */
         .main-container {
             display: flex;
@@ -3771,7 +3832,7 @@ HTML_FORMATION = """
             align-content: flex-start;
         }
         
-        /* Bottom Controls */
+        /* Bottom Controls (Desktop) */
         .bottom-controls {
             height: 80px;
             background: #000;
@@ -3800,13 +3861,69 @@ HTML_FORMATION = """
         .control-btn i { font-size: 1.2rem; margin-bottom: 5px; }
         .control-btn span { font-size: 0.7rem; text-transform: uppercase; font-weight: 600; }
         
+        /* Modals */
+        .formation-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 300;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .formation-modal-content {
+            background: white;
+            color: #111;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 10px;
+            padding: 20px;
+            position: relative;
+            text-align: center;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .formation-option {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .formation-option:active, .formation-option:hover { background: #FFD700; color: #000; border-color: #FFD700; }
+
+        .info-desc {
+            font-size: 0.9rem;
+            color: #555;
+            margin-bottom: 20px;
+            text-align: justify;
+            background: #fdfbf7;
+            padding: 10px;
+            border-left: 3px solid #FFD700;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
-            .main-container { flex-direction: column; }
-            .sidebar-container { width: 100%; height: 150px; border-left: none; border-top: 2px solid #333; }
+            .mobile-top-bar { display: flex; }
+            .mobile-bottom-bar { display: flex; }
+            .bottom-controls { display: none; } /* Hide Desktop Controls */
+
+            .main-container { flex-direction: column; margin-top: 50px; }
+            .sidebar-container {
+                width: 100%;
+                height: 150px;
+                border-left: none;
+                border-top: 2px solid #333;
+                padding-bottom: 60px; /* Space for bottom bar */
+            }
             .bench-list { flex-direction: row; flex-wrap: nowrap; justify-content: flex-start; }
-            .bottom-controls { overflow-x: auto; justify-content: flex-start; padding: 0 10px; }
-            .control-btn { min-width: 70px; padding: 5px 10px; flex-shrink: 0; }
             .pitch-field { width: 95%; height: 95%; }
         }
     </style>
@@ -3821,6 +3938,13 @@ HTML_FORMATION = """
         </div>
     </div>
     
+    <!-- Mobile Top Bar -->
+    <div class="mobile-top-bar">
+        <button class="mobile-formation-btn" onclick="openFormationModal()">
+            <i class="fas fa-list-ul me-2"></i> FORMASI FUTSAL
+        </button>
+    </div>
+
     <div class="main-container">
         <!-- PITCH AREA -->
         <div class="pitch-container" id="pitch-container">
@@ -3843,7 +3967,7 @@ HTML_FORMATION = """
         </div>
     </div>
     
-    <!-- BOTTOM CONTROLS -->
+    <!-- BOTTOM CONTROLS (Desktop) -->
     <div class="bottom-controls">
         <div class="control-btn" onclick="setFormation('1-2-1')">
             <i class="fas fa-gem"></i>
@@ -3867,6 +3991,43 @@ HTML_FORMATION = """
         </div>
     </div>
 
+    <!-- MOBILE BOTTOM BAR -->
+    <div class="mobile-bottom-bar">
+        <button class="mobile-action-btn" onclick="saveTactics()">
+            <i class="fas fa-save"></i>
+            <span>SAVE</span>
+        </button>
+        <button class="mobile-action-btn" onclick="location.reload()">
+            <i class="fas fa-sync-alt text-warning"></i>
+            <span>RESET</span>
+        </button>
+    </div>
+
+    <!-- MODALS -->
+    <!-- Selection Modal -->
+    <div id="formation-select-modal" class="formation-modal" onclick="closeModals()">
+        <div class="formation-modal-content" onclick="event.stopPropagation()">
+            <h4 class="fw-bold mb-3">PILIH FORMASI</h4>
+            <div id="formation-options-list">
+                <!-- Injected via JS -->
+            </div>
+            <button class="btn btn-secondary w-100 mt-2" onclick="closeModals()">Tutup</button>
+        </div>
+    </div>
+
+    <!-- Info Modal -->
+    <div id="formation-info-modal" class="formation-modal" onclick="backToSelect()">
+        <div class="formation-modal-content" onclick="event.stopPropagation()">
+            <h4 id="info-title" class="fw-bold mb-2 text-success">TITLE</h4>
+            <div id="info-desc" class="info-desc">Description here...</div>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-dark flex-grow-1" onclick="backToSelect()">BALIK</button>
+                <button class="btn btn-success flex-grow-1 fw-bold" onclick="applyFormation()">TERAPKAN</button>
+            </div>
+        </div>
+    </div>
+
     <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
     <script>
@@ -3876,7 +4037,17 @@ HTML_FORMATION = """
         const benchList = document.getElementById('bench-list');
         
         // Initialize State
-        let fieldPlayers = {}; // id -> {x, y, el}
+        let fieldPlayers = {};
+        let selectedFormationType = null;
+
+        const formationDetails = {
+            '1-2-1': { title: '1-2-1 (Diamond)', desc: 'Formasi paling seimbang (1 Anchor, 2 Flank, 1 Pivot) untuk serangan dan pertahanan serta dianggap paling populer karena keseimbangannya' },
+            '2-2': { title: '2-2 (Box)', desc: 'Formasi dasar yang menempatkan dua pemain belakang dan dua di depan, cocok untuk pemula dan pertahanan' },
+            '1-1-2': { title: '1-1-2 (Attack)', desc: 'Formasi yang menekankan strategi menyerang lebih kuat dibanding strategi bertahan' },
+            '3-1': { title: '3-1 (Pyramid)', desc: 'Formasi ofensif (3 di belakang/tengah, 1 di depan) yang mengandalkan pivot kuat untuk menekan' },
+            '4-0': { title: '4-0 (Flat)', desc: 'Formasi modern (semua pemain di depan) yang memaksimalkan ruang dan rotasi serta sering dipakai untuk permainan cepat dan taktis' },
+            '2-1-1': { title: '2-1-1 (Counter)', desc: 'Formasi bertahan yang fleksibel, sering digunakan untuk serangan balik' }
+        };
         
         function init() {
             // Load Saved or Default
@@ -3888,6 +4059,7 @@ HTML_FORMATION = """
                     createPlayerToken(p, false);
                 }
             });
+            renderFormationOptions();
         }
         
         function createPlayerToken(p, isStarter, x = 50, y = 50) {
@@ -4007,8 +4179,6 @@ HTML_FORMATION = """
                 return;
             }
             
-            // Define Formations (x, y percentages) - Assuming GK is at bottom (90%) and Attack at top (10%)
-            // Or usually Pitch View: GK Bottom
             const formations = {
                 '1-2-1': [ // Diamond: GK, Defender, Left, Right, Pivot
                     {x: 50, y: 90}, {x: 50, y: 75}, {x: 20, y: 50}, {x: 80, y: 50}, {x: 50, y: 25}
@@ -4016,8 +4186,17 @@ HTML_FORMATION = """
                 '2-2': [ // Square: GK, 2 Def, 2 Att
                     {x: 50, y: 90}, {x: 30, y: 70}, {x: 70, y: 70}, {x: 30, y: 30}, {x: 70, y: 30}
                 ],
-                '1-1-2': [ // Y: GK, Anchor, 2 Wings, Pivot? 1-1-2 usually GK, 1 Def, 1 Mid, 2 Att? Or 1-2-1 logic
+                '1-1-2': [ // Attack
                      {x: 50, y: 90}, {x: 50, y: 70}, {x: 50, y: 50}, {x: 30, y: 25}, {x: 70, y: 25}
+                ],
+                '3-1': [ // Pyramid: GK, 3 Def, 1 Att
+                     {x: 50, y: 90}, {x: 20, y: 70}, {x: 50, y: 70}, {x: 80, y: 70}, {x: 50, y: 25}
+                ],
+                '4-0': [ // Flat: GK, 4 Mid/Att (High line or mid line)
+                     {x: 50, y: 90}, {x: 20, y: 50}, {x: 40, y: 50}, {x: 60, y: 50}, {x: 80, y: 50}
+                ],
+                '2-1-1': [ // Counter: GK, 2 Def, 1 Mid, 1 Att
+                     {x: 50, y: 90}, {x: 30, y: 80}, {x: 70, y: 80}, {x: 50, y: 50}, {x: 50, y: 20}
                 ]
             };
             
@@ -4060,6 +4239,52 @@ HTML_FORMATION = """
                 if(d.success) alert("Formasi tersimpan!");
                 else alert("Gagal menyimpan.");
             });
+        }
+
+        // --- MOBILE MODAL LOGIC ---
+        function renderFormationOptions() {
+            const list = document.getElementById('formation-options-list');
+            list.innerHTML = '';
+            for (const [key, val] of Object.entries(formationDetails)) {
+                list.innerHTML += `
+                    <div class="formation-option" onclick="selectFormationOption('${key}')">
+                        <span>${val.title}</span>
+                        <i class="fas fa-chevron-right text-muted"></i>
+                    </div>
+                `;
+            }
+        }
+
+        function openFormationModal() {
+            document.getElementById('formation-select-modal').style.display = 'flex';
+        }
+
+        function closeModals() {
+            document.getElementById('formation-select-modal').style.display = 'none';
+            document.getElementById('formation-info-modal').style.display = 'none';
+        }
+
+        function selectFormationOption(type) {
+            selectedFormationType = type;
+            // Close select, open info
+            document.getElementById('formation-select-modal').style.display = 'none';
+
+            const info = formationDetails[type];
+            document.getElementById('info-title').innerText = info.title;
+            document.getElementById('info-desc').innerText = info.desc;
+            document.getElementById('formation-info-modal').style.display = 'flex';
+        }
+
+        function backToSelect() {
+            document.getElementById('formation-info-modal').style.display = 'none';
+            document.getElementById('formation-select-modal').style.display = 'flex';
+        }
+
+        function applyFormation() {
+            if(selectedFormationType) {
+                setFormation(selectedFormationType);
+                closeModals();
+            }
         }
         
         init();
