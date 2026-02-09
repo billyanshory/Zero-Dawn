@@ -585,8 +585,16 @@ NAVBAR_HTML = """
     }
 
     @media (max-width: 992px) {
+        body { padding-top: 70px; }
         .top-bar { display: none; }
-        .main-navbar { justify-content: space-between; padding: 0 20px; }
+        .main-navbar {
+            justify-content: space-between;
+            padding: 0 20px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+        }
         .navbar-logo-img { height: 50px; }
         
         .mobile-navbar-border {
@@ -4121,7 +4129,7 @@ def formation_view():
     formation = [dict(row) for row in c.fetchall()]
     conn.close()
     
-    return render_page(HTML_FORMATION, players=players, formation=formation, admin=session.get('admin', False))
+    return render_page(HTML_FORMATION, data=data, players=players, formation=formation, admin=session.get('admin', False))
 
 @app.route('/api/formation/save', methods=['POST'])
 def save_formation():
