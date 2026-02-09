@@ -586,14 +586,15 @@ NAVBAR_HTML = """
 
     @media (max-width: 992px) {
         body { padding-top: 70px; }
-        .top-bar { display: none; }
+        .top-bar { display: none !important; }
         .main-navbar { 
             justify-content: space-between; 
             padding: 0 20px;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            z-index: 1050 !important;
         }
         .navbar-logo-img { height: 50px; }
         
@@ -970,7 +971,7 @@ STYLES_HTML = """
     .logo-popup-img:hover { transform: scale(1.05); }
     
     .mobile-menu-container {
-        position: fixed; top: 70px; right: -100%; width: 80%; max-width: 300px;
+        position: fixed !important; top: 70px !important; right: -100%; width: 80%; max-width: 300px;
         height: calc(100vh - 70px); background: white; z-index: 1040;
         transition: right 0.3s ease-in-out; box-shadow: -5px 0 15px rgba(0,0,0,0.1);
         padding: 20px; padding-bottom: 100px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto;
@@ -3811,7 +3812,6 @@ HTML_FORMATION = """
     </style>
 </head>
 <body>
-    {{ navbar|safe }}
     
     <div class="formation-header">
         <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="formation-logo">
