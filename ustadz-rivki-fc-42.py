@@ -178,6 +178,14 @@ def init_db():
                     data TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
+
+    # Formation
+    c.execute('''CREATE TABLE IF NOT EXISTS team_formation (
+                    player_id TEXT PRIMARY KEY,
+                    x REAL,
+                    y REAL,
+                    is_starter INTEGER DEFAULT 0
+                )''')
     
     # Seed Coach
     c.execute("INSERT OR IGNORE INTO academy_users (username, password_hash, role, related_id) VALUES ('coach', ?, 'coach', 'coach_1')", (generate_password_hash('c04ch'),))
@@ -343,7 +351,9 @@ def logout():
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    response = send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    response.headers['Cache-Control'] = 'public, max-age=31536000'
+    return response
 
 @app.route('/upload/<type>/<id>', methods=['POST'])
 def upload_image(type, id):
@@ -644,6 +654,7 @@ NAVBAR_HTML = """
                 <a href="{{ url_for('list_players') }}" class="nav-item-custom">DAFTAR</a>
                 <a href="{{ url_for('list_bills') }}" class="nav-item-custom">KEUANGAN</a>
                 <a href="{{ url_for('list_reports') }}" class="nav-item-custom">RAPOR</a>
+                <a href="{{ url_for('formation_view') }}" class="nav-item-custom">FORMASI</a>
              </div>
         </div>
     </div>
@@ -673,6 +684,7 @@ NAVBAR_HTML = """
     <a href="{{ url_for('list_players') }}" class="mobile-nav-link">DAFTAR</a>
     <a href="{{ url_for('list_bills') }}" class="mobile-nav-link">KEUANGAN</a>
     <a href="{{ url_for('list_reports') }}" class="mobile-nav-link">RAPOR</a>
+    <a href="{{ url_for('formation_view') }}" class="mobile-nav-link">FORMASI</a>
     
     <div class="mt-auto d-flex flex-column gap-3">
         <div class="history-btn justify-content-center d-lg-none" onclick="toggleFullScreen()" style="background: #111; color: #FFD700;">
@@ -3014,6 +3026,69 @@ HTML_UR_FC = """
             card.addEventListener('mouseleave', () => { card.style.transform = 'scale(1)'; card.style.zIndex = '1'; });
         });
 
+        // --- IMAGE COMPRESSION ---
+        async function compressImage(file) {
+            const maxWidth = 1024;
+            const quality = 0.8;
+
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        canvas.toBlob((blob) => {
+                            if (!blob) {
+                                reject(new Error('Canvas is empty'));
+                                return;
+                            }
+                            const newFile = new File([blob], file.name, {
+                                type: 'image/jpeg',
+                                lastModified: Date.now()
+                            });
+                            resolve(newFile);
+                        }, 'image/jpeg', quality);
+                    };
+                    img.onerror = (error) => reject(error);
+                };
+                reader.onerror = (error) => reject(error);
+            });
+        }
+
+        document.body.addEventListener('change', async function(e) {
+            if (e.target && e.target.type === 'file' && e.target.files.length > 0) {
+                const file = e.target.files[0];
+                if (!file.type.startsWith('image/')) return;
+
+                try {
+                    console.log("Compressing image...");
+                    const compressedFile = await compressImage(file);
+
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(compressedFile);
+                    e.target.files = dataTransfer.files;
+                    console.log(`Compressed: ${(file.size/1024).toFixed(2)}KB -> ${(compressedFile.size/1024).toFixed(2)}KB`);
+                } catch (err) {
+                    console.error("Compression failed:", err);
+                }
+            }
+        });
+
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
@@ -3554,6 +3629,437 @@ HTML_REPORT_LIST = """
 </html>
 """
 
+HTML_FORMATION = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manajemen Formasi - TAHKIL FC</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    {{ styles|safe }}
+    <style>
+        body { background: #1e1e1e; color: white; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+
+        /* Header */
+        .formation-header {
+            background: rgba(0,0,0,0.8);
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            border-bottom: 2px solid #2ecc71;
+            height: 70px;
+            z-index: 100;
+        }
+        .formation-logo { height: 50px; margin-right: 15px; }
+        .team-title { font-weight: 800; font-size: 1.5rem; text-transform: uppercase; margin: 0; line-height: 1; }
+        .sub-title { font-size: 0.9rem; color: #aaa; text-transform: uppercase; letter-spacing: 2px; }
+
+        /* Main Layout */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Pitch (Left) */
+        .pitch-container {
+            flex: 1;
+            background: #2ecc71; /* Fallback */
+            background-image:
+                linear-gradient(rgba(0,0,0,0.2) 2px, transparent 2px),
+                linear-gradient(90deg, rgba(0,0,0,0.2) 2px, transparent 2px),
+                linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px);
+            background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        /* Pitch Markings */
+        .pitch-field {
+            width: 90%;
+            height: 90%;
+            border: 3px solid rgba(255,255,255,0.8);
+            position: relative;
+            background: #27ae60;
+        }
+        .pitch-line-mid {
+            position: absolute; top: 50%; left: 0; width: 100%; height: 3px; background: rgba(255,255,255,0.6); transform: translateY(-50%);
+        }
+        .pitch-circle-mid {
+            position: absolute; top: 50%; left: 50%; width: 150px; height: 150px; border: 3px solid rgba(255,255,255,0.6); border-radius: 50%; transform: translate(-50%, -50%);
+        }
+        .pitch-box-top {
+            position: absolute; top: 0; left: 50%; width: 40%; height: 15%; border: 3px solid rgba(255,255,255,0.6); border-top: none; transform: translateX(-50%);
+        }
+        .pitch-box-bottom {
+            position: absolute; bottom: 0; left: 50%; width: 40%; height: 15%; border: 3px solid rgba(255,255,255,0.6); border-bottom: none; transform: translateX(-50%);
+        }
+
+        /* Players */
+        .player-token {
+            width: 60px; height: 60px;
+            background: radial-gradient(circle at 30% 30%, #fff, #ddd);
+            border-radius: 50%;
+            border: 3px solid #111;
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: grab;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            z-index: 10;
+            transition: transform 0.1s;
+            touch-action: none;
+            user-select: none;
+        }
+        .player-token:active { cursor: grabbing; transform: scale(1.1); }
+        .player-token.is-bench { position: relative; margin: 10px; left: auto; top: auto; }
+
+        .token-number { font-weight: 800; color: #111; font-size: 1.2rem; line-height: 1; }
+        .token-name {
+            position: absolute; bottom: -25px;
+            background: rgba(0,0,0,0.8); color: white;
+            padding: 2px 8px; border-radius: 10px;
+            font-size: 0.7rem; white-space: nowrap; font-weight: 700;
+        }
+        .token-pos {
+            position: absolute; top: -15px;
+            background: #FFD700; color: black;
+            padding: 1px 5px; border-radius: 4px;
+            font-size: 0.6rem; font-weight: 800;
+        }
+
+        /* Sidebar (Bench) */
+        .sidebar-container {
+            width: 300px;
+            background: #111;
+            border-left: 2px solid #333;
+            display: flex;
+            flex-direction: column;
+            z-index: 20;
+        }
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid #333;
+            text-align: center;
+            font-weight: 700;
+            color: #FFD700;
+        }
+        .bench-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: flex-start;
+        }
+
+        /* Bottom Controls */
+        .bottom-controls {
+            height: 80px;
+            background: #000;
+            border-top: 2px solid #2ecc71;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 0 20px;
+            z-index: 30;
+        }
+        .control-btn {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 8px;
+            padding: 8px 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: 0.2s;
+            min-width: 80px;
+        }
+        .control-btn:hover { background: #444; border-color: #FFD700; color: #FFD700; }
+        .control-btn i { font-size: 1.2rem; margin-bottom: 5px; }
+        .control-btn span { font-size: 0.7rem; text-transform: uppercase; font-weight: 600; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-container { flex-direction: column; }
+            .sidebar-container { width: 100%; height: 150px; border-left: none; border-top: 2px solid #333; }
+            .bench-list { flex-direction: row; flex-wrap: nowrap; justify-content: flex-start; }
+            .bottom-controls { overflow-x: auto; justify-content: flex-start; padding: 0 10px; }
+            .control-btn { min-width: 70px; padding: 5px 10px; flex-shrink: 0; }
+            .pitch-field { width: 95%; height: 95%; }
+        }
+    </style>
+</head>
+<body>
+    {{ navbar|safe }}
+
+    <div class="formation-header">
+        <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="formation-logo">
+        <div>
+            <h1 class="team-title">TAHFIZH KILAT FC</h1>
+            <div class="sub-title">Game Plan Manager</div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- PITCH AREA -->
+        <div class="pitch-container" id="pitch-container">
+            <div class="pitch-field" id="pitch-field">
+                <div class="pitch-line-mid"></div>
+                <div class="pitch-circle-mid"></div>
+                <div class="pitch-box-top"></div>
+                <div class="pitch-box-bottom"></div>
+
+                <!-- Players on Field will be injected here -->
+            </div>
+        </div>
+
+        <!-- SIDEBAR (BENCH) -->
+        <div class="sidebar-container">
+            <div class="sidebar-header">CADANGAN / SKUAD</div>
+            <div class="bench-list" id="bench-list">
+                <!-- Players on Bench injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM CONTROLS -->
+    <div class="bottom-controls">
+        <div class="control-btn" onclick="setFormation('1-2-1')">
+            <i class="fas fa-gem"></i>
+            <span>Diamond</span>
+        </div>
+        <div class="control-btn" onclick="setFormation('2-2')">
+            <i class="fas fa-th-large"></i>
+            <span>Square</span>
+        </div>
+        <div class="control-btn" onclick="setFormation('1-1-2')">
+            <i class="fas fa-bolt"></i>
+            <span>Attack</span>
+        </div>
+        <div class="control-btn" onclick="saveTactics()">
+            <i class="fas fa-save text-success"></i>
+            <span>Simpan</span>
+        </div>
+        <div class="control-btn" onclick="location.reload()">
+            <i class="fas fa-sync-alt"></i>
+            <span>Reset</span>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+    <script>
+        const players = {{ players | tojson }};
+        const savedFormation = {{ formation | tojson }};
+        const pitchField = document.getElementById('pitch-field');
+        const benchList = document.getElementById('bench-list');
+
+        // Initialize State
+        let fieldPlayers = {}; // id -> {x, y, el}
+
+        function init() {
+            // Load Saved or Default
+            players.forEach(p => {
+                const saved = savedFormation.find(f => f.player_id === p.id);
+                if (saved && saved.is_starter) {
+                    createPlayerToken(p, true, saved.x, saved.y);
+                } else {
+                    createPlayerToken(p, false);
+                }
+            });
+        }
+
+        function createPlayerToken(p, isStarter, x = 50, y = 50) {
+            const el = document.createElement('div');
+            el.className = 'player-token';
+            el.setAttribute('data-id', p.id);
+            el.innerHTML = `
+                <div class="token-pos">${p.position}</div>
+                <div class="token-number">${p.id.slice(-2)}</div> <!-- Fake Number -->
+                <div class="token-name">${p.name.split(' ')[0]}</div>
+            `;
+
+            if (isStarter) {
+                // Percentage to Pixels relative to field
+                el.style.left = x + '%';
+                el.style.top = y + '%';
+                el.style.transform = 'translate(-50%, -50%)';
+                el.setAttribute('data-x', x);
+                el.setAttribute('data-y', y);
+                pitchField.appendChild(el);
+            } else {
+                el.classList.add('is-bench');
+                benchList.appendChild(el);
+            }
+
+            setupInteract(el);
+        }
+
+        function setupInteract(el) {
+            interact(el).draggable({
+                listeners: {
+                    move (event) {
+                        const target = event.target;
+
+                        if (target.classList.contains('is-bench')) {
+                            // Simple translation for visual feedback from bench
+                            const x = (parseFloat(target.getAttribute('data-dx')) || 0) + event.dx;
+                            const y = (parseFloat(target.getAttribute('data-dy')) || 0) + event.dy;
+                            target.style.transform = `translate(${x}px, ${y}px)`;
+                            target.setAttribute('data-dx', x);
+                            target.setAttribute('data-dy', y);
+                        } else {
+                            // On Pitch Movement (Percentage Based)
+                            const fieldRect = pitchField.getBoundingClientRect();
+                            let xPct = parseFloat(target.getAttribute('data-x')) + (event.dx / fieldRect.width * 100);
+                            let yPct = parseFloat(target.getAttribute('data-y')) + (event.dy / fieldRect.height * 100);
+
+                            // Clamp
+                            xPct = Math.max(0, Math.min(100, xPct));
+                            yPct = Math.max(0, Math.min(100, yPct));
+
+                            target.style.left = xPct + '%';
+                            target.style.top = yPct + '%';
+                            target.setAttribute('data-x', xPct);
+                            target.setAttribute('data-y', yPct);
+                        }
+                    },
+                    end (event) {
+                        const target = event.target;
+                        const fieldRect = pitchField.getBoundingClientRect();
+                        const tokenRect = target.getBoundingClientRect();
+
+                        // Check if dropped on pitch
+                        const centerX = tokenRect.left + tokenRect.width / 2;
+                        const centerY = tokenRect.top + tokenRect.height / 2;
+
+                        const onPitch = (
+                            centerX >= fieldRect.left &&
+                            centerX <= fieldRect.right &&
+                            centerY >= fieldRect.top &&
+                            centerY <= fieldRect.bottom
+                        );
+
+                        if (target.classList.contains('is-bench')) {
+                            if (onPitch) {
+                                // Move to Pitch
+                                target.classList.remove('is-bench');
+                                target.style.transform = 'translate(-50%, -50%)';
+                                target.removeAttribute('data-dx');
+                                target.removeAttribute('data-dy');
+                                pitchField.appendChild(target);
+
+                                // Calculate position
+                                const xPct = (centerX - fieldRect.left) / fieldRect.width * 100;
+                                const yPct = (centerY - fieldRect.top) / fieldRect.height * 100;
+                                target.style.left = xPct + '%';
+                                target.style.top = yPct + '%';
+                                target.setAttribute('data-x', xPct);
+                                target.setAttribute('data-y', yPct);
+                            } else {
+                                // Reset to bench position
+                                target.style.transform = 'none';
+                                target.setAttribute('data-dx', 0);
+                                target.setAttribute('data-dy', 0);
+                            }
+                        } else {
+                            if (!onPitch) {
+                                // Move back to Bench
+                                target.classList.add('is-bench');
+                                target.style.position = 'relative';
+                                target.style.left = 'auto';
+                                target.style.top = 'auto';
+                                target.style.transform = 'none';
+                                benchList.appendChild(target);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function setFormation(type) {
+            // Get all players currently on pitch
+            const onPitch = Array.from(pitchField.children).filter(el => el.classList.contains('player-token'));
+            if (onPitch.length < 5) {
+                alert("Masukkan minimal 5 pemain ke lapangan untuk set formasi!");
+                return;
+            }
+
+            // Define Formations (x, y percentages) - Assuming GK is at bottom (90%) and Attack at top (10%)
+            // Or usually Pitch View: GK Bottom
+            const formations = {
+                '1-2-1': [ // Diamond: GK, Defender, Left, Right, Pivot
+                    {x: 50, y: 90}, {x: 50, y: 75}, {x: 20, y: 50}, {x: 80, y: 50}, {x: 50, y: 25}
+                ],
+                '2-2': [ // Square: GK, 2 Def, 2 Att
+                    {x: 50, y: 90}, {x: 30, y: 70}, {x: 70, y: 70}, {x: 30, y: 30}, {x: 70, y: 30}
+                ],
+                '1-1-2': [ // Y: GK, Anchor, 2 Wings, Pivot? 1-1-2 usually GK, 1 Def, 1 Mid, 2 Att? Or 1-2-1 logic
+                     {x: 50, y: 90}, {x: 50, y: 70}, {x: 50, y: 50}, {x: 30, y: 25}, {x: 70, y: 25}
+                ]
+            };
+
+            const coords = formations[type];
+            if (!coords) return;
+
+            // Assign coords to first 5 players
+            for(let i=0; i<5; i++) {
+                if (onPitch[i]) {
+                    onPitch[i].style.left = coords[i].x + '%';
+                    onPitch[i].style.top = coords[i].y + '%';
+                    onPitch[i].setAttribute('data-x', coords[i].x);
+                    onPitch[i].setAttribute('data-y', coords[i].y);
+                }
+            }
+        }
+
+        function saveTactics() {
+            const data = [];
+            document.querySelectorAll('.player-token').forEach(el => {
+                const id = el.getAttribute('data-id');
+                const isStarter = !el.classList.contains('is-bench');
+                let x = 0, y = 0;
+
+                if (isStarter) {
+                    x = parseFloat(el.getAttribute('data-x'));
+                    y = parseFloat(el.getAttribute('data-y'));
+                }
+
+                data.push({ id, isStarter, x, y });
+            });
+
+            fetch('/api/formation/save', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ formation: data })
+            })
+            .then(res => res.json())
+            .then(d => {
+                if(d.success) alert("Formasi tersimpan!");
+                else alert("Gagal menyimpan.");
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
+"""
+
 # --- NEW ROUTES ---
 
 @app.route('/daftar-resmi-pemain')
@@ -3602,6 +4108,40 @@ def list_reports():
         
     conn.close()
     return render_page(HTML_REPORT_LIST, data=data, reports=report_data, admin=session.get('admin', False))
+
+@app.route('/formasi')
+def formation_view():
+    data = get_all_data()
+    # Use personnel with role 'player'
+    players = data['personnel']['player']
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM team_formation")
+    formation = [dict(row) for row in c.fetchall()]
+    conn.close()
+
+    return render_page(HTML_FORMATION, players=players, formation=formation, admin=session.get('admin', False))
+
+@app.route('/api/formation/save', methods=['POST'])
+def save_formation():
+    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    data = request.json.get('formation') # List of {id, x, y, isStarter}
+
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    for p in data:
+        c.execute("""
+            INSERT INTO team_formation (player_id, x, y, is_starter)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(player_id) DO UPDATE SET
+            x=excluded.x, y=excluded.y, is_starter=excluded.is_starter
+        """, (p['id'], p['x'], p['y'], 1 if p['isStarter'] else 0))
+
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
