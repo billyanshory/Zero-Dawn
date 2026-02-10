@@ -1672,6 +1672,13 @@ MEDICAL_NAVBAR_TEMPLATE = """
 
     /* Login Password Icon */
     body.dark-mode #login-eye-icon { color: white !important; }
+
+    /* Close Button Visibility Fix */
+    body.dark-mode .login-modal-box > button,
+    body.clean-mode .login-modal-box > button { color: white !important; }
+
+    body.dark-mode .btn-close,
+    body.clean-mode .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
 </style>
 
 <div class="medical-top-bar">
@@ -1715,10 +1722,17 @@ MEDICAL_NAVBAR_TEMPLATE = """
 <div class="medical-horizontal-menu">
     {% for item in menu_items %}
         {% if role in item.roles %}
-        <a href="{{ item.route }}" class="feature-btn">
-            <i class="{{ item.icon }}"></i>
-            <span>{{ item.label }}</span>
-        </a>
+            {% if item.route == '/profil-klinik' %}
+            <a href="javascript:void(0)" onclick="document.getElementById('devInfoModal').style.display='flex'; return false;" class="feature-btn">
+                <i class="{{ item.icon }}"></i>
+                <span>{{ item.label }}</span>
+            </a>
+            {% else %}
+            <a href="{{ item.route }}" class="feature-btn">
+                <i class="{{ item.icon }}"></i>
+                <span>{{ item.label }}</span>
+            </a>
+            {% endif %}
         {% endif %}
     {% endfor %}
 </div>
@@ -3448,6 +3462,97 @@ HTML_LAB = """
             document.getElementById('up-name').innerText = name;
             new bootstrap.Modal(document.getElementById('uploadModal')).show();
         }
+
+        // --- Client-Side Image Compression ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileInput = document.querySelector('input[name="file"]');
+            if(fileInput) {
+                fileInput.addEventListener('change', async function(e) {
+                    const file = e.target.files[0];
+                    if (!file || !file.type.startsWith('image/')) return;
+
+                    // Visual Feedback
+                    const parent = e.target.parentNode;
+                    let feedback = parent.querySelector('.compress-feedback');
+                    if(!feedback) {
+                        feedback = document.createElement('div');
+                        feedback.className = 'compress-feedback text-warning small mt-1';
+                        parent.appendChild(feedback);
+                    }
+                    feedback.innerText = 'Compressing...';
+
+                    try {
+                        const compressedBlob = await compressImage(file);
+
+                        // Create new File object
+                        const newFile = new File([compressedBlob], file.name, {
+                            type: 'image/jpeg',
+                            lastModified: Date.now()
+                        });
+
+                        // Update Input
+                        const dataTransfer = new DataTransfer();
+                        dataTransfer.items.add(newFile);
+                        fileInput.files = dataTransfer.files;
+
+                        feedback.innerText = 'Compression Complete (' + (compressedBlob.size/1024).toFixed(1) + 'KB)';
+                        feedback.classList.remove('text-warning');
+                        feedback.classList.add('text-success');
+
+                    } catch (err) {
+                        console.error(err);
+                        feedback.innerText = 'Compression Failed. Using original.';
+                        feedback.classList.remove('text-warning');
+                        feedback.classList.add('text-danger');
+                    }
+                });
+            }
+        });
+
+        function compressImage(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+
+                        // Max dimensions
+                        const MAX_WIDTH = 1024;
+                        const MAX_HEIGHT = 1024;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > MAX_WIDTH) {
+                                height *= MAX_WIDTH / width;
+                                width = MAX_WIDTH;
+                            }
+                        } else {
+                            if (height > MAX_HEIGHT) {
+                                width *= MAX_HEIGHT / height;
+                                height = MAX_HEIGHT;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // Compress to JPEG 0.7
+                        canvas.toBlob((blob) => {
+                            if(blob) resolve(blob);
+                            else reject(new Error('Canvas to Blob failed'));
+                        }, 'image/jpeg', 0.7);
+                    };
+                    img.onerror = (err) => reject(err);
+                };
+                reader.onerror = (err) => reject(err);
+            });
+        }
     </script>
     <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
@@ -3658,7 +3763,7 @@ HTML_SYMPTOM = """
                 <button class="btn btn-primary w-100 btn-lg rounded-pill fw-bold" onclick="checkSymptom()"><i class="fas fa-stethoscope me-2"></i> ANALISIS GEJALA</button>
                 
                 <div id="result-box" class="mt-4 p-4 bg-light rounded border" style="display:none; border-left: 5px solid #2ecc71 !important;">
-                    <h4 class="fw-bold mb-2">Hasil Analisis AI:</h4>
+                    <h4 class="fw-bold mb-2">Hasil Analisis Data Medis:</h4>
                     <div class="mb-2"><strong>Suspek Penyakit:</strong> <span id="res-disease" class="text-danger fw-bold">-</span></div>
                     <div class="mb-2"><strong>Saran:</strong> <span id="res-advice">-</span></div>
                     <div><strong>Tingkat Keyakinan:</strong> <span id="res-conf" class="badge bg-secondary">-</span></div>
@@ -3707,7 +3812,7 @@ HTML_QR_PAGE = """
     <title>Kartu Pasien QR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif; min-height: 100vh; display: flex; flex-direction: column;}</style>
 </head>
 <body>
     {{ navbar|safe }}
@@ -6411,7 +6516,7 @@ HTML_SEARCH = """
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}
+        body{background:#f4f7f6; font-family:'Segoe UI',sans-serif; min-height: 100vh; display: flex; flex-direction: column;}
         .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 9999;
@@ -7174,7 +7279,7 @@ HTML_BOOKING_LIST = """
     <title>Daftar Janji Temu</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif;}</style>
+    <style>body{background:#f4f7f6; font-family:'Segoe UI',sans-serif; min-height: 100vh; display: flex; flex-direction: column;}</style>
 </head>
 <body>
     {{ navbar|safe }}
