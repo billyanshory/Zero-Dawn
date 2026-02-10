@@ -654,6 +654,31 @@ NAVBAR_HTML = """
         <button onclick="document.getElementById('login-modal').style.display='none'" class="btn btn-link w-100 mt-2">Cancel</button>
     </div>
 </div>
+<script>
+    // Injected Global Nav Scripts
+    function toggleMobileMenu() {
+        var menu = document.getElementById('mobile-menu');
+        if(menu) {
+            menu.classList.toggle('active');
+            document.body.classList.toggle('no-scroll');
+        }
+    }
+    function toggleLogoPopup() {
+        var popup = document.getElementById('logo-popup');
+        if(popup) popup.style.display = (popup.style.display === 'flex') ? 'none' : 'flex';
+    }
+    function toggleFullScreen() {
+        var doc = window.document;
+        var docEl = doc.documentElement;
+        var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+        var cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+        if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+            requestFullScreen.call(docEl);
+        } else {
+            cancelFullScreen.call(doc);
+        }
+    }
+</script>
 """
 
 STYLES_HTML = """
@@ -949,6 +974,39 @@ STYLES_HTML = """
     .status-paid { background: #d1e7dd; color: #0f5132; }
     .status-unpaid { background: #f8d7da; color: #842029; }
     .status-pending { background: #fff3cd; color: #664d03; }
+
+    /* Sketch Animation */
+    .sketch-loading-overlay {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(255,255,255,0.95); z-index: 2000;
+        display: none; flex-direction: column; justify-content: center; align-items: center;
+        border-radius: 10px;
+    }
+    .sketch-ball {
+        width: 60px; height: 60px;
+        border: 5px solid #FFD700;
+        border-radius: 50% 60% 40% 70% / 60% 50% 70% 40%;
+        animation: sketch-spin 2s linear infinite, sketch-wobble 3s ease-in-out infinite alternate;
+        background: transparent;
+        margin-bottom: 10px;
+    }
+    .sketch-ball-text { font-weight: bold; color: #b8860b; margin-top: 10px; text-transform: uppercase; font-size: 0.8rem; }
+
+    @keyframes sketch-spin { 100% { transform: rotate(360deg); } }
+    @keyframes sketch-wobble { 0% { border-radius: 50% 60% 40% 70% / 60% 50% 70% 40%; } 100% { border-radius: 60% 40% 70% 50% / 50% 70% 40% 60%; } }
+
+    .sketch-check-container {
+        width: 80px; height: 80px;
+        border: 5px solid #FFD700;
+        border-radius: 55% 45% 60% 40% / 45% 60% 40% 55%;
+        display: none; align-items: center; justify-content: center;
+        margin-bottom: 10px;
+    }
+    .sketch-check-icon {
+        font-size: 40px; color: #FFD700;
+        animation: check-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes check-pop { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 </style>
 """
 
@@ -1498,7 +1556,16 @@ HTML_UR_FC = """
             </div>
             
             <!-- User View -->
-            <div id="reg-user-view">
+            <div id="reg-user-view" style="position:relative;">
+                <!-- Loading Overlay -->
+                <div id="reg-loading-overlay" class="sketch-loading-overlay">
+                    <div id="sketch-ball-anim" class="sketch-ball"></div>
+                    <div id="sketch-check-anim" class="sketch-check-container">
+                        <i class="fas fa-check sketch-check-icon"></i>
+                    </div>
+                    <div class="sketch-ball-text" id="loading-text">Memproses Data...</div>
+                </div>
+
                 <p class="text-muted">Isi formulir untuk bergabung dengan Akademi TAHKIL FC</p>
                 <form id="reg-form" onsubmit="event.preventDefault(); submitRegistration();" class="text-start">
                     <div class="mb-2">
@@ -1723,6 +1790,18 @@ HTML_UR_FC = """
             const form = document.getElementById('reg-form');
             const formData = new FormData(form);
             
+            // UI Elements
+            const overlay = document.getElementById('reg-loading-overlay');
+            const ball = document.getElementById('sketch-ball-anim');
+            const check = document.getElementById('sketch-check-anim');
+            const text = document.getElementById('loading-text');
+
+            // Reset & Show Loading
+            overlay.style.display = 'flex';
+            ball.style.display = 'block';
+            check.style.display = 'none';
+            text.innerText = "Memproses Data...";
+
             fetch('/api/academy/register', {
                 method: 'POST',
                 body: formData
@@ -1730,12 +1809,29 @@ HTML_UR_FC = """
             .then(res => res.json())
             .then(data => {
                 if(data.success) {
-                    alert("Pendaftaran Berhasil! Data Anda sedang diverifikasi admin.");
-                    closeAcademyModals();
-                    form.reset();
+                    // Animation Transformation
+                    ball.style.display = 'none';
+                    check.style.display = 'flex';
+                    text.innerText = "Berhasil!";
+
+                    // Wait before alert
+                    setTimeout(() => {
+                        // Native Alert Box
+                        alert("Pendaftaran Berhasil! Data Anda sedang diverifikasi admin.");
+
+                        // Close & Cleanup
+                        overlay.style.display = 'none';
+                        closeAcademyModals();
+                        form.reset();
+                    }, 2000);
                 } else {
+                    overlay.style.display = 'none';
                     alert("Gagal: " + data.error);
                 }
+            })
+            .catch(err => {
+                overlay.style.display = 'none';
+                alert("Terjadi kesalahan jaringan.");
             });
         }
 
@@ -1775,7 +1871,10 @@ HTML_UR_FC = """
                                     <small class="text-muted">Lahir: ${c.dob} | Wali: ${c.guardian}</small><br>
                                     <small class="text-primary">User: ${c.username}</small>
                                 </div>
-                                <button onclick="approveCandidate('${c.id}')" class="btn btn-sm btn-success">Terima (Approve)</button>
+                                <div>
+                                    <button onclick="approveCandidate('${c.id}')" class="btn btn-sm btn-success">Terima (Approve)</button>
+                                    <button onclick="rejectCandidate('${c.id}')" class="btn btn-sm btn-danger ms-1">Tolak (Reject)</button>
+                                </div>
                             </div>
                         </div>
                    `; 
@@ -1794,6 +1893,24 @@ HTML_UR_FC = """
             .then(data => {
                 if(data.success) {
                     alert("Siswa berhasil di-approve! Otomatis masuk daftar resmi.");
+                    loadCandidates();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            });
+        }
+
+        function rejectCandidate(id) {
+            if(!confirm("Tolak dan Hapus data siswa ini?")) return;
+            fetch('/api/academy/reject', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: id })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    alert("Data siswa berhasil ditolak dan dihapus.");
                     loadCandidates();
                 } else {
                     alert("Error: " + data.error);
@@ -2796,6 +2913,18 @@ def academy_approve():
     
     conn.close()
     return jsonify({'success': False, 'error': 'Candidate not found'})
+
+@app.route('/api/academy/reject', methods=['POST'])
+def academy_reject():
+    if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
+    cand_id = request.json.get('id')
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM candidates WHERE id=?", (cand_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
 
 @app.route('/api/academy/admin/finance', methods=['GET'])
 def academy_admin_finance():
