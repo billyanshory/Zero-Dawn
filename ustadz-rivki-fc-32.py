@@ -181,6 +181,7 @@ def init_db():
     
     # Seed Coach
     c.execute("INSERT OR IGNORE INTO academy_users (username, password_hash, role, related_id) VALUES ('coach', ?, 'coach', 'coach_1')", (generate_password_hash('c04ch'),))
+    c.execute("UPDATE academy_users SET password_hash = ? WHERE username = 'coach'", (generate_password_hash('tahkilfc'),))
 
     # Seed Data
     c.execute("INSERT OR IGNORE INTO news_content (id, title, subtitle, category, type) VALUES ('hero', 'VICTORY IN THE DERBY', 'A stunning performance secures the win', 'FIRST TEAM', 'hero')")
@@ -552,13 +553,20 @@ NAVBAR_HTML = """
         </a>
     </div>
     <div class="d-lg-none fw-bold fs-4 position-absolute start-50 translate-middle-x" style="white-space: nowrap;">TAHFIZH KILAT FC</div>
-    <div class="navbar-links d-none d-lg-flex">
-        <a href="#hero" class="nav-item-custom">Home</a>
-        <a href="#players" class="nav-item-custom">Pemain</a>
-        <a href="#coaches" class="nav-item-custom">Pelatih</a>
-        <a href="#mvp" class="nav-item-custom">MVP</a>
-        <a href="#agenda-latihan" class="nav-item-custom">Agenda</a>
-        <a href="#main-partners" class="nav-item-custom">Sponsors</a>
+    <div class="navbar-links d-none d-lg-flex" style="gap: 20px;">
+        <div style="display:flex; gap:20px; border:2px solid #2ecc71; padding:5px 15px; border-radius:8px;">
+            <a href="{{ url_for('index') }}#hero" class="nav-item-custom">Home</a>
+            <a href="{{ url_for('index') }}#players" class="nav-item-custom">Pemain</a>
+            <a href="{{ url_for('index') }}#coaches" class="nav-item-custom">Pelatih</a>
+            <a href="{{ url_for('index') }}#mvp" class="nav-item-custom">MVP</a>
+            <a href="{{ url_for('index') }}#agenda-latihan" class="nav-item-custom">Agenda</a>
+            <a href="{{ url_for('index') }}#main-partners" class="nav-item-custom">Sponsors</a>
+        </div>
+        <div style="display:flex; gap:20px; border:2px solid #FFD700; padding:5px 15px; border-radius:8px;">
+            <a href="{{ url_for('list_players') }}" class="nav-item-custom">DAFTAR</a>
+            <a href="{{ url_for('list_bills') }}" class="nav-item-custom">KEUANGAN</a>
+            <a href="{{ url_for('list_reports') }}" class="nav-item-custom">RAPOR</a>
+        </div>
     </div>
     <button class="d-lg-none btn border-0" onclick="toggleMobileMenu()"><i class="fas fa-bars fa-2x"></i></button>
     <div class="navbar-split-border"></div>
@@ -1460,10 +1468,17 @@ HTML_UR_FC = """
                         <div class="col-6 mb-2">
                             <label>Posisi:</label>
                             <select name="position" class="form-control">
-                                <option>Pemain Depan (FW)</option>
-                                <option>Gelandang (MF)</option>
-                                <option>Belakang (DF)</option>
-                                <option>Kiper (GK)</option>
+                                <option value="GK">GK - Kiper</option>
+                                <option value="CB">CB - Bek Tengah</option>
+                                <option value="RB">RB - Bek Kanan</option>
+                                <option value="LB">LB - Bek Kiri</option>
+                                <option value="DMF">DMF - Gelandang Bertahan</option>
+                                <option value="CMF">CMF - Gelandang Tengah</option>
+                                <option value="AMF">AMF - Gelandang Serang</option>
+                                <option value="RWF">RWF - Sayap Kanan</option>
+                                <option value="LWF">LWF - Sayap Kiri</option>
+                                <option value="SS">SS - Second Striker</option>
+                                <option value="CF">CF - Center Forward</option>
                             </select>
                         </div>
                     </div>
@@ -2834,6 +2849,257 @@ def print_receipt(bill_id):
         <button onclick="window.print()">Print</button>
     </div>
     """
+
+# --- NEW TEMPLATES ---
+
+HTML_PLAYER_LIST = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Daftar Resmi Pemain - TAHKIL FC</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {{ styles|safe }}
+    <style>
+        .list-header { background: #111; color: #FFD700; padding: 40px 0; text-align: center; border-bottom: 5px solid #2ecc71; margin-bottom:30px; }
+        .list-table thead { background: #111; color: white; }
+        .list-table th { border: none; padding: 15px; }
+        .list-table td { vertical-align: middle; padding: 15px; }
+        .list-container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+    </style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="list-header">
+        <h1 class="fw-bold">DAFTAR RESMI PEMAIN</h1>
+        <p class="lead">DAFTAR RESMI PEMAIN TAHKIL FC yang telah dibuat dan disetujui oleh admin website TAHKIL FC</p>
+    </div>
+    <div class="list-container mb-5">
+        <div class="card shadow border-0">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover m-0 list-table">
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>Foto</th>
+                                <th>Nama Lengkap</th>
+                                <th>Posisi</th>
+                                <th>Kategori</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in students %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    <img src="{{ '/uploads/' + s.photo_path if s.photo_path else 'https://via.placeholder.com/50' }}"
+                                         style="width:50px; height:50px; object-fit:cover; border-radius:50%; border:2px solid #2ecc71;">
+                                </td>
+                                <td class="fw-bold">{{ s.name }}</td>
+                                <td><span class="badge bg-dark text-warning">{{ s.position }}</span></td>
+                                <td>{{ s.category }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="5" class="text-center py-4">Belum ada data pemain resmi.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+"""
+
+HTML_BILL_LIST = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Daftar Tagihan - TAHKIL FC</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {{ styles|safe }}
+    <style>
+        .list-header { background: #111; color: #FFD700; padding: 40px 0; text-align: center; border-bottom: 5px solid #2ecc71; margin-bottom:30px; }
+        .list-table thead { background: #111; color: white; }
+        .list-table th { border: none; padding: 15px; }
+        .list-table td { vertical-align: middle; padding: 15px; }
+        .list-container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+    </style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="list-header">
+        <h1 class="fw-bold">DAFTAR TAGIHAN PEMAIN</h1>
+        <p class="lead">DAFTAR TAGIHAN PEMAIN TAHKIL FC yang telah diisi dan dibuat oleh admin website TAHKIL FC</p>
+    </div>
+    <div class="list-container mb-5">
+        <div class="card shadow border-0">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover m-0 list-table">
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>Nama Pemain</th>
+                                <th>Bulan Tagihan</th>
+                                <th>Jumlah (Rp)</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for b in bills %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td class="fw-bold">{{ b.student_name }}</td>
+                                <td>{{ b.month }}</td>
+                                <td>{{ "{:,}".format(b.amount) }}</td>
+                                <td>
+                                    {% if b.status == 'paid' %}
+                                    <span class="badge bg-success">LUNAS</span>
+                                    {% elif b.status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">VERIFIKASI</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">BELUM BAYAR</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="5" class="text-center py-4">Belum ada data tagihan.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+"""
+
+HTML_REPORT_LIST = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Daftar Rapor - TAHKIL FC</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {{ styles|safe }}
+    <style>
+        .list-header { background: #111; color: #FFD700; padding: 40px 0; text-align: center; border-bottom: 5px solid #2ecc71; margin-bottom:30px; }
+        .list-table thead { background: #111; color: white; }
+        .list-table th { border: none; padding: 15px; }
+        .list-table td { vertical-align: middle; padding: 15px; }
+        .list-container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+    </style>
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="list-header">
+        <h1 class="fw-bold">DAFTAR RAPOR PEMAIN</h1>
+        <p class="lead">DAFTAR RAPOR PEMAIN TAHKIL FC yang telah diisi oleh coach pelatih TAHKIL FC</p>
+    </div>
+    <div class="list-container mb-5">
+        <div class="card shadow border-0">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover m-0 list-table">
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>Nama Pemain</th>
+                                <th>Kehadiran Total</th>
+                                <th>Skor Rata-Rata (Terakhir)</th>
+                                <th>Keterangan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in reports %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td class="fw-bold">{{ r.name }}</td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ r.attendance }}%">{{ r.attendance }}%</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="fw-bold fs-5 {{ 'text-success' if r.score >= 80 else ('text-warning' if r.score >= 60 else 'text-danger') }}">
+                                        {{ r.score }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if r.score >= 80 %}Sangat Baik{% elif r.score >= 60 %}Cukup{% else %}Perlu Latihan{% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="5" class="text-center py-4">Belum ada data rapor.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+"""
+
+# --- NEW ROUTES ---
+
+@app.route('/daftar-resmi-pemain')
+def list_players():
+    data = get_all_data()
+    conn = get_db_connection()
+    students = conn.execute("SELECT * FROM academy_students ORDER BY name ASC").fetchall()
+    conn.close()
+    return render_page(HTML_PLAYER_LIST, data=data, students=students)
+
+@app.route('/daftar-tagihan-pemain')
+def list_bills():
+    data = get_all_data()
+    conn = get_db_connection()
+    # Join to get student names
+    bills = conn.execute("SELECT f.*, s.name as student_name FROM finance_bills f JOIN academy_students s ON f.student_id = s.id ORDER BY f.created_at DESC").fetchall()
+    conn.close()
+    return render_page(HTML_BILL_LIST, data=data, bills=bills)
+
+@app.route('/daftar-rapor-pemain')
+def list_reports():
+    data = get_all_data()
+    conn = get_db_connection()
+    students = conn.execute("SELECT id, name FROM academy_students ORDER BY name ASC").fetchall()
+
+    # Calculate stats for each student (simplified for list view)
+    report_data = []
+    for s in students:
+        att = conn.execute("SELECT status FROM academy_attendance WHERE student_id=?", (s['id'],)).fetchall()
+        total = len(att)
+        present = len([x for x in att if x['status'] == 'present'])
+        pct = int((present / total * 100)) if total > 0 else 0
+
+        # Get latest eval
+        eval = conn.execute("SELECT data FROM academy_evaluations WHERE student_id=? ORDER BY created_at DESC LIMIT 1", (s['id'],)).fetchone()
+        avg = 0
+        if eval and eval['data']:
+            try:
+                scores = json.loads(eval['data'])
+                vals = [int(v) for v in scores.values() if str(v).isdigit()]
+                if vals: avg = sum(vals) // len(vals)
+            except: pass
+
+        report_data.append({'name': s['name'], 'attendance': pct, 'score': avg})
+
+    conn.close()
+    return render_page(HTML_REPORT_LIST, data=data, reports=report_data)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
