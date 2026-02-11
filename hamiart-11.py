@@ -90,7 +90,7 @@ init_db()
 # --- PWA CONFIGURATION ---
 MANIFEST_CONTENT = """
 {
-  "name": "hamiart.education",
+  "name": "LES BIMBEL GAMBAR & MUSIK",
   "short_name": "hamiart",
   "start_url": "/",
   "display": "standalone",
@@ -282,7 +282,7 @@ NAVBAR_HTML = """
                 </form>
 
                 <!-- 2. Brand (Center/Left) -->
-                <a class="navbar-brand me-auto" href="/">hamiart.<span>education</span></a>
+                <a class="navbar-brand me-auto" href="/">LES BIMBEL GAMBAR & MUSIK</a>
                 
                 <!-- 3. Hamburger Menu (Right) -->
                 <button class="nav-icon-btn" onclick="toggleMenu()" style="border: none; background: transparent; color: white; display: flex;">
@@ -713,9 +713,9 @@ HEAD_HTML = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>hamiart.education</title>
+    <title>LES BIMBEL GAMBAR & MUSIK</title>
     <link rel="manifest" href="/manifest.json">
-    <link rel="icon" href="{{ url_for('static', filename='hamiartlogo.png') }}">
+    <link rel="icon" href="{{ url_for('static', filename='animasi emosional (root) cut.PNG') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -770,7 +770,7 @@ BASE_LAYOUT = """
         
         <footer class="main-footer" style="background: transparent; border: none; color: rgba(255,255,255,0.7); padding: 20px; text-align: center;">
             <div class="container">
-                <p>&copy; 2026 hamiart.education - All Rights Reserved. "We Making The Time"</p>
+                <p>&copy; 2026 LES BIMBEL GAMBAR & MUSIK - All Rights Reserved. "We Making The Time"</p>
             </div>
         </footer>
     </div>
@@ -1082,20 +1082,36 @@ def pricing():
     conn.close()
     return render_layout(PRICING_HTML_CONTENT, items=items)
 
+@app.route('/delete_pricing/<int:id>', methods=['POST'])
+def delete_pricing(id):
+    conn = get_db_connection()
+    conn.execute('DELETE FROM pricing WHERE id = ?', (id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('pricing'))
+
 PRICING_HTML_CONTENT = """
 <div class="container glass-panel p-4 mb-5 position-relative" style="border-radius: 20px;">
     <a href="/" class="position-absolute top-0 end-0 m-3 text-white text-decoration-none" style="font-size: 1.5rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><i class="fas fa-times"></i></a>
 
     <div class="d-flex justify-content-between align-items-center mb-4 pe-4">
         <h2 class="text-white mb-0"><i class="fas fa-tags me-2"></i>Paket & Biaya</h2>
-        <button class="btn btn-light rounded-pill" data-bs-toggle="modal" data-bs-target="#pricingModal">
-            <i class="fas fa-plus me-1"></i> Tambah Paket
-        </button>
+        <div>
+             <button class="btn btn-danger rounded-pill me-2" onclick="toggleDeleteMode()">
+                <i class="fas fa-trash-alt me-1"></i> Hapus Mode
+            </button>
+            <button class="btn btn-light rounded-pill" data-bs-toggle="modal" data-bs-target="#pricingModal">
+                <i class="fas fa-plus me-1"></i> Tambah Paket
+            </button>
+        </div>
     </div>
     
     <div class="row g-4">
         {% for item in items %}
-        <div class="col-md-4">
+        <div class="col-md-4 position-relative">
+            <form action="/delete_pricing/{{ item['id'] }}" method="POST" class="delete-btn-form position-absolute top-0 end-0 m-3 d-none" style="z-index: 10;">
+                 <button type="submit" class="btn btn-danger btn-sm rounded-circle" onclick="return confirm('Hapus paket ini?')"><i class="fas fa-times"></i></button>
+            </form>
             <div class="card h-100 bg-transparent border glass-panel text-white" style="border-radius: 20px;">
                 <div class="card-body text-center p-4">
                     <h5 class="card-title text-uppercase letter-spacing-2 opacity-75 mb-3">{{ item['title'] }}</h5>
@@ -1145,6 +1161,12 @@ PRICING_HTML_CONTENT = """
         </div>
     </div>
 </div>
+
+<script>
+    function toggleDeleteMode() {
+        document.querySelectorAll('.delete-btn-form').forEach(el => el.classList.toggle('d-none'));
+    }
+</script>
 """
 
 @app.route('/slots', methods=['GET', 'POST'])
@@ -1289,8 +1311,8 @@ def join_us():
         conn.commit()
         conn.close()
         
-        message = f"Halo Admin Hamiart, saya ingin mendaftar.\nNama: {name}\nUmur: {age}\nMinat: {interest}\nNo WA: {whatsapp}"
-        wa_url = f"https://wa.me/6285250861236?text={quote(message)}"
+        message = f"Halo Admin LES BIMBEL GAMBAR & MUSIK, saya ingin mendaftar.\nNama: {name}\nUmur: {age}\nMinat: {interest}\nNo WA: {whatsapp}"
+        wa_url = f"https://wa.me/6281241865310?text={quote(message)}"
         
         return redirect(wa_url)
     
@@ -1360,6 +1382,31 @@ def news():
     conn.close()
     return render_layout(NEWS_HTML_CONTENT, items=items)
 
+@app.route('/edit_news/<int:id>', methods=['POST'])
+def edit_news(id):
+    conn = get_db_connection()
+    title = request.form['title']
+    content = request.form['content']
+    date = request.form['date']
+
+    if 'image' in request.files:
+        file = request.files['image']
+        if file and file.filename != '' and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            conn.execute('UPDATE news SET title=?, content=?, date=?, image=? WHERE id=?',
+                         (title, content, date, filename, id))
+        else:
+            conn.execute('UPDATE news SET title=?, content=?, date=? WHERE id=?',
+                         (title, content, date, id))
+    else:
+        conn.execute('UPDATE news SET title=?, content=?, date=? WHERE id=?',
+                     (title, content, date, id))
+
+    conn.commit()
+    conn.close()
+    return redirect(url_for('news'))
+
 NEWS_HTML_CONTENT = """
 <div class="container glass-panel p-4 mb-5 position-relative" style="border-radius: 20px;">
     <a href="/" class="position-absolute top-0 end-0 m-3 text-white text-decoration-none" style="font-size: 1.5rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><i class="fas fa-times"></i></a>
@@ -1374,7 +1421,11 @@ NEWS_HTML_CONTENT = """
     <div class="row g-4">
         {% for item in items %}
         <div class="col-md-6 col-lg-4">
-            <div class="card h-100 bg-transparent glass-panel border-0 overflow-hidden" style="border-radius: 20px;">
+            <div class="card h-100 bg-transparent glass-panel border-0 overflow-hidden position-relative" style="border-radius: 20px;">
+                <button class="btn btn-warning btn-sm rounded-circle position-absolute top-0 end-0 m-3 shadow" style="z-index: 10;"
+                        onclick='editNews({{ item["id"] }}, {{ item["title"]|tojson }}, {{ item["date"]|tojson }}, {{ item["content"]|tojson }})'>
+                    <i class="fas fa-pencil-alt"></i>
+                </button>
                 {% if item['image'] %}
                 <div class="position-relative" style="height: 200px;">
                     <img src="/uploads/{{ item['image'] }}" class="w-100 h-100 object-fit-cover" alt="{{ item['title'] }}">
@@ -1431,6 +1482,33 @@ NEWS_HTML_CONTENT = """
         </div>
     </div>
 </div>
+
+<script>
+    function editNews(id, title, date, content) {
+        document.querySelector('#newsModal input[name="title"]').value = title;
+        document.querySelector('#newsModal input[name="date"]').value = date;
+        document.querySelector('#newsModal textarea[name="content"]').value = content;
+
+        const form = document.querySelector('#newsModal form');
+        form.action = '/edit_news/' + id;
+
+        document.querySelector('#newsModal .modal-title').innerText = 'Edit Berita';
+
+        const modal = new bootstrap.Modal(document.getElementById('newsModal'));
+        modal.show();
+    }
+
+    // Reset form when modal is hidden
+    const newsModalEl = document.getElementById('newsModal');
+    if (newsModalEl) {
+        newsModalEl.addEventListener('hidden.bs.modal', function () {
+            const form = document.querySelector('#newsModal form');
+            form.action = '';
+            form.reset();
+            document.querySelector('#newsModal .modal-title').innerText = 'Tambah Berita / Prestasi';
+        });
+    }
+</script>
 """
 
 @app.route('/metronome')
