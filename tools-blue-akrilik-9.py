@@ -18,7 +18,7 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB Limit
 app.secret_key = "supersecretkey"
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt', 'vtt'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -277,13 +277,20 @@ def index():
             if content:
                 audio_file = content
 
+    subtitle_file = None
+    if os.path.exists('subtitle_config.txt'):
+        with open('subtitle_config.txt', 'r') as f:
+            content = f.read().strip()
+            if content:
+                subtitle_file = content
+
     audio_files = []
     if os.path.exists(app.config['UPLOAD_FOLDER']):
         audio_exts = {'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac'}
         audio_files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) 
                        if allowed_file(f) and f.rsplit('.', 1)[1].lower() in audio_exts]
 
-    return render_page(HTML_WALLPAPER, bg_image=bg_image, audio_file=audio_file, audio_files=audio_files)
+    return render_page(HTML_WALLPAPER, bg_image=bg_image, audio_file=audio_file, subtitle_file=subtitle_file, audio_files=audio_files)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -358,6 +365,21 @@ def audio_upload():
         with open('audio_config.txt', 'w') as f:
             f.write(filename)
             
+    return redirect(url_for('index'))
+
+@app.route('/wallpaper-blur/upload-subtitle', methods=['POST'])
+def subtitle_upload():
+    if 'subtitle' not in request.files:
+        return redirect(url_for('index'))
+
+    file = request.files['subtitle']
+    if file and file.filename != '' and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+        with open('subtitle_config.txt', 'w') as f:
+            f.write(filename)
+
     return redirect(url_for('index'))
 
 
@@ -582,6 +604,22 @@ HTML_WALLPAPER = """
             pointer-events: none;
             filter: blur(2px); /* Soft aesthetic blur */
         }
+
+        #subtitle-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            color: white;
+            font-size: 1.5rem;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5);
+            pointer-events: none;
+            width: 80%;
+            max-width: 800px;
+            min-height: 1.5em;
+        }
         
         /* Playlist Panel */
         .playlist-panel {
@@ -639,6 +677,173 @@ HTML_WALLPAPER = """
         }
         .action-btn:hover { color: white; }
         .action-btn.delete:hover { color: #ff4444; }
+
+        /* Fullscreen Button (Mobile Only) */
+        #fullscreen-btn {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 72px; /* Adjusted to align better with menu button typically */
+            right: 14px; /* Align with bootstrap container padding (approx 12px + 2px) */
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            width: 56px;  /* Match standard toggler width approx */
+            height: 40px; /* Match standard toggler height approx */
+            border-radius: 5px; /* Match standard Bootstrap toggler radius */
+            z-index: 1000;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        #fullscreen-btn .icon-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #fullscreen-btn .corner {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-color: rgba(255, 255, 255, 0.8);
+            border-style: solid;
+        }
+        #fullscreen-btn .tl { top: 3px; left: 3px; border-width: 2px 0 0 2px; }
+        #fullscreen-btn .tr { top: 3px; right: 3px; border-width: 2px 2px 0 0; }
+        #fullscreen-btn .bl { bottom: 3px; left: 3px; border-width: 0 0 2px 2px; }
+        #fullscreen-btn .br { bottom: 3px; right: 3px; border-width: 0 2px 2px 0; }
+
+        #fullscreen-btn .fa-lock, #fullscreen-btn .fa-lock-open {
+            font-size: 0.9rem;
+        }
+
+        #fullscreen-btn.neon-glow {
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.8);
+            color: white;
+            text-shadow: 0 0 5px white;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            #fullscreen-btn {
+                display: block;
+            }
+            /* Hide Dark/Light toggle on mobile */
+            .navbar .btn-group {
+                display: none !important;
+            }
+            /* Force white hamburger menu */
+            .navbar-toggler {
+                border-color: rgba(255,255,255,0.5) !important;
+            }
+            .navbar-toggler-icon {
+                filter: brightness(0) invert(1) !important;
+            }
+
+            .audio-player {
+                width: 95%;
+                padding: 15px;
+                bottom: 20px;
+                gap: 10px;
+            }
+            .player-row-bottom {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: space-between;
+                row-gap: 15px;
+            }
+            .player-left {
+                order: 2;
+                width: 100%;
+                justify-content: space-between;
+                margin-top: 5px;
+            }
+            .player-center {
+                order: 1;
+                width: 100%;
+                justify-content: center;
+                margin-bottom: 5px;
+            }
+            .player-right {
+                order: 3;
+                width: 100%;
+                justify-content: space-between;
+                margin-top: 5px;
+            }
+            .player-right input[type=range] {
+                width: 100% !important;
+            }
+            /* Adjust playlist panel for mobile */
+            .playlist-panel {
+                right: 0;
+                left: 0;
+                margin: 0 auto;
+                width: 95%;
+                bottom: 240px; /* Above expanded player */
+            }
+        }
+
+        /* Clean Mode Styles */
+        body.clean-mode .navbar,
+        body.clean-mode #fullscreen-btn,
+        body.clean-mode .controls-container,
+        body.clean-mode .audio-player,
+        body.clean-mode .playlist-panel,
+        body.clean-mode footer {
+            display: none !important;
+        }
+
+        /* Restore/Broom Button */
+        #restore-btn {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            z-index: 3000;
+            cursor: pointer;
+            transition: 0.3s;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 15px rgba(255,255,255,0.2);
+        }
+        body.clean-mode #restore-btn {
+            display: flex;
+        }
+        #restore-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        /* Blur Config Panel */
+        .blur-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 25px;
+            width: 300px;
+            z-index: 2000;
+            color: white;
+            text-align: center;
+            display: none;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        .blur-panel h4 { margin-bottom: 20px; font-weight: 700; }
+        .blur-value { font-size: 1.2rem; margin-top: 10px; font-weight: bold; color: var(--brand-color); }
     </style>
 </head>
 <body>
@@ -647,6 +852,30 @@ HTML_WALLPAPER = """
 
     <div class="content-wrapper">
         {{ navbar|safe }}
+
+        <!-- Fullscreen Button -->
+        <button id="fullscreen-btn" onclick="toggleFullScreen()">
+            <div class="icon-container">
+                <div class="corner tl"></div>
+                <div class="corner tr"></div>
+                <div class="corner bl"></div>
+                <div class="corner br"></div>
+                <i class="fas fa-lock-open" id="fs-lock-icon"></i>
+            </div>
+        </button>
+
+        <!-- Restore Button for Clean Mode -->
+        <button id="restore-btn" onclick="exitCleanMode()" title="Clean All / Restore">
+            <i class="fas fa-broom"></i>
+        </button>
+
+        <!-- Blur Settings Panel -->
+        <div class="blur-panel" id="blur-panel">
+            <h4>Blur Strength</h4>
+            <input type="range" id="blur-slider" min="-100" max="100" value="0" oninput="updateBlur(this.value)">
+            <div class="blur-value" id="blur-value-display">0</div>
+            <button class="acrylic-btn mt-3" onclick="toggleBlurPanel()">Close</button>
+        </div>
         
         <div class="center-content">
             <div class="controls-container">
@@ -665,11 +894,31 @@ HTML_WALLPAPER = """
                         <i class="fas fa-music me-2"></i> Set Audio
                     </button>
                 </form>
+
+                <!-- Subtitle Upload -->
+                <form action="/wallpaper-blur/upload-subtitle" method="post" enctype="multipart/form-data" id="form-sub">
+                    <input type="file" name="subtitle" id="file-sub" hidden onchange="document.getElementById('form-sub').submit()" accept=".srt,.vtt">
+                    <button type="button" class="acrylic-btn" onclick="document.getElementById('file-sub').click()">
+                        <i class="fas fa-closed-captioning me-2"></i> Set Subtitle
+                    </button>
+                </form>
+
+                <!-- Set Blur Button -->
+                <button type="button" class="acrylic-btn" onclick="toggleBlurPanel()">
+                    <i class="fas fa-sliders-h me-2"></i> Set Blur
+                </button>
+
+                <!-- Set Clean Button -->
+                <button type="button" class="acrylic-btn" onclick="enterCleanMode()">
+                    <i class="fas fa-broom me-2"></i> Set Clean
+                </button>
             </div>
             
             {% if audio_file %}
             <!-- Visualizer Overlay -->
             <canvas id="visualizer"></canvas>
+
+            <div id="subtitle-overlay"></div>
 
             <div class="audio-player">
                 <audio id="main-audio" crossorigin="anonymous">
@@ -737,12 +986,167 @@ HTML_WALLPAPER = """
                 const btnShuffle = document.getElementById('btn-shuffle');
                 const btnRepeat = document.getElementById('btn-repeat');
                 const playlistPanel = document.getElementById('playlist-panel');
+                const subtitleOverlay = document.getElementById('subtitle-overlay');
+                const fullscreenBtn = document.getElementById('fullscreen-btn');
+                const fsLockIcon = document.getElementById('fs-lock-icon');
+                const blurPanel = document.getElementById('blur-panel');
                 
+                // Fullscreen Logic
+                function toggleFullScreen() {
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen().catch(err => {
+                            console.log(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                        });
+                        // Lock state UI (managed by event listener mostly, but helper here)
+                    } else {
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen();
+                        }
+                    }
+                }
+
+                // Listen for fullscreen change events (ESC key etc)
+                document.addEventListener('fullscreenchange', () => {
+                    if (!document.fullscreenElement) {
+                        fullscreenBtn.classList.remove('neon-glow');
+                        fsLockIcon.classList.remove('fa-lock');
+                        fsLockIcon.classList.add('fa-lock-open');
+                    } else {
+                         fullscreenBtn.classList.add('neon-glow');
+                         fsLockIcon.classList.remove('fa-lock-open');
+                         fsLockIcon.classList.add('fa-lock');
+                    }
+                });
+
+                // BLUR LOGIC
+                function toggleBlurPanel() {
+                    blurPanel.style.display = (blurPanel.style.display === 'block') ? 'none' : 'block';
+                }
+
+                function updateBlur(val) {
+                    val = parseInt(val);
+                    document.getElementById('blur-value-display').innerText = val;
+
+                    const overlay = document.querySelector('.acrylic-overlay');
+
+                    // Default: blur 20px, opacity 0.47 (approx 120/255)
+                    let blurPx = 20;
+                    let opacity = 0.47;
+
+                    if (val < 0) {
+                        // -100 to 0: Scale down to 0
+                        const ratio = (100 + val) / 100; // 0 to 1
+                        blurPx = 20 * ratio;
+                        opacity = 0.47 * ratio;
+                    } else {
+                        // 0 to 100: Scale up
+                        const ratio = val / 100; // 0 to 1
+                        // Max blur 60px, max opacity 0.85
+                        blurPx = 20 + (40 * ratio);
+                        opacity = 0.47 + (0.38 * ratio);
+                    }
+
+                    overlay.style.backdropFilter = `blur(${blurPx}px) saturate(125%)`;
+                    overlay.style.webkitBackdropFilter = `blur(${blurPx}px) saturate(125%)`;
+                    overlay.style.backgroundColor = `rgba(0, 0, 0, ${opacity})`;
+                }
+
+                // CLEAN MODE LOGIC
+                function enterCleanMode() {
+                    document.body.classList.add('clean-mode');
+                    // Play audio if paused
+                    if(audio.paused) {
+                        togglePlay();
+                    }
+                }
+
+                function exitCleanMode() {
+                    document.body.classList.remove('clean-mode');
+                }
+
                 // Audio List logic
                 let playlist = {{ audio_files|tojson }};
                 let currentFile = "{{ audio_file }}";
+                let currentSubtitleFile = "{{ subtitle_file if subtitle_file else '' }}";
                 let isShuffle = false;
                 let isRepeat = false;
+
+                // Subtitle Data
+                let subtitles = [];
+
+                // --- SUBTITLE LOGIC ---
+                function parseTime(timeStr) {
+                    // HH:MM:SS,mmm or HH:MM:SS.mmm
+                    timeStr = timeStr.replace(',', '.');
+                    const parts = timeStr.split(':');
+                    let seconds = 0;
+                    if (parts.length === 3) {
+                        seconds = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2]);
+                    } else if (parts.length === 2) {
+                        seconds = parseInt(parts[0]) * 60 + parseFloat(parts[1]);
+                    }
+                    return seconds;
+                }
+
+                function parseSRT(text) {
+                    const subs = [];
+                    const blocks = text.trim().replace(/\\r\\n/g, '\\n').split(/\\n\\n+/);
+                    blocks.forEach(block => {
+                        const lines = block.split('\\n');
+                        if (lines.length >= 2) {
+                            // First line index, second line time
+                            let timeLine = lines[1];
+                            // If first line is time (sometimes index is missing in loose formats)
+                            if(lines[0].includes('-->')) timeLine = lines[0];
+
+                            if (timeLine && timeLine.includes('-->')) {
+                                const times = timeLine.split('-->');
+                                const start = parseTime(times[0].trim());
+                                const end = parseTime(times[1].trim());
+                                // Text is the rest
+                                let textLines = lines.slice(lines[0].includes('-->') ? 1 : 2);
+                                subs.push({ start, end, text: textLines.join('<br>') });
+                            }
+                        }
+                    });
+                    return subs;
+                }
+
+                function parseVTT(text) {
+                    const subs = [];
+                    const blocks = text.trim().replace(/\\r\\n/g, '\\n').split(/\\n\\n+/);
+                    blocks.forEach(block => {
+                        const lines = block.split('\\n');
+                        // Remove WEBVTT header block
+                        if (lines[0].includes('WEBVTT')) return;
+
+                        let timeLineIndex = 0;
+                        if (!lines[0].includes('-->')) timeLineIndex = 1; // ID present
+
+                        if (lines[timeLineIndex] && lines[timeLineIndex].includes('-->')) {
+                            const times = lines[timeLineIndex].split('-->');
+                            const start = parseTime(times[0].trim());
+                            const end = parseTime(times[1].trim());
+                            let textLines = lines.slice(timeLineIndex + 1);
+                            subs.push({ start, end, text: textLines.join('<br>') });
+                        }
+                    });
+                    return subs;
+                }
+
+                if (currentSubtitleFile) {
+                    fetch('/uploads/' + currentSubtitleFile)
+                        .then(r => r.text())
+                        .then(text => {
+                            if (currentSubtitleFile.endsWith('.vtt')) {
+                                subtitles = parseVTT(text);
+                            } else {
+                                subtitles = parseSRT(text);
+                            }
+                            console.log('Loaded subtitles:', subtitles.length);
+                        })
+                        .catch(e => console.error('Error loading subtitles', e));
+                }
 
                 // --- VISUALIZER ---
                 const canvas = document.getElementById('visualizer');
@@ -906,14 +1310,28 @@ HTML_WALLPAPER = """
                     }
                 });
 
-                // Update Progress & Time
+                // Update Progress & Time & Subtitles
                 audio.addEventListener('timeupdate', () => {
+                    const ct = audio.currentTime;
+
+                    // Subtitle Update
+                    if (subtitles.length > 0) {
+                        const cue = subtitles.find(s => ct >= s.start && ct <= s.end);
+                        if (cue) {
+                            if (subtitleOverlay.innerHTML !== cue.text) {
+                                subtitleOverlay.innerHTML = cue.text;
+                            }
+                        } else {
+                            subtitleOverlay.innerHTML = '';
+                        }
+                    }
+
                     if(audio.duration) {
-                        const val = (audio.currentTime / audio.duration) * 100;
+                        const val = (ct / audio.duration) * 100;
                         seekSlider.value = val;
                         
-                        let mins = Math.floor(audio.currentTime / 60);
-                        let secs = Math.floor(audio.currentTime % 60);
+                        let mins = Math.floor(ct / 60);
+                        let secs = Math.floor(ct % 60);
                         if(secs < 10) secs = '0' + secs;
                         if(mins < 10) mins = '0' + mins;
                         timeDisplay.textContent = `${mins}:${secs}`;
