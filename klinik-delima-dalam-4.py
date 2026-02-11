@@ -219,10 +219,16 @@ def api_clinic_status():
     
     if request.method == 'POST':
         if not session.get('admin'): return jsonify({'error': 'Unauthorized'}), 403
-        c.execute("SELECT value FROM site_settings WHERE key='clinic_open'")
-        row = c.fetchone()
-        curr = row['value'] if row else '0'
-        new_val = '0' if curr == '1' else '1'
+
+        data = request.json or {}
+        if 'set_status' in data:
+            new_val = '1' if data['set_status'] else '0'
+        else:
+            c.execute("SELECT value FROM site_settings WHERE key='clinic_open'")
+            row = c.fetchone()
+            curr = row['value'] if row else '0'
+            new_val = '0' if curr == '1' else '1'
+
         c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('clinic_open', ?)", (new_val,))
         conn.commit()
         conn.close()
@@ -749,13 +755,48 @@ HTML_LANDING = """
         .status-badge {
             font-size: 1.5rem;
             font-weight: bold;
-            padding: 10px 30px;
+            padding: 15px 40px;
             border-radius: 50px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             display: inline-block;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
         }
-        .status-open { background: #2ecc71; color: white; }
-        .status-closed { background: #e74c3c; color: white; }
+        .status-badge:hover { transform: scale(1.05); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .status-open { background: #2ecc71; color: white; border: 2px solid #27ae60; }
+        .status-closed { background: #e74c3c; color: white; border: 2px solid #c0392b; }
+
+        .status-options-hidden {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: all 0.5s ease-in-out;
+            transform: translateY(-20px);
+        }
+        .status-options-visible {
+            max-height: 200px;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .status-option-btn {
+            border: none;
+            border-radius: 15px;
+            padding: 15px 25px;
+            font-weight: bold;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 140px;
+            transition: 0.3s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .status-option-btn:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
+        .btn-open { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+        .btn-close { background: linear-gradient(135deg, #e74c3c, #c0392b); }
         .wa-float {
             position: fixed;
             bottom: 30px;
@@ -780,18 +821,26 @@ HTML_LANDING = """
 <body>
     {{ navbar|safe }}
     <div class="glass-panel">
-        <h1 class="mb-4 fw-bold">KLINIK KESEHATAN</h1>
-        
-        <div id="status-container">
+        <div id="status-container" class="mb-4">
             <!-- Loaded via JS -->
             <span class="status-badge status-open">LOADING...</span>
         </div>
         
         {% if admin %}
-        <div class="mb-4">
-            <button class="btn btn-warning" onclick="toggleClinicStatus()">
-                <i class="fas fa-power-off"></i> SAKLAR BUKA/TUTUP
-            </button>
+        <!-- Hidden Options Container -->
+        <div id="status-options" class="status-options-hidden mb-4">
+            <div class="d-flex gap-3 justify-content-center">
+                <button class="status-option-btn btn-open" onclick="setStatus(true)">
+                    <i class="fas fa-door-open fa-2x mb-2"></i>
+                    <div>BUKA</div>
+                    <small style="opacity:0.8">Warna Hijau</small>
+                </button>
+                <button class="status-option-btn btn-close" onclick="setStatus(false)">
+                    <i class="fas fa-door-closed fa-2x mb-2"></i>
+                    <div>TUTUP</div>
+                    <small style="opacity:0.8">Warna Merah</small>
+                </button>
+            </div>
         </div>
         {% endif %}
         
@@ -826,16 +875,40 @@ HTML_LANDING = """
         function updateStatus() {
             fetch('/api/clinic/status').then(r => r.json()).then(data => {
                 const el = document.getElementById('status-container');
+                const isAdmin = document.getElementById('status-options') !== null;
+                const clickAttr = isAdmin ? 'onclick="toggleStatusMenu()" style="cursor:pointer"' : '';
+
                 if(data.open) {
-                    el.innerHTML = '<span class="status-badge status-open">KLINIK BUKA</span>';
+                    el.innerHTML = `<span class="status-badge status-open" ${clickAttr}>KLINIK BUKA</span>`;
                 } else {
-                    el.innerHTML = '<span class="status-badge status-closed">KLINIK TUTUP</span>';
+                    el.innerHTML = `<span class="status-badge status-closed" ${clickAttr}>KLINIK TUTUP</span>`;
                 }
             });
         }
         
-        function toggleClinicStatus() {
-            fetch('/api/clinic/status', { method: 'POST' }).then(() => updateStatus());
+        function toggleStatusMenu() {
+            const opts = document.getElementById('status-options');
+            if(opts) {
+                if(opts.classList.contains('status-options-visible')) {
+                    opts.classList.remove('status-options-visible');
+                    opts.classList.add('status-options-hidden');
+                } else {
+                    opts.classList.remove('status-options-hidden');
+                    opts.classList.add('status-options-visible');
+                }
+            }
+        }
+
+        function setStatus(isOpen) {
+            fetch('/api/clinic/status', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ set_status: isOpen })
+            }).then(() => {
+                updateStatus();
+                // Close menu after short delay
+                setTimeout(toggleStatusMenu, 300);
+            });
         }
 
         function toggleFullScreen() {
@@ -1092,7 +1165,7 @@ HTML_DOCTOR_REKAM = """
                             <thead class="table-light">
                                 <tr>
                                     <th>No</th>
-                                    <th>Nama Pasien</th>
+                                    <th style="white-space:nowrap">Nama Pasien</th>
                                     <th>Diagnosa</th>
                                     <th>Resep Obat</th>
                                     <th>Tindakan</th>
