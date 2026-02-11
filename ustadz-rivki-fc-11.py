@@ -321,6 +321,7 @@ NAVBAR_HTML = """
         cursor: pointer;
         font-weight: 600;
         transition: 0.2s;
+        margin-left: 150px;
     }
     .next-match-mini:hover { background: rgba(0,0,0,0.4); }
     
@@ -353,7 +354,7 @@ NAVBAR_HTML = """
         box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         position: sticky;
         top: 0;
-        z-index: 1020;
+        z-index: 1040;
     }
     .navbar-logo-container { position: absolute; left: 5%; top: -15px; z-index: 2000; }
     .navbar-logo-img { height: 85px; transition: 0.3s; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.2)); cursor: pointer; }
@@ -406,6 +407,7 @@ NAVBAR_HTML = """
             <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="navbar-logo-img" alt="TAHKIL FC">
         </a>
     </div>
+    <div class="d-lg-none fw-bold fs-4 position-absolute start-50 translate-middle-x" style="white-space: nowrap;">TAHFIZH KILAT FC</div>
     <div class="navbar-links d-none d-lg-flex">
         <a href="#hero" class="nav-item-custom">Home</a>
         <a href="#players" class="nav-item-custom">Pemain</a>
@@ -421,25 +423,20 @@ NAVBAR_HTML = """
 
 <div id="mobile-menu" class="mobile-menu-container">
     <div class="mobile-next-match">{{ data['settings'].get('next_match_text', 'Next Match: TAHKIL FC (Jan 2026)') }}</div>
-    <a href="#hero" class="mobile-nav-link" onclick="toggleMobileMenu()">Home</a>
-    <a href="#players" class="mobile-nav-link" onclick="toggleMobileMenu()">Pemain</a>
-    <a href="#coaches" class="mobile-nav-link" onclick="toggleMobileMenu()">Pelatih</a>
-    <a href="#mvp" class="mobile-nav-link" onclick="toggleMobileMenu()">MVP</a>
-    <a href="#agenda-latihan" class="mobile-nav-link" onclick="toggleMobileMenu()">Agenda Latihan</a>
-    <a href="#turnamen" class="mobile-nav-link" onclick="toggleMobileMenu()">Turnamen</a>
-    <a href="#sponsors" class="mobile-nav-link" onclick="toggleMobileMenu()">Sponsors</a>
+    <a href="#hero" class="mobile-nav-link">Home</a>
+    <a href="#players" class="mobile-nav-link">Pemain</a>
+    <a href="#coaches" class="mobile-nav-link">Pelatih</a>
+    <a href="#mvp" class="mobile-nav-link">MVP</a>
+    <a href="#agenda-latihan" class="mobile-nav-link">Agenda Latihan</a>
+    <a href="#turnamen" class="mobile-nav-link">Turnamen</a>
+    <a href="#sponsors" class="mobile-nav-link">Sponsors</a>
     
     <div class="mt-auto d-flex flex-column gap-3">
-        <div class="history-btn justify-content-center" onclick="openHistoryModal(); toggleMobileMenu();">
+        <div class="history-btn justify-content-center" onclick="openHistoryModal()">
             <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="monochrome-icon">
             Lihat Sejarah
         </div>
-        <button onclick="document.getElementById('login-modal').style.display='flex'; toggleMobileMenu();" class="btn btn-outline-dark w-100">Admin Login</button>
-        <div class="d-flex justify-content-center gap-4 mt-2">
-            <a href="https://wa.me/6281528455350" class="text-dark h4"><i class="fab fa-whatsapp"></i></a>
-            <a href="https://maps.app.goo.gl/4deg1ha8WaxWKdPC9" class="text-dark h4"><i class="fas fa-map-marker-alt"></i></a>
-            <a href="https://www.instagram.com/rivkycahyahakikiori/" class="text-dark h4"><i class="fab fa-instagram"></i></a>
-        </div>
+        <button onclick="document.getElementById('login-modal').style.display='flex'" class="btn btn-outline-dark w-100">Admin Login</button>
     </div>
 </div>
 
@@ -487,7 +484,49 @@ STYLES_HTML = """
         gap: 20px;
         padding: 20px 0;
         scroll-snap-type: x mandatory;
+        scrollbar-width: thin;
+        scrollbar-color: var(--green) rgba(0,0,0,0.1);
     }
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.1);
+    }
+    ::-webkit-scrollbar-thumb {
+        background: var(--green);
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #004d40;
+    }
+    .scroll-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--green);
+        color: white;
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 10;
+        opacity: 0.9;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .scroll-btn:hover {
+        background: #ffd700;
+        color: black;
+        transform: translateY(-50%) scale(1.1);
+    }
+    .scroll-left { left: 10px; }
+    .scroll-right { right: 10px; }
     .person-card {
         min-width: 250px;
         height: 350px;
@@ -549,7 +588,7 @@ STYLES_HTML = """
     .monochrome-icon { filter: grayscale(100%) contrast(1.2); }
     
     .hero-full-width-container {
-        width: 100vw; margin-left: calc(-50vw + 50%); position: relative; overflow: hidden;
+        width: 100%; margin: 0; position: relative; overflow: hidden;
     }
     .hero-main-img-wrapper { position: relative; width: 100%; height: 60vh; }
     .hero-main-img { width: 100%; height: 100%; object-fit: cover; }
@@ -584,8 +623,8 @@ STYLES_HTML = """
     }
     
     .sponsor-logo-small {
-        width: 100px; height: 100px; object-fit: contain; border-radius: 50%;
-        background: white; padding: 10px; margin: 10px; transition: 0.3s; filter: grayscale(100%);
+        width: 80px; height: 80px; object-fit: contain; border-radius: 50%;
+        background: white; padding: 5px; margin: 5px; transition: 0.3s; filter: grayscale(100%);
     }
     .sponsor-logo-small:hover { filter: none; transform: scale(1.1); }
     
@@ -600,6 +639,8 @@ STYLES_HTML = """
         background: var(--white); transition: all 0.3s; transform: translateX(-50%);
     }
     .hover-underline:hover:after { width: 100%; }
+
+    .no-scroll { overflow: hidden; }
 </style>
 """
 
@@ -627,7 +668,7 @@ HTML_UR_FC = """
                  <img src="{{ '/uploads/' + hero.image_path if hero.image_path else url_for('static', filename='logo-tahkil-fc.png') }}" class="hero-main-img">
                  <div class="hero-overlay-gradient"></div>
                  
-                 <div class="position-absolute bottom-0 start-0 w-100 p-5 container text-center">
+                 <div class="position-absolute bottom-0 start-0 w-100 p-5 d-flex flex-column align-items-center justify-content-end text-center">
                     <span class="badge bg-warning text-dark mb-2">FIRST TEAM</span>
                     <h1 class="text-white fw-bold fst-italic hover-underline display-4" 
                         style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);"
@@ -696,30 +737,36 @@ HTML_UR_FC = """
         </div>
         
         <!-- Sponsors -->
-        <div class="row mt-5 justify-content-center text-center align-items-center" id="sponsors">
-            {% for sponsor in data['sponsors'] %}
-            <div class="col-6 col-md-3 position-relative">
-                <img src="{{ '/uploads/' + sponsor.image_path if sponsor.image_path else 'https://via.placeholder.com/100x100?text=SPONSOR' }}" 
-                     class="sponsor-logo-small">
+        <div class="d-flex flex-column flex-md-row align-items-center justify-content-center mt-5" id="sponsors">
+            <div class="d-flex align-items-center mb-3 mb-md-0 me-md-4">
+                <span class="fw-bold text-uppercase me-3" style="font-size: 1.1rem; letter-spacing: 1px;">Main Partners</span>
+                <span class="fs-4 text-muted">|</span>
+            </div>
+            <div class="d-flex flex-wrap justify-content-center align-items-center gap-2">
+                {% for sponsor in data['sponsors'] %}
+                <div class="position-relative">
+                    <img src="{{ '/uploads/' + sponsor.image_path if sponsor.image_path else 'https://via.placeholder.com/100x100?text=SPONSOR' }}"
+                         class="sponsor-logo-small">
+                    {% if admin %}
+                    <form action="/upload/sponsor/{{ sponsor.id }}" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-50 translate-middle-x">
+                        <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="sp-{{ sponsor.id }}">
+                        <label for="sp-{{ sponsor.id }}" class="badge bg-secondary"><i class="fas fa-edit"></i></label>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
                 {% if admin %}
-                <form action="/upload/sponsor/{{ sponsor.id }}" method="post" enctype="multipart/form-data" class="position-absolute top-0 start-50">
-                    <input type="file" name="image" onchange="this.form.submit()" style="display:none;" id="sp-{{ sponsor.id }}">
-                    <label for="sp-{{ sponsor.id }}" class="badge bg-secondary"><i class="fas fa-edit"></i></label>
-                </form>
+                <div>
+                    <button class="btn btn-outline-warning btn-sm" onclick="addCard('sponsor')">+</button>
+                </div>
                 {% endif %}
             </div>
-            {% endfor %}
-            {% if admin %}
-            <div class="col-6 col-md-3 d-flex justify-content-center align-items-center">
-                <button class="btn btn-outline-warning" onclick="addCard('sponsor')">+ Add Sponsor</button>
-            </div>
-            {% endif %}
         </div>
     </div>
     
     <!-- PLAYERS SECTION -->
     <div class="container-fluid py-5 bg-light" id="players">
-        <div class="container">
+        <div class="container position-relative">
             <h2 class="section-title">Pemain TAHKIL FC</h2>
             <div class="horizontal-scroll-container">
                 {% for player in data['personnel']['player'] %}
@@ -755,7 +802,7 @@ HTML_UR_FC = """
     
     <!-- COACHES SECTION -->
     <div class="container-fluid py-5" id="coaches">
-        <div class="container">
+        <div class="container position-relative">
             <h2 class="section-title">Pelatih TAHKIL FC</h2>
             <div class="horizontal-scroll-container">
                 {% for coach in data['personnel']['coach'] %}
@@ -785,7 +832,7 @@ HTML_UR_FC = """
 
     <!-- MVP SECTION -->
     <div class="container-fluid py-5 bg-light" id="mvp">
-        <div class="container">
+        <div class="container position-relative">
             <h2 class="section-title">Pemain MVP TAHKIL FC</h2>
             <div class="horizontal-scroll-container">
                 {% for mvp in data['personnel']['mvp'] %}
@@ -972,15 +1019,29 @@ HTML_UR_FC = """
             <p contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('site_settings', 'footer_text', 'value', this)">
                 {{ data['settings'].get('footer_text', '© 2026 TAHKIL FC. All rights reserved.') }}
             </p>
+            <div class="d-lg-none d-flex justify-content-center gap-4 mt-3">
+                <a href="https://wa.me/6281528455350" class="social-icon-link" target="_blank"><i class="fab fa-whatsapp"></i></a>
+                <a href="https://maps.app.goo.gl/4deg1ha8WaxWKdPC9" class="social-icon-link" target="_blank"><i class="fas fa-map-marker-alt"></i></a>
+                <a href="https://www.instagram.com/rivkycahyahakikiori/" class="social-icon-link" target="_blank"><i class="fab fa-instagram"></i></a>
+            </div>
         </div>
     </footer>
 
     <script>
         // --- UI UTILS ---
-        function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('active'); }
+        function toggleMobileMenu() {
+            document.getElementById('mobile-menu').classList.toggle('active');
+            document.body.classList.toggle('no-scroll');
+        }
         function toggleLogoPopup() {
             const popup = document.getElementById('logo-popup');
             popup.style.display = (popup.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function scrollHorizontally(btn, dir) {
+            const container = btn.parentElement.querySelector('.horizontal-scroll-container');
+            const scrollAmount = 300;
+            container.scrollBy({ left: dir * scrollAmount, behavior: 'smooth' });
         }
 
         // --- TIME AGO LOGIC ---
