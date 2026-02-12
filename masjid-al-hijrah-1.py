@@ -272,8 +272,30 @@ BASE_LAYOUT = """
 </head>
 <body class="text-gray-800 antialiased">
     
-    <!-- HEADER -->
-    <header class="fixed top-0 left-0 w-full z-50 glass-nav shadow-sm px-4 py-3 flex justify-between items-center max-w-md mx-auto right-0">
+    <!-- DESKTOP NAVBAR -->
+    <nav class="hidden md:flex fixed top-0 left-0 w-full z-50 glass-nav shadow-sm px-8 py-4 justify-between items-center right-0">
+        <div class="max-w-7xl mx-auto w-full flex justify-between items-center">
+             <div class="flex items-center gap-4">
+                 <div class="bg-emerald-100 p-2 rounded-xl">
+                    <i class="fas fa-mosque text-emerald-600 text-2xl"></i>
+                 </div>
+                 <div>
+                    <h1 class="text-xl font-bold text-emerald-600 leading-tight">Masjid Al Hijrah</h1>
+                    <p class="text-xs text-gray-500 font-medium">Samarinda, Kalimantan Timur</p>
+                 </div>
+             </div>
+             <div class="flex items-center gap-8">
+                <a href="/" class="text-gray-600 font-medium hover:text-emerald-600 transition {{ 'text-emerald-600 font-bold' if active_page == 'home' else '' }}">Beranda</a>
+                <a href="/finance" class="text-gray-600 font-medium hover:text-emerald-600 transition {{ 'text-emerald-600 font-bold' if active_page == 'finance' else '' }}">Laporan Kas</a>
+                <a href="/agenda" class="text-gray-600 font-medium hover:text-emerald-600 transition {{ 'text-emerald-600 font-bold' if active_page == 'agenda' else '' }}">Jadwal</a>
+                <a href="/donate" class="bg-emerald-500 text-white px-5 py-2 rounded-full font-bold shadow-lg hover:bg-emerald-600 transition transform hover:scale-105">Infaq Digital</a>
+                <a href="/emergency" class="text-red-500 font-bold hover:text-red-600 transition border border-red-200 px-4 py-2 rounded-full bg-red-50 hover:bg-red-100">Darurat</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MOBILE HEADER -->
+    <header class="md:hidden fixed top-0 left-0 w-full z-50 glass-nav shadow-sm px-4 py-3 flex justify-between items-center max-w-md mx-auto right-0">
         <div>
             <p class="text-xs text-gray-500 font-medium">Assalamualaikum</p>
             <h1 class="text-lg font-bold text-emerald-600 leading-tight">Masjid Al Hijrah</h1>
@@ -284,12 +306,12 @@ BASE_LAYOUT = """
     </header>
 
     <!-- CONTENT -->
-    <main class="min-h-screen relative w-full max-w-md mx-auto bg-[#F8FAFC]">
+    <main class="min-h-screen relative w-full max-w-md md:max-w-7xl mx-auto bg-[#F8FAFC]">
         {{ content|safe }}
     </main>
 
-    <!-- BOTTOM NAV -->
-    <nav class="fixed bottom-0 left-0 w-full glass-bottom z-50 pb-2 pt-2 max-w-md mx-auto right-0 border-t border-gray-100">
+    <!-- MOBILE BOTTOM NAV -->
+    <nav class="md:hidden fixed bottom-0 left-0 w-full glass-bottom z-50 pb-2 pt-2 max-w-md mx-auto right-0 border-t border-gray-100">
         <div class="flex justify-around items-end h-14 px-2">
             <a href="/" class="flex flex-col items-center justify-center text-gray-400 hover:text-emerald-600 w-16 mb-1 transition-colors {{ 'text-emerald-600' if active_page == 'home' else '' }}">
                 <i class="fas fa-home text-xl mb-1"></i>
@@ -331,51 +353,58 @@ BASE_LAYOUT = """
         // PRAYER TIMES & COUNTDOWN
         async function fetchPrayerTimes() {
             try {
-                const response = await fetch('/prayer-times');
-                const data = await response.json();
+                // Fetch from Aladhan API for Samarinda
+                const response = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
+                const result = await response.json();
+                const timings = result.data.timings;
                 
                 // Update grid if exists
                 if(document.getElementById('fajr-time')) {
-                    document.getElementById('fajr-time').innerText = data.Fajr;
-                    document.getElementById('dhuhr-time').innerText = data.Dhuhr;
-                    document.getElementById('asr-time').innerText = data.Asr;
-                    document.getElementById('maghrib-time').innerText = data.Maghrib;
-                    document.getElementById('isha-time').innerText = data.Isha;
+                    document.getElementById('fajr-time').innerText = timings.Fajr;
+                    document.getElementById('dhuhr-time').innerText = timings.Dhuhr;
+                    document.getElementById('asr-time').innerText = timings.Asr;
+                    document.getElementById('maghrib-time').innerText = timings.Maghrib;
+                    document.getElementById('isha-time').innerText = timings.Isha;
                 }
                 
                 // Countdown Logic
                 const now = new Date();
-                const currentTimeStr = now.toTimeString().slice(0, 5);
-                const prayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
-                let nextPrayer = null;
-                let nextTimeStr = null;
+                const prayers = [
+                    { name: 'Subuh', time: timings.Fajr },
+                    { name: 'Dzuhur', time: timings.Dhuhr },
+                    { name: 'Ashar', time: timings.Asr },
+                    { name: 'Maghrib', time: timings.Maghrib },
+                    { name: 'Isya', time: timings.Isha }
+                ];
                 
+                let nextPrayerName = null;
+                let targetTime = null;
+
                 for (let p of prayers) {
-                    if (data[p] > currentTimeStr) {
-                        nextPrayer = p;
-                        nextTimeStr = data[p];
+                    const [h, m] = p.time.split(':');
+                    const pDate = new Date();
+                    pDate.setHours(parseInt(h), parseInt(m), 0, 0);
+
+                    if (pDate > now) {
+                        nextPrayerName = p.name;
+                        targetTime = pDate;
                         break;
                     }
                 }
-                
-                if (!nextPrayer) {
-                    // Next is Fajr tomorrow
-                    nextPrayer = 'Fajr';
-                    nextTimeStr = data['Fajr']; 
-                    // Note: Logic needs date adjustment for accurate countdown across midnight, simplified here
+
+                // If no prayer found for today (meaning it's after Isya), next is Fajr tomorrow
+                if (!targetTime) {
+                    nextPrayerName = 'Subuh';
+                    const [h, m] = timings.Fajr.split(':');
+                    targetTime = new Date();
+                    targetTime.setDate(targetTime.getDate() + 1);
+                    targetTime.setHours(parseInt(h), parseInt(m), 0, 0);
                 }
                 
                 if(document.getElementById('next-prayer-name')) {
-                    document.getElementById('next-prayer-name').innerText = nextPrayer;
+                    document.getElementById('next-prayer-name').innerText = nextPrayerName;
                     
-                    // Simple countdown visualization (hh:mm:ss)
-                    // Parsing time
-                    const [h, m] = nextTimeStr.split(':');
-                    const target = new Date();
-                    target.setHours(h, m, 0);
-                    if(target < now) target.setDate(target.getDate() + 1);
-                    
-                    const diff = target - now;
+                    const diff = targetTime - now;
                     const hours = Math.floor(diff / 3600000);
                     const minutes = Math.floor((diff % 3600000) / 60000);
                     const seconds = Math.floor((diff % 60000) / 1000);
@@ -398,82 +427,100 @@ BASE_LAYOUT = """
 """
 
 HOME_HTML = """
-<div class="pt-20 pb-32 px-5">
-    <!-- HERO CARD -->
-    <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-3xl p-6 text-white shadow-xl mb-8 relative overflow-hidden">
-        <div class="absolute top-0 right-0 opacity-10 transform translate-x-4 -translate-y-4">
-            <i class="fas fa-mosque text-9xl"></i>
-        </div>
-        <div class="relative z-10">
-            <p class="text-xs font-medium opacity-80 mb-1 tracking-wide uppercase">Waktu Sholat Berikutnya</p>
-            <h2 class="text-4xl font-bold mb-3" id="next-prayer-name">--:--</h2>
-            <div class="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 inline-block mb-6 border border-white/10">
-                <span class="font-mono text-2xl font-bold tracking-wider" id="countdown-timer">--:--:--</span>
+<div class="pt-20 md:pt-32 pb-32 px-5 md:px-8">
+
+    <!-- DESKTOP SPLIT HEADER -->
+    <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-8 md:mb-12">
+
+        <!-- LEFT COLUMN: WELCOME (Desktop Only) -->
+        <div class="hidden md:block pl-2">
+            <p class="text-xl text-gray-500 font-medium mb-2">Assalamualaikum Warahmatullahi Wabarakatuh</p>
+            <h1 class="text-5xl font-bold text-emerald-800 leading-tight mb-6">Selamat Datang di<br>Masjid Al Hijrah</h1>
+            <p class="text-gray-600 text-lg leading-relaxed mb-8">
+                Pusat peribadatan dan kegiatan umat Islam di Samarinda. Mari makmurkan masjid dengan sholat berjamaah, infaq, dan kegiatan sosial untuk kemaslahatan umat.
+            </p>
+            <div class="flex gap-4">
+                <a href="/agenda" class="bg-emerald-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-emerald-700 transition transform hover:scale-105">Lihat Agenda</a>
+                <a href="/donate" class="bg-white text-emerald-600 border-2 border-emerald-100 px-8 py-3 rounded-full font-bold hover:border-emerald-600 hover:text-emerald-700 transition transform hover:scale-105">Infaq Sekarang</a>
             </div>
-            
-            <div class="grid grid-cols-5 gap-1 text-center text-xs opacity-90 border-t border-white/20 pt-4">
-                <div>
-                    <div class="font-semibold mb-1">Subuh</div>
-                    <div id="fajr-time" class="font-mono">--:--</div>
+        </div>
+
+        <!-- RIGHT COLUMN: PRAYER CARD -->
+        <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-3xl p-6 md:p-10 text-white shadow-xl relative overflow-hidden transform md:hover:scale-[1.02] transition-transform duration-500">
+            <div class="absolute top-0 right-0 opacity-10 transform translate-x-4 -translate-y-4">
+                <i class="fas fa-mosque text-9xl"></i>
+            </div>
+            <div class="relative z-10">
+                <p class="text-xs font-medium opacity-80 mb-1 tracking-wide uppercase">Waktu Sholat Berikutnya</p>
+                <h2 class="text-4xl font-bold mb-3" id="next-prayer-name">--:--</h2>
+                <div class="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 inline-block mb-6 border border-white/10">
+                    <span class="font-mono text-2xl font-bold tracking-wider" id="countdown-timer">--:--:--</span>
                 </div>
-                <div>
-                    <div class="font-semibold mb-1">Dzuhur</div>
-                    <div id="dhuhr-time" class="font-mono">--:--</div>
-                </div>
-                <div>
-                    <div class="font-semibold mb-1">Ashar</div>
-                    <div id="asr-time" class="font-mono">--:--</div>
-                </div>
-                <div>
-                    <div class="font-semibold mb-1">Maghrib</div>
-                    <div id="maghrib-time" class="font-mono">--:--</div>
-                </div>
-                <div>
-                    <div class="font-semibold mb-1">Isya</div>
-                    <div id="isha-time" class="font-mono">--:--</div>
+
+                <div class="grid grid-cols-5 gap-1 text-center text-xs opacity-90 border-t border-white/20 pt-4">
+                    <div>
+                        <div class="font-semibold mb-1">Subuh</div>
+                        <div id="fajr-time" class="font-mono">--:--</div>
+                    </div>
+                    <div>
+                        <div class="font-semibold mb-1">Dzuhur</div>
+                        <div id="dhuhr-time" class="font-mono">--:--</div>
+                    </div>
+                    <div>
+                        <div class="font-semibold mb-1">Ashar</div>
+                        <div id="asr-time" class="font-mono">--:--</div>
+                    </div>
+                    <div>
+                        <div class="font-semibold mb-1">Maghrib</div>
+                        <div id="maghrib-time" class="font-mono">--:--</div>
+                    </div>
+                    <div>
+                        <div class="font-semibold mb-1">Isya</div>
+                        <div id="isha-time" class="font-mono">--:--</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- MAIN GRID MENU -->
-    <h3 class="text-gray-800 font-bold text-lg mb-4 pl-1 border-l-4 border-emerald-500 leading-none py-1 ml-1">&nbsp;Menu Utama</h3>
-    <div class="grid grid-cols-2 gap-4 mb-8">
-        <a href="/finance" class="bg-white p-5 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 border border-gray-50 group">
-            <div class="bg-emerald-50 w-14 h-14 rounded-full flex items-center justify-center mb-3 text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                <i class="fas fa-wallet text-2xl"></i>
+    <h3 class="text-gray-800 font-bold text-lg mb-4 pl-1 border-l-4 border-emerald-500 leading-none py-1 ml-1 md:text-2xl md:mb-8">&nbsp;Menu Utama</h3>
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8 mb-8">
+        <a href="/finance" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+            <div class="bg-emerald-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                <i class="fas fa-wallet text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm font-semibold text-gray-700 group-hover:text-emerald-600">Laporan Kas</span>
+            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-emerald-600">Laporan Kas</span>
         </a>
-        <a href="/agenda" class="bg-white p-5 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 border border-gray-50 group">
-            <div class="bg-blue-50 w-14 h-14 rounded-full flex items-center justify-center mb-3 text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                <i class="fas fa-calendar-alt text-2xl"></i>
+        <a href="/agenda" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+            <div class="bg-blue-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                <i class="fas fa-calendar-alt text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm font-semibold text-gray-700 group-hover:text-blue-600">Jadwal Imam</span>
+            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-blue-600">Jadwal Imam</span>
         </a>
-        <a href="/booking" class="bg-white p-5 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 border border-gray-50 group">
-            <div class="bg-orange-50 w-14 h-14 rounded-full flex items-center justify-center mb-3 text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                <i class="fas fa-building text-2xl"></i>
+        <a href="/booking" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+            <div class="bg-orange-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                <i class="fas fa-building text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm font-semibold text-gray-700 group-hover:text-orange-600">Peminjaman</span>
+            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-orange-600">Peminjaman</span>
         </a>
-        <a href="/zakat" class="bg-white p-5 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 border border-gray-50 group">
-            <div class="bg-green-50 w-14 h-14 rounded-full flex items-center justify-center mb-3 text-green-600 group-hover:bg-green-500 group-hover:text-white transition-colors">
-                <i class="fas fa-hand-holding-heart text-2xl"></i>
+        <a href="/zakat" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+            <div class="bg-green-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-green-600 group-hover:bg-green-500 group-hover:text-white transition-colors">
+                <i class="fas fa-hand-holding-heart text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm font-semibold text-gray-700 group-hover:text-green-600">Zakat</span>
+            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-green-600">Zakat</span>
         </a>
-        <a href="/gallery-dakwah" class="bg-white p-5 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 border border-gray-50 group">
-            <div class="bg-purple-50 w-14 h-14 rounded-full flex items-center justify-center mb-3 text-purple-600 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                <i class="fas fa-images text-2xl"></i>
+        <a href="/gallery-dakwah" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+            <div class="bg-purple-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-purple-600 group-hover:bg-purple-500 group-hover:text-white transition-colors">
+                <i class="fas fa-images text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm font-semibold text-gray-700 group-hover:text-purple-600">Galeri</span>
+            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-purple-600">Galeri</span>
         </a>
-        <a href="/suggestion" class="bg-white p-5 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 border border-gray-50 group">
-            <div class="bg-pink-50 w-14 h-14 rounded-full flex items-center justify-center mb-3 text-pink-600 group-hover:bg-pink-500 group-hover:text-white transition-colors">
-                <i class="fas fa-comment-dots text-2xl"></i>
+        <a href="/suggestion" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+            <div class="bg-pink-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-pink-600 group-hover:bg-pink-500 group-hover:text-white transition-colors">
+                <i class="fas fa-comment-dots text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm font-semibold text-gray-700 group-hover:text-pink-600">Kotak Saran</span>
+            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-pink-600">Kotak Saran</span>
         </a>
     </div>
 </div>
@@ -507,7 +554,7 @@ def finance():
     conn.close()
     
     content = """
-    <div class="pt-20 pb-24 px-5">
+    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
         <div class="flex justify-between items-center mb-6">
             <h3 class="text-xl font-bold text-gray-800">Laporan Kas</h3>
             <button onclick="document.getElementById('modal-add').classList.remove('hidden')" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-emerald-600 transition">+ Input</button>
@@ -626,7 +673,7 @@ def agenda():
     conn.close()
 
     content = """
-    <div class="pt-20 pb-24 px-5">
+    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
         <div class="flex justify-between items-center mb-6">
             <h3 class="text-xl font-bold text-gray-800">Jadwal Imam & Kajian</h3>
             <button onclick="document.getElementById('modal-agenda').classList.remove('hidden')" class="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-blue-600 transition">+ Tambah</button>
@@ -712,7 +759,7 @@ def booking():
     conn.close()
 
     content = """
-    <div class="pt-20 pb-24 px-5">
+    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
         <h3 class="text-xl font-bold text-gray-800 mb-2">Peminjaman Fasilitas</h3>
         <p class="text-sm text-gray-500 mb-6">Ajukan peminjaman ambulan atau area masjid.</p>
 
@@ -802,7 +849,7 @@ def zakat():
     conn.close()
 
     content = """
-    <div class="pt-20 pb-24 px-5">
+    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
         <div class="flex justify-between items-center mb-6">
             <h3 class="text-xl font-bold text-gray-800">Zakat & Qurban</h3>
             <button onclick="document.getElementById('modal-zakat').classList.remove('hidden')" class="bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-green-600 transition">+ Input</button>
@@ -895,7 +942,7 @@ def gallery_dakwah():
     conn.close()
 
     content = """
-    <div class="pt-20 pb-24 px-5">
+    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
         <div class="flex justify-between items-center mb-6">
             <h3 class="text-xl font-bold text-gray-800">Galeri Dakwah</h3>
             <button onclick="document.getElementById('modal-upload').classList.remove('hidden')" class="bg-purple-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-purple-600 transition">+ Foto</button>
@@ -961,7 +1008,7 @@ def suggestion():
     conn.close()
 
     content = """
-    <div class="pt-20 pb-24 px-5">
+    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
         <h3 class="text-xl font-bold text-gray-800 mb-4">Kotak Saran Digital</h3>
         
         <form method="POST" class="bg-white p-6 rounded-3xl shadow-lg border border-pink-50 mb-8">
@@ -1000,7 +1047,7 @@ def prayer_times_api():
 @app.route('/donate')
 def donate():
     content = """
-    <div class="pt-20 pb-24 px-5 text-center min-h-screen flex flex-col items-center justify-center">
+    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8 text-center min-h-screen flex flex-col items-center justify-center">
         <div class="bg-white p-8 rounded-[40px] shadow-2xl border border-emerald-50 max-w-sm w-full relative overflow-hidden">
              <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
              <h2 class="text-2xl font-bold text-gray-800 mb-2">Infaq Digital</h2>
