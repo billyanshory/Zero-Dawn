@@ -1,16 +1,19 @@
 import os
 import sqlite3
 import datetime
+import math
+import time
+import json
 from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify
 from werkzeug.utils import secure_filename
 
 # --- KONFIGURASI FLASK ---
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB Limit
-app.secret_key = "supersecretkey"
+app.secret_key = "supersecretkey_masjid_al_hijrah"
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt', 'vtt'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4'}
 
 # --- DATABASE SETUP ---
 DB_NAME = 'bimbel.db'
@@ -24,60 +27,72 @@ def init_db():
     conn = get_db_connection()
     c = conn.cursor()
     
-    # Gallery Table
-    c.execute('''CREATE TABLE IF NOT EXISTS gallery (
+    # Drop old tables if they exist (Clean Slate)
+    tables = ['gallery', 'tutors', 'pricing', 'slots', 'join_requests', 'news',
+              'finance', 'agenda', 'bookings', 'zakat', 'gallery_dakwah', 'suggestions']
+    for table in tables:
+        c.execute(f'DROP TABLE IF EXISTS {table}')
+
+    # 1. Finance Table
+    c.execute('''CREATE TABLE IF NOT EXISTS finance (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        image TEXT NOT NULL,
-        student_name TEXT NOT NULL,
-        title TEXT NOT NULL,
+        date TEXT NOT NULL,
+        type TEXT NOT NULL, -- 'Pemasukan' or 'Pengeluaran'
+        category TEXT NOT NULL,
+        description TEXT NOT NULL,
+        amount INTEGER NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
-    
-    # Tutors Table
-    c.execute('''CREATE TABLE IF NOT EXISTS tutors (
+
+    # 2. Agenda Table
+    c.execute('''CREATE TABLE IF NOT EXISTS agenda (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        image TEXT NOT NULL,
-        name TEXT NOT NULL,
-        bio TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-    
-    # Pricing Table
-    c.execute('''CREATE TABLE IF NOT EXISTS pricing (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        price TEXT NOT NULL,
-        details TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-    
-    # Slots Table
-    c.execute('''CREATE TABLE IF NOT EXISTS slots (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        day TEXT NOT NULL,
+        date TEXT NOT NULL,
         time TEXT NOT NULL,
-        status TEXT DEFAULT 'Available',
-        type TEXT DEFAULT 'General',
+        title TEXT NOT NULL,
+        speaker TEXT NOT NULL,
+        type TEXT NOT NULL, -- 'Jumat' or 'Kajian'
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
-    
-    # Join Requests Table
-    c.execute('''CREATE TABLE IF NOT EXISTS join_requests (
+
+    # 3. Bookings Table
+    c.execute('''CREATE TABLE IF NOT EXISTS bookings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        age INTEGER NOT NULL,
-        interest TEXT NOT NULL,
-        whatsapp TEXT NOT NULL,
+        date TEXT NOT NULL,
+        purpose TEXT NOT NULL,
+        type TEXT NOT NULL, -- 'Ambulan' or 'Fasilitas'
+        status TEXT DEFAULT 'Pending', -- 'Pending', 'Approved', 'Rejected'
+        contact TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
-    
-    # News Table
-    c.execute('''CREATE TABLE IF NOT EXISTS news (
+
+    # 4. Zakat & Qurban Table
+    c.execute('''CREATE TABLE IF NOT EXISTS zakat (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        donor_name TEXT NOT NULL,
+        type TEXT NOT NULL, -- 'Zakat Fitrah', 'Zakat Mal', 'Qurban Sapi', 'Qurban Kambing'
+        amount TEXT NOT NULL, -- Can be money or "1 Ekor"
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # 5. Gallery Dakwah Table
+    c.execute('''CREATE TABLE IF NOT EXISTS gallery_dakwah (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
+        image TEXT NOT NULL,
+        description TEXT,
+        date TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # 6. Suggestions Table
+    c.execute('''CREATE TABLE IF NOT EXISTS suggestions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         content TEXT NOT NULL,
         date TEXT NOT NULL,
-        image TEXT,
+        status TEXT DEFAULT 'Unread',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     
@@ -87,2209 +102,1055 @@ def init_db():
 # Initialize DB on startup
 init_db()
 
-# --- PWA CONFIGURATION ---
-MANIFEST_CONTENT = """
-{
-  "name": "LES BIMBEL GAMBAR & MUSIK",
-  "short_name": "lesbimbel",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#E5322D",
-  "icons": [
-    {
-      "src": "/uploads/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/uploads/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
-}
-"""
+# --- PRAYER TIMES CALCULATION (Samarinda) ---
+class PrayTimes:
+    def __init__(self, method="MWL"):
+        self.method = method
+        self.methods = {
+            "MWL": {"fajr": 18, "isha": 17},
+            "ISNA": {"fajr": 15, "isha": 15},
+            "Egypt": {"fajr": 19.5, "isha": 17.5},
+            "Makkah": {"fajr": 18.5, "isha": 90},  # minutes
+            "Karachi": {"fajr": 18, "isha": 18},
+            "Tehran": {"fajr": 17.7, "isha": 14, "maghrib": 4.5, "midnight": "Jafari"},
+            "Jafari": {"fajr": 16, "isha": 14, "maghrib": 4, "midnight": "Jafari"}
+        }
+        self.params = self.methods[method]
 
-SW_CONTENT = """
-self.addEventListener('install', (e) => {
-  console.log('[Service Worker] Install');
-});
-self.addEventListener('fetch', (e) => {
-  e.respondWith(fetch(e.request));
-});
-"""
+    def set_calc_method(self, method):
+        if method in self.methods:
+            self.params = self.methods[method]
+
+    def get_prayer_times(self, year, month, day, latitude, longitude, timezone):
+        return self.compute_times(year, month, day, latitude, longitude, timezone)
+
+    def compute_times(self, year, month, day, lat, lng, tzone):
+        d = self.days_since_j2000(year, month, day) + 0.5 - tzone / 24.0
+        eqt = self.equation_of_time(d)
+        decl = self.sun_declination(d)
+        noon = self.compute_mid_day(d - 0.5 + tzone / 24.0)
+
+        times = {
+            "Fajr": self.compute_time(180 - self.params["fajr"], decl, lat, noon),
+            "Sunrise": self.compute_time(180 - 0.833, decl, lat, noon),
+            "Dhuhr": noon,
+            "Asr": self.compute_asr(1, decl, lat, noon), # Shafi'i
+            "Sunset": self.compute_time(0.833, decl, lat, noon),
+            "Maghrib": self.compute_time(0.833, decl, lat, noon) if "maghrib" not in self.params else self.compute_time(self.params["maghrib"], decl, lat, noon),
+            "Isha": self.compute_time(self.params["isha"], decl, lat, noon)
+        }
+        
+        # Adjust for timezone
+        final_times = {}
+        for name, t in times.items():
+            final_times[name] = self.adjust_time(t, tzone)
+            
+        return final_times
+
+    def days_since_j2000(self, year, month, day):
+        if month <= 2:
+            year -= 1
+            month += 12
+        a = math.floor(year / 100)
+        b = 2 - a + math.floor(a / 4)
+        return math.floor(365.25 * (year + 4716)) + math.floor(30.6001 * (month + 1)) + day + b - 1524.5
+
+    def equation_of_time(self, d):
+        g = self.fix_angle(357.529 + 0.98560028 * d)
+        q = self.fix_angle(280.459 + 0.98564736 * d)
+        l = self.fix_angle(q + 1.915 * math.sin(math.radians(g)) + 0.020 * math.sin(math.radians(2 * g)))
+        e = 23.439 - 0.00000036 * d
+        ra = math.degrees(math.atan2(math.cos(math.radians(e)) * math.sin(math.radians(l)), math.cos(math.radians(l)))) / 15.0
+        ra = self.fix_hour(ra)
+        return q / 15.0 - ra
+
+    def sun_declination(self, d):
+        g = self.fix_angle(357.529 + 0.98560028 * d)
+        q = self.fix_angle(280.459 + 0.98564736 * d)
+        l = self.fix_angle(q + 1.915 * math.sin(math.radians(g)) + 0.020 * math.sin(math.radians(2 * g)))
+        e = 23.439 - 0.00000036 * d
+        return math.degrees(math.asin(math.sin(math.radians(e)) * math.sin(math.radians(l))))
+
+    def compute_mid_day(self, t):
+        t2 = self.equation_of_time(t)
+        return 12 - t2
+
+    def compute_time(self, g, decl, lat, noon):
+        try:
+            d = math.degrees(math.acos((math.sin(math.radians(g)) - math.sin(math.radians(decl)) * math.sin(math.radians(lat))) / (math.cos(math.radians(decl)) * math.cos(math.radians(lat)))))
+        except:
+            return 0 # Handle polar regions if needed, unlikely for Samarinda
+        return noon - d / 15.0 if g > 90 else noon + d / 15.0 # Logic simplified for brevity
+
+    def compute_asr(self, step, decl, lat, noon):
+        try:
+            d = math.degrees(math.acos((math.sin(math.atan(step + math.tan(math.radians(abs(lat - decl)))))-math.sin(math.radians(decl))*math.sin(math.radians(lat)))/(math.cos(math.radians(decl))*math.cos(math.radians(lat)))))
+        except:
+             return 0
+        return noon + d / 15.0
+
+    def fix_angle(self, a):
+        return a - 360.0 * math.floor(a / 360.0)
+
+    def fix_hour(self, a):
+        return a - 24.0 * math.floor(a / 24.0)
+
+    def adjust_time(self, t, tzone):
+        t += tzone - 8 # Base is calculated relative to GMT, we just add timezone
+        t = self.fix_hour(t)
+        hours = int(t)
+        minutes = int((t - hours) * 60)
+        return f"{hours:02d}:{minutes:02d}"
+
+# Samarinda Coordinates
+LAT = -0.502106
+LNG = 117.153709
+TZ = 8 # WITA
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# --- FRONTEND (HTML/CSS/JS) ---
+# --- FRONTEND ASSETS ---
 
-# Navbar fragment to reuse
-NAVBAR_HTML = """
-    <style>
-        .navbar {
-            background-color: transparent !important;
-            box-shadow: none !important;
-            padding-top: 20px;
-            z-index: 1020;
-        }
-        .navbar-box {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 30px;
-            padding: 10px 20px;
-            border: 1px solid rgba(255,255,255,0.2);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        .navbar-brand {
-             /* Pink Sage Gradient: Sage Green (#9DC183) to Pastel Pink (#FFD1DC) */
-             background: linear-gradient(to right, #9DC183, #FFD1DC, #9DC183);
-             background-size: 200% auto;
-             -webkit-background-clip: text;
-             -webkit-text-fill-color: transparent;
-             text-shadow: 0 0 10px rgba(255,255,255,0.2);
-             font-weight: 800;
-             animation: shine 5s linear infinite;
-        }
-        @keyframes shine {
-            to {
-                background-position: 200% center;
-            }
-        }
-        
-        .nav-icon-btn {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.5);
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(5px);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            color: rgba(255,255,255,0.8);
-            text-decoration: none;
-            overflow: hidden;
-        }
-        .nav-icon-btn:hover {
-            background: rgba(255,255,255,0.3);
-            border-color: white;
-            color: white;
-            transform: scale(1.05);
-            box-shadow: 0 0 10px rgba(255,255,255,0.5);
-        }
-        
-        .nav-icon-btn img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .nav-icon-btn i {
-            font-size: 1.1rem;
-        }
-
-        /* Menu Overlay Styles */
-        .menu-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 9999;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(5px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        .menu-overlay.active {
-            opacity: 1;
-        }
-        .menu-card {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            right: 20px;
-            bottom: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(30px);
-            -webkit-backdrop-filter: blur(30px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
-            border-radius: 30px;
-            display: flex;
-            flex-direction: column;
-            padding: 40px;
-            color: white;
-        }
-        .close-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: none;
-            border: none;
-            color: white;
-            font-size: 2rem;
-            cursor: pointer;
-            opacity: 0.7;
-            transition: 0.2s;
-        }
-        .close-btn:hover {
-            opacity: 1;
-            transform: scale(1.1);
-        }
-        .menu-btn {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            padding: 15px 20px;
-            border-radius: 15px;
-            margin-bottom: 15px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            font-size: 1.2rem;
-            transition: 0.2s;
-            color: white;
-            text-decoration: none;
-        }
-        .menu-btn:hover {
-            background: rgba(255,255,255,0.2);
-            transform: translateX(5px);
-        }
-    </style>
-    <nav class="navbar navbar-expand-lg sticky-top">
-        <div class="container">
-            <div class="navbar-box">
-                <!-- 1. Logo (Left) -->
-                <form action="/upload-logo" method="post" enctype="multipart/form-data" id="logo-form" style="margin: 0; margin-right: 15px;">
-                    <input type="file" name="logo" id="logo-file" hidden onchange="document.getElementById('logo-form').submit()" accept="image/*">
-                    <div class="nav-icon-btn" onclick="document.getElementById('logo-file').click()" title="Upload Website Logo">
-                        {% if logo_file %}
-                            <img src="/uploads/{{ logo_file }}" alt="Logo">
-                        {% else %}
-                            <i class="fas fa-camera"></i>
-                        {% endif %}
-                    </div>
-                </form>
-
-                <!-- 2. Brand (Center/Left) -->
-                <a class="navbar-brand me-auto" href="/">LES BIMBEL GAMBAR & MUSIK</a>
-                
-                <!-- 3. Hamburger Menu (Right) -->
-                <button class="nav-icon-btn" onclick="toggleMenu()" style="border: none; background: transparent; color: white; display: flex;">
-                    <i class="fas fa-bars" style="font-size: 1.5rem;"></i>
-                </button>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Menu Overlay -->
-    <div id="menuOverlay" class="menu-overlay">
-        <div class="menu-card glass-panel">
-            <button class="close-btn" onclick="toggleMenu()">&times;</button>
-            
-            <h2 class="text-white fw-bold mb-5 ps-2 border-start border-4 border-light">Menu</h2>
-            
-            <div class="menu-items">
-                <!-- Wallpaper Upload -->
-                <form action="/wallpaper-blur/upload" method="post" enctype="multipart/form-data" id="nav-wall-form" style="margin: 0; width: 100%;">
-                    <input type="file" name="background" id="nav-wall-file" hidden onchange="document.getElementById('nav-wall-form').submit()" accept="image/*">
-                    <div class="menu-btn" onclick="document.getElementById('nav-wall-file').click()">
-                        <i class="fas fa-image me-3"></i> Set Wallpaper
-                    </div>
-                </form>
-
-                <!-- PWA Install Button -->
-                <div id="pwa-install-btn-menu" class="menu-btn" style="display: flex;">
-                    <i class="fas fa-download me-3"></i> Install App
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        function toggleMenu() {
-            const overlay = document.getElementById('menuOverlay');
-            if (overlay.style.display === 'flex') {
-                overlay.classList.remove('active');
-                setTimeout(() => { overlay.style.display = 'none'; }, 300);
-            } else {
-                overlay.style.display = 'flex';
-                // Force reflow
-                void overlay.offsetWidth; 
-                overlay.classList.add('active');
-            }
-        }
-    </script>
-"""
-
-# Base styles fragment to reuse
 STYLES_HTML = """
     <style>
         :root {
-            --brand-color: #E5322D; /* iLovePDF Red */
-            --brand-hover: #c41b17;
-            --bg-light: #f4f7fa;
-            --card-bg: #ffffff;
-            --text-dark: #333333;
-            --text-muted: #666666;
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
-            --glass-blur: blur(20px);
+            --primary-glass: rgba(255, 255, 255, 0.1);
+            --secondary-glass: rgba(255, 255, 255, 0.05);
+            --border-glass: rgba(255, 255, 255, 0.2);
+            --blur-amount: 20px;
+            --text-color: #ffffff;
+            --accent-color: #00ffcc; /* Cyan/Teal Neon */
         }
-
-        [data-bs-theme="dark"] {
-            --bg-light: #1a1a1a;
-            --card-bg: #2d2d2d;
-            --text-dark: #f1f1f1;
-            --text-muted: #aaaaaa;
-        }
-
+        
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg-light);
-            color: var(--text-dark);
-            transition: background-color 0.3s ease;
-            padding-bottom: 120px !important; /* Ensure footer is visible above bottom nav */
+            background: #1a1a1a; /* Fallback */
+            background-image: url('https://images.unsplash.com/photo-1542452377-9d7f08819077?q=80&w=2070&auto=format&fit=crop'); /* Modern Mosque/Abstract Background */
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: var(--text-color);
+            margin: 0;
+            padding-bottom: 100px; /* Space for bottom nav */
+            min-height: 100vh;
         }
         
-        /* Glassmorphism Utilities */
-        .glass-panel {
-            background: var(--glass-bg);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            border: 1px solid var(--glass-border);
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            z-index: -1;
+        }
+
+        /* Glassmorphism Card */
+        .glass-card {
+            background: var(--primary-glass);
+            backdrop-filter: blur(var(--blur-amount));
+            -webkit-backdrop-filter: blur(var(--blur-amount));
+            border: 1px solid var(--border-glass);
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        }
-
-        /* NAVBAR */
-        .navbar {
-            background-color: var(--card-bg);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            padding: 0.8rem 0;
-        }
-        .navbar-brand {
-            font-weight: 800;
-            font-size: 1.8rem;
-            /* User request: "our" permanently white */
-            color: white !important;
-            letter-spacing: -1px;
-        }
-        /* Override any theme specific colors for the logo text part 'our' */
-        [data-bs-theme="light"] .navbar-brand {
-             color: white !important;
-        }
-        .navbar-brand span { color: var(--brand-color); }
-        
-        .btn-brand {
-            background-color: var(--brand-color);
-            color: white;
-            font-weight: 600;
-            border-radius: 6px;
-            padding: 8px 20px;
-            border: none;
-            transition: 0.2s;
-        }
-        .btn-brand:hover { background-color: var(--brand-hover); color: white; }
-
-        /* HERO */
-        .hero {
-            text-align: center;
-            padding: 60px 20px 40px;
-        }
-        .hero h1 {
-            font-weight: 800;
-            font-size: 2.8rem;
-            margin-bottom: 15px;
-            color: var(--text-dark);
-        }
-        .hero p {
-            font-size: 1.25rem;
-            color: var(--text-muted);
-            max-width: 800px;
-            margin: 0 auto;
-            font-weight: 300;
-        }
-
-        /* TOOL CARDS GRID */
-        .tools-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-            padding: 20px;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .tool-card {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 30px 20px;
-            text-decoration: none;
-            color: var(--text-dark);
-            transition: transform 0.2s, box-shadow 0.2s;
-            border: 1px solid transparent;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            height: 100%;
-        }
-
-        .tool-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.08);
-            border-color: rgba(229, 50, 45, 0.2);
-        }
-
-        .tool-icon {
-            font-size: 2.5rem;
-            color: var(--brand-color);
-            margin-bottom: 20px;
-        }
-
-        .tool-title {
-            font-weight: 700;
-            font-size: 1.2rem;
-            margin-bottom: 8px;
-        }
-
-        .tool-desc {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            line-height: 1.4;
-        }
-
-        /* MODAL UPLOAD */
-        .modal-content {
-            background-color: var(--card-bg);
-            border: none;
             border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: transform 0.3s ease;
         }
         
-        .upload-zone {
-            border: 2px dashed #ccc;
-            border-radius: 12px;
-            padding: 60px 20px;
-            text-align: center;
-            background-color: var(--bg-light);
-            cursor: pointer;
-            transition: 0.3s;
-        }
-        .upload-zone:hover {
-            border-color: var(--brand-color);
-            background-color: rgba(229, 50, 45, 0.05);
-        }
-        
-        /* FOOTER */
-        footer {
-            background-color: var(--card-bg);
-            padding: 40px 0;
-            margin-top: 60px;
-            border-top: 1px solid rgba(0,0,0,0.05);
-            text-align: center;
-            color: var(--text-muted);
+        .glass-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.15);
         }
 
-        /* OPTIONS PANEL (Inside Modal) */
-        .options-panel {
-            text-align: left;
-            margin-top: 20px;
-            padding: 15px;
-            background: var(--bg-light);
-            border-radius: 8px;
-            display: none; /* Hidden by default */
+        /* TOP NAV (Horizontal Scroll) */
+        .top-nav-container {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: rgba(0,0,0,0.3);
+            backdrop-filter: blur(15px);
+            padding: 15px 0;
+            border-bottom: 1px solid var(--border-glass);
         }
         
-        /* GENERAL UTILS */
-        .container-xl {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        /* --- HARD ACRYLIC MODAL STYLES --- */
-        .hard-acrylic-modal .modal-dialog {
-            max-width: 95vw;
-            margin: 2.5vh auto;
-            height: 95vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .hard-acrylic-modal .modal-content {
-            width: 100%;
-            height: 100%;
-            background: rgba(30, 30, 30, 0.85); /* Hard acrylic */
-            backdrop-filter: blur(25px) saturate(180%);
-            -webkit-backdrop-filter: blur(25px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 20px;
-            box-shadow: 0 0 50px rgba(0,0,0,0.6);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .hard-acrylic-modal .modal-header {
-            background: rgba(255, 255, 255, 0.1);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 20px;
-        }
-        
-        .hard-acrylic-modal .modal-body {
-            overflow-y: auto;
-            padding: 30px;
-            scrollbar-width: thin;
-            scrollbar-color: rgba(255,255,255,0.5) transparent;
-        }
-        
-        .hard-acrylic-modal .modal-footer {
-            background: rgba(255, 255, 255, 0.05);
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 20px;
-        }
-        
-        .hard-acrylic-modal input, 
-        .hard-acrylic-modal textarea, 
-        .hard-acrylic-modal select {
-            background: rgba(255, 255, 255, 0.1) !important;
-            border: 1px solid rgba(255, 255, 255, 0.3) !important;
-            color: white !important;
-            border-radius: 12px;
-            padding: 15px;
-            font-size: 1rem;
-        }
-        
-        .hard-acrylic-modal input:focus, 
-        .hard-acrylic-modal textarea:focus, 
-        .hard-acrylic-modal select:focus {
-            background: rgba(255, 255, 255, 0.2) !important;
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
-            outline: none;
-            border-color: rgba(255, 255, 255, 0.8) !important;
-        }
-        
-        .hard-acrylic-modal label {
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: rgba(255, 255, 255, 0.9);
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-            font-size: 0.95rem;
-        }
-        
-        /* TOP NAV (Feature Buttons) */
-        .top-feature-nav {
+        .top-nav-scroll {
             display: flex;
             gap: 15px;
             overflow-x: auto;
-            padding: 15px 5px;
-            margin-top: 10px;
-            margin-bottom: 20px;
-            scrollbar-width: none; /* Firefox */
-            -ms-overflow-style: none;  /* IE 10+ */
+            padding: 0 15px;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
         }
-        .top-feature-nav::-webkit-scrollbar { 
-            display: none;  /* Chrome/Safari */
-        }
+        .top-nav-scroll::-webkit-scrollbar { display: none; }
         
-        .feature-btn {
-            flex: 0 0 auto;
+        .nav-item-top {
+            flex: 0 0 100px;
+            height: 100px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            width: 100px;
-            height: 100px;
-            border-radius: 16px;
-            text-decoration: none;
-            color: white;
-            transition: all 0.3s ease;
             text-align: center;
-            padding: 10px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            background: rgba(255, 255, 255, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-        
-        .feature-btn:hover {
-            transform: translateY(-5px);
-            background: rgba(255, 255, 255, 0.25);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            background: var(--secondary-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
             color: white;
+            text-decoration: none;
+            transition: 0.3s;
+            padding: 10px;
         }
         
-        .feature-btn i, .feature-btn .icon {
-            font-size: 2rem;
+        .nav-item-top:hover, .nav-item-top.active {
+            background: var(--accent-color);
+            color: #000;
+            box-shadow: 0 0 15px var(--accent-color);
+            border-color: transparent;
+        }
+        
+        .nav-item-top i {
+            font-size: 1.8rem;
             margin-bottom: 8px;
-            display: block;
+        }
+
+        .nav-item-top span {
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1.2;
         }
 
         /* BOTTOM NAV */
         .bottom-nav {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            min-height: 80px; /* Allow growth */
-            height: auto;
-            z-index: 9999; /* Ensure on top */
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 500px;
+            background: rgba(20, 20, 20, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 50px;
             display: flex;
-            justify-content: space-around;
+            justify-content: space-between;
             align-items: center;
-            padding: 10px 0;
-            background: rgba(255, 255, 255, 0.1) !important; /* Clear transparent */
-            backdrop-filter: blur(10px) !important; /* Modern Cool Blur */
-            border-top: 1px solid rgba(255,255,255,0.2);
-            box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
+            padding: 10px 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            z-index: 1000;
         }
         
         .bottom-nav-item {
             display: flex;
             flex-direction: column;
             align-items: center;
+            color: rgba(255,255,255,0.6);
             text-decoration: none;
-            color: rgba(255,255,255,0.7);
             transition: 0.3s;
-            font-size: 0.8rem;
-            padding: 5px;
         }
         
-        .bottom-nav-item span {
-            display: block !important;
-            font-size: 0.75rem;
-            margin-top: 4px;
-            font-weight: 600;
-            text-align: center;
-            line-height: 1.2;
+        .bottom-nav-item:hover {
+            color: var(--accent-color);
+            transform: scale(1.1);
         }
         
         .bottom-nav-item i {
             font-size: 1.5rem;
-            margin-bottom: 5px;
-            background: rgba(255,255,255,0.1);
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border: 1px solid rgba(255,255,255,0.2);
-            transition: 0.3s;
-        }
-        
-        .bottom-nav-item:hover i, .bottom-nav-item.active i {
-            background: #9DC183; /* Sage Green */
-            color: white;
-            box-shadow: 0 0 15px #9DC183, 0 0 30px rgba(157, 193, 131, 0.4);
-            transform: translateY(-5px);
-            border-color: #9DC183;
-        }
-        
-        .bottom-nav-item:hover {
-            color: white;
-        }
-        
-        /* FOOTER VISIBILITY FIX */
-        .main-footer {
-            margin-bottom: 20px;
+            margin-bottom: 4px;
         }
 
+        .bottom-nav-item span {
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .prayer-countdown {
+            background: var(--accent-color);
+            color: black;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
+        }
+
+        /* FORMS & TABLES */
+        .form-control, .form-select {
+            background: rgba(255,255,255,0.1) !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
+            color: white !important;
+        }
+        .form-control::placeholder { color: rgba(255,255,255,0.5); }
+        .form-control:focus {
+            background: rgba(255,255,255,0.2) !important;
+            box-shadow: 0 0 10px rgba(255,255,255,0.2);
+            border-color: white !important;
+        }
+        
+        .table {
+            color: white !important;
+        }
+        .table thead {
+            background: rgba(255,255,255,0.1);
+        }
+        .table td, .table th {
+            border-color: rgba(255,255,255,0.1) !important;
+        }
+
+        /* UTILS */
+        .page-title {
+            font-weight: 800;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-left: 5px solid var(--accent-color);
+            padding-left: 15px;
+        }
+        
+        .btn-custom {
+            background: var(--accent-color);
+            color: black;
+            font-weight: bold;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: 0.3s;
+        }
+        .btn-custom:hover {
+            background: white;
+            color: black;
+            box-shadow: 0 0 15px rgba(255,255,255,0.5);
+        }
+        
+        .modal-content {
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(30px);
+            border: 1px solid var(--border-glass);
+            color: white;
+        }
+        .btn-close { filter: invert(1); }
     </style>
 """
 
-HEAD_HTML = """
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LES BIMBEL GAMBAR & MUSIK</title>
-    <link rel="manifest" href="/manifest.json">
-    <link rel="icon" href="{{ url_for('static', filename='logobimbel.PNG') }}">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    {{ styles|safe }}
-</head>
+NAVBAR_HTML = """
+<div class="top-nav-container">
+    <div class="container">
+        <div class="top-nav-scroll">
+            <a href="/finance" class="nav-item-top {{ 'active' if active_page == 'finance' }}">
+                <i class="fas fa-coins"></i>
+                <span>Laporan Kas</span>
+            </a>
+            <a href="/agenda" class="nav-item-top {{ 'active' if active_page == 'agenda' }}">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Jadwal Imam</span>
+            </a>
+            <a href="/booking" class="nav-item-top {{ 'active' if active_page == 'booking' }}">
+                <i class="fas fa-hand-holding-heart"></i>
+                <span>Peminjaman</span>
+            </a>
+            <a href="/zakat" class="nav-item-top {{ 'active' if active_page == 'zakat' }}">
+                <i class="fas fa-gift"></i>
+                <span>Zakat & Qurban</span>
+            </a>
+            <a href="/gallery-dakwah" class="nav-item-top {{ 'active' if active_page == 'gallery' }}">
+                <i class="fas fa-camera-retro"></i>
+                <span>Galeri Dakwah</span>
+            </a>
+            <a href="/suggestion" class="nav-item-top {{ 'active' if active_page == 'suggestion' }}">
+                <i class="fas fa-envelope-open-text"></i>
+                <span>Kotak Saran</span>
+            </a>
+        </div>
+    </div>
+</div>
+"""
+
+BOTTOM_NAV_HTML = """
+<div class="bottom-nav">
+    <a href="javascript:void(0)" class="bottom-nav-item" onclick="fetchPrayerTimes()">
+        <div class="prayer-countdown" id="prayer-timer">
+            <i class="fas fa-clock"></i> <span id="countdown-text">Loading...</span>
+        </div>
+    </a>
+
+    <a href="/donate" class="bottom-nav-item">
+        <i class="fas fa-qrcode"></i>
+        <span>Infaq QRIS</span>
+    </a>
+
+    <a href="/emergency" class="bottom-nav-item text-danger">
+        <i class="fas fa-ambulance"></i>
+        <span>Darurat</span>
+    </a>
+</div>
+
+<script>
+    async function updatePrayerCountdown() {
+        try {
+            const response = await fetch('/prayer-times');
+            const data = await response.json();
+            const now = new Date();
+            const currentTimeStr = now.toTimeString().slice(0, 5);
+
+            let nextPrayer = null;
+            let nextTime = null;
+
+            // Times are in format "HH:MM"
+            const prayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+
+            for (let p of prayers) {
+                if (data[p] > currentTimeStr) {
+                    nextPrayer = p;
+                    nextTime = data[p];
+                    break;
+                }
+            }
+
+            if (!nextPrayer) {
+                // Next is Fajr tomorrow (simplified logic: just show message)
+                document.getElementById('countdown-text').innerText = "Istirahat";
+                return;
+            }
+
+            // Calculate diff
+            const [h, m] = nextTime.split(':');
+            const prayerDate = new Date();
+            prayerDate.setHours(h, m, 0);
+
+            const diffMs = prayerDate - now;
+            const diffHrs = Math.floor((diffMs % 86400000) / 3600000);
+            const diffMins = Math.round(((diffMs % 86400000) % 3600000) / 60000);
+
+            document.getElementById('countdown-text').innerText = `${nextPrayer} - ${diffHrs}j ${diffMins}m`;
+
+        } catch (e) {
+            console.error(e);
+            document.getElementById('countdown-text').innerText = "Error";
+        }
+    }
+
+    // Update every minute
+    updatePrayerCountdown();
+    setInterval(updatePrayerCountdown, 60000);
+</script>
 """
 
 BASE_LAYOUT = """
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
-{{ head|safe }}
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masjid Al Hijrah - Layanan Digital</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    {{ styles|safe }}
+</head>
 <body>
-    <div class="wallpaper-bg" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-image: url('/uploads/{{ bg_image }}'); background-size: cover; background-position: center; z-index: -2;"></div>
-    <div class="acrylic-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.47); backdrop-filter: blur(20px) saturate(125%); -webkit-backdrop-filter: blur(20px) saturate(125%); z-index: -1;"></div>
+    <div class="overlay"></div>
     
-    <div class="content-wrapper" style="position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column;">
-        {{ navbar|safe }}
-        
-        <!-- Top Feature Navigation -->
-        <div class="container">
-            <div class="top-feature-nav">
-                <a href="/gallery" class="feature-btn glass-panel">
-                    <i class="fas fa-palette"></i>
-                    Galeri Karya
-                </a>
-                <a href="/tutors" class="feature-btn glass-panel">
-                    <i class="fas fa-chalkboard-teacher"></i>
-                    Profil Pengajar
-                </a>
-                <a href="/pricing" class="feature-btn glass-panel">
-                    <i class="fas fa-tags"></i>
-                    Paket & Biaya
-                </a>
-                <a href="/slots" class="feature-btn glass-panel">
-                    <i class="fas fa-calendar-alt"></i>
-                    Jadwal Slot
-                </a>
-                <a href="/join" class="feature-btn glass-panel">
-                    <i class="fas fa-file-signature"></i>
-                    Pendaftaran
-                </a>
-                <a href="/news" class="feature-btn glass-panel">
-                    <i class="fas fa-trophy"></i>
-                    Prestasi & Event
-                </a>
-            </div>
-        </div>
+    {{ navbar|safe }}
 
-        <div class="container main-content" style="flex: 1;">
-            {{ content|safe }}
-        </div>
-        
-        <footer class="main-footer" style="background: transparent; border: none; color: rgba(255,255,255,0.7); padding: 20px; text-align: center;">
-            <div class="container">
-                <p>&copy; 2026 LES BIMBEL GAMBAR & MUSIK - All Rights Reserved. "We Making The Time"</p>
-            </div>
-        </footer>
+    <div class="container mt-4 mb-5">
+        {{ content|safe }}
     </div>
 
-    <!-- Bottom Navigation -->
-    <div class="bottom-nav glass-panel">
-        <a href="/" class="bottom-nav-item">
-            <i class="fas fa-music"></i>
-            <span>Home</span>
-        </a>
-        <a href="/metronome" class="bottom-nav-item">
-            <i class="fas fa-stopwatch"></i>
-            <span>Metronome</span>
-        </a>
-        <a href="/ear-training" class="bottom-nav-item">
-            <i class="fas fa-ear-listen"></i>
-            <span>Ear Training</span>
-        </a>
-    </div>
+    {{ bottom_nav|safe }}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // PWA Installation Logic
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service-worker.js')
-                .then(() => console.log('Service Worker Registered'));
-        }
-
-        let deferredPrompt;
-        const pwaBtn = document.getElementById('pwa-install-btn-menu');
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            if(pwaBtn) pwaBtn.style.display = 'flex';
-        });
-
-        if(pwaBtn) {
-            pwaBtn.addEventListener('click', () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    deferredPrompt.userChoice.then((choiceResult) => {
-                        if (choiceResult.outcome === 'accepted') {
-                            console.log('User accepted the A2HS prompt');
-                        } else {
-                            console.log('User dismissed the A2HS prompt');
-                        }
-                        deferredPrompt = null;
-                    });
-                } else if (isIOS) {
-                    alert("To install on iOS: Tap the Share button and select 'Add to Home Screen'");
-                } else {
-                     alert("To install, look for 'Add to Home Screen' in your browser menu.");
-                }
-            });
-        }
-
-        (function() {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-bs-theme', savedTheme);
-        })();
-        
-        // Fix Modal Z-Index Issue by moving them to body
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.modal').forEach(function(modal) {
-                document.body.appendChild(modal);
-            });
-        });
-    </script>
-    {{ scripts|safe }}
 </body>
 </html>
 """
 
 # --- ROUTES ---
 
-def render_layout(content, scripts="", **kwargs):
-    # Prepare global variables like bg_image
-    bg_image = "default.jpg"
-    if os.path.exists('bg_config.txt'):
-        with open('bg_config.txt', 'r') as f:
-            c = f.read().strip()
-            if c: bg_image = c
-            
-    logo_file = None
-    if os.path.exists('logo_config.txt'):
-         with open('logo_config.txt', 'r') as f:
-            c = f.read().strip()
-            if c: logo_file = c
-
-    # Pre-render the content fragment so Jinja tags inside it are processed
-    rendered_content = render_template_string(content, **kwargs)
-            
-    # Render fragments
-    head = HEAD_HTML.replace('{{ styles|safe }}', STYLES_HTML)
-    navbar = NAVBAR_HTML # Jinja context will handle logo_file/bg_image if passed
-    
-    # Render Base Layout
-    # Use render_template_string for the base layout
-    # Pass all kwargs plus calculated ones
-    return render_template_string(BASE_LAYOUT, 
-                                  head=head, 
-                                  navbar=render_template_string(navbar, logo_file=logo_file), 
-                                  content=rendered_content,
-                                  scripts=scripts,
-                                  bg_image=bg_image,
-                                  **kwargs)
-
 @app.route('/')
 def index():
-    return render_layout(HTML_DOREMI_CONTENT)
+    return redirect(url_for('finance')) # Default to first tab
 
-@app.route('/gallery', methods=['GET', 'POST'])
-def gallery():
+@app.route('/finance', methods=['GET', 'POST'])
+def finance():
     conn = get_db_connection()
     if request.method == 'POST':
-        if 'image' not in request.files:
-            return redirect(request.url)
-        file = request.files['image']
-        student_name = request.form['student_name']
-        title = request.form['title']
-        
-        if file and file.filename != '' and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            
-            conn.execute('INSERT INTO gallery (image, student_name, title) VALUES (?, ?, ?)',
-                         (filename, student_name, title))
-            conn.commit()
-            conn.close()
-            return redirect(url_for('gallery'))
-            
-    items = conn.execute('SELECT * FROM gallery ORDER BY created_at DESC').fetchall()
-    conn.close()
-    return render_layout(GALLERY_HTML_CONTENT, items=items)
-
-GALLERY_HTML_CONTENT = """
-<div class="container glass-panel p-4 mb-5 position-relative" style="border-radius: 20px;">
-    <a href="/" class="position-absolute top-0 end-0 m-3 text-white text-decoration-none" style="font-size: 1.5rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><i class="fas fa-times"></i></a>
-
-    <div class="d-flex justify-content-between align-items-center mb-4 pe-4">
-        <h2 class="text-white mb-0"><i class="fas fa-palette me-2"></i>Galeri Karya Siswa</h2>
-        <button class="btn btn-light rounded-pill" data-bs-toggle="modal" data-bs-target="#uploadModal">
-            <i class="fas fa-plus me-1"></i> Upload Karya
-        </button>
-    </div>
-    
-    <div class="row g-4">
-        {% for item in items %}
-        <div class="col-6 col-md-4 col-lg-3">
-            <div class="card h-100 bg-transparent border-0">
-                <div class="position-relative overflow-hidden rounded-3 shadow-sm" style="padding-top: 100%;">
-                    <img src="/uploads/{{ item['image'] }}" class="position-absolute top-0 start-0 w-100 h-100 object-fit-cover" alt="{{ item['title'] }}">
-                </div>
-                <div class="card-body px-0 py-2 text-white">
-                    <h5 class="card-title fw-bold mb-1 fs-6">{{ item['title'] }}</h5>
-                    <p class="card-text small opacity-75"><i class="fas fa-user me-1"></i> {{ item['student_name'] }}</p>
-                </div>
-            </div>
-        </div>
-        {% else %}
-        <div class="col-12 text-center text-white py-5">
-            <i class="fas fa-image fa-3x mb-3 opacity-50"></i>
-            <p>Belum ada karya yang diupload.</p>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-
-<!-- Upload Modal -->
-<div class="modal fade" id="uploadModal" tabindex="-1" style="z-index: 99999;">
-    <div class="modal-dialog modal-dialog-centered hard-acrylic-modal">
-        <div class="modal-content glass-panel text-white">
-            <div class="modal-header border-0">
-                <h5 class="modal-title">Upload Karya Baru</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" enctype="multipart/form-data">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Nama Siswa</label>
-                        <input type="text" name="student_name" class="form-control bg-transparent text-white" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Judul Karya</label>
-                        <input type="text" name="title" class="form-control bg-transparent text-white" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">File Gambar</label>
-                        <input type="file" name="image" class="form-control bg-transparent text-white" accept="image/*" required>
-                    </div>
-                </div>
-                <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Tutup</button>
-                    <button type="submit" class="btn btn-primary">Simpan</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-"""
-
-@app.route('/tutors', methods=['GET', 'POST'])
-def tutors():
-    conn = get_db_connection()
-    if request.method == 'POST':
-        if 'image' not in request.files:
-            return redirect(request.url)
-        file = request.files['image']
-        name = request.form['name']
-        bio = request.form['bio']
-        
-        if file and file.filename != '' and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            
-            conn.execute('INSERT INTO tutors (image, name, bio) VALUES (?, ?, ?)',
-                         (filename, name, bio))
-            conn.commit()
-            conn.close()
-            return redirect(url_for('tutors'))
-            
-    items = conn.execute('SELECT * FROM tutors ORDER BY created_at DESC').fetchall()
-    conn.close()
-    return render_layout(TUTORS_HTML_CONTENT, items=items)
-
-TUTORS_HTML_CONTENT = """
-<div class="container glass-panel p-4 mb-5 position-relative" style="border-radius: 20px;">
-    <a href="/" class="position-absolute top-0 end-0 m-3 text-white text-decoration-none" style="font-size: 1.5rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><i class="fas fa-times"></i></a>
-
-    <div class="d-flex justify-content-between align-items-center mb-4 pe-4">
-        <h2 class="text-white mb-0"><i class="fas fa-chalkboard-teacher me-2"></i>Profil Pengajar</h2>
-        <button class="btn btn-light rounded-pill" data-bs-toggle="modal" data-bs-target="#tutorModal">
-            <i class="fas fa-plus me-1"></i> Tambah Pengajar
-        </button>
-    </div>
-    
-    <div class="row g-4">
-        {% for item in items %}
-        <div class="col-md-6 col-lg-4">
-            <div class="d-flex align-items-center p-3 glass-panel" style="background: rgba(255,255,255,0.05); border-radius: 15px;">
-                <div class="flex-shrink-0">
-                    <img src="/uploads/{{ item['image'] }}" class="rounded-circle object-fit-cover" width="80" height="80" alt="{{ item['name'] }}" style="border: 2px solid rgba(255,255,255,0.5);">
-                </div>
-                <div class="flex-grow-1 ms-3 text-white">
-                    <h5 class="mb-1 fw-bold">{{ item['name'] }}</h5>
-                    <p class="mb-0 small opacity-75">{{ item['bio'] }}</p>
-                </div>
-            </div>
-        </div>
-        {% else %}
-        <div class="col-12 text-center text-white py-5">
-            <i class="fas fa-user-tie fa-3x mb-3 opacity-50"></i>
-            <p>Belum ada data pengajar.</p>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-
-<!-- Tutor Modal -->
-<div class="modal fade" id="tutorModal" tabindex="-1" style="z-index: 99999;">
-    <div class="modal-dialog modal-dialog-centered hard-acrylic-modal">
-        <div class="modal-content glass-panel text-white">
-            <div class="modal-header border-0">
-                <h5 class="modal-title">Tambah Pengajar Baru</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" enctype="multipart/form-data">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Nama Pengajar</label>
-                        <input type="text" name="name" class="form-control bg-transparent text-white" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Biodata Singkat</label>
-                        <textarea name="bio" class="form-control bg-transparent text-white" rows="3" required></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Foto Profil</label>
-                        <input type="file" name="image" class="form-control bg-transparent text-white" accept="image/*" required>
-                    </div>
-                </div>
-                <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Tutup</button>
-                    <button type="submit" class="btn btn-primary">Simpan</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-"""
-
-@app.route('/pricing', methods=['GET', 'POST'])
-def pricing():
-    conn = get_db_connection()
-    if request.method == 'POST':
-        title = request.form['title']
-        price = request.form['price']
-        details = request.form['details']
-        
-        conn.execute('INSERT INTO pricing (title, price, details) VALUES (?, ?, ?)',
-                     (title, price, details))
+        # Admin Logic (Simple)
+        if 'delete_id' in request.form:
+            conn.execute('DELETE FROM finance WHERE id = ?', (request.form['delete_id'],))
+        else:
+            conn.execute('INSERT INTO finance (date, type, category, description, amount) VALUES (?, ?, ?, ?, ?)',
+                         (request.form['date'], request.form['type'], request.form['category'],
+                          request.form['description'], request.form['amount']))
         conn.commit()
-        conn.close()
-        return redirect(url_for('pricing'))
-            
-    items = conn.execute('SELECT * FROM pricing ORDER BY created_at ASC').fetchall()
+        return redirect(url_for('finance'))
+
+    items = conn.execute('SELECT * FROM finance ORDER BY date DESC').fetchall()
+
+    # Calculate Totals
+    total_in = conn.execute("SELECT SUM(amount) FROM finance WHERE type='Pemasukan'").fetchone()[0] or 0
+    total_out = conn.execute("SELECT SUM(amount) FROM finance WHERE type='Pengeluaran'").fetchone()[0] or 0
+    balance = total_in - total_out
+
     conn.close()
-    return render_layout(PRICING_HTML_CONTENT, items=items)
-
-@app.route('/delete_pricing/<int:id>', methods=['POST'])
-def delete_pricing(id):
-    conn = get_db_connection()
-    conn.execute('DELETE FROM pricing WHERE id = ?', (id,))
-    conn.commit()
-    conn.close()
-    return redirect(url_for('pricing'))
-
-PRICING_HTML_CONTENT = """
-<div class="container glass-panel p-4 mb-5 position-relative" style="border-radius: 20px;">
-    <a href="/" class="position-absolute top-0 end-0 m-3 text-white text-decoration-none" style="font-size: 1.5rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><i class="fas fa-times"></i></a>
-
-    <div class="d-flex justify-content-between align-items-center mb-4 pe-4">
-        <h2 class="text-white mb-0"><i class="fas fa-tags me-2"></i>Paket & Biaya</h2>
-        <div>
-             <button class="btn btn-danger rounded-pill me-2" onclick="toggleDeleteMode()">
-                <i class="fas fa-trash-alt me-1"></i> Hapus Mode
-            </button>
-            <button class="btn btn-light rounded-pill" data-bs-toggle="modal" data-bs-target="#pricingModal">
-                <i class="fas fa-plus me-1"></i> Tambah Paket
-            </button>
-        </div>
-    </div>
     
-    <div class="row g-4">
-        {% for item in items %}
-        <div class="col-md-4 position-relative">
-            <form action="/delete_pricing/{{ item['id'] }}" method="POST" class="delete-btn-form position-absolute top-0 end-0 m-3 d-none" style="z-index: 10;">
-                 <button type="submit" class="btn btn-danger btn-sm rounded-circle" onclick="return confirm('Hapus paket ini?')"><i class="fas fa-times"></i></button>
-            </form>
-            <div class="card h-100 bg-transparent border glass-panel text-white" style="border-radius: 20px;">
-                <div class="card-body text-center p-4">
-                    <h5 class="card-title text-uppercase letter-spacing-2 opacity-75 mb-3">{{ item['title'] }}</h5>
-                    <h2 class="display-4 fw-bold mb-3">{{ item['price'] }}</h2>
-                    <hr class="border-light opacity-25">
-                    <p class="card-text opacity-75">{{ item['details'] }}</p>
-                </div>
+    content = """
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="glass-card text-center text-success">
+                <h5 class="opacity-75">Pemasukan</h5>
+                <h3 class="fw-bold">Rp {{ "{:,.0f}".format(total_in) }}</h3>
             </div>
         </div>
-        {% else %}
-        <div class="col-12 text-center text-white py-5">
-            <i class="fas fa-money-bill-wave fa-3x mb-3 opacity-50"></i>
-            <p>Belum ada paket harga.</p>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-
-<!-- Pricing Modal -->
-<div class="modal fade" id="pricingModal" tabindex="-1" style="z-index: 99999;">
-    <div class="modal-dialog modal-dialog-centered hard-acrylic-modal">
-        <div class="modal-content glass-panel text-white">
-            <div class="modal-header border-0">
-                <h5 class="modal-title">Tambah Paket Baru</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <div class="col-md-4">
+            <div class="glass-card text-center text-danger">
+                <h5 class="opacity-75">Pengeluaran</h5>
+                <h3 class="fw-bold">Rp {{ "{:,.0f}".format(total_out) }}</h3>
             </div>
-            <form method="POST">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Nama Paket (Contoh: Paket 4x Pertemuan)</label>
-                        <input type="text" name="title" class="form-control bg-transparent text-white" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Harga (Contoh: Rp. 350.000)</label>
-                        <input type="text" name="price" class="form-control bg-transparent text-white" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Detail Keterangan</label>
-                        <textarea name="details" class="form-control bg-transparent text-white" rows="3" required></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Tutup</button>
-                    <button type="submit" class="btn btn-primary">Simpan</button>
-                </div>
-            </form>
+        </div>
+        <div class="col-md-4">
+            <div class="glass-card text-center text-info">
+                <h5 class="opacity-75">Saldo Akhir</h5>
+                <h3 class="fw-bold">Rp {{ "{:,.0f}".format(balance) }}</h3>
+            </div>
         </div>
     </div>
-</div>
 
-<script>
-    function toggleDeleteMode() {
-        document.querySelectorAll('.delete-btn-form').forEach(el => el.classList.toggle('d-none'));
-    }
-</script>
-"""
-
-@app.route('/slots', methods=['GET', 'POST'])
-def slots():
-    conn = get_db_connection()
-    if request.method == 'POST':
-        if 'day' in request.form:
-            # Add Slot
-            day = request.form['day']
-            time = request.form['time']
-            type_val = request.form['type']
-            status = 'Available'
-            
-            conn.execute('INSERT INTO slots (day, time, status, type) VALUES (?, ?, ?, ?)',
-                         (day, time, status, type_val))
-            conn.commit()
-            
-        elif 'toggle_id' in request.form:
-            # Toggle Status
-            slot_id = request.form['toggle_id']
-            current_status = conn.execute('SELECT status FROM slots WHERE id = ?', (slot_id,)).fetchone()['status']
-            new_status = 'Booked' if current_status == 'Available' else 'Available'
-            conn.execute('UPDATE slots SET status = ? WHERE id = ?', (new_status, slot_id))
-            conn.commit()
-            
-        conn.close()
-        return redirect(url_for('slots'))
-            
-    # Fetch and Group Slots
-    slots_raw = conn.execute('SELECT * FROM slots ORDER BY day, time').fetchall()
-    conn.close()
-    
-    # Simple grouping
-    days_order = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
-    grouped_slots = {d: [] for d in days_order}
-    
-    for slot in slots_raw:
-        if slot['day'] in grouped_slots:
-            grouped_slots[slot['day']].append(slot)
-            
-    return render_layout(SLOTS_HTML_CONTENT, grouped_slots=grouped_slots)
-
-SLOTS_HTML_CONTENT = """
-<div class="container glass-panel p-4 mb-5 position-relative" style="border-radius: 20px;">
-    <a href="/" class="position-absolute top-0 end-0 m-3 text-white text-decoration-none" style="font-size: 1.5rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><i class="fas fa-times"></i></a>
-
-    <div class="d-flex justify-content-between align-items-center mb-4 pe-4">
-        <h2 class="text-white mb-0"><i class="fas fa-calendar-alt me-2"></i>Jadwal Ketersediaan</h2>
-        <button class="btn btn-light rounded-pill" data-bs-toggle="modal" data-bs-target="#slotModal">
-            <i class="fas fa-plus me-1"></i> Tambah Slot
-        </button>
-    </div>
-    
-    <div class="row g-4">
-        {% for day, slots in grouped_slots.items() %}
-        <div class="col-md-6 col-lg-4">
-            <div class="glass-panel p-3 h-100" style="background: rgba(255,255,255,0.05); border-radius: 15px;">
-                <h5 class="text-white border-bottom border-light border-opacity-25 pb-2 mb-3">{{ day }}</h5>
-                {% if slots %}
-                    <div class="list-group list-group-flush bg-transparent">
-                    {% for slot in slots %}
-                        <div class="list-group-item bg-transparent text-white d-flex justify-content-between align-items-center px-0">
-                            <div>
-                                <span class="fw-bold">{{ slot['time'] }}</span>
-                                <small class="d-block opacity-75">{{ slot['type'] }}</small>
-                            </div>
-                            <form method="POST" class="m-0">
-                                <input type="hidden" name="toggle_id" value="{{ slot['id'] }}">
-                                <button type="submit" class="btn btn-sm {{ 'btn-success' if slot['status'] == 'Available' else 'btn-danger' }} rounded-pill" style="width: 100px;">
-                                    {{ slot['status'] }}
-                                </button>
+    <div class="glass-card">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="page-title mb-0">Laporan Kas Transparan</h4>
+            <button class="btn btn-custom btn-sm" data-bs-toggle="modal" data-bs-target="#addModal"><i class="fas fa-plus"></i> Input</button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Tanggal</th>
+                        <th>Kategori</th>
+                        <th>Keterangan</th>
+                        <th class="text-end">Jumlah</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ item['date'] }}</td>
+                        <td><span class="badge {{ 'bg-success' if item['type'] == 'Pemasukan' else 'bg-danger' }}">{{ item['category'] }}</span></td>
+                        <td>{{ item['description'] }}</td>
+                        <td class="text-end fw-bold {{ 'text-success' if item['type'] == 'Pemasukan' else 'text-danger' }}">
+                            {{ "+" if item['type'] == 'Pemasukan' else "-" }} Rp {{ "{:,.0f}".format(item['amount']) }}
+                        </td>
+                        <td>
+                            <form method="POST" style="display:inline;">
+                                <input type="hidden" name="delete_id" value="{{ item['id'] }}">
+                                <button class="btn btn-sm btn-outline-danger border-0" onclick="return confirm('Hapus?')"><i class="fas fa-trash"></i></button>
                             </form>
-                        </div>
+                        </td>
+                    </tr>
                     {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="text-white opacity-50 small">Tidak ada jadwal.</p>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-
-<!-- Slot Modal -->
-<div class="modal fade" id="slotModal" tabindex="-1" style="z-index: 99999;">
-    <div class="modal-dialog modal-dialog-centered hard-acrylic-modal">
-        <div class="modal-content glass-panel text-white">
-            <div class="modal-header border-0">
-                <h5 class="modal-title">Tambah Slot Jadwal</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Hari</label>
-                        <select name="day" class="form-select bg-transparent text-white" required>
-                            <option value="Senin" class="text-dark">Senin</option>
-                            <option value="Selasa" class="text-dark">Selasa</option>
-                            <option value="Rabu" class="text-dark">Rabu</option>
-                            <option value="Kamis" class="text-dark">Kamis</option>
-                            <option value="Jumat" class="text-dark">Jumat</option>
-                            <option value="Sabtu" class="text-dark">Sabtu</option>
-                            <option value="Minggu" class="text-dark">Minggu</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Jam (Contoh: 15:00 - 16:00)</label>
-                        <input type="text" name="time" class="form-control bg-transparent text-white" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Tipe Les</label>
-                        <select name="type" class="form-select bg-transparent text-white" required>
-                            <option value="Piano" class="text-dark">Piano</option>
-                            <option value="Gambar" class="text-dark">Gambar</option>
-                            <option value="Umum" class="text-dark">Umum</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Tutup</button>
-                    <button type="submit" class="btn btn-primary">Simpan</button>
-                </div>
-            </form>
+                </tbody>
+            </table>
         </div>
     </div>
-</div>
-"""
 
-@app.route('/join', methods=['GET', 'POST'])
-def join_us():
-    if request.method == 'POST':
-        from urllib.parse import quote
-        conn = get_db_connection()
-        name = request.form['name']
-        age = request.form['age']
-        interest = request.form['interest']
-        whatsapp = request.form['whatsapp']
-        
-        conn.execute('INSERT INTO join_requests (name, age, interest, whatsapp) VALUES (?, ?, ?, ?)',
-                     (name, age, interest, whatsapp))
-        conn.commit()
-        conn.close()
-        
-        message = f"Halo Admin LES BIMBEL GAMBAR & MUSIK, saya ingin mendaftar.\nNama: {name}\nUmur: {age}\nMinat: {interest}\nNo WA: {whatsapp}"
-        wa_url = f"https://wa.me/6281241865310?text={quote(message)}"
-        
-        return redirect(wa_url)
-    
-    return render_layout(JOIN_HTML_CONTENT)
+    <!-- Modal -->
+    <div class="modal fade" id="addModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">Input Data Keuangan</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label>Tanggal</label>
+                            <input type="date" name="date" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Jenis Transaksi</label>
+                            <select name="type" class="form-select" required>
+                                <option value="Pemasukan" class="text-dark">Pemasukan (Infaq Jumat/Donasi)</option>
+                                <option value="Pengeluaran" class="text-dark">Pengeluaran (Listrik/Gaji/Perbaikan)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label>Kategori</label>
+                            <select name="category" class="form-select" required>
+                                <option value="Infaq Jumat" class="text-dark">Infaq Jumat</option>
+                                <option value="Operasional" class="text-dark">Operasional</option>
+                                <option value="Pembangunan" class="text-dark">Pembangunan</option>
+                                <option value="Sosial" class="text-dark">Sosial</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label>Keterangan</label>
+                            <input type="text" name="description" class="form-control" placeholder="Contoh: Bayar Listrik Bulan Juli" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Nominal (Rp)</label>
+                            <input type="number" name="amount" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="submit" class="btn btn-custom w-100">Simpan Data</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, navbar=render_template_string(NAVBAR_HTML, active_page='finance'), bottom_nav=BOTTOM_NAV_HTML, content=render_template_string(content, items=items, total_in=total_in, total_out=total_out, balance=balance))
 
-JOIN_HTML_CONTENT = """
-<div class="container glass-panel p-4 mb-5 position-relative" style="border-radius: 20px; max-width: 600px;">
-    <a href="/" class="position-absolute top-0 end-0 m-3 text-white text-decoration-none" style="font-size: 1.5rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><i class="fas fa-times"></i></a>
-
-    <h2 class="text-white mb-4 text-center"><i class="fas fa-file-signature me-2"></i>Pendaftaran Online</h2>
-    
-    <form method="POST">
-        <div class="mb-3">
-            <label class="form-label text-white">Nama Calon Murid</label>
-            <input type="text" name="name" class="form-control bg-transparent text-white" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label text-white">Umur</label>
-            <input type="number" name="age" class="form-control bg-transparent text-white" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label text-white">Minat</label>
-            <select name="interest" class="form-select bg-transparent text-white" required>
-                <option value="Piano" class="text-dark">Piano</option>
-                <option value="Gambar" class="text-dark">Gambar</option>
-                <option value="Keduanya" class="text-dark">Keduanya</option>
-            </select>
-        </div>
-        <div class="mb-3">
-            <label class="form-label text-white">No WhatsApp Wali Murid</label>
-            <input type="text" name="whatsapp" class="form-control bg-transparent text-white" placeholder="08..." required>
-        </div>
-        
-        <div class="d-grid mt-4">
-            <button type="submit" class="btn btn-success btn-lg rounded-pill">
-                <i class="fab fa-whatsapp me-2"></i> Daftar Sekarang via WhatsApp
-            </button>
-        </div>
-    </form>
-</div>
-"""
-
-@app.route('/news', methods=['GET', 'POST'])
-def news():
+@app.route('/agenda', methods=['GET', 'POST'])
+def agenda():
     conn = get_db_connection()
     if request.method == 'POST':
-        title = request.form['title']
-        content = request.form['content']
-        date = request.form['date']
-        filename = None
+        if 'delete_id' in request.form:
+            conn.execute('DELETE FROM agenda WHERE id = ?', (request.form['delete_id'],))
+        else:
+            conn.execute('INSERT INTO agenda (date, time, title, speaker, type) VALUES (?, ?, ?, ?, ?)',
+                         (request.form['date'], request.form['time'], request.form['title'], request.form['speaker'], request.form['type']))
+        conn.commit()
+        return redirect(url_for('agenda'))
+
+    items = conn.execute('SELECT * FROM agenda ORDER BY date ASC, time ASC').fetchall()
+    conn.close()
+
+    content = """
+    <div class="glass-card">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="page-title mb-0">Jadwal Imam & Kajian</h4>
+            <button class="btn btn-custom btn-sm" data-bs-toggle="modal" data-bs-target="#addAgendaModal"><i class="fas fa-plus"></i> Tambah</button>
+        </div>
+
+        <div class="row g-3">
+            {% for item in items %}
+            <div class="col-md-6">
+                <div class="p-3 border rounded-3 position-relative" style="background: rgba(255,255,255,0.05);">
+                    <form method="POST" class="position-absolute top-0 end-0 m-2">
+                        <input type="hidden" name="delete_id" value="{{ item['id'] }}">
+                        <button class="btn btn-sm text-danger p-0" onclick="return confirm('Hapus?')"><i class="fas fa-times"></i></button>
+                    </form>
+
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge {{ 'bg-warning text-dark' if item['type'] == 'Jumat' else 'bg-info text-dark' }} me-2">{{ item['type'] }}</span>
+                        <small class="opacity-75"><i class="far fa-calendar me-1"></i> {{ item['date'] }} | <i class="far fa-clock me-1"></i> {{ item['time'] }}</small>
+                    </div>
+                    <h5 class="fw-bold mb-1">{{ item['title'] }}</h5>
+                    <p class="mb-0 opacity-75"><i class="fas fa-user-tie me-2"></i> {{ item['speaker'] }}</p>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12 text-center py-5">
+                <p class="opacity-50">Belum ada agenda.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="addAgendaModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">Tambah Agenda</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label>Tanggal</label>
+                            <input type="date" name="date" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Jam</label>
+                            <input type="time" name="time" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Jenis</label>
+                            <select name="type" class="form-select" required>
+                                <option value="Jumat" class="text-dark">Sholat Jumat</option>
+                                <option value="Kajian" class="text-dark">Kajian Rutin</option>
+                                <option value="PHBI" class="text-dark">PHBI (Maulid/Isra Miraj)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label>Judul / Tema</label>
+                            <input type="text" name="title" class="form-control" placeholder="Contoh: Khutbah Jumat" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Nama Ustadz / Imam</label>
+                            <input type="text" name="speaker" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="submit" class="btn btn-custom w-100">Simpan Agenda</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, navbar=render_template_string(NAVBAR_HTML, active_page='agenda'), bottom_nav=BOTTOM_NAV_HTML, content=render_template_string(content, items=items))
+
+@app.route('/booking', methods=['GET', 'POST'])
+def booking():
+    conn = get_db_connection()
+    if request.method == 'POST':
+        if 'status_update' in request.form:
+             conn.execute('UPDATE bookings SET status = ? WHERE id = ?', (request.form['status'], request.form['booking_id']))
+        else:
+             conn.execute('INSERT INTO bookings (name, date, purpose, type, contact) VALUES (?, ?, ?, ?, ?)',
+                         (request.form['name'], request.form['date'], request.form['purpose'], request.form['type'], request.form['contact']))
+        conn.commit()
+        return redirect(url_for('booking'))
+
+    items = conn.execute('SELECT * FROM bookings ORDER BY created_at DESC').fetchall()
+    conn.close()
+
+    content = """
+    <div class="glass-card">
+        <h4 class="page-title">Peminjaman Fasilitas & Ambulan</h4>
+        <p class="opacity-75 mb-4">Silakan isi formulir untuk meminjam Ambulan atau Area Masjid.</p>
+
+        <form method="POST" class="mb-5 border-bottom border-secondary pb-4">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label>Nama Peminjam</label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>No. HP / WhatsApp</label>
+                    <input type="text" name="contact" class="form-control" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>Tanggal Pemakaian</label>
+                    <input type="date" name="date" class="form-control" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>Fasilitas</label>
+                    <select name="type" class="form-select" required>
+                        <option value="Ambulan" class="text-dark">Mobil Ambulan</option>
+                        <option value="Area Masjid" class="text-dark">Area Masjid (Akad Nikah/TPA)</option>
+                        <option value="Peralatan" class="text-dark">Peralatan (Tenda/Kursi)</option>
+                    </select>
+                </div>
+                <div class="col-12 mb-3">
+                    <label>Keperluan</label>
+                    <textarea name="purpose" class="form-control" rows="2" required></textarea>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-custom w-100">Ajukan Peminjaman</button>
+                </div>
+            </div>
+        </form>
+
+        <h5 class="fw-bold mb-3"><i class="fas fa-list-ul me-2"></i>Status Pengajuan</h5>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold">{{ item['name'] }}</div>
+                            <small class="opacity-75">{{ item['type'] }} - {{ item['date'] }}</small>
+                            <div class="small fst-italic">{{ item['purpose'] }}</div>
+                        </td>
+                        <td class="text-end">
+                            <span class="badge {{ 'bg-warning text-dark' if item['status'] == 'Pending' else ('bg-success' if item['status'] == 'Approved' else 'bg-danger') }}">
+                                {{ item['status'] }}
+                            </span>
+                            {% if item['status'] == 'Pending' %}
+                            <div class="mt-2">
+                                <form method="POST" class="d-inline">
+                                    <input type="hidden" name="status_update" value="1">
+                                    <input type="hidden" name="booking_id" value="{{ item['id'] }}">
+                                    <input type="hidden" name="status" value="Approved">
+                                    <button class="btn btn-sm btn-success py-0 px-2" title="Setujui"><i class="fas fa-check"></i></button>
+                                </form>
+                                <form method="POST" class="d-inline">
+                                    <input type="hidden" name="status_update" value="1">
+                                    <input type="hidden" name="booking_id" value="{{ item['id'] }}">
+                                    <input type="hidden" name="status" value="Rejected">
+                                    <button class="btn btn-sm btn-danger py-0 px-2" title="Tolak"><i class="fas fa-times"></i></button>
+                                </form>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, navbar=render_template_string(NAVBAR_HTML, active_page='booking'), bottom_nav=BOTTOM_NAV_HTML, content=render_template_string(content, items=items))
+
+@app.route('/zakat', methods=['GET', 'POST'])
+def zakat():
+    conn = get_db_connection()
+    if request.method == 'POST':
+         conn.execute('INSERT INTO zakat (donor_name, type, amount, notes) VALUES (?, ?, ?, ?)',
+                     (request.form['donor_name'], request.form['type'], request.form['amount'], request.form['notes']))
+         conn.commit()
+         return redirect(url_for('zakat'))
+    
+    items = conn.execute('SELECT * FROM zakat ORDER BY created_at DESC LIMIT 50').fetchall()
+    
+    # Stats
+    total_zakat_fitrah = conn.execute("SELECT SUM(amount) FROM zakat WHERE type='Zakat Fitrah'").fetchone()[0] or 0
+    total_sapi = conn.execute("SELECT COUNT(*) FROM zakat WHERE type='Qurban Sapi'").fetchone()[0] or 0
+    total_kambing = conn.execute("SELECT COUNT(*) FROM zakat WHERE type='Qurban Kambing'").fetchone()[0] or 0
+
+    conn.close()
+
+    content = """
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="glass-card text-center">
+                <h6 class="opacity-75">Total Zakat Fitrah</h6>
+                <h3 class="fw-bold text-success">Rp {{ "{:,.0f}".format(total_zakat_fitrah) }}</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="glass-card text-center">
+                <h6 class="opacity-75">Hewan Qurban</h6>
+                <h3 class="fw-bold text-warning">{{ total_sapi }} Sapi / {{ total_kambing }} Kambing</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-card">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="page-title mb-0">Pencatatan Zakat & Qurban</h4>
+            <button class="btn btn-custom btn-sm" data-bs-toggle="modal" data-bs-target="#addZakatModal"><i class="fas fa-plus"></i> Input Data</button>
+        </div>
         
-        if 'image' in request.files:
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Nama Muzakki/Pequrban</th>
+                        <th>Jenis</th>
+                        <th>Jumlah/Nominal</th>
+                        <th>Catatan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ item['donor_name'] }}</td>
+                        <td>{{ item['type'] }}</td>
+                        <td class="fw-bold">{{ "Rp {:,.0f}".format(item['amount']|int) if item['amount'].isdigit() else item['amount'] }}</td>
+                        <td class="opacity-75 small">{{ item['notes'] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="addZakatModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">Input Zakat / Qurban</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label>Nama Warga</label>
+                            <input type="text" name="donor_name" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Jenis</label>
+                            <select name="type" class="form-select" required>
+                                <option value="Zakat Fitrah" class="text-dark">Zakat Fitrah</option>
+                                <option value="Zakat Mal" class="text-dark">Zakat Mal</option>
+                                <option value="Qurban Sapi" class="text-dark">Qurban Sapi</option>
+                                <option value="Qurban Kambing" class="text-dark">Qurban Kambing</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label>Nominal (Rp) atau Jumlah Hewan</label>
+                            <input type="text" name="amount" class="form-control" placeholder="Contoh: 50000 atau 1 Ekor" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Catatan</label>
+                            <input type="text" name="notes" class="form-control" placeholder="Opsional (misal: Hamba Allah)">
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="submit" class="btn btn-custom w-100">Simpan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, navbar=render_template_string(NAVBAR_HTML, active_page='zakat'), bottom_nav=BOTTOM_NAV_HTML, content=render_template_string(content, items=items, total_zakat_fitrah=total_zakat_fitrah, total_sapi=total_sapi, total_kambing=total_kambing))
+
+@app.route('/gallery-dakwah', methods=['GET', 'POST'])
+def gallery_dakwah():
+    conn = get_db_connection()
+    if request.method == 'POST':
+        if 'delete_id' in request.form:
+             conn.execute('DELETE FROM gallery_dakwah WHERE id = ?', (request.form['delete_id'],))
+        elif 'image' in request.files:
             file = request.files['image']
-            if file and file.filename != '' and allowed_file(file.filename):
+            if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        else:
-             filename = ""
-        
-        conn.execute('INSERT INTO news (title, content, date, image) VALUES (?, ?, ?, ?)',
-                     (title, content, date, filename))
+                conn.execute('INSERT INTO gallery_dakwah (title, image, description, date) VALUES (?, ?, ?, ?)',
+                             (request.form['title'], filename, request.form['description'], datetime.date.today()))
         conn.commit()
-        conn.close()
-        return redirect(url_for('news'))
-            
-    items = conn.execute('SELECT * FROM news ORDER BY date DESC, created_at DESC').fetchall()
+        return redirect(url_for('gallery_dakwah'))
+    
+    items = conn.execute('SELECT * FROM gallery_dakwah ORDER BY created_at DESC').fetchall()
     conn.close()
-    return render_layout(NEWS_HTML_CONTENT, items=items)
 
-@app.route('/edit_news/<int:id>', methods=['POST'])
-def edit_news(id):
+    content = """
+    <div class="glass-card">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="page-title mb-0">Galeri Dakwah & Santunan</h4>
+            <button class="btn btn-custom btn-sm" data-bs-toggle="modal" data-bs-target="#uploadModal"><i class="fas fa-camera"></i> Upload</button>
+        </div>
+
+        <div class="row g-3">
+            {% for item in items %}
+            <div class="col-6 col-md-4">
+                <div class="position-relative overflow-hidden rounded-3 shadow-sm" style="padding-top: 100%; background: #000;">
+                    <img src="/uploads/{{ item['image'] }}" class="position-absolute top-0 start-0 w-100 h-100 object-fit-cover" alt="{{ item['title'] }}">
+                    <div class="position-absolute bottom-0 start-0 w-100 p-2 text-white bg-dark bg-opacity-50">
+                        <small class="fw-bold d-block text-truncate">{{ item['title'] }}</small>
+                    </div>
+                    <form method="POST" class="position-absolute top-0 end-0 m-2">
+                        <input type="hidden" name="delete_id" value="{{ item['id'] }}">
+                        <button class="btn btn-sm btn-danger rounded-circle p-1" style="width:24px; height:24px; line-height:1;" onclick="return confirm('Hapus?')">&times;</button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12 text-center py-5">
+                <p class="opacity-50">Belum ada dokumentasi.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="uploadModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">Upload Foto Kegiatan</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label>Judul Kegiatan</label>
+                            <input type="text" name="title" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Deskripsi Singkat</label>
+                            <input type="text" name="description" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label>File Foto</label>
+                            <input type="file" name="image" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="submit" class="btn btn-custom w-100">Upload</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, navbar=render_template_string(NAVBAR_HTML, active_page='gallery'), bottom_nav=BOTTOM_NAV_HTML, content=render_template_string(content, items=items))
+
+@app.route('/suggestion', methods=['GET', 'POST'])
+def suggestion():
     conn = get_db_connection()
-    title = request.form['title']
-    content = request.form['content']
-    date = request.form['date']
+    if request.method == 'POST':
+         conn.execute('INSERT INTO suggestions (content, date) VALUES (?, ?)',
+                     (request.form['content'], datetime.date.today()))
+         conn.commit()
+         return redirect(url_for('suggestion'))
     
-    if 'image' in request.files:
-        file = request.files['image']
-        if file and file.filename != '' and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            conn.execute('UPDATE news SET title=?, content=?, date=?, image=? WHERE id=?',
-                         (title, content, date, filename, id))
-        else:
-            conn.execute('UPDATE news SET title=?, content=?, date=? WHERE id=?',
-                         (title, content, date, id))
-    else:
-        conn.execute('UPDATE news SET title=?, content=?, date=? WHERE id=?',
-                     (title, content, date, id))
-                     
-    conn.commit()
+    # Admin View (Showing last 10)
+    items = conn.execute('SELECT * FROM suggestions ORDER BY created_at DESC LIMIT 10').fetchall()
     conn.close()
-    return redirect(url_for('news'))
 
-NEWS_HTML_CONTENT = """
-<div class="container glass-panel p-4 mb-5 position-relative" style="border-radius: 20px;">
-    <a href="/" class="position-absolute top-0 end-0 m-3 text-white text-decoration-none" style="font-size: 1.5rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><i class="fas fa-times"></i></a>
-
-    <div class="d-flex justify-content-between align-items-center mb-4 pe-4">
-        <h2 class="text-white mb-0"><i class="fas fa-trophy me-2"></i>Prestasi & Event</h2>
-        <button class="btn btn-light rounded-pill" data-bs-toggle="modal" data-bs-target="#newsModal">
-            <i class="fas fa-plus me-1"></i> Tambah Berita
-        </button>
-    </div>
-    
-    <div class="row g-4">
-        {% for item in items %}
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100 bg-transparent glass-panel border-0 overflow-hidden position-relative" style="border-radius: 20px;">
-                <button class="btn btn-warning btn-sm rounded-circle position-absolute top-0 end-0 m-3 shadow" style="z-index: 10;" 
-                        onclick='editNews({{ item["id"] }}, {{ item["title"]|tojson }}, {{ item["date"]|tojson }}, {{ item["content"]|tojson }})'>
-                    <i class="fas fa-pencil-alt"></i>
-                </button>
-                {% if item['image'] %}
-                <div class="position-relative" style="height: 200px;">
-                    <img src="/uploads/{{ item['image'] }}" class="w-100 h-100 object-fit-cover" alt="{{ item['title'] }}">
-                </div>
-                {% endif %}
-                <div class="card-body text-white">
-                    <small class="text-white opacity-50 mb-2 d-block"><i class="far fa-calendar-alt me-1"></i> {{ item['date'] }}</small>
-                    <h5 class="card-title fw-bold mb-3">{{ item['title'] }}</h5>
-                    <p class="card-text opacity-75 small">{{ item['content'] }}</p>
-                </div>
+    content = """
+    <div class="glass-card">
+        <h4 class="page-title">Kotak Saran Digital</h4>
+        <p class="opacity-75 mb-4">Sampaikan kritik, saran, atau laporan kerusakan fasilitas masjid. Identitas Anda dirahasiakan.</p>
+        
+        <form method="POST" class="mb-5">
+            <div class="mb-3">
+                <textarea name="content" class="form-control" rows="5" placeholder="Tulis saran Anda di sini... Contoh: 'Keran wudhu bocor', 'Suara sound system kurang jelas'" required></textarea>
             </div>
-        </div>
-        {% else %}
-        <div class="col-12 text-center text-white py-5">
-            <i class="fas fa-newspaper fa-3x mb-3 opacity-50"></i>
-            <p>Belum ada berita terbaru.</p>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-
-<!-- News Modal -->
-<div class="modal fade" id="newsModal" tabindex="-1" style="z-index: 99999;">
-    <div class="modal-dialog modal-dialog-centered hard-acrylic-modal">
-        <div class="modal-content glass-panel text-white">
-            <div class="modal-header border-0">
-                <h5 class="modal-title">Tambah Berita / Prestasi</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" enctype="multipart/form-data">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Judul Berita</label>
-                        <input type="text" name="title" class="form-control bg-transparent text-white" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Tanggal</label>
-                        <input type="date" name="date" class="form-control bg-transparent text-white" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Isi Berita</label>
-                        <textarea name="content" class="form-control bg-transparent text-white" rows="4" required></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Gambar (Opsional)</label>
-                        <input type="file" name="image" class="form-control bg-transparent text-white" accept="image/*">
-                    </div>
+            <button type="submit" class="btn btn-custom w-100"><i class="fas fa-paper-plane me-2"></i> Kirim Laporan</button>
+        </form>
+        
+        <hr class="border-secondary my-4">
+        
+        <h6 class="fw-bold mb-3 opacity-50 text-uppercase">Laporan Masuk (Admin View)</h6>
+        <div class="list-group list-group-flush bg-transparent">
+            {% for item in items %}
+            <div class="list-group-item bg-transparent text-white border-bottom border-secondary">
+                <div class="d-flex justify-content-between">
+                    <small class="opacity-50">{{ item['date'] }}</small>
+                    <span class="badge bg-secondary">{{ item['status'] }}</span>
                 </div>
-                <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Tutup</button>
-                    <button type="submit" class="btn btn-primary">Simpan</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<script>
-    function editNews(id, title, date, content) {
-        document.querySelector('#newsModal input[name="title"]').value = title;
-        document.querySelector('#newsModal input[name="date"]').value = date;
-        document.querySelector('#newsModal textarea[name="content"]').value = content;
-        
-        const form = document.querySelector('#newsModal form');
-        form.action = '/edit_news/' + id;
-        
-        document.querySelector('#newsModal .modal-title').innerText = 'Edit Berita';
-        
-        const modal = new bootstrap.Modal(document.getElementById('newsModal'));
-        modal.show();
-    }
-    
-    // Reset form when modal is hidden
-    const newsModalEl = document.getElementById('newsModal');
-    if (newsModalEl) {
-        newsModalEl.addEventListener('hidden.bs.modal', function () {
-            const form = document.querySelector('#newsModal form');
-            form.action = ''; 
-            form.reset();
-            document.querySelector('#newsModal .modal-title').innerText = 'Tambah Berita / Prestasi';
-        });
-    }
-</script>
-"""
-
-@app.route('/metronome')
-def metronome():
-    return render_layout(METRONOME_HTML_CONTENT)
-
-METRONOME_HTML_CONTENT = """
-<div class="container d-flex justify-content-center align-items-center" style="min-height: 60vh;">
-    <div class="glass-panel p-5 text-center position-relative overflow-hidden" style="border-radius: 30px; width: 100%; max-width: 400px; backdrop-filter: blur(20px);">
-        
-        <div class="position-absolute top-0 start-0 w-100 h-100 bg-gradient-primary opacity-10" style="z-index: -1;"></div>
-        
-        <h2 class="text-white mb-4 fw-bold text-uppercase letter-spacing-2"><i class="fas fa-stopwatch me-2 text-warning"></i>Metronome</h2>
-        
-        <div class="bpm-display-container mb-4 position-relative">
-            <div class="display-1 fw-bold text-white" id="bpm-val">120</div>
-            <span class="text-white-50 text-uppercase small letter-spacing-2">BPM</span>
-            
-            <div id="visual-beat" class="position-absolute top-50 start-50 translate-middle rounded-circle" 
-                 style="width: 200px; height: 200px; border: 2px solid rgba(255,255,255,0.1); opacity: 0; transition: transform 0.1s, opacity 0.1s; pointer-events: none;"></div>
-        </div>
-        
-        <input type="range" class="form-range mb-4" min="40" max="240" value="120" id="bpm-slider">
-        
-        <div class="d-flex justify-content-center gap-3 mb-5">
-            <button class="btn btn-outline-light rounded-circle p-3" onclick="adjustBPM(-1)"><i class="fas fa-minus"></i></button>
-            <button class="btn btn-outline-light rounded-circle p-3" onclick="adjustBPM(1)"><i class="fas fa-plus"></i></button>
-        </div>
-        
-        <button class="btn btn-primary btn-lg rounded-pill w-100 py-3 fw-bold shadow-lg" id="play-btn">
-            <i class="fas fa-play me-2"></i> START
-        </button>
-    </div>
-</div>
-
-<script>
-    class Metronome {
-        constructor(tempo = 120) {
-            this.audioContext = null;
-            this.notesInQueue = [];
-            this.currentQuarterNote = 0;
-            this.tempo = tempo;
-            this.lookahead = 25.0;
-            this.scheduleAheadTime = 0.1;
-            this.nextNoteTime = 0.0;
-            this.isRunning = false;
-            this.intervalID = null;
-        }
-
-        nextNote() {
-            const secondsPerBeat = 60.0 / this.tempo;
-            this.nextNoteTime += secondsPerBeat;
-            this.currentQuarterNote++;
-            if (this.currentQuarterNote == 4) {
-                this.currentQuarterNote = 0;
-            }
-        }
-
-        scheduleNote(beatNumber, time) {
-            this.notesInQueue.push({ note: beatNumber, time: time });
-
-            const osc = this.audioContext.createOscillator();
-            const envelope = this.audioContext.createGain();
-
-            osc.type = 'square';
-            osc.frequency.value = (beatNumber % 4 === 0) ? 1200 : 1000;
-            envelope.gain.value = 3.0;
-            envelope.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
-
-            osc.connect(envelope);
-            envelope.connect(this.audioContext.destination);
-
-            osc.start(time);
-            osc.stop(time + 0.1);
-            
-            const drawTime = (time - this.audioContext.currentTime) * 1000;
-            setTimeout(() => {
-                const visual = document.getElementById('visual-beat');
-                visual.style.opacity = '1';
-                visual.style.transform = 'translate(-50%, -50%) scale(1.2)';
-                visual.style.borderColor = (beatNumber % 4 === 0) ? '#ffc107' : 'rgba(255,255,255,0.5)';
-                
-                setTimeout(() => {
-                    visual.style.opacity = '0';
-                    visual.style.transform = 'translate(-50%, -50%) scale(1)';
-                }, 100);
-            }, Math.max(0, drawTime));
-        }
-
-        scheduler() {
-            while (this.nextNoteTime < this.audioContext.currentTime + this.scheduleAheadTime ) {
-                this.scheduleNote(this.currentQuarterNote, this.nextNoteTime);
-                this.nextNote();
-            }
-            this.intervalID = window.setTimeout(this.scheduler.bind(this), this.lookahead);
-        }
-
-        start() {
-            if (this.isRunning) return;
-
-            if (this.audioContext == null) {
-                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            
-            this.audioContext.resume();
-
-            this.isRunning = true;
-            this.currentQuarterNote = 0;
-            this.nextNoteTime = this.audioContext.currentTime + 0.05;
-            this.scheduler();
-            
-            const btn = document.getElementById('play-btn');
-            btn.innerHTML = '<i class="fas fa-stop me-2"></i> STOP';
-            btn.classList.remove('btn-primary');
-            btn.classList.add('btn-danger');
-        }
-
-        stop() {
-            this.isRunning = false;
-            window.clearTimeout(this.intervalID);
-            
-            const btn = document.getElementById('play-btn');
-            btn.innerHTML = '<i class="fas fa-play me-2"></i> START';
-            btn.classList.remove('btn-danger');
-            btn.classList.add('btn-primary');
-        }
-    }
-
-    const metronome = new Metronome(120);
-    const bpmSlider = document.getElementById('bpm-slider');
-    const bpmVal = document.getElementById('bpm-val');
-    const playBtn = document.getElementById('play-btn');
-
-    bpmSlider.addEventListener('input', (e) => {
-        metronome.tempo = e.target.value;
-        bpmVal.innerText = metronome.tempo;
-    });
-
-    function adjustBPM(delta) {
-        let newBPM = parseInt(bpmSlider.value) + delta;
-        if(newBPM >= 40 && newBPM <= 240) {
-            bpmSlider.value = newBPM;
-            metronome.tempo = newBPM;
-            bpmVal.innerText = newBPM;
-            
-            // Trigger input event to update metronome if running
-            bpmSlider.dispatchEvent(new Event('input'));
-        }
-    }
-
-    playBtn.addEventListener('click', () => {
-        if (metronome.isRunning) {
-            metronome.stop();
-        } else {
-            metronome.start();
-        }
-    });
-</script>
-"""
-
-@app.route('/ear-training')
-def ear_training():
-    return render_layout(EAR_TRAINING_HTML_CONTENT)
-
-EAR_TRAINING_HTML_CONTENT = """
-<div class="container d-flex flex-column justify-content-center align-items-center" style="min-height: 80vh;">
-    <div class="glass-panel p-4 text-center w-100 position-relative overflow-hidden" style="border-radius: 30px; max-width: 600px; backdrop-filter: blur(20px);">
-        
-        <div class="position-absolute top-0 start-0 w-100 h-100 bg-gradient-info opacity-10" style="z-index: -1;"></div>
-
-        <h2 class="text-white mb-4 fw-bold text-uppercase letter-spacing-1">
-            <i class="fas fa-ear-listen me-2 text-warning"></i>Tebak Nada
-            <button class="btn btn-sm btn-outline-light rounded-circle ms-2" onclick="toggleToneType()" title="Ganti Suara" style="width: 35px; height: 35px; vertical-align: middle;">
-                <i class="fas fa-music" id="tone-icon"></i>
-            </button>
-        </h2>
-        
-        <div class="d-flex justify-content-center gap-4 mb-5">
-            <div class="text-center">
-                <div class="h4 fw-bold text-success mb-0" id="correct-score">0</div>
-                <small class="text-white-50 text-uppercase" style="font-size: 0.7rem;">Benar</small>
+                <p class="mb-1 mt-2">{{ item['content'] }}</p>
             </div>
-            <div class="text-center">
-                <div class="h4 fw-bold text-danger mb-0" id="wrong-score">0</div>
-                <small class="text-white-50 text-uppercase" style="font-size: 0.7rem;">Salah</small>
-            </div>
+            {% endfor %}
         </div>
-        
-        <button id="play-btn" class="btn btn-light rounded-circle shadow-lg mb-4 position-relative" onclick="playCurrentNote()" style="width: 120px; height: 120px; border: 4px solid rgba(255,255,255,0.2);">
-            <i class="fas fa-music fa-3x text-primary position-absolute top-50 start-50 translate-middle"></i>
-            <span class="position-absolute bottom-0 start-50 translate-middle-x mb-3 text-dark fw-bold small">PLAY</span>
-        </button>
-        
-        <div id="feedback-area" class="mb-4" style="min-height: 30px;">
-            <p class="text-white opacity-75 fst-italic" id="instruction">Klik tombol Play untuk mendengar nada</p>
-        </div>
-        
-        <div class="row g-2 px-2 mb-4" id="options-grid">
-            <!-- JS Populated -->
-        </div>
-        
-        <button class="btn btn-outline-light rounded-pill px-5 py-2" onclick="nextQuestion()" id="next-btn" style="display: none;">
-            Soal Selanjutnya <i class="fas fa-arrow-right ms-2"></i>
-        </button>
     </div>
-</div>
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, navbar=render_template_string(NAVBAR_HTML, active_page='suggestion'), bottom_nav=BOTTOM_NAV_HTML, content=render_template_string(content, items=items))
 
-<script>
-    const notes = [
-        { name: 'C', freq: 261.63 },
-        { name: 'C#', freq: 277.18 },
-        { name: 'D', freq: 293.66 },
-        { name: 'D#', freq: 311.13 },
-        { name: 'E', freq: 329.63 },
-        { name: 'F', freq: 349.23 },
-        { name: 'F#', freq: 369.99 },
-        { name: 'G', freq: 392.00 },
-        { name: 'G#', freq: 415.30 },
-        { name: 'A', freq: 440.00 },
-        { name: 'A#', freq: 466.16 },
-        { name: 'B', freq: 493.88 }
-    ];
-    
-    let audioCtx;
-    let currentNote = null;
-    let correct = 0;
-    let wrong = 0;
-    let isAnswered = false;
-    let soundType = 'sine';
+@app.route('/prayer-times')
+def prayer_times_api():
+    now = datetime.datetime.now()
+    pt = PrayTimes()
+    times = pt.get_prayer_times(now.year, now.month, now.day, LAT, LNG, TZ)
+    return jsonify(times)
 
-    function toggleToneType() {
-        soundType = (soundType === 'sine') ? 'piano' : 'sine';
-        const icon = document.getElementById('tone-icon');
-        if (soundType === 'piano') {
-            icon.className = 'fas fa-keyboard';
-        } else {
-            icon.className = 'fas fa-music';
-        }
-    }
+@app.route('/donate')
+def donate():
+    # Renders a page with the QRIS modal auto-triggered or just static
+    content = """
+    <div class="glass-card text-center py-5">
+        <h2 class="fw-bold mb-3">Infaq & Sedekah Instan</h2>
+        <p class="mb-4">Scan QRIS ini menggunakan GoPay, OVO, Dana, ShopeePay, atau Mobile Banking.</p>
+        
+        <div class="bg-white p-3 d-inline-block rounded-3 mb-4">
+             <!-- Placeholder QRIS -->
+             <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=MasjidAlHijrahInfaq" alt="QRIS Code" class="img-fluid" style="width: 250px;">
+        </div>
+        
+        <br>
+        <a href="/" class="btn btn-outline-light rounded-pill px-5">Kembali</a>
+    </div>
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, navbar=render_template_string(NAVBAR_HTML, active_page='donate'), bottom_nav=BOTTOM_NAV_HTML, content=content)
 
-    function initAudio() {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if(audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
-    }
-
-    function playTone(freq, type='sine', duration=1.0) {
-        initAudio();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        
-        osc.type = type;
-        osc.frequency.value = freq;
-        
-        // Envelope to sound more like a piano/bell
-        const now = audioCtx.currentTime;
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.5, now + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-        
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        
-        osc.start(now);
-        osc.stop(now + duration);
-    }
-
-    function playCurrentNote() {
-        if(!currentNote) {
-            nextQuestion();
-        } else {
-            if (soundType === 'piano') {
-                playPianoTone(currentNote.freq);
-            } else {
-                playTone(currentNote.freq);
-            }
-        }
-        document.getElementById('instruction').innerText = "Tebak nada apa ini?";
-    }
-
-    function playPianoTone(freq) {
-        initAudio();
-        const now = audioCtx.currentTime;
-        const duration = 1.5;
-        
-        // 3 Oscillators for richness
-        const osc1 = audioCtx.createOscillator();
-        const osc2 = audioCtx.createOscillator();
-        const osc3 = audioCtx.createOscillator();
-        
-        osc1.type = 'triangle';
-        osc2.type = 'triangle';
-        osc3.type = 'sawtooth';
-        
-        osc1.frequency.value = freq;
-        osc2.frequency.value = freq;
-        osc3.frequency.value = freq;
-        
-        osc2.detune.value = 10;
-        osc3.detune.value = -10;
-        
-        const masterGain = audioCtx.createGain();
-        const filter = audioCtx.createBiquadFilter();
-        
-        filter.type = 'lowpass';
-        filter.frequency.value = 2000;
-        
-        osc1.connect(masterGain);
-        osc2.connect(masterGain);
-        osc3.connect(masterGain);
-        
-        masterGain.connect(filter);
-        filter.connect(audioCtx.destination);
-        
-        masterGain.gain.setValueAtTime(0, now);
-        masterGain.gain.linearRampToValueAtTime(0.6, now + 0.02);
-        masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-        
-        osc1.start(now);
-        osc2.start(now);
-        osc3.start(now);
-        
-        osc1.stop(now + duration);
-        osc2.stop(now + duration);
-        osc3.stop(now + duration);
-    }
-
-    function generateOptions() {
-        const grid = document.getElementById('options-grid');
-        grid.innerHTML = '';
-        notes.forEach(note => {
-            const col = document.createElement('div');
-            col.className = 'col-3 col-md-2';
-            col.innerHTML = `<button class="btn btn-outline-light w-100 py-2 fw-bold" onclick="checkAnswer('${note.name}', this)">${note.name}</button>`;
-            grid.appendChild(col);
-        });
-    }
-
-    function checkAnswer(guess, btn) {
-        if(isAnswered || !currentNote) return;
-        isAnswered = true;
-        
-        const feedback = document.getElementById('feedback-area');
-        
-        if(guess === currentNote.name) {
-            btn.classList.remove('btn-outline-light');
-            btn.classList.add('btn-success');
-            correct++;
-            document.getElementById('correct-score').innerText = correct;
-            feedback.innerHTML = `<h4 class="text-success fw-bold mb-0">Benar! 🎉 (${currentNote.name})</h4>`;
-            playTone(880, 'sine', 0.2); // Ding
-        } else {
-            btn.classList.remove('btn-outline-light');
-            btn.classList.add('btn-danger');
-            wrong++;
-            document.getElementById('wrong-score').innerText = wrong;
-            feedback.innerHTML = `<h4 class="text-danger fw-bold mb-0">Salah! Jawabannya: ${currentNote.name}</h4>`;
-            playTone(150, 'sawtooth', 0.3); // Buzz
-        }
-        
-        document.getElementById('next-btn').style.display = 'inline-block';
-    }
-
-    function nextQuestion() {
-        isAnswered = false;
-        document.getElementById('next-btn').style.display = 'none';
-        document.getElementById('feedback-area').innerHTML = '<p class="text-white opacity-75 fst-italic">Dengarkan baik-baik...</p>';
-        
-        // Random note
-        currentNote = notes[Math.floor(Math.random() * notes.length)];
-        
-        generateOptions();
-        setTimeout(() => playCurrentNote(), 500);
-    }
-
-    // Init
-    generateOptions();
-</script>
-"""
+@app.route('/emergency')
+def emergency():
+    # Redirect to WhatsApp
+    return redirect("https://wa.me/6281241865310?text=Halo%20Takmir%20Masjid,%20Ada%20Keadaan%20Darurat!")
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-@app.route('/upload-logo', methods=['POST'])
-def upload_logo():
-    if 'logo' not in request.files:
-        return redirect(url_for('index'))
-    
-    file = request.files['logo']
-    if file and file.filename != '' and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        
-        with open('logo_config.txt', 'w') as f:
-            f.write(filename)
-            
-    return redirect(url_for('index'))
-
-@app.route('/manifest.json')
-def manifest():
-    return Response(MANIFEST_CONTENT, mimetype='application/json')
-
-@app.route('/service-worker.js')
-def service_worker():
-    return Response(SW_CONTENT, mimetype='application/javascript')
-
-@app.route('/uploads/icon-192.png')
-def icon_192():
-    if os.path.exists('logo_config.txt'):
-        with open('logo_config.txt', 'r') as f:
-            filename = f.read().strip()
-            if filename and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], filename)):
-                return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-    # Fallback to static/logobimbel.png
-    return send_from_directory('static', 'logobimbel.png')
-
-@app.route('/uploads/icon-512.png')
-def icon_512():
-    if os.path.exists('logo_config.txt'):
-        with open('logo_config.txt', 'r') as f:
-            filename = f.read().strip()
-            if filename and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], filename)):
-                return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-    return send_from_directory('static', 'logobimbel.png')
-
-@app.route('/wallpaper-blur/upload', methods=['POST'])
-def wallpaper_upload():
-    if 'background' not in request.files:
-        return redirect(url_for('index'))
-    
-    file = request.files['background']
-    if file and file.filename != '' and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        
-        with open('bg_config.txt', 'w') as f:
-            f.write(filename)
-            
-    return redirect(url_for('index'))
-
-
-HTML_DOREMI_CONTENT = """
-    <style>
-        .piano-container {
-            position: relative;
-            display: flex;
-            justify-content: center;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
-        }
-
-        .keys-wrapper {
-            position: relative;
-            display: flex;
-        }
-
-        .white-key {
-            width: 60px;
-            height: 220px;
-            border: 2px solid rgba(255, 255, 255, 0.8);
-            border-radius: 0 0 8px 8px;
-            margin: 0 2px;
-            background: #ffffff; /* Solid White */
-            z-index: 1;
-            position: relative;
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-            transition: all 0.3s ease;
-            display: flex;
-            justify-content: center;
-            align-items: flex-end;
-            padding-bottom: 20px;
-        }
-
-        .black-key {
-            width: 40px;
-            height: 130px;
-            position: absolute;
-            z-index: 2;
-            background: #000000; /* Solid Black */
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 0 0 5px 5px;
-            top: 0;
-            box-shadow: none; /* Removed dim effect */
-            /* Flex alignment for sticker */
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            align-items: center;
-            padding-bottom: 10px;
-        }
-
-        /* Neon Glow for C Major Scale (White Keys) */
-        .white-key.glow {
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.4);
-            border-color: #fff;
-            animation: pulse-glow 3s infinite alternate;
-        }
-
-        /* Sticker Styles */
-        .key-sticker {
-            width: 25px;
-            height: 25px;
-            background: #ffff00; /* Neon Yellow */
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-weight: 800;
-            color: #000;
-            font-size: 0.9rem;
-            box-shadow: 0 0 10px #ffff00, inset 0 0 5px rgba(255,255,255,0.8);
-        }
-
-        @keyframes pulse-glow {
-            0% { box-shadow: 0 0 15px rgba(255, 255, 255, 0.7), inset 0 0 10px rgba(255, 255, 255, 0.2); }
-            100% { box-shadow: 0 0 25px rgba(255, 255, 255, 1), inset 0 0 25px rgba(255, 255, 255, 0.5); }
-        }
-
-        .title-neon {
-            font-family: 'Inter', sans-serif;
-            font-weight: 800;
-            font-size: 3rem;
-            color: white;
-            text-align: center;
-            margin: 0; /* reset margin for flex alignment */
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.4);
-            letter-spacing: 2px;
-        }
-        
-        .header-controls {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 20px;
-            margin-bottom: 40px;
-            flex-wrap: wrap;
-        }
-
-        /* Mobile Responsiveness */
-        @media (max-width: 768px) {
-            .white-key {
-                width: 35px;
-                height: 140px;
-                padding-bottom: 10px;
-            }
-            .black-key {
-                width: 24px;
-                height: 85px;
-            }
-            .title-neon {
-                font-size: 2rem;
-            }
-            .header-controls {
-                margin-bottom: 20px;
-                gap: 15px;
-                flex-direction: column;
-            }
-            .key-sticker {
-                width: 18px;
-                height: 18px;
-                font-size: 0.7rem;
-            }
-        }
-    </style>
-
-        <div style="width:100%; display:flex; flex-direction:column; align-items:center; padding-top: 40px;">
-            
-            <div class="header-controls">
-                <h1 class="title-neon">nada dasar C</h1>
-            </div>
-            
-            <div class="piano-container">
-                <div class="keys-wrapper">
-                    <!-- White Keys with Stickers -->
-                    <div class="white-key glow"><div class="key-sticker">1</div></div> <!-- C -->
-                    <div class="white-key glow"><div class="key-sticker">2</div></div> <!-- D -->
-                    <div class="white-key glow"><div class="key-sticker">3</div></div> <!-- E -->
-                    <div class="white-key glow"><div class="key-sticker">4</div></div> <!-- F -->
-                    <div class="white-key glow"><div class="key-sticker">5</div></div> <!-- G -->
-                    <div class="white-key glow"><div class="key-sticker">6</div></div> <!-- A -->
-                    <div class="white-key glow"><div class="key-sticker">7</div></div> <!-- B -->
-                    <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- C (High) -->
-                    
-                    <!-- Black Keys -->
-                    <div class="black-key" style="left: 45px;"></div>  <!-- C# -->
-                    <div class="black-key" style="left: 109px;"></div> <!-- D# -->
-                    <div class="black-key" style="left: 237px;"></div> <!-- F# -->
-                    <div class="black-key" style="left: 301px;"></div> <!-- G# -->
-                    <div class="black-key" style="left: 365px;"></div> <!-- A# -->
-                </div>
-            </div>
-
-            <!-- D Major -->
-            <h1 class="title-neon" style="margin-top:20px;">nada dasar D</h1>
-            <div class="piano-container" data-scale="D">
-                <div class="keys-wrapper">
-                    <div class="white-key glow"><div class="key-sticker">1</div></div> <!-- D -->
-                    <div class="white-key glow"><div class="key-sticker">2</div></div> <!-- E -->
-                    <div class="white-key glow"></div> <!-- F -->
-                    <div class="white-key glow"><div class="key-sticker">4</div></div> <!-- G -->
-                    <div class="white-key glow"><div class="key-sticker">5</div></div> <!-- A -->
-                    <div class="white-key glow"><div class="key-sticker">6</div></div> <!-- B -->
-                    <div class="white-key glow"></div> <!-- C -->
-                    <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- D -->
-                    
-                    <div class="black-key"></div> <!-- D# -->
-                    <div class="black-key"><div class="key-sticker">3</div></div> <!-- F# -->
-                    <div class="black-key"></div> <!-- G# -->
-                    <div class="black-key"></div> <!-- A# -->
-                    <div class="black-key"><div class="key-sticker">7</div></div> <!-- C# -->
-                </div>
-            </div>
-
-            <!-- E Major -->
-            <h1 class="title-neon" style="margin-top:20px;">nada dasar E</h1>
-            <div class="piano-container" data-scale="E">
-                <div class="keys-wrapper">
-                    <div class="white-key glow"><div class="key-sticker">1</div></div> <!-- E -->
-                    <div class="white-key glow"></div> <!-- F -->
-                    <div class="white-key glow"></div> <!-- G -->
-                    <div class="white-key glow"><div class="key-sticker">4</div></div> <!-- A -->
-                    <div class="white-key glow"><div class="key-sticker">5</div></div> <!-- B -->
-                    <div class="white-key glow"></div> <!-- C -->
-                    <div class="white-key glow"></div> <!-- D -->
-                    <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- E -->
-                    
-                    <div class="black-key"><div class="key-sticker">2</div></div> <!-- F# -->
-                    <div class="black-key"><div class="key-sticker">3</div></div> <!-- G# -->
-                    <div class="black-key"></div> <!-- A# -->
-                    <div class="black-key"><div class="key-sticker">6</div></div> <!-- C# -->
-                    <div class="black-key"><div class="key-sticker">7</div></div> <!-- D# -->
-                </div>
-            </div>
-
-            <!-- F Major -->
-            <h1 class="title-neon" style="margin-top:20px;">nada dasar F</h1>
-            <div class="piano-container" data-scale="F">
-                <div class="keys-wrapper">
-                    <div class="white-key glow"><div class="key-sticker">1</div></div> <!-- F -->
-                    <div class="white-key glow"><div class="key-sticker">2</div></div> <!-- G -->
-                    <div class="white-key glow"><div class="key-sticker">3</div></div> <!-- A -->
-                    <div class="white-key glow"></div> <!-- B -->
-                    <div class="white-key glow"><div class="key-sticker">5</div></div> <!-- C -->
-                    <div class="white-key glow"><div class="key-sticker">6</div></div> <!-- D -->
-                    <div class="white-key glow"><div class="key-sticker">7</div></div> <!-- E -->
-                    <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- F -->
-                    
-                    <div class="black-key"></div> <!-- F# -->
-                    <div class="black-key"></div> <!-- G# -->
-                    <div class="black-key"><div class="key-sticker">4</div></div> <!-- Bb -->
-                    <div class="black-key"></div> <!-- C# -->
-                    <div class="black-key"></div> <!-- D# -->
-                </div>
-            </div>
-
-            <!-- G Major -->
-            <h1 class="title-neon" style="margin-top:20px;">nada dasar G</h1>
-            <div class="piano-container" data-scale="G">
-                <div class="keys-wrapper">
-                    <div class="white-key glow"><div class="key-sticker">1</div></div> <!-- G -->
-                    <div class="white-key glow"><div class="key-sticker">2</div></div> <!-- A -->
-                    <div class="white-key glow"><div class="key-sticker">3</div></div> <!-- B -->
-                    <div class="white-key glow"><div class="key-sticker">4</div></div> <!-- C -->
-                    <div class="white-key glow"><div class="key-sticker">5</div></div> <!-- D -->
-                    <div class="white-key glow"><div class="key-sticker">6</div></div> <!-- E -->
-                    <div class="white-key glow"></div> <!-- F -->
-                    <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- G -->
-                    
-                    <div class="black-key"></div> <!-- G# -->
-                    <div class="black-key"></div> <!-- A# -->
-                    <div class="black-key"></div> <!-- C# -->
-                    <div class="black-key"></div> <!-- D# -->
-                    <div class="black-key"><div class="key-sticker">7</div></div> <!-- F# -->
-                </div>
-            </div>
-
-            <!-- A Major -->
-            <h1 class="title-neon" style="margin-top:20px;">nada dasar A</h1>
-            <div class="piano-container" data-scale="A">
-                <div class="keys-wrapper">
-                    <div class="white-key glow"><div class="key-sticker">1</div></div> <!-- A -->
-                    <div class="white-key glow"><div class="key-sticker">2</div></div> <!-- B -->
-                    <div class="white-key glow"></div> <!-- C -->
-                    <div class="white-key glow"><div class="key-sticker">4</div></div> <!-- D -->
-                    <div class="white-key glow"><div class="key-sticker">5</div></div> <!-- E -->
-                    <div class="white-key glow"></div> <!-- F -->
-                    <div class="white-key glow"></div> <!-- G -->
-                    <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- A -->
-                    
-                    <div class="black-key"></div> <!-- A# -->
-                    <div class="black-key"><div class="key-sticker">3</div></div> <!-- C# -->
-                    <div class="black-key"></div> <!-- D# -->
-                    <div class="black-key"><div class="key-sticker">6</div></div> <!-- F# -->
-                    <div class="black-key"><div class="key-sticker">7</div></div> <!-- G# -->
-                </div>
-            </div>
-
-            <!-- B Major -->
-            <h1 class="title-neon" style="margin-top:20px;">nada dasar B</h1>
-            <div class="piano-container" data-scale="B">
-                <div class="keys-wrapper">
-                    <div class="white-key glow"><div class="key-sticker">1</div></div> <!-- B -->
-                    <div class="white-key glow"></div> <!-- C -->
-                    <div class="white-key glow"></div> <!-- D -->
-                    <div class="white-key glow"><div class="key-sticker">4</div></div> <!-- E -->
-                    <div class="white-key glow"></div> <!-- F -->
-                    <div class="white-key glow"></div> <!-- G -->
-                    <div class="white-key glow"></div> <!-- A -->
-                    <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- B -->
-                    
-                    <div class="black-key"><div class="key-sticker">2</div></div> <!-- C# -->
-                    <div class="black-key"><div class="key-sticker">3</div></div> <!-- D# -->
-                    <div class="black-key"><div class="key-sticker">5</div></div> <!-- F# -->
-                    <div class="black-key"><div class="key-sticker">6</div></div> <!-- G# -->
-                    <div class="black-key"><div class="key-sticker">7</div></div> <!-- A# -->
-                </div>
-            </div>
-        </div>
-
-    <script>
-        // PWA Installation Logic moved to BASE_LAYOUT
-        
-        const deferredPrompt = null; // Stub if referenced
-        const pwaBtn = document.getElementById('pwa-install-btn'); // This is in Navbar
-        
-        // Key adjustment script
-        function adjustBlackKeys() {
-            const pianoContainers = document.querySelectorAll('.piano-container');
-            
-            const scaleIndices = {
-                'C': [1, 2, 4, 5, 6],
-                'D': [1, 3, 4, 5, 7],
-                'E': [2, 3, 4, 6, 7],
-                'F': [1, 2, 3, 5, 6],
-                'G': [1, 2, 4, 5, 7],
-                'A': [1, 3, 4, 6, 7],
-                'B': [2, 3, 5, 6, 7]
-            };
-
-            pianoContainers.forEach(container => {
-                const whiteKey = container.querySelector('.white-key');
-                if(!whiteKey) return;
-                
-                const w = whiteKey.offsetWidth;
-                const m = 4; // margin
-                const slot = w + m;
-                
-                const blackKeys = container.querySelectorAll('.black-key');
-                if(blackKeys.length === 0) return;
-                
-                const blackWidth = blackKeys[0].offsetWidth;
-                
-                const scaleType = container.getAttribute('data-scale') || 'C';
-                const indices = scaleIndices[scaleType] || scaleIndices['C'];
-                
-                blackKeys.forEach((key, i) => {
-                    if (i < indices.length) {
-                        const idx = indices[i];
-                        const leftPos = (idx * slot) - (blackWidth / 2);
-                        key.style.left = leftPos + 'px';
-                    }
-                });
-            });
-        }
-        
-        window.addEventListener('resize', adjustBlackKeys);
-        window.addEventListener('load', adjustBlackKeys);
-        
-        // Re-attach PWA handler logic if needed, but PWA button is in Navbar which is in Base Layout.
-        // We'll move the PWA logic to the Base Layout's script block if possible, or keep it here if it's specific.
-        // Actually, let's keep the adjustBlackKeys here as it's specific to this view.
-    </script>
-"""
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
