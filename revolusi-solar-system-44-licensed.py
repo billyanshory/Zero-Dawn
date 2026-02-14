@@ -292,6 +292,7 @@ TEXTS = {
     "angle_0": {"id": "Sudut 0°", "en": "Angle 0°"},
     "angle_90": {"id": "Sudut 90°", "en": "Angle 90°"},
     "angle_45": {"id": "Sudut 45° (Default)", "en": "Angle 45° (Default)"},
+    "angle_custom": {"id": "Custom", "en": "Custom"},
     "diameter_lbl": {"id": "DIAMETER", "en": "DIAMETER"},
     "distance_lbl": {"id": "JARAK RATA-RATA DARI MATAHARI", "en": "AVERAGE DISTANCE FROM SUN"},
     "distance_lbl_sun": {"id": "JARAK RATA-RATA DARI INTI GALAKSI BIMA SAKTI", "en": "AVERAGE DISTANCE FROM THE CORE OF THE MILKY WAY"},
@@ -481,10 +482,11 @@ class AngleMode(Enum):
     SIDE_0 = auto()
     TOP_90 = auto()
     OBLIQUE_45 = auto()
+    CUSTOM = auto()
 
-ANGLE_LABEL_KEYS = ["angle_0", "angle_90", "angle_45"]
+ANGLE_LABEL_KEYS = ["angle_0", "angle_90", "angle_45", "angle_custom"]
 ANGLE_LABELS = [t(k) for k in ANGLE_LABEL_KEYS]
-ANGLE_MODES = [AngleMode.SIDE_0, AngleMode.TOP_90, AngleMode.OBLIQUE_45]
+ANGLE_MODES = [AngleMode.SIDE_0, AngleMode.TOP_90, AngleMode.OBLIQUE_45, AngleMode.CUSTOM]
 
 PLANET_INFO = {
     "Sun": {
@@ -1187,8 +1189,9 @@ class TrialMessageModal:
 
 # Mengganti MarsBiosignatureModal dengan MarsUniversalModal yang fleksibel
 class PlanetUniversalModal:
-    def __init__(self, font, planet_name="Mars", config_id=6):
+    def __init__(self, font, planet_name="Mars", config_id=6, theme_color=None):
         self.font = font
+        self.theme_color = theme_color if theme_color else WIN10_ACCENT
         
         # Select dictionary based on planet name and language
         config_map = {}
@@ -1256,7 +1259,8 @@ class PlanetUniversalModal:
         
         self.panel = pygame.Surface((w, h), pygame.SRCALPHA)
         self.panel.fill(WIN10_BG_SOLID) # Solid dark for modal
-        pygame.draw.rect(self.panel, WIN10_ACCENT, self.panel.get_rect(), 2) # Win10 blue border
+        # Use theme_color for border
+        pygame.draw.rect(self.panel, self.theme_color, self.panel.get_rect(), 2)
         
         # 1. Judul (Statis di panel)
         title_str = self.config["title"]
@@ -1326,7 +1330,8 @@ class PlanetUniversalModal:
             
         # Judul keterangan gambar / Link
         caption_str = self.config["img_caption"] 
-        link_surf = self.link_font.render(caption_str, True, WIN10_ACCENT)
+        # Use theme_color for caption link
+        link_surf = self.link_font.render(caption_str, True, self.theme_color)
         
         # Layout Y
         curr_y = 0
@@ -1366,8 +1371,9 @@ class PlanetUniversalModal:
             fy = fact_y_start + i * 60
             p_end = (arrow_start_x - 5, fy)
             p_start = (arrow_start_x + 30, fy)
-            pygame.draw.line(self.content_surf, WIN10_ACCENT, p_start, p_end, 3)
-            pygame.draw.polygon(self.content_surf, WIN10_ACCENT, [
+            # Use theme_color for arrows
+            pygame.draw.line(self.content_surf, self.theme_color, p_start, p_end, 3)
+            pygame.draw.polygon(self.content_surf, self.theme_color, [
                 p_end, (p_end[0] + 10, p_end[1] - 5), (p_end[0] + 10, p_end[1] + 5)
             ])
             
@@ -2098,8 +2104,12 @@ class PlanetOverlay:
         left_w = 260
         left_h = 260
         left = pygame.Surface((left_w, left_h), pygame.SRCALPHA)
-        pygame.draw.rect(left, (240, 240, 240, 230), left.get_rect(), border_radius=6)
-        title = self.title_font.render(self.planet.name, True, (0, 0, 0))
+        # Apply Mica Style (Dark + Border)
+        left.fill(WIN10_BG_DARK)
+        pygame.draw.rect(left, WIN10_BORDER_DEFAULT, left.get_rect(), 1)
+
+        # Title White
+        title = self.title_font.render(self.planet.name, True, WIN10_TEXT_WHITE)
         left.blit(title, title.get_rect(midtop=(left_w / 2, 10)))
         cx, cy = left_w / 2, left_h / 2 + 10
         radius = 60
@@ -2130,7 +2140,9 @@ class PlanetOverlay:
                     
         summary_h = len(lines) * self.italic.get_linesize()
         summary_box = pygame.Surface((summary_w, summary_h + 20), pygame.SRCALPHA)
-        pygame.draw.rect(summary_box, (240, 240, 240, 230), summary_box.get_rect(), border_radius=6)
+        # Apply Mica Style (Dark + Border)
+        summary_box.fill(WIN10_BG_DARK)
+        pygame.draw.rect(summary_box, WIN10_BORDER_DEFAULT, summary_box.get_rect(), 1)
         
         lh = self.italic.get_linesize()
         
@@ -2142,7 +2154,8 @@ class PlanetOverlay:
         summary_offset_y = 40 + right.get_height() + 10
         
         for i, line in enumerate(lines):
-            txt = self.italic.render(line, True, (0, 0, 0))
+            # Text White
+            txt = self.italic.render(line, True, WIN10_TEXT_WHITE)
             y_pos = 10 + i * lh
             summary_box.blit(txt, (10, y_pos))
             
@@ -2165,7 +2178,7 @@ class PlanetOverlay:
                     self.detail_point_rects.append((r, line, point_idx))
 
         overlay = pygame.Surface((w, h), pygame.SRCALPHA)
-        pygame.draw.rect(overlay, (30, 30, 30, 180), overlay.get_rect(), border_radius=10)
+        pygame.draw.rect(overlay, (0, 0, 0, 120), overlay.get_rect(), border_radius=10)
         overlay.blit(left, (10, 40))
         self.right_rect = overlay.blit(right, (left_w + gap, 40))
         self.summary_rect = overlay.blit(summary_box, (summary_offset_x, summary_offset_y))
@@ -2205,7 +2218,19 @@ class PlanetOverlay:
                         abs_r.width + padding_x * 2, 
                         abs_r.height
                     )
+                    # Highlight Text Line yg sedang dihover
+                    abs_r = r.move(self.overlay_rect.topleft)
+                    lift_y = -4
+                    padding_x = 4
+                    highlight_rect = pygame.Rect(
+                        abs_r.x - padding_x,
+                        abs_r.y + lift_y,
+                        abs_r.width + padding_x * 2,
+                        abs_r.height
+                    )
+                    # White box highlight
                     pygame.draw.rect(surface, (255, 255, 255), highlight_rect, border_radius=4)
+                    # Text becomes Black for contrast against white highlight
                     txt_surf = self.italic_bold.render(text, True, (0, 0, 0))
                     surface.blit(txt_surf, (abs_r.x, abs_r.y + lift_y))
                     break # Hanya satu yang bisa dihover
@@ -2741,22 +2766,36 @@ def get_clipboard_text():
         return ""
 
 def check_trial_history_used(hwid):
-    """Cek apakah HWID ini sudah pernah menggunakan trial."""
+    """
+    Cek apakah HWID ini sudah pernah menggunakan trial.
+    Mengembalikan (bool, start_time)
+    """
     if os.path.exists("trial_history.dat"):
         try:
             with open("trial_history.dat", "r") as f:
-                content = f.read()
-                if hwid in content:
-                    return True
+                for line in f:
+                    line = line.strip()
+                    if not line: continue
+                    parts = line.split('|')
+                    if parts[0] == hwid:
+                        # Return True and the timestamp if available
+                        try:
+                            ts = float(parts[1]) if len(parts) > 1 and parts[1] != "USED" else 0
+                        except ValueError:
+                            ts = 0
+                        return True, ts
         except:
             pass
-    return False
+    return False, 0
 
-def mark_trial_used(hwid):
+def mark_trial_used(hwid, start_time=None):
     """Tandai HWID ini sudah menggunakan trial."""
+    if start_time is None: start_time = time.time()
     try:
         with open("trial_history.dat", "a") as f:
-            f.write(f"{hwid}|USED\n")
+            f.write(f"{hwid}|{start_time}\n")
+            f.flush()
+            os.fsync(f.fileno())
     except:
         pass
 
@@ -2978,11 +3017,37 @@ def license_screen(screen, target_key=None, startup_message=None):
             blocked_trial = False
             if license_mode == "TRIAL":
                 # Cek apakah sudah pernah pakai trial
-                if check_trial_history_used(hwid):
-                    message = "masa free trial teruss ehe.. ayokk gasss lifetime.."
-                    msg_color = (255, 50, 50)
-                    state = LicenseState.INPUT_KEY
-                    blocked_trial = True
+                used, hist_start_time = check_trial_history_used(hwid)
+                if used:
+                    # Check if actually expired based on history
+                    if hist_start_time > 0:
+                        elapsed = time.time() - hist_start_time
+                        if elapsed > (3 * 24 * 3600):
+                            message = "Masa trial 3 hari sudah habis."
+                            msg_color = (255, 50, 50)
+                            state = LicenseState.INPUT_KEY
+                            blocked_trial = True
+                        else:
+                            # Restore Trial
+                            dummy_trial_key = f"AUTO-TRIAL-{hwid}"
+                            try:
+                                with open(LICENSE_FILE, "w") as f:
+                                     # Format: TRIAL|HWID|KEY|START_TIMESTAMP
+                                    f.write(f"TRIAL|{hwid}|{dummy_trial_key}|{hist_start_time}")
+
+                                message = "TRIAL RESTORED!"
+                                msg_color = (0, 255, 0)
+                                state = LicenseState.SUCCESS
+                                text = dummy_trial_key
+                            except Exception as e:
+                                message = f"ERROR: {e}"
+                                state = LicenseState.INPUT_KEY
+                    else:
+                        # Old format or unknown, block to be safe or treat as used
+                        message = "masa free trial teruss ehe.. ayokk gasss lifetime.."
+                        msg_color = (255, 50, 50)
+                        state = LicenseState.INPUT_KEY
+                        blocked_trial = True
                 else:
                     # Automatic Activation for Trial (Local Check / Skip Server Key Check)
                     # We create a dummy success state locally for Trial
@@ -2995,7 +3060,7 @@ def license_screen(screen, target_key=None, startup_message=None):
                         with open(LICENSE_FILE, "w") as f:
                              # Format: TRIAL|HWID|KEY|START_TIMESTAMP
                             f.write(f"TRIAL|{hwid}|{dummy_trial_key}|{start_time}")
-                        mark_trial_used(hwid)
+                        mark_trial_used(hwid, start_time)
                         
                         message = "TRIAL ACTIVATED!"
                         msg_color = (0, 255, 0)
@@ -3188,9 +3253,36 @@ def main():
         # Jika Start Up (first_run True) DAN File Lisensi Ada: Skip
         
         should_show_license = True
-        if first_run and check_license_locally():
-            should_show_license = False
         
+        # IMPROVED STARTUP LOGIC: Skip license screen if valid license exists
+        if first_run and os.path.exists(LICENSE_FILE):
+            # Validate content to ensure we don't skip if file is corrupt or expired (double check)
+            try:
+                with open(LICENSE_FILE, "r") as f:
+                    content = f.read().split("|")
+                    if content[0] == "ACTIVATED":
+                        should_show_license = False
+                        if len(content) >= 3:
+                            active_key = content[2].strip()
+                        is_trial_mode = False
+                    elif content[0] == "TRIAL" and len(content) >= 4:
+                        ts = float(content[3])
+                        elapsed = time.time() - ts
+                        # Check expiry again strictly
+                        if elapsed < (3 * 24 * 3600):
+                            should_show_license = False
+                            is_trial_mode = True
+                            trial_start_time = ts
+                            active_key = content[2].strip()
+                        else:
+                            # Expired: Delete and Show Screen
+                            should_show_license = True
+                            startup_msg = "Masa trial 3 hari telah berakhir."
+                            try: os.remove(LICENSE_FILE)
+                            except: pass
+            except:
+                should_show_license = True # Error reading file, show screen
+
         if should_show_license:
              # Pass active_key jika ada (untuk validasi ulang)
              # Pass startup_msg jika ada
@@ -3212,20 +3304,6 @@ def main():
                         else:
                             is_trial_mode = False
                 except: pass
-        else:
-             # File ada. Baca keynya jika belum dibaca.
-             if not active_key:
-                  try:
-                      with open(LICENSE_FILE, "r") as f:
-                          content = f.read().split("|")
-                          if len(content) >= 3:
-                              active_key = content[2].strip()
-                          if content[0] == "TRIAL" and len(content) >= 4:
-                                is_trial_mode = True
-                                trial_start_time = float(content[3])
-                          else:
-                                is_trial_mode = False
-                  except: pass
         
         first_run = False # Setelah sesi pertama, flag ini mati
 
@@ -3309,6 +3387,12 @@ def main():
         user_requested_back = False
         image_viewer = ImageViewer()
 
+        # Custom Camera Modal
+        custom_angle_rect = pygame.Rect(0, 0, 300, 120)
+        custom_angle_active = False
+        custom_angle_val = 0.0 # 0-360
+        dragging_custom_angle = False
+
         def recalc_ui():
             nonlocal speed_rects, angle_button_rects, keyboard_button_rect
             nonlocal play_rect, pause_rect, start_x, button_y, data_button_rect, time_info_button_rect
@@ -3323,6 +3407,9 @@ def main():
                 rect = pygame.Rect(x, y, w + 20, 25)
                 angle_button_rects.append(rect)
                 x += rect.width + 5
+
+            # Reposition Custom Modal
+            custom_angle_rect.center = (WIDTH // 2, HEIGHT - 150)
 
             keyboard_button_rect = pygame.Rect(10, y + 25 + 5, 170, 30)
 
@@ -3415,8 +3502,46 @@ def main():
             log("simulation reset")
 
         def apply_angle(mode):
+            nonlocal custom_angle_active
             camera.set_angle_mode(mode)
-            reset_view()
+            if mode == AngleMode.CUSTOM:
+                custom_angle_active = True
+                # Set initial val based on current y_scale if possible?
+                # y_scale = abs(sin(rad)) -> asin(y_scale)
+                # But we just default to 45 or 0.
+            else:
+                custom_angle_active = False
+                reset_view() # Reset only on presets, custom keeps value
+
+        def draw_custom_angle_modal(surface):
+            if not custom_angle_active: return
+
+            # Mica Background (Inline drawing to avoid scope issues)
+            s = pygame.Surface((custom_angle_rect.width, custom_angle_rect.height), pygame.SRCALPHA)
+            s.fill((0, 0, 0, 120))
+            surface.blit(s, custom_angle_rect.topleft)
+            pygame.draw.rect(surface, (100, 100, 100), custom_angle_rect, 1)
+
+            # Label
+            lbl = font.render(f"Camera Angle: {int(custom_angle_val)}°", True, (255, 255, 255))
+            surface.blit(lbl, (custom_angle_rect.x + 20, custom_angle_rect.y + 15))
+
+            # Slider Track
+            track_rect = pygame.Rect(custom_angle_rect.x + 20, custom_angle_rect.y + 60, custom_angle_rect.width - 40, 4)
+            pygame.draw.rect(surface, (100, 100, 100), track_rect, border_radius=2)
+
+            # Slider Thumb
+            ratio = custom_angle_val / 360.0
+            thumb_x = track_rect.x + ratio * track_rect.width
+            thumb_pos = (int(thumb_x), track_rect.centery)
+
+            col = WIN10_ACCENT
+            if dragging_custom_angle: col = (255, 255, 255)
+            pygame.draw.circle(surface, col, thumb_pos, 8)
+
+            # Hint
+            hint = small_font.render("Drag to adjust tilt (0-360°)", True, (150, 150, 150))
+            surface.blit(hint, (custom_angle_rect.x + 20, custom_angle_rect.y + 80))
 
         def draw_scene_to(surface, dt):
             nonlocal keyboard_button_color, keyboard_info_rect, speed_rects
@@ -3506,6 +3631,9 @@ def main():
             speed_rects = draw_speed_panel(surface, font, speed_index)
             draw_angle_buttons(surface, font, angle_button_rects, angle_focus, camera.angle_mode)
             
+            # Draw Custom Angle Modal if active
+            draw_custom_angle_modal(surface)
+
             target = KEYBOARD_BTN_ACTIVE if show_keyboard_info else KEYBOARD_BTN_INACTIVE
             for i in range(3):
                 keyboard_button_color[i] += (target[i] - keyboard_button_color[i]) * 0.1
@@ -3605,7 +3733,14 @@ def main():
                         try:
                             detail_idx = int(res.split("_")[-1])
                             bg_capture = screen.copy()
-                            mars_modal = PlanetUniversalModal(font, planet_name=overlay.planet.name, config_id=detail_idx)
+                            # Pass planet color as theme_color
+                            theme_col = overlay.planet.color if overlay.planet else None
+                            mars_modal = PlanetUniversalModal(
+                                font,
+                                planet_name=overlay.planet.name,
+                                config_id=detail_idx,
+                                theme_color=theme_col
+                            )
                             mars_modal.open(bg_capture)
                             ui_state = UIState.MARS_BIO
                         except ValueError:
@@ -3678,83 +3813,104 @@ def main():
                     camera_self_test()
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     clicked = False
-                    if play_rect.collidepoint(event.pos):
-                        paused = False
+
+                    # Custom Angle Slider
+                    if custom_angle_active and custom_angle_rect.collidepoint(event.pos):
+                        track_rect = pygame.Rect(custom_angle_rect.x + 20, custom_angle_rect.y + 50, custom_angle_rect.width - 40, 24)
+                        if track_rect.collidepoint(event.pos):
+                            dragging_custom_angle = True
+                            # Update immediately
+                            rel_x = event.pos[0] - (custom_angle_rect.x + 20)
+                            ratio = max(0.0, min(1.0, rel_x / (custom_angle_rect.width - 40)))
+                            custom_angle_val = ratio * 360.0
+                            camera.y_scale = abs(math.sin(math.radians(custom_angle_val)))
                         clicked = True
-                    elif pause_rect.collidepoint(event.pos):
-                        paused = True
-                        clicked = True
-                    elif sketch_button_rect.collidepoint(event.pos):
-                        sketch_mode = not sketch_mode
-                        clicked = True
-                    elif back_btn_rect.collidepoint(event.pos):
-                        # TOMBOL BACK DITEKAN
-                        clicked = True
-                        
-                        # Cek Trial Lock
-                        locked_in_trial = False
-                        if is_trial_mode:
-                             # Check remaining time
-                             elapsed_t = time.time() - trial_start_time
-                             rem_t = max(0, (3 * 24 * 3600) - elapsed_t)
-                             if rem_t > 0:
-                                 locked_in_trial = True
-                                 
-                        if locked_in_trial:
-                             trial_msg_modal.open(screen.copy())
-                             ui_state = UIState.TRIAL_MSG
+
+                    if not clicked:
+                        if play_rect.collidepoint(event.pos):
+                            paused = False
+                            clicked = True
+                        elif pause_rect.collidepoint(event.pos):
+                            paused = True
+                            clicked = True
+                        elif sketch_button_rect.collidepoint(event.pos):
+                            sketch_mode = not sketch_mode
+                            clicked = True
+                        elif back_btn_rect.collidepoint(event.pos):
+                            # TOMBOL BACK DITEKAN
+                            clicked = True
+
+                            # Cek Trial Lock
+                            locked_in_trial = False
+                            if is_trial_mode:
+                                 # Check remaining time
+                                 elapsed_t = time.time() - trial_start_time
+                                 rem_t = max(0, (3 * 24 * 3600) - elapsed_t)
+                                 if rem_t > 0:
+                                     locked_in_trial = True
+
+                            if locked_in_trial:
+                                 trial_msg_modal.open(screen.copy())
+                                 ui_state = UIState.TRIAL_MSG
+                            else:
+                                 user_requested_back = True
+                                 running = False # Break inner loop
                         else:
-                             user_requested_back = True
-                             running = False # Break inner loop
-                    else:
-                        for i, rect in enumerate(speed_rects):
-                            if rect.collidepoint(event.pos):
-                                speed_index = i
-                                speed_multiplier = SPEED_OPTIONS[i]
-                                clicked = True
-                                break
-                        if not clicked:
-                            for i, rect in enumerate(angle_button_rects):
+                            for i, rect in enumerate(speed_rects):
                                 if rect.collidepoint(event.pos):
-                                    apply_angle(ANGLE_MODES[i])
-                                    angle_focus = -1
+                                    speed_index = i
+                                    speed_multiplier = SPEED_OPTIONS[i]
                                     clicked = True
                                     break
-                        if keyboard_button_rect.collidepoint(event.pos):
-                            show_keyboard_info = not show_keyboard_info
-                            clicked = True
-                        elif language_button_rect.collidepoint(event.pos):
-                            language_modal = LanguageModal(font)
-                            language_modal.open(screen.copy())
-                            ui_state = UIState.LANG_MODAL
-                            clicked = True
-                        elif time_info_button_rect.collidepoint(event.pos):
-                            time_modal = TimeInfoModal(font)
-                            time_modal.open(screen.copy())
-                            ui_state = UIState.TIME_INFO
-                            clicked = True
-                        elif data_button_rect.collidepoint(event.pos):
-                            data_modal = DataSourcesModal(font, small_font)
-                            data_modal.open(screen.copy())
-                            ui_state = UIState.DATA_SOURCES
-                            clicked = True
-                        elif show_keyboard_info and keyboard_info_rect and keyboard_info_rect.collidepoint(event.pos):
-                            clicked = True
-                    if not clicked:
-                        for pl, (px, py), rad in planet_positions:
-                            if (Vector2(event.pos) - Vector2(px, py)).length() <= rad:
-                                pending_overlay = pl
-                                break
-                        if not pending_overlay:
-                            rotating = True
-                            last_mouse_x = event.pos[0]
+                            if not clicked:
+                                for i, rect in enumerate(angle_button_rects):
+                                    if rect.collidepoint(event.pos):
+                                        apply_angle(ANGLE_MODES[i])
+                                        angle_focus = -1
+                                        clicked = True
+                                        break
+                            if keyboard_button_rect.collidepoint(event.pos):
+                                show_keyboard_info = not show_keyboard_info
+                                clicked = True
+                            elif language_button_rect.collidepoint(event.pos):
+                                language_modal = LanguageModal(font)
+                                language_modal.open(screen.copy())
+                                ui_state = UIState.LANG_MODAL
+                                clicked = True
+                            elif time_info_button_rect.collidepoint(event.pos):
+                                time_modal = TimeInfoModal(font)
+                                time_modal.open(screen.copy())
+                                ui_state = UIState.TIME_INFO
+                                clicked = True
+                            elif data_button_rect.collidepoint(event.pos):
+                                data_modal = DataSourcesModal(font, small_font)
+                                data_modal.open(screen.copy())
+                                ui_state = UIState.DATA_SOURCES
+                                clicked = True
+                            elif show_keyboard_info and keyboard_info_rect and keyboard_info_rect.collidepoint(event.pos):
+                                clicked = True
+                        if not clicked:
+                            for pl, (px, py), rad in planet_positions:
+                                if (Vector2(event.pos) - Vector2(px, py)).length() <= rad:
+                                    pending_overlay = pl
+                                    break
+                            if not pending_overlay:
+                                rotating = True
+                                last_mouse_x = event.pos[0]
                 elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                     rotating = False
-                elif event.type == pygame.MOUSEMOTION and rotating:
-                    dx = event.pos[0] - last_mouse_x
-                    camera.rot += dx * 0.005
-                    camera._update_cache()
-                    last_mouse_x = event.pos[0]
+                    dragging_custom_angle = False
+                elif event.type == pygame.MOUSEMOTION:
+                    if rotating:
+                        dx = event.pos[0] - last_mouse_x
+                        camera.rot += dx * 0.005
+                        camera._update_cache()
+                        last_mouse_x = event.pos[0]
+                    elif dragging_custom_angle:
+                        rel_x = event.pos[0] - (custom_angle_rect.x + 20)
+                        ratio = max(0.0, min(1.0, rel_x / (custom_angle_rect.width - 40)))
+                        custom_angle_val = ratio * 360.0
+                        camera.y_scale = abs(math.sin(math.radians(custom_angle_val)))
                 elif event.type == pygame.MOUSEWHEEL:
                     camera.adjust_zoom(math.log(1.1) * event.y)
 
