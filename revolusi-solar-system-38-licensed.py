@@ -33,6 +33,56 @@ import webbrowser
 # GANTI URL INI DENGAN URL FLASK APP KAMU DI PYTHONANYWHERE
 LICENSE_SERVER_URL = "http://b1l14n50r1.pythonanywhere.com"
 LICENSE_FILE = "license.dat"
+BINDING_FILE = "license_binding.dat"
+
+# --- WINDOWS 10 UI CONSTANTS & HELPERS ---
+WIN10_BG_DARK = (0, 0, 0, 120) # Mica Transparent
+WIN10_BG_SOLID = (0, 0, 0, 120)
+WIN10_ACCENT = (0, 120, 215)
+WIN10_TEXT_WHITE = (255, 255, 255)
+WIN10_TEXT_GRAY = (204, 204, 204)
+WIN10_BORDER_DEFAULT = (100, 100, 100)
+WIN10_BORDER_HOVER = (255, 255, 255) # High contrast for reveal
+WIN10_TITLE_BAR = (45, 45, 45)
+
+def load_segoe_font(size, bold=False, italic=False):
+    """Load Segoe UI if available, else Arial."""
+    try:
+        # Try finding system font
+        f = pygame.font.SysFont("segoe ui", size, bold, italic)
+        return f
+    except:
+        return pygame.font.SysFont("arial", size, bold, italic)
+
+def draw_fluent_rect(surface, rect, color, border_color=None, border_width=1):
+    """Draws a sharp-cornered rectangle typical of Win10."""
+    # Fill
+    if len(color) == 4:
+        s = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
+        s.fill(color)
+        surface.blit(s, rect.topleft)
+    else:
+        pygame.draw.rect(surface, color, rect)
+
+    # Border
+    if border_color:
+        pygame.draw.rect(surface, border_color, rect, border_width)
+
+def draw_fluent_button(surface, rect, text, font, active=False, hover=False, accent=False):
+    """Draws a button with Windows 10 Reveal-like styling."""
+    bg_color = (60, 60, 60, 150) if hover else (51, 51, 51, 150)
+    if active:
+        bg_color = WIN10_ACCENT
+    elif accent and hover:
+        bg_color = (0, 140, 255) # Lighter accent on hover
+
+    border_col = WIN10_BORDER_HOVER if hover else WIN10_BORDER_DEFAULT
+    if active: border_col = (255, 255, 255)
+
+    draw_fluent_rect(surface, rect, bg_color, border_col, 1)
+
+    txt_surf = font.render(text, True, WIN10_TEXT_WHITE)
+    surface.blit(txt_surf, txt_surf.get_rect(center=rect.center))
 
 def show_splash_screen():
     """
@@ -57,18 +107,9 @@ def show_splash_screen():
     blue_text = (0, 50, 150)
     gray_text = (100, 100, 100)
     
-    # Font
-    try:
-        font_header_path = os.path.join("Plus_Jakarta_Sans", "PlusJakartaSans-Regular.ttf")
-        font_powered_path = os.path.join("Plus_Jakarta_Sans", "PlusJakartaSans-Bold.ttf")
-        if os.path.exists(font_header_path) and os.path.exists(font_powered_path):
-            font_header = pygame.font.Font(font_header_path, 20)
-            font_powered = pygame.font.Font(font_powered_path, 12)
-        else:
-            raise Exception("Font not found")
-    except:
-        font_header = pygame.font.SysFont("arial", 20)
-        font_powered = pygame.font.SysFont("arial", 12, bold=True)
+    # Font (Segoe UI)
+    font_header = load_segoe_font(20)
+    font_powered = load_segoe_font(12, bold=True)
     
     # Load Logo
     logo_img = None
@@ -251,6 +292,7 @@ TEXTS = {
     "angle_0": {"id": "Sudut 0°", "en": "Angle 0°"},
     "angle_90": {"id": "Sudut 90°", "en": "Angle 90°"},
     "angle_45": {"id": "Sudut 45° (Default)", "en": "Angle 45° (Default)"},
+    "angle_custom": {"id": "Custom", "en": "Custom"},
     "diameter_lbl": {"id": "DIAMETER", "en": "DIAMETER"},
     "distance_lbl": {"id": "JARAK RATA-RATA DARI MATAHARI", "en": "AVERAGE DISTANCE FROM SUN"},
     "distance_lbl_sun": {"id": "JARAK RATA-RATA DARI INTI GALAKSI BIMA SAKTI", "en": "AVERAGE DISTANCE FROM THE CORE OF THE MILKY WAY"},
@@ -315,6 +357,8 @@ class UIState(Enum):
     TIME_INFO = auto()
     MARS_BIO = auto() # Kini digunakan untuk semua poin Planet Detail (Mars & Earth)
     IMAGE_VIEW = auto()
+    TRIAL_MSG = auto()
+    CUSTOM_ANGLE = auto()
 
 class ImageViewer:
     def __init__(self):
@@ -435,14 +479,121 @@ class ImageViewer:
         
         return None
 
+class CustomAngleModal:
+    def __init__(self, font, camera):
+        self.font = font
+        self.camera = camera
+        self.blur = BlurLayer()
+        self.panel = None
+        self.panel_rect = None
+        self.slider_rect = None
+        self.thumb_rect = None
+        self.dragging = False
+        self.angle_val = 0.0 # 0 - 360
+
+    def open(self, background):
+        self.blur.from_surface(background)
+        # Convert current y_scale back to angle (approx)
+        # y_scale = sin(rad). asin gives -90..90.
+        self.angle_val = math.degrees(math.asin(max(-1.0, min(1.0, self.camera.y_scale))))
+        if self.angle_val < 0: self.angle_val += 360
+        self._build()
+
+    def _build(self):
+        w, h = 400, 200
+        self.panel = pygame.Surface((w, h), pygame.SRCALPHA)
+        self.panel.fill(WIN10_BG_SOLID)
+        pygame.draw.rect(self.panel, WIN10_ACCENT, self.panel.get_rect(), 2)
+
+        # Title
+        title = self.font.render("Custom Camera Angle (0-360°)", True, WIN10_TEXT_WHITE)
+        self.panel.blit(title, title.get_rect(midtop=(w/2, 20)))
+
+        # Slider Track
+        track_w = 300
+        track_h = 4
+        self.track_rect_rel = pygame.Rect((w - track_w)//2, 80, track_w, track_h)
+        # Update thumb based on angle_val
+        pass
+
+        self.panel_rect = self.panel.get_rect(center=(WIDTH/2, HEIGHT/2))
+
+    def draw(self, surface):
+        self.blur.draw(surface)
+
+        # Refresh Panel Content
+        self.panel.fill(WIN10_BG_SOLID)
+        pygame.draw.rect(self.panel, WIN10_ACCENT, self.panel.get_rect(), 2)
+
+        title = self.font.render("Custom Camera Angle (Tilt)", True, WIN10_TEXT_WHITE)
+        self.panel.blit(title, title.get_rect(midtop=(self.panel.get_width()/2, 20)))
+
+        pygame.draw.rect(self.panel, (100, 100, 100), self.track_rect_rel, border_radius=2)
+
+        # Calculate thumb pos
+        ratio = self.angle_val / 360.0
+        thumb_x = self.track_rect_rel.x + ratio * self.track_rect_rel.width
+        thumb_pos = (int(thumb_x), self.track_rect_rel.centery)
+
+        self.thumb_rect = pygame.Rect(0, 0, 20, 20)
+        self.thumb_rect.center = thumb_pos
+
+        col = WIN10_ACCENT if self.dragging else (200, 200, 200)
+        pygame.draw.circle(self.panel, col, thumb_pos, 10)
+
+        # Value
+        val_txt = self.font.render(f"{int(self.angle_val)}°", True, WIN10_TEXT_WHITE)
+        self.panel.blit(val_txt, val_txt.get_rect(midtop=(self.panel.get_width()/2, 110)))
+
+        hint = load_segoe_font(12).render("Drag Slider • Esc / Enter to Apply & Close", True, WIN10_TEXT_GRAY)
+        self.panel.blit(hint, hint.get_rect(midbottom=(self.panel.get_width()/2, self.panel.get_height() - 20)))
+
+        surface.blit(self.panel, self.panel_rect)
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key in (pygame.K_ESCAPE, pygame.K_RETURN):
+                return "close"
+
+        mouse_pos = pygame.mouse.get_pos()
+        rel_x = mouse_pos[0] - self.panel_rect.x
+        rel_y = mouse_pos[1] - self.panel_rect.y
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:
+                thumb_hit = self.thumb_rect.inflate(10, 10).collidepoint(rel_x, rel_y)
+                track_hit = self.track_rect_rel.inflate(0, 20).collidepoint(rel_x, rel_y)
+                if thumb_hit or track_hit:
+                    self.dragging = True
+                    self.update_val(rel_x)
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1:
+                self.dragging = False
+        elif event.type == pygame.MOUSEMOTION:
+            if self.dragging:
+                self.update_val(rel_x)
+
+        return None
+
+    def update_val(self, rel_x):
+        ratio = (rel_x - self.track_rect_rel.x) / self.track_rect_rel.width
+        ratio = max(0.0, min(1.0, ratio))
+        self.angle_val = ratio * 360.0
+
+        # Apply immediately
+        rad = math.radians(self.angle_val)
+        self.camera.y_scale = math.sin(rad)
+        self.camera.set_angle_mode(AngleMode.CUSTOM)
+
 class AngleMode(Enum):
     SIDE_0 = auto()
     TOP_90 = auto()
     OBLIQUE_45 = auto()
+    CUSTOM = auto()
 
-ANGLE_LABEL_KEYS = ["angle_0", "angle_90", "angle_45"]
+ANGLE_LABEL_KEYS = ["angle_0", "angle_90", "angle_45", "angle_custom"]
 ANGLE_LABELS = [t(k) for k in ANGLE_LABEL_KEYS]
-ANGLE_MODES = [AngleMode.SIDE_0, AngleMode.TOP_90, AngleMode.OBLIQUE_45]
+ANGLE_MODES = [AngleMode.SIDE_0, AngleMode.TOP_90, AngleMode.OBLIQUE_45, AngleMode.CUSTOM]
 
 PLANET_INFO = {
     "Sun": {
@@ -1076,6 +1227,73 @@ def load_planet_detail_image(filename):
         s.blit(txt, txt.get_rect(center=s.get_rect().center))
         return s
 
+class TrialMessageModal:
+    def __init__(self, font):
+        self.font = font
+        self.title_font = load_segoe_font(20, bold=True) # Windows style title
+        self.msg_font = load_segoe_font(16)
+        self.panel = None
+        self.panel_rect = None
+        self.ok_rect = None
+        self.open_time = 0
+
+    def open(self, background):
+        self.background = background
+        self.open_time = pygame.time.get_ticks()
+        # Windows 10 Message Box Style
+        w, h = 550, 200 # Widened for better text fit
+        self.panel = pygame.Surface((w, h))
+        self.panel.fill((255, 255, 255))
+
+        # Title bar
+        pygame.draw.rect(self.panel, (255, 255, 255), (0, 0, w, 40))
+        # Border
+        pygame.draw.rect(self.panel, (0, 120, 215), (0, 0, w, h), 2) # Blue border
+
+        title = self.title_font.render("Trial Mode Limitation", True, (0, 0, 0))
+        self.panel.blit(title, (15, 10))
+
+        msg = "ada sedang dalam mode free trial for 3 day,\nhabiskan dulu, baru bisa kembali ke menu awal antarmuka aplikasi"
+        # Wrap text
+        lines = msg.split('\n')
+        y = 60
+        for line in lines:
+            # Simple wrap if needed, but the msg is short
+            txt = self.msg_font.render(line, True, (50, 50, 50))
+            self.panel.blit(txt, (20, y))
+            y += 25
+
+        # OK Button
+        btn_w, btn_h = 100, 35
+        self.ok_rect = pygame.Rect(w - btn_w - 20, h - btn_h - 20, btn_w, btn_h)
+        pygame.draw.rect(self.panel, (225, 225, 225), self.ok_rect)
+        pygame.draw.rect(self.panel, (0, 120, 215), self.ok_rect, 2)
+
+        ok_txt = self.msg_font.render("OK", True, (0, 0, 0))
+        self.panel.blit(ok_txt, ok_txt.get_rect(center=self.ok_rect.center))
+
+        self.panel_rect = self.panel.get_rect(center=(WIDTH/2, HEIGHT/2))
+
+    def draw(self, surface):
+        if hasattr(self, 'background') and self.background:
+            surface.blit(self.background, (0, 0))
+
+        # Dim background
+        dim = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        dim.fill((0, 0, 0, 100))
+        surface.blit(dim, (0, 0))
+
+        surface.blit(self.panel, self.panel_rect)
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            # Check OK button
+            rel_x = event.pos[0] - self.panel_rect.x
+            rel_y = event.pos[1] - self.panel_rect.y
+            if self.ok_rect.collidepoint(rel_x, rel_y):
+                return "close"
+        return None
+
 # Mengganti MarsBiosignatureModal dengan MarsUniversalModal yang fleksibel
 class PlanetUniversalModal:
     def __init__(self, font, planet_name="Mars", config_id=6):
@@ -1122,10 +1340,12 @@ class PlanetUniversalModal:
         self.mars_red = (188, 39, 50)
 
         # Selection & Interaction State
-        self.text_blocks = [] # List of (rect, text) relative to content_surf
+        # List of (rect, text, font_obj) relative to content_surf
+        self.text_blocks = []
         self.selecting = False
-        self.selection_start_idx = -1
-        self.selection_end_idx = -1
+        self.sel_start = None # (block_idx, char_idx)
+        self.sel_end = None # (block_idx, char_idx)
+
         self.dragging_y = False
         self.dragging_x = False
         self.drag_start_pos = (0, 0)
@@ -1144,17 +1364,23 @@ class PlanetUniversalModal:
         h = min(800, HEIGHT - 60)
         
         self.panel = pygame.Surface((w, h), pygame.SRCALPHA)
-        self.panel.fill((20, 20, 25, 245)) # Gelap elegan
-        pygame.draw.rect(self.panel, self.mars_red, self.panel.get_rect(), 2, border_radius=12)
+        self.panel.fill(WIN10_BG_SOLID) # Solid dark for modal
+        pygame.draw.rect(self.panel, WIN10_ACCENT, self.panel.get_rect(), 2) # Win10 blue border
         
         # 1. Judul (Statis di panel)
         title_str = self.config["title"]
-        title = self.title_font.render(title_str, True, (255, 200, 200))
-        self.panel.blit(title, title.get_rect(midtop=(w/2, self.pad)))
-        
-        view_start_y = self.pad + title.get_height() + 20
-        view_h = h - view_start_y - self.pad
-        self.view_rect = pygame.Rect(self.pad, view_start_y, w - self.pad*2, view_h)
+        title = self.title_font.render(title_str, True, WIN10_TEXT_WHITE)
+        # Store title in text_blocks for selection? It's on panel, not content_surf.
+        # But user wants "block teks apapun itu (judul...)".
+        # We need to map panel coords to selection too or render title in content_surf?
+        # Simpler to render title on content_surf if we want unified selection scrolling.
+        # But design keeps title static.
+        # I will keep title static. Selecting it requires handling separate coord system or just let it be.
+        # "perbaiki ini per huruf block teksnya ... jika kita mengklik salah satu dari poin ke-1 sampai ke-6 ... lalu muncul jendela ... judul, 3 fakta inti, 3 paragraf".
+        # It implies the content inside the window.
+        # If title is static, I will add it to a separate "static_text_blocks" or just ignore for now if it complicates too much.
+        # Actually, let's put title in content_surf but pin it? No, scrolling title is standard for web/docs.
+        # Let's Move title to content_surf for full selectability.
         
         # Reset text blocks
         self.text_blocks = []
@@ -1176,17 +1402,20 @@ class PlanetUniversalModal:
         # Total lebar bagian atas (Image + Facts)
         top_section_w = img_w + 20 + fact_area_w
         
+        # Judul (Move to content flow)
+        title_w = title.get_width()
+
+        view_h = h - self.pad * 2
+        self.view_rect = pygame.Rect(self.pad, self.pad, w - self.pad*2, view_h) # Viewport now covers full inner area
+
         # Text Content Wrapper -> Dynamically fit view_rect
-        # Allow wrap width to be view width minus scrollbar space
         text_wrap_w = self.view_rect.width - 20
         
         # Total Surface Width (minimal view width)
-        total_content_w = max(top_section_w, text_wrap_w)
-        # Ensure it's at least view width to avoid gray bars if content is small
+        total_content_w = max(top_section_w, text_wrap_w, title_w)
         total_content_w = max(total_content_w, self.view_rect.width)
         
         # Render Text Lines
-        # Approx chars per line ~ width / 9px (avg char width for font 18)
         cpl = int(text_wrap_w / 9)
         wrapper = textwrap.TextWrapper(width=cpl) 
         paragraphs = self.config["text"].split('\n\n')
@@ -1195,27 +1424,39 @@ class PlanetUniversalModal:
             lines = wrapper.wrap(para)
             for line in lines:
                 s = self.body_font.render(line, True, (230, 230, 230))
-                text_surfaces.append((s, line)) # Store text for copy
-            text_surfaces.append((None, "\n")) # Spacer/Newline
+                text_surfaces.append((s, line, self.body_font))
+            text_surfaces.append((None, "\n", self.body_font)) # Spacer
             
         # Hitung Tinggi Total
         text_h = 0
-        for s, _ in text_surfaces:
+        for s, _, _ in text_surfaces:
             if s: text_h += s.get_height() + 5
             else: text_h += 15
             
         # Judul keterangan gambar / Link
-        caption_str = self.config["img_caption"] # Using caption as the link text usually
-        link_surf = self.link_font.render(caption_str, True, (200, 200, 255))
-        
-        total_h = img_h + 30 + link_surf.get_height() + 20 + text_h + 20
+        caption_str = self.config["img_caption"]
+        link_surf = self.link_font.render(caption_str, True, WIN10_ACCENT)
+
+        # Layout Y
+        curr_y = 0
+
+        # 0. Title
+        title_h = title.get_height()
+
+        # Total Height Estimation
+        total_h = title_h + 20 + img_h + 30 + link_surf.get_height() + 20 + text_h + 20
         
         self.content_surf = pygame.Surface((total_content_w, total_h), pygame.SRCALPHA)
         
-        # --- GAMBAR KE SURFACE (CENTERED) ---
-        curr_y = 0
-        
-        # Centering Top Section (Image + Facts)
+        # --- DRAW CONTENT ---
+
+        # 0. Title
+        title_x = (total_content_w - title_w) // 2
+        self.content_surf.blit(title, (title_x, curr_y))
+        self.text_blocks.append((pygame.Rect(title_x, curr_y, title_w, title_h), title_str, self.title_font))
+        curr_y += title_h + 20
+
+        # Centering Top Section
         top_margin_x = (total_content_w - top_section_w) // 2
         if top_margin_x < 0: top_margin_x = 0
         
@@ -1228,56 +1469,52 @@ class PlanetUniversalModal:
         arrow_center_y = curr_y + img_h // 2
         facts = self.config["facts"]
         
-        # Adjust vertical spread of facts
         fact_y_start = arrow_center_y - 60
         
         for i, fact in enumerate(facts):
             fy = fact_y_start + i * 60
             p_end = (arrow_start_x - 5, fy)
             p_start = (arrow_start_x + 30, fy)
-            pygame.draw.line(self.content_surf, (255, 50, 50), p_start, p_end, 3)
-            pygame.draw.polygon(self.content_surf, (255, 50, 50), [
+            pygame.draw.line(self.content_surf, WIN10_ACCENT, p_start, p_end, 3)
+            pygame.draw.polygon(self.content_surf, WIN10_ACCENT, [
                 p_end, (p_end[0] + 10, p_end[1] - 5), (p_end[0] + 10, p_end[1] + 5)
             ])
-            # Render fact text multi-line if needed (simple wrap)
+
             f_lines = textwrap.wrap(fact, width=35)
             line_h_fact = self.fact_font.get_linesize()
             total_fact_h = len(f_lines) * line_h_fact
             fact_curr_y = fy - total_fact_h // 2
             
             for f_line in f_lines:
-                f_surf = self.fact_font.render(f_line, True, (255, 255, 255))
+                f_surf = self.fact_font.render(f_line, True, WIN10_TEXT_WHITE)
                 pos = (arrow_start_x + 40, fact_curr_y)
                 self.content_surf.blit(f_surf, pos)
-                # Store for selection
                 r = pygame.Rect(pos, f_surf.get_size())
-                self.text_blocks.append((r, f_line))
+                self.text_blocks.append((r, f_line, self.fact_font))
                 fact_curr_y += line_h_fact
 
         curr_y += img_h + 10
         
-        # 3. Link / Caption (Centered)
+        # 3. Link / Caption
         link_x = (total_content_w - link_surf.get_width()) // 2
         self.link_rect_rel = link_surf.get_rect(topleft=(link_x, curr_y))
         self.content_surf.blit(link_surf, self.link_rect_rel)
-        # Store for selection
-        self.text_blocks.append((self.link_rect_rel, caption_str))
+        self.text_blocks.append((self.link_rect_rel, caption_str, self.link_font))
         
         curr_y += link_surf.get_height() + 20
         
-        # 4. Text (Justified/Left but wrapped to fit)
-        # We start text from x=0 or padded? Let's pad it slightly 10px
+        # 4. Text
         text_x = 10
-        for s, line_str in text_surfaces:
+        for s, line_str, fnt in text_surfaces:
             if s:
                 pos = (text_x, curr_y)
                 self.content_surf.blit(s, pos)
                 r = pygame.Rect(pos, s.get_size())
-                self.text_blocks.append((r, line_str))
+                self.text_blocks.append((r, line_str, fnt))
                 curr_y += s.get_height() + 5
             else:
                 curr_y += 15
-                self.text_blocks.append((pygame.Rect(text_x, curr_y-15, 1, 15), "\n"))
+                self.text_blocks.append((pygame.Rect(text_x, curr_y-15, 1, 15), "\n", fnt))
                 
         # Scroll logic
         self.max_scroll_y = max(0, total_h - view_h)
@@ -1285,53 +1522,75 @@ class PlanetUniversalModal:
         
         # Close button
         self.close_rect = pygame.Rect(w - 40, 10, 30, 30)
-        pygame.draw.rect(self.panel, (200, 50, 50), self.close_rect, border_radius=5)
-        x_char = self.title_font.render("X", True, (255, 255, 255))
-        self.panel.blit(x_char, x_char.get_rect(center=self.close_rect.center))
+        # Marker not needed if drawn later
         
         self.panel_rect = self.panel.get_rect(center=(WIDTH/2, HEIGHT/2))
 
-    def get_text_index_at(self, mouse_pos, content_pos):
-        """Find index of text block under mouse."""
+        # Refresh close rect absolute
+        self.close_rect = pygame.Rect(w - 40, 10, 30, 30)
+
+    def get_char_index_at(self, mouse_pos, content_pos):
+        """Find (block_index, char_index) under mouse."""
         rel_x = mouse_pos[0] - content_pos[0]
         rel_y = mouse_pos[1] - content_pos[1]
         pt = (rel_x, rel_y)
-        for i, (r, txt) in enumerate(self.text_blocks):
-            # Inflate a bit for easier selection
+
+        # Simple proximity check first
+        best_block_idx = -1
+
+        for i, (r, txt, font) in enumerate(self.text_blocks):
             if r.inflate(10, 5).collidepoint(pt):
-                return i
-        return -1
+                best_block_idx = i
+                break
+
+        if best_block_idx != -1:
+            r, txt, font = self.text_blocks[best_block_idx]
+            # Find char index
+            local_x = rel_x - r.x
+            if local_x <= 0: return (best_block_idx, 0)
+
+            # Better metric using substring measurement
+            for char_i in range(len(txt)):
+                # Width of string up to this char
+                w_prev = font.size(txt[:char_i])[0]
+                w_curr = font.size(txt[:char_i+1])[0]
+                char_w = w_curr - w_prev
+
+                center = w_prev + char_w / 2
+                if local_x < center:
+                    return (best_block_idx, char_i)
+
+            return (best_block_idx, len(txt))
+
+        return None
 
     def update_selection(self, mouse_pos, content_pos):
-        idx = self.get_text_index_at(mouse_pos, content_pos)
-        if idx != -1:
-            self.selection_end_idx = idx
-
-    def is_text_selected(self, text_str):
-        # Determine range
-        if self.selection_start_idx == -1 or self.selection_end_idx == -1:
-            return False
-        start = min(self.selection_start_idx, self.selection_end_idx)
-        end = max(self.selection_start_idx, self.selection_end_idx)
-        
-        # Find index of this text block (inefficient search but fine for small n)
-        # Better: we iterate in draw and check index
-        return False # Handled in draw loop by index
+        res = self.get_char_index_at(mouse_pos, content_pos)
+        if res:
+            self.sel_end = res
 
     def copy_selection(self):
-        if self.selection_start_idx == -1 or self.selection_end_idx == -1:
+        if not self.sel_start or not self.sel_end:
             return
-        start = min(self.selection_start_idx, self.selection_end_idx)
-        end = max(self.selection_start_idx, self.selection_end_idx)
+
+        start, end = sorted([self.sel_start, self.sel_end])
         
-        selected_text = ""
-        for i in range(start, end + 1):
-            if i < len(self.text_blocks):
-                selected_text += self.text_blocks[i][1] + ("\n" if "\n" in self.text_blocks[i][1] else " ")
+        text_accum = []
+        for i in range(start[0], end[0] + 1):
+            if i >= len(self.text_blocks): break
+            r, txt, f = self.text_blocks[i]
+
+            s_char = start[1] if i == start[0] else 0
+            e_char = end[1] if i == end[0] else len(txt)
+
+            text_accum.append(txt[s_char:e_char])
+            if i != end[0] and "\n" not in txt:
+                text_accum.append(" ") # Add space between blocks if implicit
+
+        full_text = "".join(text_accum)
         
-        # Copy to clipboard
         try:
-            pygame.scrap.put(pygame.SCRAP_TEXT, selected_text.encode('utf-8'))
+            pygame.scrap.put(pygame.SCRAP_TEXT, full_text.encode('utf-8'))
         except:
             pass
         try:
@@ -1339,7 +1598,7 @@ class PlanetUniversalModal:
             tk = tkinter.Tk()
             tk.withdraw()
             tk.clipboard_clear()
-            tk.clipboard_append(selected_text)
+            tk.clipboard_append(full_text)
             tk.update()
             tk.destroy()
         except: pass
@@ -1350,6 +1609,14 @@ class PlanetUniversalModal:
         # Blit Panel Base
         surface.blit(self.panel, self.panel_rect)
         
+        # Draw close button red rect
+        close_abs = self.close_rect.move(self.panel_rect.topleft)
+        hover_close = close_abs.collidepoint(pygame.mouse.get_pos())
+        col_close = (232, 17, 35) if hover_close else (200, 50, 50)
+        pygame.draw.rect(surface, col_close, close_abs)
+        x_char = self.title_font.render("X", True, WIN10_TEXT_WHITE)
+        surface.blit(x_char, x_char.get_rect(center=close_abs.center))
+
         # Clipping & Content Rendering
         screen_view_rect = self.view_rect.move(self.panel_rect.topleft)
         surface.set_clip(screen_view_rect)
@@ -1358,40 +1625,38 @@ class PlanetUniversalModal:
         content_pos = (screen_view_rect.x - self.scroll_x, screen_view_rect.y - self.scroll_y)
         surface.blit(self.content_surf, content_pos)
         
-        # Animasi Hover Link (Digambar ulang jika hover agar terlihat 'aktif')
-        if self.link_hover:
-            # Hitung posisi absolut link di layar
-            link_abs_x = content_pos[0] + self.link_rect_rel.x
-            link_abs_y = content_pos[1] + self.link_rect_rel.y
-            
-            # Cek apakah link terlihat di viewport
-            link_rect_screen = pygame.Rect(link_abs_x, link_abs_y, self.link_rect_rel.width, self.link_rect_rel.height)
-            if screen_view_rect.colliderect(link_rect_screen):
-                # Highlight effect
-                pygame.draw.line(surface, (255, 255, 255), link_rect_screen.bottomleft, link_rect_screen.bottomright, 1)
-
         # Highlight Selected Texts
-        if self.selection_start_idx != -1 and self.selection_end_idx != -1:
-            start = min(self.selection_start_idx, self.selection_end_idx)
-            end = max(self.selection_start_idx, self.selection_end_idx)
+        if self.sel_start and self.sel_end:
+            start, end = sorted([self.sel_start, self.sel_end])
             
-            for i in range(start, end + 1):
-                if i < len(self.text_blocks):
-                    t_rect, _ = self.text_blocks[i]
-                    screen_t_rect = t_rect.move(content_pos)
-                    if screen_view_rect.colliderect(screen_t_rect):
-                         clip_rect = screen_t_rect.clip(screen_view_rect)
-                         s = pygame.Surface((clip_rect.width, clip_rect.height), pygame.SRCALPHA)
-                         s.fill((50, 100, 255, 80)) # Blue highlight
-                         surface.blit(s, clip_rect.topleft)
+            for i in range(start[0], end[0] + 1):
+                if i >= len(self.text_blocks): break
+                r, txt, font = self.text_blocks[i]
+
+                s_char = start[1] if i == start[0] else 0
+                e_char = end[1] if i == end[0] else len(txt)
+
+                if s_char < e_char:
+                    # Calculate geometry
+                    prefix_w = font.size(txt[:s_char])[0]
+                    sub_w = font.size(txt[s_char:e_char])[0]
+
+                    highlight_rect = pygame.Rect(r.x + prefix_w, r.y, sub_w, r.height)
+
+                    screen_h_rect = highlight_rect.move(content_pos)
+                    if screen_view_rect.colliderect(screen_h_rect):
+                        clip_rect = screen_h_rect.clip(screen_view_rect)
+                        s = pygame.Surface((clip_rect.width, clip_rect.height), pygame.SRCALPHA)
+                        s.fill((50, 100, 255, 100)) # Blue highlight
+                        surface.blit(s, clip_rect.topleft)
 
         surface.set_clip(None)
         
-        # Scrollbars
+        # Scrollbars (Windows 10 Style: Thin, Square thumb)
         if self.max_scroll_y > 0:
-            sb_w = 12
+            sb_w = 10
             sb_h = screen_view_rect.height
-            sb_x = screen_view_rect.right + 5
+            sb_x = screen_view_rect.right + 2
             thumb_h = max(20, sb_h * (sb_h / self.content_surf.get_height()))
             scroll_ratio = self.scroll_y / self.max_scroll_y
             thumb_y = screen_view_rect.top + scroll_ratio * (sb_h - thumb_h)
@@ -1399,14 +1664,17 @@ class PlanetUniversalModal:
             self.sb_y_rect = pygame.Rect(sb_x, screen_view_rect.top, sb_w, sb_h)
             self.thumb_y_rect = pygame.Rect(sb_x, thumb_y, sb_w, thumb_h)
             
-            pygame.draw.rect(surface, (50, 50, 50), self.sb_y_rect, border_radius=3)
-            col = (200, 200, 200) if self.dragging_y else (150, 150, 150)
-            pygame.draw.rect(surface, col, self.thumb_y_rect, border_radius=3)
+            # Track
+            pygame.draw.rect(surface, (40, 40, 40), self.sb_y_rect)
+            # Thumb
+            col = (160, 160, 160) if self.dragging_y else (100, 100, 100)
+            if self.thumb_y_rect.collidepoint(pygame.mouse.get_pos()): col = (140, 140, 140)
+            pygame.draw.rect(surface, col, self.thumb_y_rect)
             
         if self.max_scroll_x > 0:
-            sb_h = 12
+            sb_h = 10
             sb_w = screen_view_rect.width
-            sb_y = screen_view_rect.bottom + 5
+            sb_y = screen_view_rect.bottom + 2
             thumb_w = max(20, sb_w * (sb_w / self.content_surf.get_width()))
             scroll_ratio = self.scroll_x / self.max_scroll_x
             thumb_x = screen_view_rect.left + scroll_ratio * (sb_w - thumb_w)
@@ -1414,9 +1682,12 @@ class PlanetUniversalModal:
             self.sb_x_rect = pygame.Rect(screen_view_rect.left, sb_y, sb_w, sb_h)
             self.thumb_x_rect = pygame.Rect(thumb_x, sb_y, thumb_w, sb_h)
             
-            pygame.draw.rect(surface, (50, 50, 50), self.sb_x_rect, border_radius=3)
-            col = (200, 200, 200) if self.dragging_x else (150, 150, 150)
-            pygame.draw.rect(surface, col, self.thumb_x_rect, border_radius=3)
+            # Track
+            pygame.draw.rect(surface, (40, 40, 40), self.sb_x_rect)
+            # Thumb
+            col = (160, 160, 160) if self.dragging_x else (100, 100, 100)
+            if self.thumb_x_rect.collidepoint(pygame.mouse.get_pos()): col = (140, 140, 140)
+            pygame.draw.rect(surface, col, self.thumb_x_rect)
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -1442,7 +1713,6 @@ class PlanetUniversalModal:
             # Check hover link
             screen_view_rect = self.view_rect.move(self.panel_rect.topleft)
             content_pos = (screen_view_rect.x - self.scroll_x, screen_view_rect.y - self.scroll_y)
-            link_abs_rect = self.link_rect_rel.move(content_pos)
             
             # Scroll Dragging
             if self.dragging_y:
@@ -1455,13 +1725,15 @@ class PlanetUniversalModal:
                 self.scroll_x = min(max(self.drag_start_val + ratio * self.content_surf.get_width(), 0), self.max_scroll_x)
 
             # Link Hover
-            if screen_view_rect.collidepoint(event.pos) and link_abs_rect.collidepoint(event.pos):
-                self.link_hover = True
-                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
-            else:
-                if self.link_hover:
-                    pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
-                self.link_hover = False
+            if self.link_rect_rel:
+                link_abs_rect = self.link_rect_rel.move(content_pos)
+                if screen_view_rect.collidepoint(event.pos) and link_abs_rect.collidepoint(event.pos):
+                    self.link_hover = True
+                    pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+                else:
+                    if self.link_hover:
+                        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+                    self.link_hover = False
             
             # Text Selection Drag
             if self.selecting:
@@ -1484,6 +1756,10 @@ class PlanetUniversalModal:
                 screen_view_rect = self.view_rect.move(self.panel_rect.topleft)
                 content_pos = (screen_view_rect.x - self.scroll_x, screen_view_rect.y - self.scroll_y)
                 
+                close_abs = self.close_rect.move(self.panel_rect.topleft)
+                if close_abs.collidepoint(event.pos):
+                    return "close"
+
                 # Image Click
                 if self.image_rect_rel:
                     img_abs = self.image_rect_rel.move(content_pos)
@@ -1499,15 +1775,18 @@ class PlanetUniversalModal:
 
                 # Text Selection Start
                 if screen_view_rect.collidepoint(event.pos):
-                    self.selecting = True
-                    idx = self.get_text_index_at(event.pos, content_pos)
-                    self.selection_start_idx = idx
-                    self.selection_end_idx = idx
-                    return None
+                    # Only if hitting text
+                    res = self.get_char_index_at(event.pos, content_pos)
+                    if res:
+                        self.selecting = True
+                        self.sel_start = res
+                        self.sel_end = res
+                        return None
 
-                close_abs = self.close_rect.move(self.panel_rect.topleft)
-                if close_abs.collidepoint(event.pos):
-                    return "close"
+                    # If click outside any text block but inside view, maybe deselect?
+                    self.sel_start = None
+                    self.sel_end = None
+
                 if not self.panel_rect.collidepoint(event.pos):
                     return "close"
         elif event.type == pygame.MOUSEBUTTONUP:
@@ -1542,8 +1821,9 @@ class Camera2D:
             self.y_scale = 0.0
         elif mode is AngleMode.TOP_90:
             self.y_scale = 1.0
-        else:
+        elif mode is AngleMode.OBLIQUE_45:
             self.y_scale = 0.5
+        # Custom mode does not reset y_scale here, it is set by slider
         log(f"angle preset {mode.name}")
 
     def _update_cache(self):
@@ -1731,56 +2011,53 @@ def draw_distance_reference(surface, camera, font, sketch_mode=False):
 
 def draw_speed_panel(surface, font, selected_index):
     rects = []
+    mouse_pos = pygame.mouse.get_pos()
     for i, speed in enumerate(SPEED_OPTIONS):
         rect = pygame.Rect(10 + i * 55, 10, 50, 25)
         rects.append(rect)
-        color = (0, 200, 0) if i == selected_index else (200, 200, 200)
-        pygame.draw.rect(surface, color, rect, 0 if i == selected_index else 2)
-        text = font.render(f"{speed}x", True, (0, 0, 0))
-        text_rect = text.get_rect(center=rect.center)
-        surface.blit(text, text_rect)
+
+        active = (i == selected_index)
+        hover = rect.collidepoint(mouse_pos)
+
+        draw_fluent_button(surface, rect, f"{speed}x", font, active=active, hover=hover, accent=True)
     return rects
 
 def draw_angle_buttons(surface, font, rects, focus, selected):
-    for i, (label, rect, mode) in enumerate(
-        zip(ANGLE_LABELS, rects, ANGLE_MODES)
-    ):
-        active = mode is selected
-        color = (0, 200, 0) if active else (200, 200, 200)
-        pygame.draw.rect(surface, color, rect, 0 if active else 2, border_radius=5)
+    mouse_pos = pygame.mouse.get_pos()
+    for i, (label, rect, mode) in enumerate(zip(ANGLE_LABELS, rects, ANGLE_MODES)):
+        active = (mode is selected)
+        hover = rect.collidepoint(mouse_pos)
+
+        # Focus ring simulation (white border if focused via tab)
+        draw_fluent_button(surface, rect, label, font, active=active, hover=hover)
         if i == focus:
-            pygame.draw.rect(surface, (255, 255, 0), rect, 2, border_radius=5)
-        text = font.render(label, True, (0, 0, 0))
-        surface.blit(text, text.get_rect(center=rect.center))
+            pygame.draw.rect(surface, (255, 255, 255), rect, 2)
+
     return rects
 
 def draw_play_pause_buttons(surface, font, paused, play_rect, pause_rect):
-    play_color = (0, 200, 0) if not paused else (150, 150, 150)
-    pause_color = (200, 0, 0) if paused else (150, 150, 150)
-    pygame.draw.rect(surface, play_color, play_rect)
-    pygame.draw.rect(surface, pause_color, pause_rect)
-    pygame.draw.rect(surface, (0, 0, 0), play_rect, 2)
-    pygame.draw.rect(surface, (0, 0, 0), pause_rect, 2)
-    play_txt = font.render(t("play"), True, (0, 0, 0))
-    pause_txt = font.render(t("pause"), True, (0, 0, 0))
-    surface.blit(play_txt, play_txt.get_rect(center=play_rect.center))
-    surface.blit(pause_txt, pause_txt.get_rect(center=pause_rect.center))
+    mouse_pos = pygame.mouse.get_pos()
+    
+    # Play Button
+    active_play = not paused
+    hover_play = play_rect.collidepoint(mouse_pos)
+    draw_fluent_button(surface, play_rect, t("play"), font, active=active_play, hover=hover_play, accent=True)
+    
+    # Pause Button
+    active_pause = paused
+    hover_pause = pause_rect.collidepoint(mouse_pos)
+    draw_fluent_button(surface, pause_rect, t("pause"), font, active=active_pause, hover=hover_pause, accent=True)
 
 def draw_sketch_button(surface, font, rect, sketch_mode):
-    color = (0, 0, 0) if sketch_mode else (200, 200, 200)
-    text_color = (255, 255, 255) if sketch_mode else (0, 0, 0)
-    
-    pygame.draw.rect(surface, color, rect, border_radius=5)
-    pygame.draw.rect(surface, (0, 0, 0), rect, 2, border_radius=5)
-    
-    text = font.render(t("sketch_btn"), True, text_color)
-    surface.blit(text, text.get_rect(center=rect.center))
+    mouse_pos = pygame.mouse.get_pos()
+    hover = rect.collidepoint(mouse_pos)
+    draw_fluent_button(surface, rect, t("sketch_btn"), font, active=sketch_mode, hover=hover)
 
-def draw_keyboard_button(surface, font, rect, color):
-    pygame.draw.rect(surface, color, rect, border_radius=5)
-    pygame.draw.rect(surface, (0, 0, 0), rect, 2, border_radius=5)
-    text = font.render(t("keyboard_functions"), True, (0, 0, 0))
-    surface.blit(text, text.get_rect(center=rect.center))
+def draw_keyboard_button(surface, font, rect, color_dummy):
+    # Ignoring color_dummy, using Fluent style
+    mouse_pos = pygame.mouse.get_pos()
+    hover = rect.collidepoint(mouse_pos)
+    draw_fluent_button(surface, rect, t("keyboard_functions"), font, active=False, hover=hover)
 
 def draw_keyboard_overlay(surface, font, pos):
     lines = [
@@ -1788,20 +2065,23 @@ def draw_keyboard_overlay(surface, font, pos):
         t("key_ud"), t("key_wheel"), t("key_r"), t("key_backspace"),
         t("key_space"), t("key_f11"),
     ]
-    texts = [font.render(line, True, (0, 0, 0)) for line in lines]
+    texts = [font.render(line, True, WIN10_TEXT_WHITE) for line in lines]
     width = max(t.get_width() for t in texts) + 20
     height = len(texts) * 20 + 10
-    overlay = pygame.Surface((width, height), pygame.SRCALPHA)
-    pygame.draw.rect(
-        overlay,
-        (173, 216, 230, 180),
-        overlay.get_rect(),
-        border_radius=8,
-    )
+
+    # Acrylic Background
+    overlay_surf = pygame.Surface((width, height), pygame.SRCALPHA)
+    overlay_surf.fill(WIN10_BG_DARK)
+
+    # Border
+    rect = pygame.Rect(pos, (width, height))
+    surface.blit(overlay_surf, pos)
+    pygame.draw.rect(surface, WIN10_BORDER_DEFAULT, rect, 1)
+
     for i, text in enumerate(texts):
-        overlay.blit(text, (10, 5 + i * 20))
-    surface.blit(overlay, pos)
-    return pygame.Rect(pos, (width, height))
+        surface.blit(text, (pos[0] + 10, pos[1] + 5 + i * 20))
+
+    return rect
 
 class Tooltip:
     def __init__(self, font):
@@ -1887,12 +2167,16 @@ class PlanetInfoPanel:
         value_w = max(self.font.size(val)[0] for _, val in rows)
         height = len(rows) * (self.font.get_linesize() + 4) + 10
         width = label_w + value_w + 30
+
+        # Acrylic Panel
         surf = pygame.Surface((width, height), pygame.SRCALPHA)
-        pygame.draw.rect(surf, (240, 240, 240, 230), surf.get_rect(), border_radius=6)
+        surf.fill(WIN10_BG_DARK)
+        pygame.draw.rect(surf, WIN10_BORDER_DEFAULT, surf.get_rect(), 1)
+
         y = 5
         for label, val in rows:
-            lbl = self.font.render(label, True, (0, 0, 0))
-            val_s = self.font.render(val, True, (0, 0, 0))
+            lbl = self.font.render(label, True, WIN10_TEXT_GRAY)
+            val_s = self.font.render(val, True, WIN10_TEXT_WHITE)
             surf.blit(lbl, (10, y))
             surf.blit(val_s, (20 + label_w, y))
             y += self.font.get_linesize() + 4
@@ -2115,7 +2399,9 @@ class LanguageModal:
         self.blur.from_surface(background)
         w, h = 300, 160
         self.panel = pygame.Surface((w, h), pygame.SRCALPHA)
-        pygame.draw.rect(self.panel, (240, 240, 240, 230), self.panel.get_rect(), border_radius=8)
+        self.panel.fill(WIN10_BG_DARK)
+        pygame.draw.rect(self.panel, WIN10_BORDER_DEFAULT, self.panel.get_rect(), 1)
+
         flag_id = pygame.Surface((32, 20))
         flag_id.fill((255, 255, 255))
         pygame.draw.rect(flag_id, (217, 0, 0), (0, 0, 32, 10))
@@ -2123,17 +2409,27 @@ class LanguageModal:
         flag_en.fill((255, 255, 255))
         pygame.draw.rect(flag_en, (200, 0, 0), (0, 8, 32, 4))
         pygame.draw.rect(flag_en, (200, 0, 0), (14, 0, 4, 20))
+
         btn_w, btn_h = 120, 40
         id_rect = pygame.Rect(30, h / 2 - btn_h / 2, btn_w, btn_h)
         en_rect = pygame.Rect(w - btn_w - 30, h / 2 - btn_h / 2, btn_w, btn_h)
         self.buttons = [(id_rect, "id"), (en_rect, "en")]
+
         for rect, code in self.buttons:
-            pygame.draw.rect(self.panel, (200, 200, 200), rect, border_radius=6)
+            # Draw Fluent Button style manually or adapt
+            hover = rect.collidepoint(pygame.mouse.get_pos()) # Mouse pos not avail here in open, but static
+            # We can't do hover effect in static build efficiently unless we redraw.
+            # But language modal is usually static content.
+            # Let's just draw them as buttons.
+
+            draw_fluent_rect(self.panel, rect, (60, 60, 60), WIN10_BORDER_DEFAULT, 1)
+
             flag = flag_id if code == "id" else flag_en
             self.panel.blit(flag, flag.get_rect(midleft=(rect.left + 10, rect.centery)))
             label = "Indonesia" if code == "id" else "English"
-            txt = self.font.render(label, True, (0, 0, 0))
+            txt = self.font.render(label, True, WIN10_TEXT_WHITE)
             self.panel.blit(txt, txt.get_rect(midleft=(rect.left + 50, rect.centery)))
+
         self.panel_rect = self.panel.get_rect(center=(WIDTH / 2, HEIGHT / 2))
 
     def draw(self, surface):
@@ -2169,23 +2465,37 @@ class TimeInfoModal:
         lines = textwrap.wrap(t("time_info_body"), width=70)
         body_surfs = [self.body_font.render(line, True, (0, 0, 0)) for line in lines]
         body_h = len(body_surfs) * self.body_font.get_linesize()
-        title_surf = self.title_font.render(t("time_info_title"), True, (0, 0, 0))
+        title_surf = self.title_font.render(t("time_info_title"), True, WIN10_TEXT_WHITE)
+
+        # Re-render body with correct color
+        body_surfs = [self.body_font.render(line, True, WIN10_TEXT_WHITE) for line in lines]
+
         panel_w = max(max((s.get_width() for s in body_surfs), default=0), title_surf.get_width()) + self.pad * 2
         panel_w = min(max(panel_w, 560), 680)
         panel_h = self.pad + title_surf.get_height() + 10 + body_h + self.pad
+
+        # Acrylic Panel
         self.panel = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
-        self.panel.fill((240, 240, 240, 230))
-        pygame.draw.rect(self.panel, (0, 0, 0), self.panel.get_rect(), 2, border_radius=8)
+        self.panel.fill(WIN10_BG_DARK)
+        pygame.draw.rect(self.panel, WIN10_BORDER_DEFAULT, self.panel.get_rect(), 1)
+
         self.panel.blit(title_surf, title_surf.get_rect(midtop=(panel_w / 2, self.pad)))
         y = self.pad + title_surf.get_height() + 10
         for surf in body_surfs:
             self.panel.blit(surf, surf.get_rect(center=(panel_w / 2, y + surf.get_height() / 2)))
             y += self.body_font.get_linesize()
+
+        # Close Button
         self.close_rect = pygame.Rect(panel_w - 30 - self.pad / 2, self.pad / 2, 30, 30)
-        pygame.draw.rect(self.panel, (200, 200, 200), self.close_rect, border_radius=4)
-        pygame.draw.rect(self.panel, (0, 0, 0), self.close_rect, 1, border_radius=4)
-        cross = self.font.render("×", True, (0, 0, 0))
-        self.panel.blit(cross, cross.get_rect(center=self.close_rect.center))
+        # We will draw close button in draw() method or here if static
+        # Let's draw standard close "X" here for simplicity, but Win10 style
+        # No, let's use the same style as PlanetUniversalModal
+        # But since this is static surface build, we draw it once.
+        # Hover effect won't work if baked.
+        # But `handle_event` manages clicks. We can draw a simple X.
+        x_char = self.font.render("×", True, WIN10_TEXT_WHITE)
+        self.panel.blit(x_char, x_char.get_rect(center=self.close_rect.center))
+
         self.panel_rect = self.panel.get_rect(center=(WIDTH / 2, HEIGHT / 2))
 
     def draw(self, surface):
@@ -2250,7 +2560,7 @@ class DataSourcesModal:
         self.scroll = min(self.scroll, self.max_scroll)
 
         self.close_rect = pygame.Rect(panel_w - 30 - self.pad, self.pad, 30, 30)
-        self.title_surf = self.title_font.render(t("sources_title"), True, (0, 0, 0))
+        self.title_surf = self.title_font.render(t("sources_title"), True, WIN10_TEXT_WHITE)
 
     def _layout_content(self, width, line_h):
         text = EXACT_SOURCES_ID if CURRENT_LANG == "id" else EXACT_SOURCES_EN
@@ -2346,7 +2656,9 @@ class DataSourcesModal:
                 if tok.style == "italic"
                 else self.mono_font
             )
-            surf = font.render(tok.text, True, (0, 0, 0))
+            col = WIN10_TEXT_WHITE
+            if tok.style == "italic": col = WIN10_ACCENT # Links in blue
+            surf = font.render(tok.text, True, col)
             line_surf.blit(surf, (x, 0))
             if tok.url:
                 link_rects.append((pygame.Rect(x, 0, surf.get_width(), surf.get_height()), tok.url))
@@ -2364,14 +2676,18 @@ class DataSourcesModal:
 
     def draw(self, surface):
         self.blur.draw(surface)
+
+        # Acrylic Panel
         panel = pygame.Surface(self.panel_rect.size, pygame.SRCALPHA)
-        panel.fill((240, 240, 240, 230))
-        pygame.draw.rect(panel, (0, 0, 0), panel.get_rect(), 2, border_radius=8)
+        panel.fill(WIN10_BG_DARK)
+        pygame.draw.rect(panel, WIN10_BORDER_DEFAULT, panel.get_rect(), 1)
+
         panel.blit(self.title_surf, self.title_surf.get_rect(midtop=(self.panel_rect.width / 2, self.pad)))
-        pygame.draw.rect(panel, (200, 200, 200), self.close_rect, border_radius=4)
-        pygame.draw.rect(panel, (0, 0, 0), self.close_rect, 1, border_radius=4)
-        cross = self.font.render("×", True, (0, 0, 0))
-        panel.blit(cross, cross.get_rect(center=self.close_rect.center))
+
+        # Close Button
+        x_char = self.font.render("×", True, WIN10_TEXT_WHITE)
+        panel.blit(x_char, x_char.get_rect(center=self.close_rect.center))
+
         panel.set_clip(self.view_rect)
         panel.blit(self.content_surf, (self.pad, self.view_rect.y - self.scroll))
         panel.set_clip(None)
@@ -2387,7 +2703,7 @@ class DataSourcesModal:
             if underline:
                 pygame.draw.line(
                     surface,
-                    (0, 0, 200),
+                    WIN10_ACCENT,
                     (screen_rect.left, screen_rect.bottom),
                     (screen_rect.right, screen_rect.bottom),
                     1,
@@ -2554,27 +2870,62 @@ def mark_trial_used(hwid):
     except:
         pass
 
+def get_device_binding_data():
+    """Mengambil data binding lengkap (HWID, Key, Trial Timestamp)."""
+    if os.path.exists(BINDING_FILE):
+        try:
+            with open(BINDING_FILE, "r") as f:
+                # Coba parse JSON
+                try:
+                    return json.load(f)
+                except:
+                    # Fallback ke format lama pipe
+                    f.seek(0)
+                    content = f.read().strip().split("|")
+                    if len(content) >= 2:
+                        return {"hwid": content[0], "key": content[1]}
+        except:
+            pass
+    return None
+
+def check_device_binding():
+    """Kompatibilitas: return key string atau None."""
+    data = get_device_binding_data()
+    if data:
+        return data.get("key")
+    return None
+
+def bind_device(hwid, key, trial_start=None):
+    """Ikat device ID dengan key secara permanen menggunakan JSON."""
+    data = {"hwid": hwid, "key": key}
+    if trial_start:
+        data["trial_start"] = trial_start
+    try:
+        with open(BINDING_FILE, "w") as f:
+            json.dump(data, f)
+    except:
+        pass
+
 def license_screen(screen, target_key=None, startup_message=None):
     """
     Loop khusus untuk input serial number sebelum masuk ke main game.
     target_key: Jika diisi, user WAJIB memasukkan key yang sama dengan ini.
     """
     clock = pygame.time.Clock()
-    font_main_title = pygame.font.SysFont("arial", 48, bold=True)
-    font_title = pygame.font.SysFont("arial", 30, bold=True)
-    font_input = pygame.font.SysFont("couriernew", 30, bold=True)
-    font_msg = pygame.font.SysFont("arial", 20)
+    # Updated to Segoe UI
+    font_main_title = load_segoe_font(48, bold=True)
+    font_title = load_segoe_font(30, bold=True)
+    font_input = pygame.font.SysFont("consolas", 30) # Consolas best for codes
+    font_msg = load_segoe_font(20)
     font_quote = pygame.font.SysFont("georgia", 18, italic=True)
-    font_small = pygame.font.SysFont("arial", 14)
-    # Font khusus tombol trial (italic, bold)
-    font_trial_btn = pygame.font.SysFont("arial", 16, bold=True, italic=True) 
+    font_small = load_segoe_font(14)
     
     input_box = pygame.Rect(WIDTH // 2 - 200, HEIGHT // 2 - 25, 400, 50)
-    # Geser tombol ACTIVATE ke bawah agar tidak menimpa link trial
-    btn_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 100, 200, 50)
+    # Posisi tombol ACTIVATE dinaikkan agar lebih dekat dengan input box
+    btn_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 40, 200, 50)
     
     color_inactive = (100, 100, 100)
-    color_active = (100, 200, 255) # Biru muda blueprint
+    color_active = WIN10_ACCENT # Win10 blue
     color = color_inactive
     active = False
     text = ''
@@ -2598,51 +2949,84 @@ def license_screen(screen, target_key=None, startup_message=None):
     while running:
         current_time = pygame.time.get_ticks()
         
-        # Hitung posisi tombol trial (di bawah kiri input box)
-        trial_btn_txt_str = "coba free trial for 3 day" if license_mode == "LIFETIME" else "pergi ke lifetime"
-        trial_btn_surf = font_trial_btn.render(trial_btn_txt_str, True, (200, 200, 255))
-        # Garis bawah manual
-        pygame.draw.line(trial_btn_surf, (200, 200, 255), (0, trial_btn_surf.get_height()-2), (trial_btn_surf.get_width(), trial_btn_surf.get_height()-2), 1)
-        
-        trial_btn_rect = trial_btn_surf.get_rect(topleft=(input_box.left, input_box.bottom + 10))
-        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if input_box.collidepoint(event.pos):
-                    # Input box only active in Lifetime mode
-                    if license_mode == "LIFETIME":
-                        active = not active
-                    else:
-                        active = False
+                    active = not active
                 else:
                     active = False
                 color = color_active if active else color_inactive
                 
-                # Cek Tombol Trial/Lifetime Toggle
-                if trial_btn_rect.collidepoint(event.pos):
-                    if license_mode == "LIFETIME":
-                        license_mode = "TRIAL"
-                        message = "PRESS ACTIVATE TO START TRIAL"
-                        msg_color = (255, 255, 255)
-                    else:
-                        license_mode = "LIFETIME"
-                        message = "ENTER SERIAL NUMBER"
-                        msg_color = (255, 255, 255)
-                    text = "" # Reset input saat ganti mode
-                
                 # Cek Tombol Activate
                 if state == LicenseState.INPUT_KEY and btn_rect.collidepoint(event.pos):
-                    if license_mode == "TRIAL":
-                        # Trial: Langsung aktivasi tanpa cek panjang text
-                        state = LicenseState.ACTIVATING
+                    # Check for special trial code
+                    if text.strip() == "FREE-TRIAL-FOR-3-DAY":
+                        # Cek apakah device ini sudah pernah trial sebelumnya dan masih aktif atau expired
+                        binding = get_device_binding_data()
+
+                        # Kasus 1: Sudah ada binding trial di device ini
+                        if binding and binding.get("key") == "FREE-TRIAL-FOR-3-DAY":
+                             ts = binding.get("trial_start")
+                             if ts:
+                                 elapsed = time.time() - ts
+                                 if elapsed > (3 * 24 * 3600):
+                                      # Expired
+                                      message = "MASA TRIAL SUDAH HABIS (3 HARI). KUOTA HABIS."
+                                      msg_color = (255, 50, 50)
+                                 else:
+                                      # Valid Resume
+                                      license_mode = "TRIAL"
+                                      state = LicenseState.ACTIVATING
+                             else:
+                                 # Data rusak, anggap baru tapi cek history
+                                 if check_trial_history_used(hwid):
+                                      message = "QUOTA FREE TRIAL SUDAH DIGUNAKAN."
+                                      msg_color = (255, 50, 50)
+                                 else:
+                                      license_mode = "TRIAL"
+                                      state = LicenseState.ACTIVATING
+
+                        # Kasus 2: Binding lain (Lifetime) tapi coba trial?
+                        elif binding and binding.get("key") != "FREE-TRIAL-FOR-3-DAY":
+                             message = "PERANGKAT SUDAH TERKUNCI KE SERIAL NUMBER LAIN."
+                             msg_color = (255, 50, 50)
+
+                        # Kasus 3: Belum ada binding, cek history lama
+                        elif check_trial_history_used(hwid):
+                             message = "QUOTA FREE TRIAL SUDAH DIGUNAKAN DI PERANGKAT INI."
+                             msg_color = (255, 50, 50)
+
+                        # Kasus 4: Bersih
+                        else:
+                             license_mode = "TRIAL"
+                             state = LicenseState.ACTIVATING
+
                     else:
                         # Lifetime: Cek panjang key
                         if len(text) > 5:
-                            # Jika mode Lifetime, cek validasi lokal
-                            if license_mode == "LIFETIME" and target_key and text.strip() != target_key.strip():
+                            # Cek Binding Lock Hardware ID
+                            bound_key = check_device_binding()
+                            current_input = text.strip()
+
+                            # 1. Cek binding file (Lock Mati HWID)
+                            if bound_key and current_input != bound_key:
+                                 import tkinter
+                                 from tkinter import messagebox
+                                 try:
+                                     root = tkinter.Tk()
+                                     root.withdraw()
+                                     messagebox.showerror("Error", "Hardware ID Laptop/PC ini sudah terkunci pada Serial Number lain. Anda tidak bisa menggunakan Serial Number berbeda.")
+                                     root.destroy()
+                                 except:
+                                     pass
+                                 message = "PERANGKAT TERKUNCI PADA SERIAL NUMBER LAIN"
+                                 msg_color = (255, 50, 50)
+
+                            # 2. Cek target_key session (jika ada reset session)
+                            elif license_mode == "LIFETIME" and target_key and current_input != target_key.strip():
                                  import tkinter
                                  from tkinter import messagebox
                                  try:
@@ -2658,11 +3042,44 @@ def license_screen(screen, target_key=None, startup_message=None):
                                 state = LicenseState.ACTIVATING
             
             if event.type == pygame.KEYDOWN:
-                if active and license_mode == "LIFETIME":
+                if active:
                     if event.key == pygame.K_RETURN:
-                        if len(text) > 5:
-                            # Logic Enter sama dengan Klik Activate
-                            if license_mode == "LIFETIME" and target_key and text.strip() != target_key.strip():
+                        # Check special trial code on Enter too
+                        if text.strip() == "FREE-TRIAL-FOR-3-DAY":
+                            # Copy logic from Activate Button click
+                            binding = get_device_binding_data()
+                            if binding and binding.get("key") == "FREE-TRIAL-FOR-3-DAY":
+                                 ts = binding.get("trial_start")
+                                 if ts and (time.time() - ts > (3 * 24 * 3600)):
+                                      message = "MASA TRIAL SUDAH HABIS (3 HARI). KUOTA HABIS."
+                                      msg_color = (255, 50, 50)
+                                 else:
+                                      license_mode = "TRIAL"
+                                      state = LicenseState.ACTIVATING
+                            elif binding or check_trial_history_used(hwid):
+                                 message = "QUOTA FREE TRIAL SUDAH DIGUNAKAN/TERKUNCI."
+                                 msg_color = (255, 50, 50)
+                            else:
+                                license_mode = "TRIAL"
+                                state = LicenseState.ACTIVATING
+                        elif len(text) > 5:
+                            # Cek Binding Lock Hardware ID
+                            bound_key = check_device_binding()
+                            current_input = text.strip()
+
+                            if bound_key and current_input != bound_key:
+                                 import tkinter
+                                 from tkinter import messagebox
+                                 try:
+                                     root = tkinter.Tk()
+                                     root.withdraw()
+                                     messagebox.showerror("Error", "Hardware ID Laptop/PC ini sudah terkunci pada Serial Number lain.")
+                                     root.destroy()
+                                 except:
+                                     pass
+                                 message = "PERANGKAT TERKUNCI PADA SERIAL NUMBER LAIN"
+                                 msg_color = (255, 50, 50)
+                            elif license_mode == "LIFETIME" and target_key and current_input != target_key.strip():
                                  import tkinter
                                  from tkinter import messagebox
                                  try:
@@ -2735,35 +3152,49 @@ def license_screen(screen, target_key=None, startup_message=None):
         
         # Logic Aktivasi
         if state == LicenseState.ACTIVATING:
-            # Jika Trial Mode, Cek History Dulu
+            # Jika Trial Mode
             blocked_trial = False
             if license_mode == "TRIAL":
-                # Cek apakah sudah pernah pakai trial
-                if check_trial_history_used(hwid):
-                    message = "masa free trial teruss ehe.. ayokk gasss lifetime.."
-                    msg_color = (255, 50, 50)
-                    state = LicenseState.INPUT_KEY
-                    blocked_trial = True
-                else:
-                    # Automatic Activation for Trial (Local Check / Skip Server Key Check)
-                    # We create a dummy success state locally for Trial
-                    start_time = time.time()
-                    # Generate a dummy key for file consistency
+                binding = get_device_binding_data()
+                # Tentukan start time: Baru (now) atau Lama (dari binding)
+                start_time = time.time()
+                is_resume = False
+
+                if binding and binding.get("key") == "FREE-TRIAL-FOR-3-DAY":
+                    if binding.get("trial_start"):
+                        start_time = binding.get("trial_start")
+                        is_resume = True
+
+                # Double check expiry just in case
+                if is_resume:
+                    if time.time() - start_time > (3 * 24 * 3600):
+                        message = "TRIAL EXPIRED."
+                        msg_color = (255, 50, 50)
+                        state = LicenseState.INPUT_KEY
+                        blocked_trial = True
+
+                if not blocked_trial:
+                    # Generate dummy key
                     dummy_trial_key = f"AUTO-TRIAL-{hwid}"
                     
-                    # Simpan data lisensi lokal
                     try:
+                        # 1. Simpan Binding Permanen (HWID + KEY + TIMESTAMP)
+                        bind_device(hwid, "FREE-TRIAL-FOR-3-DAY", start_time)
+
+                        # 2. Simpan File Lisensi Session
                         with open(LICENSE_FILE, "w") as f:
                              # Format: TRIAL|HWID|KEY|START_TIMESTAMP
                             f.write(f"TRIAL|{hwid}|{dummy_trial_key}|{start_time}")
+
+                        # 3. Mark history (backup)
                         mark_trial_used(hwid)
                         
-                        message = "TRIAL ACTIVATED!"
+                        message = "TRIAL ACTIVATED!" if not is_resume else "TRIAL RESUMED!"
                         msg_color = (0, 255, 0)
                         state = LicenseState.SUCCESS
-                        text = dummy_trial_key # Untuk return value
+                        text = dummy_trial_key
                     except Exception as e:
-                        message = f"ERROR WRITING FILE: {e}"
+                        message = f"ERROR: {e}"
                         msg_color = (255, 50, 50)
                         state = LicenseState.INPUT_KEY
             
@@ -2783,6 +3214,9 @@ def license_screen(screen, target_key=None, startup_message=None):
                     with open(LICENSE_FILE, "w") as f:
                         # Format: ACTIVATED|HWID|KEY
                         f.write(f"ACTIVATED|{hwid}|{text}")
+
+                    # Lock Hardware ID secara permanen ke key ini
+                    bind_device(hwid, text)
                 else:
                     message = f"FAILED: {server_msg}"
                     msg_color = (255, 50, 50)
@@ -2825,26 +3259,14 @@ def license_screen(screen, target_key=None, startup_message=None):
         screen.blit(quote_surf, quote_surf.get_rect(center=(WIDTH//2, input_box.y - 30)))
         
         # Input Box
-        if license_mode == "LIFETIME":
-            txt_surface = font_input.render(text, True, color)
-            width = max(400, txt_surface.get_width()+10)
-            input_box.w = width
-            input_box.centerx = WIDTH // 2
-            
-            s = pygame.Surface((input_box.w, input_box.h))
-            s.set_alpha(100)
-            s.fill((0, 0, 0))
-            screen.blit(s, (input_box.x, input_box.y))
-            
-            screen.blit(txt_surface, (input_box.x+5, input_box.y+5))
-            pygame.draw.rect(screen, color, input_box, 2)
-        else:
-            # Trial Mode: Hide Input or Show Text
-            info_txt = font_msg.render("NO KEY REQUIRED FOR TRIAL", True, (150, 200, 150))
-            screen.blit(info_txt, info_txt.get_rect(center=(WIDTH//2, input_box.centery)))
-        
-        # Render Tombol Trial
-        screen.blit(trial_btn_surf, trial_btn_rect)
+        txt_surface = font_input.render(text, True, color)
+        width = max(400, txt_surface.get_width()+10)
+        input_box.w = width
+        input_box.centerx = WIDTH // 2
+
+        # Background Acrylic Style for Input
+        draw_fluent_rect(screen, input_box, (0, 0, 0, 120), color, 2)
+        screen.blit(txt_surface, (input_box.x+10, input_box.y+10)) # Adjusted padding
         
         # Message Area
         msg_surf = font_msg.render(message, True, msg_color)
@@ -2852,13 +3274,21 @@ def license_screen(screen, target_key=None, startup_message=None):
         
         # Online Warning
         online_msg = "Anda harus terhubung ke internet untuk mengaktivasi serial number product keynya, harap online."
-        online_surf = font_small.render(online_msg, True, (200, 200, 200))
+        online_surf = font_small.render(online_msg, True, WIN10_TEXT_GRAY)
         screen.blit(online_surf, online_surf.get_rect(center=(WIDTH//2, HEIGHT - 30)))
         
-        # Activate Button
-        pygame.draw.rect(screen, (0, 150, 0) if state != LicenseState.ACTIVATING else (100, 100, 100), btn_rect, border_radius=5)
-        pygame.draw.rect(screen, (255, 255, 255), btn_rect, 2, border_radius=5)
-        btn_txt = font_msg.render("ACTIVATE", True, (255, 255, 255))
+        # Activate Button (Win 10 Style)
+        hover_btn = btn_rect.collidepoint(pygame.mouse.get_pos())
+        is_activating = state == LicenseState.ACTIVATING
+
+        btn_bg = WIN10_ACCENT if not is_activating else (100, 100, 100)
+        btn_border = WIN10_BORDER_HOVER if hover_btn else WIN10_BORDER_DEFAULT
+        if hover_btn and not is_activating:
+             btn_bg = (0, 140, 255) # Lighter blue on hover
+
+        draw_fluent_rect(screen, btn_rect, btn_bg, btn_border, 1)
+
+        btn_txt = font_msg.render("ACTIVATE", True, WIN10_TEXT_WHITE)
         screen.blit(btn_txt, btn_txt.get_rect(center=btn_rect.center))
         
         pygame.display.flip()
@@ -2993,15 +3423,15 @@ def main():
 
         # Masuk Game Loop
         
-        font = pygame.font.SysFont("arial", 16)
-        small_font = pygame.font.SysFont("arial", 14)
-        tooltip = Tooltip(pygame.font.SysFont("arial", 14))
-        watermark_font = pygame.font.SysFont("arial", 12, italic=True)
+        font = load_segoe_font(16)
+        small_font = load_segoe_font(14)
+        tooltip = Tooltip(load_segoe_font(14))
+        watermark_font = load_segoe_font(12, italic=True)
         watermark_text = watermark_font.render("@emansipation", True, (255, 255, 255))
         watermark_shadow = watermark_font.render("@emansipation", True, (0, 0, 0))
         
         # Tombol Kembali / Reset License
-        back_btn_font = pygame.font.SysFont("arial", 12, bold=True)
+        back_btn_font = load_segoe_font(12, bold=True)
         back_btn_text = back_btn_font.render("<< RESET / LOGIN", True, (255, 100, 100))
         back_btn_rect = pygame.Rect(0, 0, 0, 0) # Akan dihitung saat draw
         
@@ -3010,6 +3440,8 @@ def main():
         data_modal = None
         time_modal = None
         mars_modal = None
+        custom_angle_modal = CustomAngleModal(font, camera)
+        trial_msg_modal = TrialMessageModal(font)
         blur = BlurLayer()
         clock = pygame.time.Clock()
         book_icon = load_book_icon(DATA_BUTTON_SIZE)
@@ -3131,19 +3563,33 @@ def main():
                 surface.blit(watermark_shadow, (x + 1, y + 1))
                 surface.blit(watermark_text, (x, y))
             
-            # Tombol Back
+            # Tombol Back (Reset/Login)
             wm_w = watermark_text.get_width()
             nonlocal back_btn_rect
-            btn_x = x + wm_w + 15
-            back_btn_rect = pygame.Rect(btn_x, y - 2, back_btn_text.get_width() + 10, back_btn_text.get_height() + 4)
-            
-            # Draw button background (agak transparan merah)
-            s = pygame.Surface((back_btn_rect.width, back_btn_rect.height), pygame.SRCALPHA)
-            s.fill((100, 0, 0, 150))
-            surface.blit(s, back_btn_rect.topleft)
-            pygame.draw.rect(surface, (150, 50, 50), back_btn_rect, 1)
-            
-            surface.blit(back_btn_text, (btn_x + 5, y))
+            btn_x = x + wm_w + 20
+
+            # Increase width for "Reset/Login" text fit
+            btn_w = back_btn_text.get_width() + 20
+            btn_h = 25
+            back_btn_rect = pygame.Rect(btn_x, y - 4, btn_w, btn_h)
+
+            # Win10 Style Button (Reddish accent for Reset?)
+            # Prompt: "box pemberitahuaan berwarna putih garis tepi biru ala-ala muda windows 10 pro itu... perluas sedikit"
+            # Wait, the prompt about expanding box refers to the *notification box* (Trial Message Modal), not this button itself?
+            # "Perluas sedikit box yang muncul jika kita mengklik tombol 'reset/login' ... box pemberitahuaan" -> This is TrialMessageModal.
+            # But here "tombol balik ke menu entered serial number" styling is requested to be maintained but enhanced.
+            # Let's make it a clean fluent button. Since it's a "Reset/Login" action, maybe standard or slight accent.
+
+            hover_back = back_btn_rect.collidepoint(pygame.mouse.get_pos())
+
+            # Custom red-ish style for Reset button to differentiate
+            bg_col = (100, 0, 0, 200) if not hover_back else (140, 0, 0, 230)
+            border_col = (180, 50, 50) if not hover_back else WIN10_BORDER_HOVER
+
+            draw_fluent_rect(surface, back_btn_rect, bg_col, border_col, 1)
+
+            # Centered text
+            surface.blit(back_btn_text, back_btn_text.get_rect(center=back_btn_rect.center))
 
         def reset_view():
             camera.pos.update(0.0, 0.0)
@@ -3227,24 +3673,27 @@ def main():
             panel_pos = (WIDTH - panel_width - 10, 10)
             surface.blit(panel, panel_pos)
             
-            info_d = 18
+            info_d = 20
             info_rect = pygame.Rect(panel_pos[0] + panel_width - info_d - 5, panel_pos[1] + 5, info_d, info_d)
             hover_info = info_rect.collidepoint(pygame.mouse.get_pos())
             
-            btn_bg = (180, 180, 180) if hover_info else (255, 255, 255)
-            pygame.draw.circle(surface, btn_bg, info_rect.center, info_d // 2)
-            pygame.draw.circle(surface, (0, 0, 0), info_rect.center, info_d // 2, 2)
-            i_txt = small_font.render("i", True, (0, 0, 0))
-            surface.blit(i_txt, i_txt.get_rect(center=info_rect.center))
+            # Windows 10 Style 'i' button (Circle, Accent Color or Transparent)
+            draw_fluent_button(surface, info_rect, "i", small_font, active=False, hover=hover_info)
+            # Make it circular-ish by drawing border radius? fluent_button is rect.
+            # But prompt asks for "ikon dan boxnya menjadi seperti windows 10 pro".
+            # Win10 icons are usually flat. 'i' inside a circle or square.
+            # draw_fluent_button draws a rect. That fits Win10.
+
             time_info_button_rect = info_rect
 
-            lbl = font.render(t("lang_button"), True, (0, 0, 0))
-            bw = lbl.get_width() + 20
+            # Language Button (Fluent)
+            lbl_txt = t("lang_button")
+            bw = font.size(lbl_txt)[0] + 20
             bh = 25
             lang_rect = pygame.Rect(panel_pos[0], panel_pos[1] + panel_height + 5, bw, bh)
-            pygame.draw.rect(surface, (200, 200, 200), lang_rect, border_radius=5)
-            pygame.draw.rect(surface, (0, 0, 0), lang_rect, 1, border_radius=5)
-            surface.blit(lbl, lbl.get_rect(center=lang_rect.center))
+            hover_lang = lang_rect.collidepoint(pygame.mouse.get_pos())
+
+            draw_fluent_button(surface, lang_rect, lbl_txt, font, active=False, hover=hover_lang)
             language_button_rect = lang_rect
 
             speed_rects = draw_speed_panel(surface, font, speed_index)
@@ -3266,8 +3715,19 @@ def main():
             
             draw_sketch_button(surface, font, sketch_button_rect, sketch_mode)
             
-            surface.blit(book_icon, data_button_rect.topleft)
-            if data_button_rect.collidepoint(pygame.mouse.get_pos()):
+            # Data Sources Button (Acrylic background behind icon)
+            hover_data = data_button_rect.collidepoint(pygame.mouse.get_pos())
+
+            # Draw button background
+            bg_data = (60, 60, 60) if hover_data else (40, 40, 40, 150)
+            border_data = WIN10_BORDER_HOVER if hover_data else WIN10_BORDER_DEFAULT
+            draw_fluent_rect(surface, data_button_rect, bg_data, border_data, 1)
+
+            # Draw icon centered
+            icon_rect = book_icon.get_rect(center=data_button_rect.center)
+            surface.blit(book_icon, icon_rect)
+
+            if hover_data:
                 tooltip.draw(surface, t("sources_tooltip"), (data_button_rect.right, data_button_rect.centery), "right")
             
             draw_watermark_and_back(surface)
@@ -3383,6 +3843,16 @@ def main():
                         ui_state = UIState.RUNNING
                         time_modal = None
                     continue
+                elif ui_state == UIState.TRIAL_MSG:
+                    res = trial_msg_modal.handle_event(event)
+                    if res == "close":
+                        ui_state = UIState.RUNNING
+                    continue
+                elif ui_state == UIState.CUSTOM_ANGLE:
+                    res = custom_angle_modal.handle_event(event)
+                    if res == "close":
+                         ui_state = UIState.RUNNING
+                    continue
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     # Escape hanya menutup game loop ini, balik ke OS
                     running = False
@@ -3418,8 +3888,22 @@ def main():
                     elif back_btn_rect.collidepoint(event.pos):
                         # TOMBOL BACK DITEKAN
                         clicked = True
-                        user_requested_back = True
-                        running = False # Break inner loop
+
+                        # Cek Trial Lock
+                        locked_in_trial = False
+                        if is_trial_mode:
+                             # Check remaining time
+                             elapsed_t = time.time() - trial_start_time
+                             rem_t = max(0, (3 * 24 * 3600) - elapsed_t)
+                             if rem_t > 0:
+                                 locked_in_trial = True
+
+                        if locked_in_trial:
+                             trial_msg_modal.open(screen.copy())
+                             ui_state = UIState.TRIAL_MSG
+                        else:
+                             user_requested_back = True
+                             running = False # Break inner loop
                     else:
                         for i, rect in enumerate(speed_rects):
                             if rect.collidepoint(event.pos):
@@ -3430,9 +3914,16 @@ def main():
                         if not clicked:
                             for i, rect in enumerate(angle_button_rects):
                                 if rect.collidepoint(event.pos):
-                                    apply_angle(ANGLE_MODES[i])
-                                    angle_focus = -1
-                                    clicked = True
+                                    if ANGLE_MODES[i] == AngleMode.CUSTOM:
+                                         # Open Custom Modal
+                                         custom_angle_modal.open(screen.copy())
+                                         ui_state = UIState.CUSTOM_ANGLE
+                                         angle_focus = -1
+                                         clicked = True
+                                    else:
+                                         apply_angle(ANGLE_MODES[i])
+                                         angle_focus = -1
+                                         clicked = True
                                     break
                         if keyboard_button_rect.collidepoint(event.pos):
                             show_keyboard_info = not show_keyboard_info
@@ -3550,6 +4041,12 @@ def main():
                 pygame.display.flip()
             elif ui_state == UIState.TIME_INFO:
                 time_modal.draw(screen)
+                pygame.display.flip()
+            elif ui_state == UIState.TRIAL_MSG:
+                trial_msg_modal.draw(screen)
+                pygame.display.flip()
+            elif ui_state == UIState.CUSTOM_ANGLE:
+                custom_angle_modal.draw(screen)
                 pygame.display.flip()
 
         if user_requested_back:
