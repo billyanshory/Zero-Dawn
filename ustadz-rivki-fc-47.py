@@ -578,7 +578,7 @@ NAVBAR_HTML = """
         margin-left: 30px;
     }
     .navbar-logo-desktop {
-        height: 85px; margin-top: -15px; transition: 0.3s; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.2)); cursor: pointer; z-index: 2000; position: relative;
+        height: 60px; margin-top: 0; object-fit: contain; transition: 0.3s; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.2)); cursor: pointer; z-index: 2000; position: relative;
     }
     .mobile-separator {
         height: 1px; background-color: #ddd; margin: 15px 0; width: 100%;
@@ -596,7 +596,7 @@ NAVBAR_HTML = """
             width: 100% !important;
             z-index: 1050 !important;
         }
-        .navbar-logo-img { height: 50px; }
+        .navbar-logo-img { height: auto; max-height: 50px; width: auto; max-width: 100%; object-fit: contain; }
         
         .mobile-navbar-border {
             position: relative;
@@ -672,7 +672,7 @@ NAVBAR_HTML = """
 <!-- Mobile Header -->
 <div class="main-navbar d-lg-none justify-content-between px-3 mobile-navbar-border">
     <div class="navbar-logo-container" onclick="toggleLogoPopup()" style="position:static; transform:none;">
-        <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="navbar-logo-img" style="height:50px;">
+        <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="navbar-logo-img" style="max-height:50px; width:auto;">
     </div>
     <div class="fw-bold fs-4 position-absolute start-50 translate-middle-x" 
          style="white-space: nowrap; cursor: pointer;" 
@@ -3912,6 +3912,9 @@ HTML_FORMATION = """
             padding: 10px;
             border-left: 3px solid #FFD700;
         }
+        .info-desc ul { list-style: none; padding: 0; margin: 0; }
+        .info-desc li { margin-bottom: 8px; display: flex; align-items: flex-start; }
+        .info-desc i { width: 25px; text-align: center; margin-right: 8px; margin-top: 3px; }
 
         /* Responsive */
         @media (max-width: 768px) {
@@ -3919,17 +3922,19 @@ HTML_FORMATION = """
             .mobile-bottom-bar { display: flex; }
             .bottom-controls { display: none; } /* Hide Desktop Controls */
             
-            .main-container { flex-direction: column; margin-top: 50px; height: calc(100vh - 110px); /* 50 top + 60 bottom */ }
+            .main-container { flex-direction: column; margin-top: 50px; height: auto; min-height: calc(100vh - 110px); overflow-y: auto; padding-bottom: 80px; }
             .sidebar-container { 
                 width: 100%; 
-                height: 180px; 
+                height: auto;
+                min-height: 120px;
                 border-left: none; 
                 border-top: 2px solid #333; 
-                padding-bottom: 60px; /* Space for bottom bar */
+                padding-bottom: 20px;
                 position: relative;
-                z-index: 50; /* Ensure above other elements if needed */
-                flex: none; /* Don't grow/shrink unexpectedly */
+                z-index: 10;
+                flex: none;
             }
+            .pitch-container { min-height: 50vh; }
             .bench-list { flex-direction: row; flex-wrap: nowrap; justify-content: flex-start; }
             .pitch-field { width: 95%; height: 95%; }
         }
@@ -4074,39 +4079,39 @@ HTML_FORMATION = """
         const footballFormations = {
             '4-3-3': { 
                 title: '4-3-3 (The Attacking Standard)', 
-                desc: 'Ini adalah formasi paling populer di sepak bola modern, Fokus pada penguasaan bola dan serangan dari sayap, Susunan: 4 Bek, 3 Gelandang, 3 Penyerang (1 Tengah, 2 Sayap), Gaya Main: Possession Football (Tiki-Taka) atau Gegenpressing, Tim Pengguna: FC Barcelona (Era Pep Guardiola & Xavi): Raja penguasaan bola, Liverpool (Era Jurgen Klopp): Menekan lawan habis-habisan (Pressing), Real Madrid (Era Zidane & Ancelotti): Serangan balik cepat lewat Vinicius Jr' 
+                desc: '<ul class="list-unstyled text-start mb-0"><li><i class="fas fa-info-circle text-warning me-2"></i> <strong>Deskripsi:</strong> Ini adalah formasi paling populer di sepak bola modern. Fokus pada penguasaan bola dan serangan dari sayap.</li><li><i class="fas fa-users text-primary me-2"></i> <strong>Susunan:</strong> 4 Bek, 3 Gelandang, 3 Penyerang (1 Tengah, 2 Sayap).</li><li><i class="fas fa-futbol text-success me-2"></i> <strong>Gaya Main:</strong> Possession Football (Tiki-Taka) atau Gegenpressing.</li><li><i class="fas fa-trophy text-danger me-2"></i> <strong>Tim Pengguna:</strong> FC Barcelona (Era Pep Guardiola & Xavi): Raja penguasaan bola, Liverpool (Era Jurgen Klopp): Menekan lawan habis-habisan (Pressing), Real Madrid (Era Zidane & Ancelotti): Serangan balik cepat lewat Vinicius Jr.</li></ul>'
             },
             '4-2-3-1': { 
                 title: '4-2-3-1 (The Perfect Balance)', 
-                desc: 'Formasi paling seimbang antara bertahan dan menyerang, Sangat stabil karena menggunakan dua gelandang bertahan (Double Pivot), Susunan: 4 Bek, 2 Gelandang Bertahan, 3 Gelandang Serang, 1 Striker Tunggal, Gaya Main: Mengandalkan playmaker di posisi "Nomor 10" dan sayap yang cepat, Tim Pengguna: Bayern Munchen: Dominasi total lini tengah, Timnas Jerman (Piala Dunia 2014): Sangat efektif dan disiplin, Manchester United (Era Ten Hag/Mourinho): Sering dipakai untuk stabilitas' 
+                desc: '<ul class="list-unstyled text-start mb-0"><li><i class="fas fa-info-circle text-warning me-2"></i> <strong>Deskripsi:</strong> Formasi paling seimbang antara bertahan dan menyerang. Sangat stabil karena menggunakan dua gelandang bertahan (Double Pivot).</li><li><i class="fas fa-users text-primary me-2"></i> <strong>Susunan:</strong> 4 Bek, 2 Gelandang Bertahan, 3 Gelandang Serang, 1 Striker Tunggal.</li><li><i class="fas fa-futbol text-success me-2"></i> <strong>Gaya Main:</strong> Mengandalkan playmaker di posisi "Nomor 10" dan sayap yang cepat.</li><li><i class="fas fa-trophy text-danger me-2"></i> <strong>Tim Pengguna:</strong> Bayern Munchen: Dominasi total lini tengah, Timnas Jerman (Piala Dunia 2014): Sangat efektif dan disiplin, Manchester United (Era Ten Hag/Mourinho): Sering dipakai untuk stabilitas.</li></ul>'
             },
             '4-4-2': { 
                 title: '4-4-2 (The Classic Flat)', 
-                desc: 'Formasi klasik Inggris, Sederhana, solid, dan menutup ruang lawan dengan dua garis pertahanan yang rapat, Susunan: 4 Bek, 4 Gelandang sejajar, 2 Striker, Gaya Main: Bertahan rapat (Compact) dan serangan balik cepat (Counter Attack), Tim Pengguna: Atletico Madrid (Diego Simeone): Pertahanan "tembok baja", Leicester City (Juara EPL 2016): Serangan balik kilat Vardy & Mahrez, Manchester United (Era Sir Alex Ferguson): Mengandalkan sayap murni (Beckham/Giggs)' 
+                desc: '<ul class="list-unstyled text-start mb-0"><li><i class="fas fa-info-circle text-warning me-2"></i> <strong>Deskripsi:</strong> Formasi klasik Inggris. Sederhana, solid, dan menutup ruang lawan dengan dua garis pertahanan yang rapat.</li><li><i class="fas fa-users text-primary me-2"></i> <strong>Susunan:</strong> 4 Bek, 4 Gelandang sejajar, 2 Striker.</li><li><i class="fas fa-futbol text-success me-2"></i> <strong>Gaya Main:</strong> Bertahan rapat (Compact) dan serangan balik cepat (Counter Attack).</li><li><i class="fas fa-trophy text-danger me-2"></i> <strong>Tim Pengguna:</strong> Atletico Madrid (Diego Simeone): Pertahanan "tembok baja", Leicester City (Juara EPL 2016): Serangan balik kilat Vardy & Mahrez, Manchester United (Era Sir Alex Ferguson): Mengandalkan sayap murni (Beckham/Giggs).</li></ul>'
             },
             '3-5-2': { 
                 title: '3-5-2 (The Wing-Back System)', 
-                desc: 'Mengorbankan satu bek sayap untuk menambah jumlah gelandang, Kuncinya ada di pemain sayap (Wing-back) yang harus lari naik-turun tanpa henti, Susunan: 3 Bek Tengah, 5 Gelandang (2 sayapnya mundur saat bertahan), 2 Striker, Gaya Main: Menang jumlah orang di lini tengah, Tim Pengguna: Inter Milan (Simone Inzaghi & Conte): Sangat dominan di Serie A, Timnas Belanda (Era Louis van Gaal): Taktis dan fleksibel' 
+                desc: '<ul class="list-unstyled text-start mb-0"><li><i class="fas fa-info-circle text-warning me-2"></i> <strong>Deskripsi:</strong> Mengorbankan satu bek sayap untuk menambah jumlah gelandang. Kuncinya ada di pemain sayap (Wing-back) yang harus lari naik-turun tanpa henti.</li><li><i class="fas fa-users text-primary me-2"></i> <strong>Susunan:</strong> 3 Bek Tengah, 5 Gelandang (2 sayapnya mundur saat bertahan), 2 Striker.</li><li><i class="fas fa-futbol text-success me-2"></i> <strong>Gaya Main:</strong> Menang jumlah orang di lini tengah.</li><li><i class="fas fa-trophy text-danger me-2"></i> <strong>Tim Pengguna:</strong> Inter Milan (Simone Inzaghi & Conte): Sangat dominan di Serie A, Timnas Belanda (Era Louis van Gaal): Taktis dan fleksibel.</li></ul>'
             },
             '3-4-3': { 
                 title: '3-4-3 (The Aggressive Press)', 
-                desc: 'Varian menyerang dari 3 bek, Sangat berbahaya karena punya 3 penyerang di depan yang siap mencetak gol, Susunan: 3 Bek, 4 Gelandang, 3 Penyerang, Gaya Main: Menekan lawan di daerahnya sendiri, Tim Pengguna: Chelsea (Era Antonio Conte & Thomas Tuchel): Juara liga & Champions pakai ini, Bayer Leverkusen (Xabi Alonso): Unbeaten (Tak terkalahkan) musim lalu dengan gaya main ini' 
+                desc: '<ul class="list-unstyled text-start mb-0"><li><i class="fas fa-info-circle text-warning me-2"></i> <strong>Deskripsi:</strong> Varian menyerang dari 3 bek. Sangat berbahaya karena punya 3 penyerang di depan yang siap mencetak gol.</li><li><i class="fas fa-users text-primary me-2"></i> <strong>Susunan:</strong> 3 Bek, 4 Gelandang, 3 Penyerang.</li><li><i class="fas fa-futbol text-success me-2"></i> <strong>Gaya Main:</strong> Menekan lawan di daerahnya sendiri.</li><li><i class="fas fa-trophy text-danger me-2"></i> <strong>Tim Pengguna:</strong> Chelsea (Era Antonio Conte & Thomas Tuchel): Juara liga & Champions pakai ini, Bayer Leverkusen (Xabi Alonso): Unbeaten (Tak terkalahkan) musim lalu dengan gaya main ini.</li></ul>'
             },
             '4-1-2-1-2': { 
                 title: '4-1-2-1-2 (The Diamond Narrow)', 
-                desc: 'Fokus menyerang lewat tengah, Tidak punya pemain sayap murni, tapi bek sayap (RB/LB) yang maju ke depan, Susunan: 4 Bek, 1 Gelandang Bertahan, 2 Gelandang Tengah, 1 Playmaker, 2 Striker, (Bentuk tengahnya seperti Berlian/Diamond), Gaya Main: Mengurung lawan di tengah lapangan, Tim Pengguna: AC Milan (Klasik - Era Kaka/Pirlo/Gattuso): Legendaris, Real Madrid (Era Zidane 3 UCL): Mengandalkan Isco sebagai playmaker di belakang Benzema & Ronaldo' 
+                desc: '<ul class="list-unstyled text-start mb-0"><li><i class="fas fa-info-circle text-warning me-2"></i> <strong>Deskripsi:</strong> Fokus menyerang lewat tengah. Tidak punya pemain sayap murni, tapi bek sayap (RB/LB) yang maju ke depan. Bentuk tengahnya seperti Berlian/Diamond.</li><li><i class="fas fa-users text-primary me-2"></i> <strong>Susunan:</strong> 4 Bek, 1 Gelandang Bertahan, 2 Gelandang Tengah, 1 Playmaker, 2 Striker.</li><li><i class="fas fa-futbol text-success me-2"></i> <strong>Gaya Main:</strong> Mengurung lawan di tengah lapangan.</li><li><i class="fas fa-trophy text-danger me-2"></i> <strong>Tim Pengguna:</strong> AC Milan (Klasik - Era Kaka/Pirlo/Gattuso): Legendaris, Real Madrid (Era Zidane 3 UCL): Mengandalkan Isco sebagai playmaker di belakang Benzema & Ronaldo.</li></ul>'
             },
             '4-3-2-1': { 
                 title: '4-3-2-1 (The Christmas Tree)', 
-                desc: 'Formasi unik yang berbentuk seperti Pohon Natal, Sangat jarang dipakai sekarang tapi sangat ikonik, Susunan: 4 Bek, 3 Gelandang Bertahan/Tengah, 2 Playmaker, 1 Striker, Gaya Main: Menumpuk pemain kreatif di belakang striker tunggal, Tim Pengguna: AC Milan (Carlo Ancelotti 2007): Juara Eropa dengan formasi ini' 
+                desc: '<ul class="list-unstyled text-start mb-0"><li><i class="fas fa-info-circle text-warning me-2"></i> <strong>Deskripsi:</strong> Formasi unik yang berbentuk seperti Pohon Natal. Sangat jarang dipakai sekarang tapi sangat ikonik.</li><li><i class="fas fa-users text-primary me-2"></i> <strong>Susunan:</strong> 4 Bek, 3 Gelandang Bertahan/Tengah, 2 Playmaker, 1 Striker.</li><li><i class="fas fa-futbol text-success me-2"></i> <strong>Gaya Main:</strong> Menumpuk pemain kreatif di belakang striker tunggal.</li><li><i class="fas fa-trophy text-danger me-2"></i> <strong>Tim Pengguna:</strong> AC Milan (Carlo Ancelotti 2007): Juara Eropa dengan formasi ini.</li></ul>'
             },
             '5-4-1': { 
                 title: '5-4-1 (The Parking Bus)', 
-                desc: 'Formasi ultra-defensif, Sering disebut "Parkir Bus", Tujuannya hanya satu: Jangan kebobolan, Susunan: 5 Bek, 4 Gelandang, 1 Striker kesepian di depan, Gaya Main: Bertahan total, membuat lawan frustrasi, Tim Pengguna: Timnas Maroko (Piala Dunia 2022): Berhasil ke semifinal dengan pertahanan ini, Tim Underdog: Tim kecil saat melawan tim raksasa seperti Man City' 
+                desc: '<ul class="list-unstyled text-start mb-0"><li><i class="fas fa-info-circle text-warning me-2"></i> <strong>Deskripsi:</strong> Formasi ultra-defensif. Sering disebut "Parkir Bus". Tujuannya hanya satu: Jangan kebobolan.</li><li><i class="fas fa-users text-primary me-2"></i> <strong>Susunan:</strong> 5 Bek, 4 Gelandang, 1 Striker kesepian di depan.</li><li><i class="fas fa-futbol text-success me-2"></i> <strong>Gaya Main:</strong> Bertahan total, membuat lawan frustrasi.</li><li><i class="fas fa-trophy text-danger me-2"></i> <strong>Tim Pengguna:</strong> Timnas Maroko (Piala Dunia 2022): Berhasil ke semifinal dengan pertahanan ini, Tim Underdog: Tim kecil saat melawan tim raksasa seperti Man City.</li></ul>'
             },
             '4-6-0': { 
                 title: '4-6-0 (The False Nine)', 
-                desc: 'Formasi tanpa striker murni, Striker diganti gelandang yang pura-pura jadi striker, Susunan: 4 Bek, 6 Gelandang (0 Striker), Gaya Main: Membingungkan bek lawan karena tidak ada orang yang harus dijaga di depan, Tim Pengguna: Timnas Spanyol (Euro 2012): Juara tanpa striker murni (Fabregas jadi False 9), Manchester City (Pep Guardiola): Sering main tanpa striker sebelum ada Haaland' 
+                desc: '<ul class="list-unstyled text-start mb-0"><li><i class="fas fa-info-circle text-warning me-2"></i> <strong>Deskripsi:</strong> Formasi tanpa striker murni. Striker diganti gelandang yang pura-pura jadi striker.</li><li><i class="fas fa-users text-primary me-2"></i> <strong>Susunan:</strong> 4 Bek, 6 Gelandang (0 Striker).</li><li><i class="fas fa-futbol text-success me-2"></i> <strong>Gaya Main:</strong> Membingungkan bek lawan karena tidak ada orang yang harus dijaga di depan.</li><li><i class="fas fa-trophy text-danger me-2"></i> <strong>Tim Pengguna:</strong> Timnas Spanyol (Euro 2012): Juara tanpa striker murni (Fabregas jadi False 9), Manchester City (Pep Guardiola): Sering main tanpa striker sebelum ada Haaland.</li></ul>'
             }
         };
         
@@ -4225,6 +4230,10 @@ HTML_FORMATION = """
                                 target.style.left = 'auto';
                                 target.style.top = 'auto';
                                 target.style.transform = 'none';
+                                target.removeAttribute('data-x');
+                                target.removeAttribute('data-y');
+                                target.removeAttribute('data-dx');
+                                target.removeAttribute('data-dy');
                                 benchList.appendChild(target);
                             }
                         }
@@ -4426,7 +4435,7 @@ HTML_FORMATION = """
             
             const info = isFootball ? footballFormations[type] : formationDetails[type];
             document.getElementById('info-title').innerText = info.title;
-            document.getElementById('info-desc').innerText = info.desc;
+            document.getElementById('info-desc').innerHTML = info.desc;
             document.getElementById('formation-info-modal').style.display = 'flex';
         }
         
@@ -4464,7 +4473,6 @@ def list_players():
 
 @app.route('/daftar-tagihan-pemain')
 def list_bills():
-    if not session.get('admin'): return redirect(url_for('index'))
     data = get_all_data()
     conn = get_db_connection()
     # Join to get student names
