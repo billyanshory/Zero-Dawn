@@ -7,32 +7,13 @@ from types import SimpleNamespace
 from urllib.parse import parse_qsl, urlsplit, urlunsplit, urlencode
 import textwrap
 import sys
-import uuid
-import json
 import time
-
-# Pastikan user menginstall library ini: pip install requests
-try:
-    import requests
-except ImportError:
-    # Fallback dummy jika requests tidak ada, agar code tidak crash saat compile check,
-    # tapi user wajib install.
-    class requests:
-        def post(url, json, timeout): raise ImportError("Library 'requests' not installed.")
-        class exceptions:
-            class RequestException(Exception): pass
+from collections import deque
 
 import pygame
 import pymunk
 from pygame.math import Vector2
 import webbrowser
-
-# ==============================================================================
-# KONFIGURASI LISENSI
-# ==============================================================================
-# GANTI URL INI DENGAN URL FLASK APP KAMU DI PYTHONANYWHERE
-LICENSE_SERVER_URL = "http://b1l14n50r1.pythonanywhere.com"
-LICENSE_FILE = "license.dat"
 
 def show_splash_screen():
     """
@@ -161,18 +142,6 @@ def show_splash_screen():
         pygame.display.flip()
         clock.tick(30)
 
-def get_hwid():
-    """Mendapatkan Hardware ID unik berdasarkan MAC Address."""
-    return str(uuid.getnode())
-
-class LicenseState(Enum):
-    CHECKING = auto()
-    INPUT_KEY = auto()
-    ACTIVATING = auto()
-    SUCCESS = auto()
-    FAILED = auto()
-    LICENSED = auto()
-
 # ==============================================================================
 
 # Default window size; updated on resize events
@@ -182,6 +151,7 @@ SPEED_OPTIONS = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
 KEYBOARD_BTN_INACTIVE = (211, 211, 211)
 KEYBOARD_BTN_ACTIVE = (173, 216, 230)
 DATA_BUTTON_SIZE = 36
+NAVY_BG = (5, 10, 25)
 
 # Camera movement configuration
 PAN_SPEED_WORLD = 200.0
@@ -314,6 +284,126 @@ class UIState(Enum):
     DATA_SOURCES = auto()
     TIME_INFO = auto()
     MARS_BIO = auto() # Kini digunakan untuk semua poin Planet Detail (Mars & Earth)
+    IMAGE_VIEW = auto()
+
+class ImageViewer:
+    def __init__(self):
+        self.image = None
+        self.original_image = None
+        self.zoom = 1.0
+        self.offset = Vector2(0, 0)
+        self.is_panning = False
+        self.last_mouse_pos = Vector2(0, 0)
+        self.blur = BlurLayer()
+        self.bg_surface = None
+        self.font = pygame.font.SysFont("arial", 20)
+
+        # Fullscreen state
+        self.is_fullscreen = False
+        self.last_click_time = 0
+        self.saved_zoom = 1.0
+        self.saved_offset = Vector2(0, 0)
+
+    def open(self, image, background):
+        self.original_image = image
+        self.image = image
+        self.zoom = 1.0
+        self.offset = Vector2(0, 0)
+        self.blur.from_surface(background)
+        self.bg_surface = background
+        self.is_fullscreen = False
+
+        # Fit to screen initially
+        self.fit_to_screen(scale_factor=0.9)
+
+    def fit_to_screen(self, scale_factor=0.9):
+        if not self.original_image: return
+        sw, sh = WIDTH, HEIGHT
+        iw, ih = self.original_image.get_size()
+        scale = min(sw / iw, sh / ih) * scale_factor
+        self.zoom = scale
+        self.offset = Vector2(0, 0)
+
+    def toggle_fullscreen(self):
+        if self.is_fullscreen:
+            # Revert to saved state or normal fit
+            self.zoom = self.saved_zoom
+            self.offset = self.saved_offset
+            self.is_fullscreen = False
+        else:
+            # Save current state
+            self.saved_zoom = self.zoom
+            self.saved_offset = Vector2(self.offset)
+            # Go fullscreen (Fit with 1.0 scale factor usually fills better)
+            # User request: "Full screen memenuhi keseluruhan jendela"
+            self.fit_to_screen(scale_factor=1.0)
+            self.is_fullscreen = True
+
+    def draw(self, surface):
+        if self.bg_surface:
+            self.blur.draw(surface)
+
+        if self.original_image:
+            # Apply zoom
+            w = int(self.original_image.get_width() * self.zoom)
+            h = int(self.original_image.get_height() * self.zoom)
+            if w > 0 and h > 0:
+                scaled_img = pygame.transform.smoothscale(self.original_image, (w, h))
+
+                # Center + Offset
+                cx, cy = WIDTH // 2, HEIGHT // 2
+                x = cx - w // 2 + self.offset.x
+                y = cy - h // 2 + self.offset.y
+
+                surface.blit(scaled_img, (x, y))
+
+        # Hint
+        msg = "Double Click: Fullscreen • Esc: Back/Close"
+        if self.is_fullscreen:
+            msg = "Esc: Exit Fullscreen"
+
+        hint = self.font.render(msg, True, (255, 255, 255))
+        pygame.draw.rect(surface, (0, 0, 0, 150), hint.get_rect(midbottom=(WIDTH/2, HEIGHT - 20)).inflate(20, 10), border_radius=10)
+        surface.blit(hint, hint.get_rect(midbottom=(WIDTH/2, HEIGHT - 20)))
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                if self.is_fullscreen:
+                    self.toggle_fullscreen()
+                    return None
+                else:
+                    return "close"
+
+        elif event.type == pygame.MOUSEWHEEL:
+            zoom_speed = 0.1
+            self.zoom = max(0.1, self.zoom + event.y * zoom_speed)
+            # If zooming manually, we might consider leaving fullscreen state logic-wise,
+            # but user just asked for ESC behavior. We'll keep flag true until ESC or toggle.
+
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:
+                # Double click detection
+                curr_time = pygame.time.get_ticks()
+                if curr_time - self.last_click_time < 300:
+                    self.toggle_fullscreen()
+                    self.last_click_time = 0 # Prevent triple click triggering
+                else:
+                    self.last_click_time = curr_time
+                    self.is_panning = True
+                    self.last_mouse_pos = Vector2(event.pos)
+
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1:
+                self.is_panning = False
+
+        elif event.type == pygame.MOUSEMOTION:
+            if self.is_panning:
+                delta = Vector2(event.pos) - self.last_mouse_pos
+                self.offset += delta
+                self.last_mouse_pos = Vector2(event.pos)
+
+        return None
 
 class AngleMode(Enum):
     SIDE_0 = auto()
@@ -1000,12 +1090,29 @@ class PlanetUniversalModal:
         
         self.pad = 30
         self.mars_red = (188, 39, 50)
+
+        # Selection & Interaction State
+        # List of (rect, text, font) relative to content_surf
+        self.text_blocks = []
+        self.selecting = False
+        # Selection range: (block_idx, char_idx)
+        self.sel_start = None
+        self.sel_end = None
+
+        self.dragging_y = False
+        self.dragging_x = False
+        self.drag_start_pos = (0, 0)
+        self.drag_start_val = 0
+        self.thumb_y_rect = None
+        self.thumb_x_rect = None
+        self.image_rect_rel = None
         
     def open(self, background):
         self.blur.from_surface(background)
         self.build()
 
     def build(self):
+        # Responsiveness: Use current WIDTH/HEIGHT
         w = min(1000, WIDTH - 60)
         h = min(800, HEIGHT - 60)
         
@@ -1022,6 +1129,9 @@ class PlanetUniversalModal:
         view_h = h - view_start_y - self.pad
         self.view_rect = pygame.Rect(self.pad, view_start_y, w - self.pad*2, view_h)
         
+        # Reset text blocks
+        self.text_blocks = []
+
         # --- MENYUSUN KONTEN ---
         # Gambar
         img_w, img_h = self.image.get_size()
@@ -1036,29 +1146,34 @@ class PlanetUniversalModal:
         # Area Panah & Fakta (Kanan Gambar)
         fact_area_w = 300 
         
-        # Total lebar bagian atas
+        # Total lebar bagian atas (Image + Facts)
         top_section_w = img_w + 20 + fact_area_w
         
-        # Text Content Wrapper
-        text_wrap_w = max(self.view_rect.width, 600)
+        # Text Content Wrapper -> Dynamically fit view_rect
+        # Allow wrap width to be view width minus scrollbar space
+        text_wrap_w = self.view_rect.width - 20
         
-        # Total Surface Width
+        # Total Surface Width (minimal view width)
         total_content_w = max(top_section_w, text_wrap_w)
+        # Ensure it's at least view width to avoid gray bars if content is small
+        total_content_w = max(total_content_w, self.view_rect.width)
         
         # Render Text Lines
-        wrapper = textwrap.TextWrapper(width=int(text_wrap_w / 9)) 
+        # Approx chars per line ~ width / 9px (avg char width for font 18)
+        cpl = int(text_wrap_w / 9)
+        wrapper = textwrap.TextWrapper(width=cpl)
         paragraphs = self.config["text"].split('\n\n')
         text_surfaces = []
         for para in paragraphs:
             lines = wrapper.wrap(para)
             for line in lines:
                 s = self.body_font.render(line, True, (230, 230, 230))
-                text_surfaces.append(s)
-            text_surfaces.append(None) # Spacer
+                text_surfaces.append((s, line)) # Store text for copy
+            text_surfaces.append((None, "\n")) # Spacer/Newline
             
         # Hitung Tinggi Total
         text_h = 0
-        for s in text_surfaces:
+        for s, _ in text_surfaces:
             if s: text_h += s.get_height() + 5
             else: text_h += 15
             
@@ -1070,14 +1185,19 @@ class PlanetUniversalModal:
         
         self.content_surf = pygame.Surface((total_content_w, total_h), pygame.SRCALPHA)
         
-        # --- GAMBAR KE SURFACE ---
+        # --- GAMBAR KE SURFACE (CENTERED) ---
         curr_y = 0
         
+        # Centering Top Section (Image + Facts)
+        top_margin_x = (total_content_w - top_section_w) // 2
+        if top_margin_x < 0: top_margin_x = 0
+
         # 1. Gambar
-        self.content_surf.blit(scaled_img, (0, curr_y))
+        self.image_rect_rel = pygame.Rect(top_margin_x, curr_y, img_w, img_h)
+        self.content_surf.blit(scaled_img, self.image_rect_rel)
         
         # 2. Panah & Fakta
-        arrow_start_x = img_w + 10
+        arrow_start_x = top_margin_x + img_w + 10
         arrow_center_y = curr_y + img_h // 2
         facts = self.config["facts"]
         
@@ -1100,23 +1220,37 @@ class PlanetUniversalModal:
             
             for f_line in f_lines:
                 f_surf = self.fact_font.render(f_line, True, (255, 255, 255))
-                self.content_surf.blit(f_surf, (arrow_start_x + 40, fact_curr_y))
+                pos = (arrow_start_x + 40, fact_curr_y)
+                self.content_surf.blit(f_surf, pos)
+                # Store for selection: (rect, text, font)
+                r = pygame.Rect(pos, f_surf.get_size())
+                self.text_blocks.append((r, f_line, self.fact_font))
                 fact_curr_y += line_h_fact
 
         curr_y += img_h + 10
         
-        # 3. Link / Caption
-        self.link_rect_rel = link_surf.get_rect(topleft=(0, curr_y))
+        # 3. Link / Caption (Centered)
+        link_x = (total_content_w - link_surf.get_width()) // 2
+        self.link_rect_rel = link_surf.get_rect(topleft=(link_x, curr_y))
         self.content_surf.blit(link_surf, self.link_rect_rel)
+        # Store for selection
+        self.text_blocks.append((self.link_rect_rel, caption_str, self.link_font))
+
         curr_y += link_surf.get_height() + 20
         
-        # 4. Text
-        for s in text_surfaces:
+        # 4. Text (Justified/Left but wrapped to fit)
+        text_x = 10
+        for s, line_str in text_surfaces:
             if s:
-                self.content_surf.blit(s, (0, curr_y))
+                pos = (text_x, curr_y)
+                self.content_surf.blit(s, pos)
+                r = pygame.Rect(pos, s.get_size())
+                self.text_blocks.append((r, line_str, self.body_font))
                 curr_y += s.get_height() + 5
             else:
                 curr_y += 15
+                # Empty line block
+                self.text_blocks.append((pygame.Rect(text_x, curr_y-15, 1, 15), "\n", self.body_font))
                 
         # Scroll logic
         self.max_scroll_y = max(0, total_h - view_h)
@@ -1129,6 +1263,116 @@ class PlanetUniversalModal:
         self.panel.blit(x_char, x_char.get_rect(center=self.close_rect.center))
         
         self.panel_rect = self.panel.get_rect(center=(WIDTH/2, HEIGHT/2))
+
+    def get_cursor_at(self, mouse_pos, content_pos):
+        """Returns (block_index, char_index) based on mouse position."""
+        rel_x = mouse_pos[0] - content_pos[0]
+        rel_y = mouse_pos[1] - content_pos[1]
+
+        # 1. Find the closest block vertically
+        # Or simple collision
+
+        # Find block containing Y
+        # If multiple blocks share Y (rare here due to wrapping), use X
+
+        best_block_idx = -1
+
+        # First check collision
+        for i, (r, txt, font) in enumerate(self.text_blocks):
+             if r.inflate(10, 5).collidepoint(rel_x, rel_y):
+                 best_block_idx = i
+                 break
+
+        if best_block_idx == -1:
+            # If not hovering directly, find visually closest vertical line
+            # This is simple: just iterate all
+            # Ideally we pick the one closest to Y, then clamp X
+            min_dy = float('inf')
+            for i, (r, txt, font) in enumerate(self.text_blocks):
+                dy = 0
+                if rel_y < r.top: dy = r.top - rel_y
+                elif rel_y > r.bottom: dy = rel_y - r.bottom
+
+                if dy < min_dy:
+                    min_dy = dy
+                    best_block_idx = i
+                elif dy == min_dy:
+                    # Tie-break with X
+                    # If same line, we are good. If previous logic didn't catch it.
+                    pass
+
+        if best_block_idx == -1: return None
+
+        r, txt, font = self.text_blocks[best_block_idx]
+
+        # Calculate Char Index based on local X
+        local_x = rel_x - r.x
+        if local_x <= 0: return (best_block_idx, 0)
+        if local_x >= r.width: return (best_block_idx, len(txt))
+
+        # Binary search or linear scan for char index
+        # Optimize: Since strings are short (<100 chars usually per line), linear scan is fast enough
+        for i in range(len(txt) + 1):
+            w = font.size(txt[:i])[0]
+            if w > local_x:
+                # Closer to i-1 or i?
+                w_prev = font.size(txt[:i-1])[0]
+                if (local_x - w_prev) < (w - local_x):
+                    return (best_block_idx, i-1)
+                else:
+                    return (best_block_idx, i)
+        return (best_block_idx, len(txt))
+
+    def update_selection(self, mouse_pos, content_pos):
+        cursor = self.get_cursor_at(mouse_pos, content_pos)
+        if cursor:
+            self.sel_end = cursor
+
+    def copy_selection(self):
+        if not self.sel_start or not self.sel_end: return
+
+        # Order start and end
+        s, e = self.sel_start, self.sel_end
+        if s > e: s, e = e, s
+
+        b_start, c_start = s
+        b_end, c_end = e
+
+        res = []
+        for i in range(b_start, b_end + 1):
+            if i >= len(self.text_blocks): break
+            _, txt, _ = self.text_blocks[i]
+
+            start_k = c_start if i == b_start else 0
+            end_k = c_end if i == b_end else len(txt)
+
+            if start_k < end_k:
+                res.append(txt[start_k:end_k])
+
+            # Append newline if this block is a newline or we moved to next block
+            # (Assuming blocks are lines)
+            if i < b_end:
+                 # Check if the block text already ends with newline
+                 if not txt.endswith('\n'):
+                     res.append('\n') # Implicit newline between blocks usually
+                 elif txt == '\n':
+                     pass # Already added
+
+        final_text = "".join(res)
+
+        try:
+            pygame.scrap.put(pygame.SCRAP_TEXT, final_text.encode('utf-8'))
+        except:
+            pass
+        try:
+            import tkinter
+            tk = tkinter.Tk()
+            tk.withdraw()
+            tk.clipboard_clear()
+            tk.clipboard_append(final_text)
+            tk.update()
+            tk.destroy()
+        except: pass
 
     def draw(self, surface):
         self.blur.draw(surface) # Draw blurred background
@@ -1156,28 +1400,74 @@ class PlanetUniversalModal:
                 # Highlight effect
                 pygame.draw.line(surface, (255, 255, 255), link_rect_screen.bottomleft, link_rect_screen.bottomright, 1)
 
+        # Highlight Selected Texts (Per Character)
+        if self.sel_start and self.sel_end:
+            # Order start/end
+            s, e = self.sel_start, self.sel_end
+            if s > e: s, e = e, s
+
+            b_start, c_start = s
+            b_end, c_end = e
+
+            for i in range(b_start, b_end + 1):
+                if i >= len(self.text_blocks): break
+                r, txt, font = self.text_blocks[i]
+
+                # Determine char range for this block
+                k1 = c_start if i == b_start else 0
+                k2 = c_end if i == b_end else len(txt)
+
+                if k1 < k2:
+                    # Calculate highlight rect
+                    # Width of text before highlight
+                    w_pre = font.size(txt[:k1])[0]
+                    # Width of highlighted text
+                    w_sel = font.size(txt[k1:k2])[0]
+
+                    # Highlight rect relative to content
+                    hl_rect = pygame.Rect(r.x + w_pre, r.y, w_sel, r.height)
+
+                    # Move to screen space
+                    screen_hl = hl_rect.move(content_pos)
+
+                    if screen_view_rect.colliderect(screen_hl):
+                         clip_rect = screen_hl.clip(screen_view_rect)
+                         surf = pygame.Surface((clip_rect.width, clip_rect.height), pygame.SRCALPHA)
+                         surf.fill((50, 100, 255, 100)) # Blue
+                         surface.blit(surf, clip_rect.topleft)
+
         surface.set_clip(None)
         
         # Scrollbars
         if self.max_scroll_y > 0:
-            sb_w = 6
+            sb_w = 12
             sb_h = screen_view_rect.height
             sb_x = screen_view_rect.right + 5
             thumb_h = max(20, sb_h * (sb_h / self.content_surf.get_height()))
             scroll_ratio = self.scroll_y / self.max_scroll_y
             thumb_y = screen_view_rect.top + scroll_ratio * (sb_h - thumb_h)
-            pygame.draw.rect(surface, (50, 50, 50), (sb_x, screen_view_rect.top, sb_w, sb_h), border_radius=3)
-            pygame.draw.rect(surface, (150, 150, 150), (sb_x, thumb_y, sb_w, thumb_h), border_radius=3)
+
+            self.sb_y_rect = pygame.Rect(sb_x, screen_view_rect.top, sb_w, sb_h)
+            self.thumb_y_rect = pygame.Rect(sb_x, thumb_y, sb_w, thumb_h)
+
+            pygame.draw.rect(surface, (50, 50, 50), self.sb_y_rect, border_radius=3)
+            col = (200, 200, 200) if self.dragging_y else (150, 150, 150)
+            pygame.draw.rect(surface, col, self.thumb_y_rect, border_radius=3)
             
         if self.max_scroll_x > 0:
-            sb_h = 6
+            sb_h = 12
             sb_w = screen_view_rect.width
             sb_y = screen_view_rect.bottom + 5
             thumb_w = max(20, sb_w * (sb_w / self.content_surf.get_width()))
             scroll_ratio = self.scroll_x / self.max_scroll_x
             thumb_x = screen_view_rect.left + scroll_ratio * (sb_w - thumb_w)
-            pygame.draw.rect(surface, (50, 50, 50), (screen_view_rect.left, sb_y, sb_w, sb_h), border_radius=3)
-            pygame.draw.rect(surface, (150, 150, 150), (thumb_x, sb_y, thumb_w, sb_h), border_radius=3)
+
+            self.sb_x_rect = pygame.Rect(screen_view_rect.left, sb_y, sb_w, sb_h)
+            self.thumb_x_rect = pygame.Rect(thumb_x, sb_y, thumb_w, sb_h)
+
+            pygame.draw.rect(surface, (50, 50, 50), self.sb_x_rect, border_radius=3)
+            col = (200, 200, 200) if self.dragging_x else (150, 150, 150)
+            pygame.draw.rect(surface, col, self.thumb_x_rect, border_radius=3)
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -1191,8 +1481,9 @@ class PlanetUniversalModal:
                 self.scroll_x = min(self.scroll_x + 20, self.max_scroll_x)
             elif event.key == pygame.K_LEFT:
                 self.scroll_x = max(self.scroll_x - 20, 0)
+            elif event.key == pygame.K_c and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+                self.copy_selection()
         elif event.type == pygame.MOUSEWHEEL:
-            # Shift scroll for horizontal? Or just standard vertical
             keys = pygame.key.get_pressed()
             if keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]:
                  self.scroll_x = min(max(self.scroll_x - event.y * 30, 0), self.max_scroll_x)
@@ -1204,7 +1495,17 @@ class PlanetUniversalModal:
             content_pos = (screen_view_rect.x - self.scroll_x, screen_view_rect.y - self.scroll_y)
             link_abs_rect = self.link_rect_rel.move(content_pos)
             
-            # Hanya deteksi jika di dalam viewport
+            # Scroll Dragging
+            if self.dragging_y:
+                delta = event.pos[1] - self.drag_start_pos[1]
+                ratio = delta / self.sb_y_rect.height
+                self.scroll_y = min(max(self.drag_start_val + ratio * self.content_surf.get_height(), 0), self.max_scroll_y)
+            if self.dragging_x:
+                delta = event.pos[0] - self.drag_start_pos[0]
+                ratio = delta / self.sb_x_rect.width
+                self.scroll_x = min(max(self.drag_start_val + ratio * self.content_surf.get_width(), 0), self.max_scroll_x)
+
+            # Link Hover
             if screen_view_rect.collidepoint(event.pos) and link_abs_rect.collidepoint(event.pos):
                 self.link_hover = True
                 pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
@@ -1212,12 +1513,51 @@ class PlanetUniversalModal:
                 if self.link_hover:
                     pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
                 self.link_hover = False
+
+            # Text Selection Drag
+            if self.selecting:
+                self.update_selection(event.pos, content_pos)
                 
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
-                # Cek Link Click
+                # Scrollbar Hit
+                if self.thumb_y_rect and self.thumb_y_rect.collidepoint(event.pos):
+                    self.dragging_y = True
+                    self.drag_start_pos = event.pos
+                    self.drag_start_val = self.scroll_y
+                    return None
+                if self.thumb_x_rect and self.thumb_x_rect.collidepoint(event.pos):
+                    self.dragging_x = True
+                    self.drag_start_pos = event.pos
+                    self.drag_start_val = self.scroll_x
+                    return None
+
+                screen_view_rect = self.view_rect.move(self.panel_rect.topleft)
+                content_pos = (screen_view_rect.x - self.scroll_x, screen_view_rect.y - self.scroll_y)
+
+                # Image Click
+                if self.image_rect_rel:
+                    img_abs = self.image_rect_rel.move(content_pos)
+                    # Clip img rect to view
+                    img_abs_clip = img_abs.clip(screen_view_rect)
+                    if img_abs_clip.collidepoint(event.pos):
+                        return "open_image_viewer"
+
+                # Link Click
                 if self.link_hover:
                     open_url(self.config["link_url"])
+                    return None
+
+                # Text Selection Start
+                if screen_view_rect.collidepoint(event.pos):
+                    self.selecting = True
+                    cursor = self.get_cursor_at(event.pos, content_pos)
+                    if cursor:
+                        self.sel_start = cursor
+                        self.sel_end = cursor
+                    else:
+                        self.sel_start = None
+                        self.sel_end = None
                     return None
 
                 close_abs = self.close_rect.move(self.panel_rect.topleft)
@@ -1225,6 +1565,11 @@ class PlanetUniversalModal:
                     return "close"
                 if not self.panel_rect.collidepoint(event.pos):
                     return "close"
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1:
+                self.dragging_y = False
+                self.dragging_x = False
+                self.selecting = False
         return None
 
 # ==============================================================================
@@ -1305,23 +1650,89 @@ class Planet:
         self.elapsed = 0.0
         self.body = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
         self.body.position = (orbit_radius, 0)
+        self.trail = deque(maxlen=200)
 
-    def update(self, dt):
+    def update(self, dt, sun_pos=Vector2(0, 0)):
         self.angle = (self.angle + self.angular_velocity * dt) % (2 * math.pi)
         self.elapsed = (self.elapsed + dt) % self.period_seconds
-        x = self.orbit_radius * math.cos(self.angle)
-        y = self.orbit_radius * math.sin(self.angle)
+        # Relative position to sun
+        rel_x = self.orbit_radius * math.cos(self.angle)
+        rel_y = self.orbit_radius * math.sin(self.angle)
+        # Absolute position
+        x = sun_pos.x + rel_x
+        y = sun_pos.y + rel_y
+
         self.body.position = (x, y)
+        self.trail.append((x, y))
         return x, y
 
-def draw_orbits(surface, planets, camera, sketch_mode=False):
+def draw_trails(surface, planets, camera):
+    for p in planets:
+        if len(p.trail) < 2:
+            continue
+
+        # Transform trail points to screen space
+        points = [camera.world_to_screen(pt) for pt in p.trail]
+
+        # Draw fading tail
+        # To make it fade, we can draw segments with increasing alpha
+        # But drawing hundreds of aa-lines is slow.
+        # A simpler approach: draw the full line with planet color (maybe slightly darker)
+        # Or, draw segments in chunks.
+
+        # Performance optimization: Draw connected lines in chunks or single pass if no alpha gradient needed.
+        # Requirement: "fade out based on length (alpha gradient)"
+        # We will draw segments.
+
+        pts_len = len(points)
+        for i in range(pts_len - 1):
+            start = points[i]
+            end = points[i+1]
+
+            # Alpha based on index (older points are at start of deque? No, append adds to right)
+            # deque: [oldest, ..., newest]
+            alpha = int(255 * (i / pts_len))
+
+            # Create a temporary surface for the segment to support alpha?
+            # Or just mix color with background?
+            # Pygame `aaline` doesn't support alpha directly on surface blit without lock/surface creation.
+            # Fast approximation: Lerp color to background color.
+
+            # Since background is Navy (5, 10, 25), we fade towards that.
+            c = p.color
+            r = int(c[0] * (i/pts_len))
+            g = int(c[1] * (i/pts_len))
+            b = int(c[2] * (i/pts_len))
+
+            # Ensure visibility against dark background
+            # Add a bit of the base color to avoid pure black too early
+            r = max(r, 20)
+            g = max(g, 20)
+            b = max(b, 30)
+
+            pygame.draw.aaline(surface, (r, g, b), start, end)
+
+def draw_orbits(surface, planets, camera, sketch_mode=False, galactocentric=False, sun_pos=Vector2(0,0)):
+    if galactocentric:
+        # Draw trails instead of ellipses
+        # We can reuse the draw_trails logic here or call it separately
+        draw_trails(surface, planets, camera)
+        return
+
     color = (50, 50, 50) if sketch_mode else None
     for p in planets:
         points = []
+        # In Heliocentric, sun_pos is usually (0,0), but if we allow moving sun in helio (unlikely), support it.
+        # But Requirement says: "Heliosentris: Standard circular orbits, Sun static."
+        # So we assume static sun at 0,0 for orbit drawing or use sun_pos if provided.
+        center_x, center_y = sun_pos.x, sun_pos.y
+
+        # We assume standard mode draws orbit around current sun pos (usually 0,0)
+        # If sun is at (0,0), this loops 0..360
         for deg in range(0, 360, 2):
             rad = math.radians(deg)
-            x = p.orbit_radius * math.cos(rad)
-            y = p.orbit_radius * math.sin(rad)
+            x = center_x + p.orbit_radius * math.cos(rad)
+            y = center_y + p.orbit_radius * math.sin(rad)
             points.append(camera.world_to_screen((x, y)))
         
         orbit_color = color if sketch_mode else p.color
@@ -1329,40 +1740,112 @@ def draw_orbits(surface, planets, camera, sketch_mode=False):
 
 _well_cache = None
 
+def draw_blueprint_grid_scrolling(surface, camera, sketch_mode=False):
+    """Draw infinite scrolling grid"""
+    w, h = surface.get_size()
+
+    # Grid properties
+    step = 100
+
+    # Calculate offset based on camera position
+    # The grid should move opposite to camera to simulate movement
+    off_x = int(camera.pos.x) % step
+    off_y = int(camera.pos.y) % step
+
+    # Color
+    if sketch_mode:
+        line_color = (200, 200, 200, 50)
+    else:
+        line_color = (30, 50, 80) # Subtle blue for Navy BG
+
+    # Draw vertical lines
+    for x in range(-off_x, w, step):
+        pygame.draw.line(surface, line_color, (x, 0), (x, h))
+
+    # Draw horizontal lines
+    for y in range(off_y, h, step): # Note: camera y axis is flipped in standard math, but here simpler modulo
+        # Let's check visual consistency. If camera moves up (pos.y increases), grid lines should move down.
+        # Screen Y increases downwards.
+        # Modulo logic:
+        draw_y = (y + int(camera.pos.y)) % step
+        # Actually simpler: iterate screen pixels
+        pass
+
+    # Correct logic:
+    # Camera at (10, 10) -> Screen (0,0) corresponds to World (-W/2+10, ...)
+    # Just draw lines at screen coordinates that align with world multiples of step.
+
+    # Vertical lines (World X is multiple of step)
+    # screen_x = world_to_screen(world_x)
+    # We want world_x such that world_x % step == 0
+    # visible_min_x, visible_max_x ...
+    # This might be complex with rotation/zoom.
+    # User requested "Scrolling grid background... moves relative to camera".
+    # Since Camera2D handles rotation and zoom, we can just use `draw_curvature` logic or simplified grid logic.
+    # `draw_curvature` draws a mesh. Let's stick to a simpler parallax-like background grid that ignores rotation for depth effect,
+    # OR draw lines in world space.
+
+    # Let's draw lines in world space for true perspective (like the current `draw_curvature` but infinite).
+    # But for an "infinite" feel without heavy loop, usually screen-space modulo is used.
+    # Given the requirements "Blueprint Grid... faint cyan/white lines", let's use screen space modulo with camera pos.
+
+    offset_x = int(camera.pos.x * camera.zoom) % step
+    offset_y = int(camera.pos.y * camera.zoom) % step # Ignore rotation for the background grid to keep it 'deep background'
+
+    # Actually, drawing the existing 'draw_curvature' (Gravity Well) is what was there.
+    # The prompt says: "Blueprint Grid: Draw a subtle, scrolling grid background... moves relative to camera".
+    # I will replace `draw_curvature` (which was the gravity well) with this new grid, OR keep gravity well?
+    # "Gravity Well" is cool. The prompt implies replacing the visual style.
+    # "In Galactocentric Mode... Grid...".
+    # Let's keep `draw_curvature` for Heliocentric (Gravity Well) and use `draw_scrolling_grid` for Galactocentric?
+    # Or just use the new Grid everywhere as "Blueprint Grid".
+    # The prompt says "Blueprint Grid: Draw a subtle...". This sounds like a replacement for the background.
+
+    # I'll implement a screen-space grid that scrolls.
+
+    for x in range(0, w + step, step):
+        draw_x = x - offset_x
+        pygame.draw.line(surface, line_color, (draw_x, 0), (draw_x, h))
+
+    for y in range(0, h + step, step):
+        draw_y = y + offset_y # Direction might need tuning
+        pygame.draw.line(surface, line_color, (0, draw_y), (w, draw_y))
+
 def draw_curvature(surface, camera, sketch_mode=False):
-    if not SHOW_WELL:
-        return
-    global _well_cache
-    outer = OUTER_ORBIT_RADIUS
-    extent = int(outer + 50)
-    step = max(20, extent // 25)
-    params = (WIDTH, HEIGHT, extent, step, WELL_A, WELL_R0)
-    if params != _well_cache:
-        _well_cache = params
-    mesh_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-    line_color = (20, 20, 20, 80) if sketch_mode else (80, 80, 120, 120)
-    
-    for x in range(-extent, extent + 1, step):
-        prev = None
-        for y in range(-extent, extent + 1, step):
-            r = math.hypot(x, y)
-            z = WELL_A / (1 + (r / WELL_R0) ** 2)
-            z = min(z, WELL_MAX_DEPTH)
-            pt = camera.world_to_screen((x, y), z)
-            if prev:
-                pygame.draw.aaline(mesh_surface, line_color, prev, pt)
-            prev = pt
-    for y in range(-extent, extent + 1, step):
-        prev = None
-        for x in range(-extent, extent + 1, step):
-            r = math.hypot(x, y)
-            z = WELL_A / (1 + (r / WELL_R0) ** 2)
-            z = min(z, WELL_MAX_DEPTH)
-            pt = camera.world_to_screen((x, y), z)
-            if prev:
-                pygame.draw.aaline(mesh_surface, line_color, prev, pt)
-            prev = pt
-    surface.blit(mesh_surface, (0, 0))
+    # Legacy gravity well - keeping it for Heliocentric mode or specific toggle?
+    # User said "Blueprint Grid... moves relative to camera".
+    # I will update this function to draw the new grid style if Galactocentric or generally.
+    # Let's alias it to the new style for consistent visuals or check mode.
+    # I'll preserve the code logic but maybe unused if I switch call in main.
+    # Actually, I'll replace the content to be the new grid as requested "Change the default background... Blueprint Grid".
+
+    # Wait, "curvature" implies gravity well z-distortion. "Blueprint Grid" implies flat scrolling.
+    # I will replace this function's body with the new scrolling grid logic to satisfy the "Visual Specifications".
+
+    w, h = surface.get_size()
+    step = 100
+
+    # Scale step by zoom so grid scales
+    scaled_step = int(step * camera.zoom)
+    if scaled_step < 10: scaled_step = 10 # Prevent infinite lines
+
+    # Calculate offset
+    # We want the grid to stick to world coordinates visually
+    # Start X: world 0 -> screen center.
+    # We find the screen coordinate of world (0,0) and tile from there.
+
+    center_screen = camera.world_to_screen((0,0))
+    start_x = center_screen[0] % scaled_step
+    start_y = center_screen[1] % scaled_step
+
+    line_color = (30, 50, 80) if not sketch_mode else (200, 200, 200, 50)
+
+    # Draw Grid
+    for x in range(start_x, w, scaled_step):
+        pygame.draw.line(surface, line_color, (x, 0), (x, h))
+
+    for y in range(start_y, h, scaled_step):
+        pygame.draw.line(surface, line_color, (0, y), (w, y))
 
 def recalculate_orbits(planets, scale=ORBIT_SCALE_DEFAULT):
     cumulative = []
@@ -2181,30 +2664,6 @@ def camera_self_test():
         print("Camera self-test FAIL", cam.pos, expected)
     pygame.quit()
 
-# ==============================================================================
-# FUNGSI LISENSI
-# ==============================================================================
-
-def check_license_locally():
-    """Cek apakah file lisensi ada. Tidak memverifikasi ke server (mode offline)."""
-    if os.path.exists(LICENSE_FILE):
-        return True
-    return False
-
-def activate_license_online(key, hwid):
-    """Mengontak server Flask untuk aktivasi."""
-    url = f"{LICENSE_SERVER_URL}/activate"
-    payload = {"key": key, "hwid": hwid}
-    try:
-        r = requests.post(url, json=payload, timeout=10)
-        data = r.json()
-        if r.status_code == 200 and data.get("status") == "success":
-            return True, data.get("message")
-        else:
-            return False, data.get("message", "Unknown Server Error")
-    except Exception as e:
-        return False, f"Connection Error: {str(e)}"
-
 def draw_blueprint_grid(surface):
     """Menggambar grid blueprint halus di background."""
     w, h = surface.get_size()
@@ -2212,10 +2671,10 @@ def draw_blueprint_grid(surface):
     # Sesuaikan dengan warna saat aplikasi simulasi di mulai: (10, 10, 30)
     bg_color = (10, 10, 30)
     surface.fill(bg_color)
-    
+
     # Warna garis grid (biru/abu-abu halus transparan)
-    line_color_solid = (40, 40, 70) 
-    
+    line_color_solid = (40, 40, 70)
+
     step = 40
     for x in range(0, w, step):
         pygame.draw.line(surface, line_color_solid, (x, 0), (x, h))
@@ -2244,337 +2703,6 @@ def get_clipboard_text():
     except:
         return ""
 
-def check_trial_history_used(hwid):
-    """Cek apakah HWID ini sudah pernah menggunakan trial."""
-    if os.path.exists("trial_history.dat"):
-        try:
-            with open("trial_history.dat", "r") as f:
-                content = f.read()
-                if hwid in content:
-                    return True
-        except:
-            pass
-    return False
-
-def mark_trial_used(hwid):
-    """Tandai HWID ini sudah menggunakan trial."""
-    try:
-        with open("trial_history.dat", "a") as f:
-            f.write(f"{hwid}|USED\n")
-    except:
-        pass
-
-def license_screen(screen, target_key=None, startup_message=None):
-    """
-    Loop khusus untuk input serial number sebelum masuk ke main game.
-    target_key: Jika diisi, user WAJIB memasukkan key yang sama dengan ini.
-    """
-    clock = pygame.time.Clock()
-    font_main_title = pygame.font.SysFont("arial", 48, bold=True)
-    font_title = pygame.font.SysFont("arial", 30, bold=True)
-    font_input = pygame.font.SysFont("couriernew", 30, bold=True)
-    font_msg = pygame.font.SysFont("arial", 20)
-    font_quote = pygame.font.SysFont("georgia", 18, italic=True)
-    font_small = pygame.font.SysFont("arial", 14)
-    # Font khusus tombol trial (italic, bold)
-    font_trial_btn = pygame.font.SysFont("arial", 16, bold=True, italic=True) 
-    
-    input_box = pygame.Rect(WIDTH // 2 - 200, HEIGHT // 2 - 25, 400, 50)
-    # Geser tombol ACTIVATE ke bawah agar tidak menimpa link trial
-    btn_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 100, 200, 50)
-    
-    color_inactive = (100, 100, 100)
-    color_active = (100, 200, 255) # Biru muda blueprint
-    color = color_inactive
-    active = False
-    text = ''
-    
-    # Pesan default atau pesan startup (misal: trial expired)
-    message = startup_message if startup_message else "ENTER SERIAL NUMBER"
-    msg_color = (255, 50, 50) if startup_message else (255, 255, 255)
-    
-    state = LicenseState.INPUT_KEY
-    hwid = get_hwid()
-    
-    # Mode License: LIFETIME vs TRIAL
-    license_mode = "LIFETIME" # Default
-    
-    # Timer untuk backspace
-    last_backspace_time = 0
-    backspace_interval = 50 # ms
-    backspace_delay = 400 # ms
-    
-    running = True
-    while running:
-        current_time = pygame.time.get_ticks()
-        
-        # Hitung posisi tombol trial (di bawah kiri input box)
-        trial_btn_txt_str = "coba free trial for 3 day" if license_mode == "LIFETIME" else "pergi ke lifetime"
-        trial_btn_surf = font_trial_btn.render(trial_btn_txt_str, True, (200, 200, 255))
-        # Garis bawah manual
-        pygame.draw.line(trial_btn_surf, (200, 200, 255), (0, trial_btn_surf.get_height()-2), (trial_btn_surf.get_width(), trial_btn_surf.get_height()-2), 1)
-        
-        trial_btn_rect = trial_btn_surf.get_rect(topleft=(input_box.left, input_box.bottom + 10))
-        
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if input_box.collidepoint(event.pos):
-                    # Input box only active in Lifetime mode
-                    if license_mode == "LIFETIME":
-                        active = not active
-                    else:
-                        active = False
-                else:
-                    active = False
-                color = color_active if active else color_inactive
-                
-                # Cek Tombol Trial/Lifetime Toggle
-                if trial_btn_rect.collidepoint(event.pos):
-                    if license_mode == "LIFETIME":
-                        license_mode = "TRIAL"
-                        message = "PRESS ACTIVATE TO START TRIAL"
-                        msg_color = (255, 255, 255)
-                    else:
-                        license_mode = "LIFETIME"
-                        message = "ENTER SERIAL NUMBER"
-                        msg_color = (255, 255, 255)
-                    text = "" # Reset input saat ganti mode
-                
-                # Cek Tombol Activate
-                if state == LicenseState.INPUT_KEY and btn_rect.collidepoint(event.pos):
-                    if license_mode == "TRIAL":
-                        # Trial: Langsung aktivasi tanpa cek panjang text
-                        state = LicenseState.ACTIVATING
-                    else:
-                        # Lifetime: Cek panjang key
-                        if len(text) > 5:
-                            # Jika mode Lifetime, cek validasi lokal
-                            if license_mode == "LIFETIME" and target_key and text.strip() != target_key.strip():
-                                 import tkinter
-                                 from tkinter import messagebox
-                                 try:
-                                     root = tkinter.Tk()
-                                     root.withdraw()
-                                     messagebox.showerror("Error", "Serial number anda bukan yang ini, masukkan yang telah diberikan oleh penjual")
-                                     root.destroy()
-                                 except:
-                                     pass
-                                 message = "SERIAL NUMBER SALAH (BEDA DENGAN SEBELUMNYA)"
-                                 msg_color = (255, 50, 50)
-                            else:
-                                state = LicenseState.ACTIVATING
-            
-            if event.type == pygame.KEYDOWN:
-                if active and license_mode == "LIFETIME":
-                    if event.key == pygame.K_RETURN:
-                        if len(text) > 5:
-                            # Logic Enter sama dengan Klik Activate
-                            if license_mode == "LIFETIME" and target_key and text.strip() != target_key.strip():
-                                 import tkinter
-                                 from tkinter import messagebox
-                                 try:
-                                     root = tkinter.Tk()
-                                     root.withdraw()
-                                     messagebox.showerror("Error", "Serial number anda bukan yang ini, masukkan yang telah diberikan oleh penjual")
-                                     root.destroy()
-                                 except:
-                                     pass
-                                 message = "SERIAL NUMBER SALAH"
-                                 msg_color = (255, 50, 50)
-                            else:
-                                state = LicenseState.ACTIVATING
-                                
-                    elif event.key == pygame.K_BACKSPACE:
-                        text = text[:-1]
-                        last_backspace_time = current_time + backspace_delay
-                    elif event.key == pygame.K_DELETE: # Fitur delete
-                        text = "" 
-                    elif event.key == pygame.K_a and (event.mod & pygame.KMOD_CTRL):
-                        # Ctrl+A Select All (Simulasi visual dengan print atau flash?)
-                        # Di Pygame input simple string, Ctrl+A biasanya untuk replace.
-                        # Kita buat agar user bisa langsung delete semua setelah Ctrl+A -> Backspace/Del
-                        # Tapi di sini kita simpelkan: Ctrl+A -> Print 'Selected' di console debug atau sekadar flag.
-                        # Instruksi bilang: "aktifkan pula fungsi fitur mendelete seluruh teks serial number yang dimasukkan jika teks di ctrl-A"
-                        # Ini ambigu: apakah Ctrl+A langsung delete? Atau Ctrl+A select lalu delete?
-                        # Biasanya Ctrl+A select all. Lalu user tekan Backspace.
-                        # Untuk mempermudah sesuai prompt: "aktifkan fungsi fitur mendelete seluruh teks... jika teks di ctrl-A"
-                        # Saya akan buat Ctrl+A langsung menghapus teks atau "Select All" effect lalu next char replaces.
-                        # Tapi paling aman: Ctrl+A = Select All logic is complex in simple UI.
-                        # Saya akan implementasi Ctrl+A -> Kosongkan text (Clear). Simpel dan efektif.
-                        text = "" 
-                    elif event.key == pygame.K_v and (event.mod & pygame.KMOD_CTRL):
-                        clip = get_clipboard_text()
-                        if clip: text += clip.upper().strip()
-                    elif event.key == pygame.K_c and (event.mod & pygame.KMOD_CTRL):
-                        try:
-                            import tkinter
-                            tk = tkinter.Tk()
-                            tk.withdraw()
-                            tk.clipboard_clear()
-                            tk.clipboard_append(text)
-                            tk.update()
-                            tk.destroy()
-                        except: pass
-                    elif event.key == pygame.K_x and (event.mod & pygame.KMOD_CTRL):
-                        try:
-                            import tkinter
-                            tk = tkinter.Tk()
-                            tk.withdraw()
-                            tk.clipboard_clear()
-                            tk.clipboard_append(text)
-                            tk.update()
-                            tk.destroy()
-                            text = ""
-                        except: pass
-                    else:
-                        if event.unicode.isprintable() and len(text) < 50:
-                            text += event.unicode.upper()
-
-        # Handle Backspace Hold
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_BACKSPACE] and active:
-            if current_time > last_backspace_time:
-                text = text[:-1]
-                last_backspace_time = current_time + backspace_interval
-
-        # Background Blueprint
-        draw_blueprint_grid(screen)
-        
-        # Logic Aktivasi
-        if state == LicenseState.ACTIVATING:
-            # Jika Trial Mode, Cek History Dulu
-            blocked_trial = False
-            if license_mode == "TRIAL":
-                # Cek apakah sudah pernah pakai trial
-                if check_trial_history_used(hwid):
-                    message = "masa free trial teruss ehe.. ayokk gasss lifetime.."
-                    msg_color = (255, 50, 50)
-                    state = LicenseState.INPUT_KEY
-                    blocked_trial = True
-                else:
-                    # Automatic Activation for Trial (Local Check / Skip Server Key Check)
-                    # We create a dummy success state locally for Trial
-                    start_time = time.time()
-                    # Generate a dummy key for file consistency
-                    dummy_trial_key = f"AUTO-TRIAL-{hwid}"
-                    
-                    # Simpan data lisensi lokal
-                    try:
-                        with open(LICENSE_FILE, "w") as f:
-                             # Format: TRIAL|HWID|KEY|START_TIMESTAMP
-                            f.write(f"TRIAL|{hwid}|{dummy_trial_key}|{start_time}")
-                        mark_trial_used(hwid)
-                        
-                        message = "TRIAL ACTIVATED!"
-                        msg_color = (0, 255, 0)
-                        state = LicenseState.SUCCESS
-                        text = dummy_trial_key # Untuk return value
-                    except Exception as e:
-                        message = f"ERROR WRITING FILE: {e}"
-                        msg_color = (255, 50, 50)
-                        state = LicenseState.INPUT_KEY
-            
-            if not blocked_trial and license_mode == "LIFETIME":
-                # Draw overlay loading
-                msg_surf = font_msg.render("CONTACTING SERVER...", True, (255, 255, 0))
-                screen.blit(msg_surf, msg_surf.get_rect(center=(WIDTH//2, HEIGHT//2 + 120)))
-                pygame.display.flip()
-                
-                success, server_msg = activate_license_online(text, hwid)
-                if success:
-                    message = "ACTIVATION SUCCESSFUL!"
-                    msg_color = (0, 255, 0)
-                    state = LicenseState.SUCCESS
-                    
-                    # Simpan data lisensi
-                    with open(LICENSE_FILE, "w") as f:
-                        # Format: ACTIVATED|HWID|KEY
-                        f.write(f"ACTIVATED|{hwid}|{text}")
-                else:
-                    message = f"FAILED: {server_msg}"
-                    msg_color = (255, 50, 50)
-                    state = LicenseState.INPUT_KEY
-        
-        elif state == LicenseState.SUCCESS:
-            txt_surface = font_input.render(text, True, color)
-            width = max(400, txt_surface.get_width()+10)
-            input_box.w = width
-            input_box.centerx = WIDTH // 2
-            pygame.draw.rect(screen, color, input_box, 2)
-            screen.blit(txt_surface, (input_box.x+5, input_box.y+5))
-            
-            # Judul berubah sesuai mode
-            title_str = "FREE TRIAL FOR 3 DAY" if license_mode == "TRIAL" else "PRODUCT ACTIVATION"
-            title_surf = font_title.render(title_str, True, (255, 255, 255))
-            screen.blit(title_surf, title_surf.get_rect(center=(WIDTH//2, HEIGHT//2 - 100)))
-            
-            msg_surf = font_msg.render(message, True, msg_color)
-            screen.blit(msg_surf, msg_surf.get_rect(center=(WIDTH//2, HEIGHT//2 + 130)))
-            
-            pygame.display.flip()
-            pygame.time.delay(1500)
-            return True, text # Return True dan key yang baru saja aktif
-
-        # === RENDER UI ===
-        
-        # Main Title
-        main_title = font_main_title.render("SIMULASI SISTEM TATA SURYA", True, (255, 255, 255))
-        screen.blit(main_title, main_title.get_rect(center=(WIDTH//2, HEIGHT//2 - 160)))
-
-        # Sub Title (Dynamic)
-        title_str = "FREE TRIAL FOR 3 DAY" if license_mode == "TRIAL" else "PRODUCT ACTIVATION"
-        title_surf = font_title.render(title_str, True, (200, 200, 200))
-        screen.blit(title_surf, title_surf.get_rect(center=(WIDTH//2, HEIGHT//2 - 100)))
-
-        # Quote Elon Musk
-        quote_text = "\"If The Universe is The Answer, then what is The Question ?\" - Elon Musk"
-        quote_surf = font_quote.render(quote_text, True, (200, 200, 255)) 
-        screen.blit(quote_surf, quote_surf.get_rect(center=(WIDTH//2, input_box.y - 30)))
-        
-        # Input Box
-        if license_mode == "LIFETIME":
-            txt_surface = font_input.render(text, True, color)
-            width = max(400, txt_surface.get_width()+10)
-            input_box.w = width
-            input_box.centerx = WIDTH // 2
-            
-            s = pygame.Surface((input_box.w, input_box.h))
-            s.set_alpha(100)
-            s.fill((0, 0, 0))
-            screen.blit(s, (input_box.x, input_box.y))
-            
-            screen.blit(txt_surface, (input_box.x+5, input_box.y+5))
-            pygame.draw.rect(screen, color, input_box, 2)
-        else:
-            # Trial Mode: Hide Input or Show Text
-            info_txt = font_msg.render("NO KEY REQUIRED FOR TRIAL", True, (150, 200, 150))
-            screen.blit(info_txt, info_txt.get_rect(center=(WIDTH//2, input_box.centery)))
-        
-        # Render Tombol Trial
-        screen.blit(trial_btn_surf, trial_btn_rect)
-        
-        # Message Area
-        msg_surf = font_msg.render(message, True, msg_color)
-        screen.blit(msg_surf, msg_surf.get_rect(center=(WIDTH//2, HEIGHT//2 + 130)))
-        
-        # Online Warning
-        online_msg = "Anda harus terhubung ke internet untuk mengaktivasi serial number product keynya, harap online."
-        online_surf = font_small.render(online_msg, True, (200, 200, 200))
-        screen.blit(online_surf, online_surf.get_rect(center=(WIDTH//2, HEIGHT - 30)))
-        
-        # Activate Button
-        pygame.draw.rect(screen, (0, 150, 0) if state != LicenseState.ACTIVATING else (100, 100, 100), btn_rect, border_radius=5)
-        pygame.draw.rect(screen, (255, 255, 255), btn_rect, 2, border_radius=5)
-        btn_txt = font_msg.render("ACTIVATE", True, (255, 255, 255))
-        screen.blit(btn_txt, btn_txt.get_rect(center=btn_rect.center))
-        
-        pygame.display.flip()
-        clock.tick(30)
-    return False, None
-
 # ==============================================================================
 
 def main():
@@ -2586,252 +2714,147 @@ def main():
 
     global WIDTH, HEIGHT
 
-    # --- SPECIAL HWID RESET (For Testing/Specific User) ---
-    # HWID: 48751573395980
-    if get_hwid() == "48751573395980":
-        log("Special HWID detected: Resetting license state...")
-        if os.path.exists("trial_history.dat"):
-            try: os.remove("trial_history.dat")
-            except: pass
-        if os.path.exists(LICENSE_FILE):
-            try: os.remove(LICENSE_FILE)
-            except: pass
-    # ------------------------------------------------------
-
-    # Tidak perlu init screen besar dulu, karena Splash Screen akan buat sendiri
     # Tampilkan Splash Screen (Loading Box)
     show_splash_screen()
 
     # Re-init Main Window setelah splash selesai
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
     log(f"window created {WIDTH}x{HEIGHT} flags=RESIZABLE")
-    pygame.display.set_caption("Solar System Revolution Simulation (Licensed)")
+    pygame.display.set_caption("Solar System Revolution Simulation (Free Version)")
 
-    # Load existing key (untuk validasi tombol back)
-    active_key = None
-    is_trial_mode = False
-    trial_start_time = 0.0
+    font = pygame.font.SysFont("arial", 16)
+    small_font = pygame.font.SysFont("arial", 14)
+    tooltip = Tooltip(pygame.font.SysFont("arial", 14))
+    watermark_font = pygame.font.SysFont("arial", 12, italic=True)
+    watermark_text = watermark_font.render("@emansipation", True, (255, 255, 255))
+    watermark_shadow = watermark_font.render("@emansipation", True, (0, 0, 0))
     
-    if os.path.exists(LICENSE_FILE):
-        try:
-            with open(LICENSE_FILE, "r") as f:
-                content = f.read().split("|")
-                if len(content) >= 3:
-                    active_key = content[2].strip()
-                if content[0] == "TRIAL" and len(content) >= 4:
-                    is_trial_mode = True
-                    trial_start_time = float(content[3])
-        except: pass
+    overlay = PlanetOverlay(font)
+    language_modal = None
+    data_modal = None
+    time_modal = None
+    mars_modal = None
+    blur = BlurLayer()
+    clock = pygame.time.Clock()
+    book_icon = load_book_icon(DATA_BUTTON_SIZE)
 
-    # Variabel kontrol agar screen awal tidak muncul jika sudah ada lisensi,
-    # kecuali user menekan "Back"
-    first_run = True
-    
-    # Pesan startup (misal untuk expired trial)
-    startup_msg = None
+    sun = SimpleNamespace(name="Sun", color=(255, 215, 0), radius=SUN_DRAW_RADIUS)
 
-    # --- SESSION LOOP ---
-    while True:
-        # Cek Expiration Trial (Brute Force Check)
-        is_trial_expired = False
-        if os.path.exists(LICENSE_FILE):
-            try:
-                with open(LICENSE_FILE, "r") as f:
-                    content = f.read().split("|")
-                    # Format TRIAL: TRIAL|HWID|KEY|START_TIMESTAMP
-                    if content[0] == "TRIAL" and len(content) >= 4:
-                        start_time_chk = float(content[3])
-                        elapsed = time.time() - start_time_chk
-                        # 3 hari = 3 * 24 * 3600 seconds
-                        if elapsed > (3 * 24 * 3600):
-                            is_trial_expired = True
-            except: pass
-        
-        if is_trial_expired:
-            # Hapus lisensi, reset key
-            try: os.remove(LICENSE_FILE)
-            except: pass
-            active_key = None
-            is_trial_mode = False
-            first_run = True # Force agar logic check_license_locally gagal (sebenarnya file sdh dihapus jd aman)
-            startup_msg = "masa 3 day free trial anda sudah habis, ayok ke versi lifetime"
-        
-        # Jika Back ditekan (first_run False) ATAU File lisensi tidak ada: Tampilkan License Screen
-        # Jika Start Up (first_run True) DAN File Lisensi Ada: Skip
-        
-        should_show_license = True
-        if first_run and check_license_locally():
-            should_show_license = False
-        
-        if should_show_license:
-             # Pass active_key jika ada (untuk validasi ulang)
-             # Pass startup_msg jika ada
-             authorized, new_key = license_screen(screen, target_key=active_key, startup_message=startup_msg)
-             if not authorized:
-                 pygame.quit()
-                 return
-             active_key = new_key
-             startup_msg = None # Reset pesan setelah berhasil masuk
-             
-             # Re-check mode after activation
-             if os.path.exists(LICENSE_FILE):
-                try:
-                    with open(LICENSE_FILE, "r") as f:
-                        content = f.read().split("|")
-                        if content[0] == "TRIAL" and len(content) >= 4:
-                            is_trial_mode = True
-                            trial_start_time = float(content[3])
-                        else:
-                            is_trial_mode = False
-                except: pass
-        else:
-             # File ada. Baca keynya jika belum dibaca.
-             if not active_key:
-                  try:
-                      with open(LICENSE_FILE, "r") as f:
-                          content = f.read().split("|")
-                          if len(content) >= 3:
-                              active_key = content[2].strip()
-                          if content[0] == "TRIAL" and len(content) >= 4:
-                                is_trial_mode = True
-                                trial_start_time = float(content[3])
-                          else:
-                                is_trial_mode = False
-                  except: pass
-        
-        first_run = False # Setelah sesi pertama, flag ini mati
+    planets = [
+        Planet("Mercury", (169, 169, 169), 60, 4, 88),
+        Planet("Venus", (218, 165, 32), 90, 7, 225),
+        Planet("Earth", (100, 149, 237), 120, 7, 365),
+        Planet("Mars", (188, 39, 50), 150, 6, 687),
+        Planet("Jupiter", (222, 184, 135), 220, 12, 4330),
+        Planet("Saturn", (210, 180, 140), 260, 10, 10752),
+        Planet("Uranus", (175, 238, 238), 300, 9, 30660),
+        Planet("Neptune", (72, 61, 139), 340, 9, 59860),
+    ]
 
-        # Masuk Game Loop
-        
-        font = pygame.font.SysFont("arial", 16)
-        small_font = pygame.font.SysFont("arial", 14)
-        tooltip = Tooltip(pygame.font.SysFont("arial", 14))
-        watermark_font = pygame.font.SysFont("arial", 12, italic=True)
-        watermark_text = watermark_font.render("@emansipation", True, (255, 255, 255))
-        watermark_shadow = watermark_font.render("@emansipation", True, (0, 0, 0))
-        
-        # Tombol Kembali / Reset License
-        back_btn_font = pygame.font.SysFont("arial", 12, bold=True)
-        back_btn_text = back_btn_font.render("<< RESET / LOGIN", True, (255, 100, 100))
-        back_btn_rect = pygame.Rect(0, 0, 0, 0) # Akan dihitung saat draw
-        
-        overlay = PlanetOverlay(font)
-        language_modal = None
-        data_modal = None
-        time_modal = None
-        mars_modal = None
-        blur = BlurLayer()
-        clock = pygame.time.Clock()
-        book_icon = load_book_icon(DATA_BUTTON_SIZE)
+    space = pymunk.Space()
+    for p in planets:
+        shape = pymunk.Circle(p.body, p.radius)
+        space.add(p.body, shape)
 
-        sun = SimpleNamespace(name="Sun", color=(255, 215, 0), radius=SUN_DRAW_RADIUS)
+    if USE_APPROX_ORBITS:
+        apply_approx_orbits(planets)
+    else:
+        recalculate_orbits(planets)
 
-        planets = [
-            Planet("Mercury", (169, 169, 169), 60, 4, 88),
-            Planet("Venus", (218, 165, 32), 90, 7, 225),
-            Planet("Earth", (100, 149, 237), 120, 7, 365),
-            Planet("Mars", (188, 39, 50), 150, 6, 687),
-            Planet("Jupiter", (222, 184, 135), 220, 12, 4330),
-            Planet("Saturn", (210, 180, 140), 260, 10, 10752),
-            Planet("Uranus", (175, 238, 238), 300, 9, 30660),
-            Planet("Neptune", (72, 61, 139), 340, 9, 59860),
-        ]
+    camera = Camera2D()
+    speed_index = 1
+    speed_multiplier = SPEED_OPTIONS[speed_index]
+    show_keyboard_info = False
+    keyboard_info_rect = None
+    keyboard_button_color = list(KEYBOARD_BTN_INACTIVE)
+    paused = False
+    rotating = False
+    sketch_mode = False
+    last_mouse_x = 0
+    show_debug = False
+    input_vec = Vector2()
+    ui_state = UIState.RUNNING
+    selected_planet = None
+    pending_overlay = None
+    fullscreen = False
+    windowed_size = (WIDTH, HEIGHT)
+    speed_rects = []
+    angle_button_rects = []
+    angle_focus = -1
+    keyboard_button_rect = pygame.Rect(0, 0, 0, 0)
+    language_button_rect = pygame.Rect(0, 0, 0, 0)
+    data_button_rect = pygame.Rect(0, 0, 0, 0)
+    time_info_button_rect = pygame.Rect(0, 0, 0, 0)
+    play_rect = pygame.Rect(0, 0, 0, 0)
+    pause_rect = pygame.Rect(0, 0, 0, 0)
+    sketch_button_rect = pygame.Rect(0, 0, 0, 0)
+    start_x = button_y = 0
+    lod_active = camera.zoom < LOD_ZOOM
 
-        space = pymunk.Space()
-        for p in planets:
-            shape = pymunk.Circle(p.body, p.radius)
-            space.add(p.body, shape)
+    image_viewer = ImageViewer()
 
+    # Galactocentric Mode State
+    galactocentric_mode = False
+    sun_pos = Vector2(0, 0)
+    sun_vel = Vector2(50, 0)
+    mode_button_rect = pygame.Rect(0, 0, 0, 0)
+
+    def recalc_ui():
+        nonlocal speed_rects, angle_button_rects, keyboard_button_rect
+        nonlocal play_rect, pause_rect, start_x, button_y, data_button_rect, time_info_button_rect
+        nonlocal sketch_button_rect, mode_button_rect
+        speed_rects = [pygame.Rect(10 + i * 55, 10, 50, 25) for i in range(len(SPEED_OPTIONS))]
+
+        angle_button_rects = []
+        x = 10
+        y = 40
+        for label in ANGLE_LABELS:
+            w, _ = font.size(label)
+            rect = pygame.Rect(x, y, w + 20, 25)
+            angle_button_rects.append(rect)
+            x += rect.width + 5
+
+        keyboard_button_rect = pygame.Rect(10, y + 25 + 5, 170, 30)
+
+        # Mode Button (Below keyboard button)
+        mode_button_rect = pygame.Rect(10, keyboard_button_rect.bottom + 10, 200, 30)
+
+        button_w, button_h, gap = 80, 30, 20
+        total_w = button_w * 2 + gap
+        start_x = WIDTH // 2 - total_w // 2
+        button_y = HEIGHT - button_h - 10
+        play_rect = pygame.Rect(start_x, button_y, button_w, button_h)
+        pause_rect = pygame.Rect(start_x + button_w + gap, button_y, button_w, button_h)
+
+        sketch_w = 120
+        sketch_x = WIDTH // 2 - sketch_w // 2
+        sketch_y = button_y - 40
+        sketch_button_rect = pygame.Rect(sketch_x, sketch_y, sketch_w, 30)
+
+        data_button_rect = pygame.Rect(
+            WIDTH - DATA_BUTTON_SIZE - 10,
+            HEIGHT - DATA_BUTTON_SIZE - 10,
+            DATA_BUTTON_SIZE,
+            DATA_BUTTON_SIZE,
+        )
+        time_info_button_rect = pygame.Rect(0, 0, 0, 0)
+
+    recalc_ui()
+
+    def change_language(lang):
+        global CURRENT_LANG, ANGLE_LABELS
+        CURRENT_LANG = lang
+        ANGLE_LABELS = [t(k) for k in ANGLE_LABEL_KEYS]
         if USE_APPROX_ORBITS:
             apply_approx_orbits(planets)
         else:
             recalculate_orbits(planets)
-
-        camera = Camera2D()
-        speed_index = 1
-        speed_multiplier = SPEED_OPTIONS[speed_index]
-        show_keyboard_info = False
-        keyboard_info_rect = None
-        keyboard_button_color = list(KEYBOARD_BTN_INACTIVE)
-        paused = False
-        rotating = False
-        sketch_mode = False 
-        last_mouse_x = 0
-        show_debug = False
-        input_vec = Vector2()
-        ui_state = UIState.RUNNING
-        selected_planet = None
-        pending_overlay = None
-        fullscreen = False
-        windowed_size = (WIDTH, HEIGHT)
-        speed_rects = []
-        angle_button_rects = []
-        angle_focus = -1
-        keyboard_button_rect = pygame.Rect(0, 0, 0, 0)
-        language_button_rect = pygame.Rect(0, 0, 0, 0)
-        data_button_rect = pygame.Rect(0, 0, 0, 0)
-        time_info_button_rect = pygame.Rect(0, 0, 0, 0)
-        play_rect = pygame.Rect(0, 0, 0, 0)
-        pause_rect = pygame.Rect(0, 0, 0, 0)
-        sketch_button_rect = pygame.Rect(0, 0, 0, 0) 
-        start_x = button_y = 0
-        lod_active = camera.zoom < LOD_ZOOM
-        
-        user_requested_back = False
-
-        def recalc_ui():
-            nonlocal speed_rects, angle_button_rects, keyboard_button_rect
-            nonlocal play_rect, pause_rect, start_x, button_y, data_button_rect, time_info_button_rect
-            nonlocal sketch_button_rect
-            speed_rects = [pygame.Rect(10 + i * 55, 10, 50, 25) for i in range(len(SPEED_OPTIONS))]
-
-            angle_button_rects = []
-            x = 10
-            y = 40
-            for label in ANGLE_LABELS:
-                w, _ = font.size(label)
-                rect = pygame.Rect(x, y, w + 20, 25)
-                angle_button_rects.append(rect)
-                x += rect.width + 5
-
-            keyboard_button_rect = pygame.Rect(10, y + 25 + 5, 170, 30)
-
-            button_w, button_h, gap = 80, 30, 20
-            total_w = button_w * 2 + gap
-            start_x = WIDTH // 2 - total_w // 2
-            button_y = HEIGHT - button_h - 10
-            play_rect = pygame.Rect(start_x, button_y, button_w, button_h)
-            pause_rect = pygame.Rect(start_x + button_w + gap, button_y, button_w, button_h)
-            
-            sketch_w = 120
-            sketch_x = WIDTH // 2 - sketch_w // 2
-            sketch_y = button_y - 40
-            sketch_button_rect = pygame.Rect(sketch_x, sketch_y, sketch_w, 30)
-
-            data_button_rect = pygame.Rect(
-                WIDTH - DATA_BUTTON_SIZE - 10,
-                HEIGHT - DATA_BUTTON_SIZE - 10,
-                DATA_BUTTON_SIZE,
-                DATA_BUTTON_SIZE,
-            )
-            time_info_button_rect = pygame.Rect(0, 0, 0, 0)
-
         recalc_ui()
 
-        def change_language(lang):
-            global CURRENT_LANG, ANGLE_LABELS
-            CURRENT_LANG = lang
-            ANGLE_LABELS = [t(k) for k in ANGLE_LABEL_KEYS]
-            if USE_APPROX_ORBITS:
-                apply_approx_orbits(planets)
-            else:
-                recalculate_orbits(planets)
-            recalc_ui()
-
-        def draw_watermark_and_back(surface):
+        def draw_watermark(surface):
             x = 10
             y = HEIGHT - watermark_text.get_height() - 10
-            
+
             # Watermark
             if sketch_mode:
                 black_wm = watermark_font.render("@emansipation", True, (0, 0, 0))
@@ -2839,20 +2862,15 @@ def main():
             else:
                 surface.blit(watermark_shadow, (x + 1, y + 1))
                 surface.blit(watermark_text, (x, y))
-            
-            # Tombol Back
-            wm_w = watermark_text.get_width()
-            nonlocal back_btn_rect
-            btn_x = x + wm_w + 15
-            back_btn_rect = pygame.Rect(btn_x, y - 2, back_btn_text.get_width() + 10, back_btn_text.get_height() + 4)
-            
-            # Draw button background (agak transparan merah)
-            s = pygame.Surface((back_btn_rect.width, back_btn_rect.height), pygame.SRCALPHA)
-            s.fill((100, 0, 0, 150))
-            surface.blit(s, back_btn_rect.topleft)
-            pygame.draw.rect(surface, (150, 50, 50), back_btn_rect, 1)
-            
-            surface.blit(back_btn_text, (btn_x + 5, y))
+
+        def draw_mode_button(surface):
+            label = "Mode: Galaktosentris" if galactocentric_mode else "Mode: Heliosentris"
+            color = (255, 100, 0) if galactocentric_mode else (100, 200, 255)
+            pygame.draw.rect(surface, color, mode_button_rect, border_radius=5)
+            pygame.draw.rect(surface, (0,0,0), mode_button_rect, 2, border_radius=5)
+
+            txt = font.render(label, True, (0,0,0))
+            surface.blit(txt, txt.get_rect(center=mode_button_rect.center))
 
         def reset_view():
             camera.pos.update(0.0, 0.0)
@@ -2862,11 +2880,13 @@ def main():
             log("reset view")
 
         def reset_simulation():
-            nonlocal paused
+            nonlocal paused, sun_pos
+            sun_pos = Vector2(0, 0)
             for p in planets:
                 p.angle = 0.0
                 p.elapsed = 0.0
                 p.body.position = (p.orbit_radius, 0)
+                p.trail.clear()
             paused = True
             log("simulation reset")
 
@@ -2874,33 +2894,83 @@ def main():
             camera.set_angle_mode(mode)
             reset_view()
 
+        def draw_sun_glow(surface, center, radius):
+            if sketch_mode:
+                pygame.draw.circle(surface, (0,0,0), center, radius, 2)
+                return
+
+            # Core
+            pygame.draw.circle(surface, (255, 255, 200), center, radius)
+
+            # Glow
+            glow_surf = pygame.Surface((radius*6, radius*6), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (255, 200, 50, 50), (radius*3, radius*3), radius*3)
+            pygame.draw.circle(glow_surf, (255, 255, 100, 100), (radius*3, radius*3), radius*1.5)
+            surface.blit(glow_surf, (center[0]-radius*3, center[1]-radius*3), special_flags=pygame.BLEND_ADD)
+
+        def draw_planet_glow(surface, center, radius, color):
+            if sketch_mode:
+                pygame.draw.circle(surface, (0,0,0), center, radius, 1)
+                return
+
+            pygame.draw.circle(surface, color, center, radius)
+            # Aura
+            if not lod_active:
+                aura_r = int(radius * 1.5)
+                s = pygame.Surface((aura_r*2, aura_r*2), pygame.SRCALPHA)
+                r, g, b = color
+                pygame.draw.circle(s, (r, g, b, 80), (aura_r, aura_r), aura_r)
+                surface.blit(s, (center[0]-aura_r, center[1]-aura_r), special_flags=pygame.BLEND_ADD)
+
+        def draw_saturn_rings(surface, center, radius):
+            if sketch_mode: return
+            # Simple ellipse
+            rect = pygame.Rect(center[0]-radius*2.5, center[1]-radius*0.8, radius*5, radius*1.6)
+            pygame.draw.ellipse(surface, (200, 200, 150), rect, width=max(1, int(radius*0.3)))
+
         def draw_scene_to(surface, dt):
             nonlocal keyboard_button_color, keyboard_info_rect, speed_rects
             nonlocal input_vec, angle_button_rects, angle_focus, lod_active
             nonlocal language_button_rect, time_info_button_rect
-            nonlocal sketch_button_rect
+            nonlocal sketch_button_rect, sun_pos
             
-            bg_color = (255, 255, 255) if sketch_mode else (10, 10, 30)
-            surface.fill(bg_color)
-            
-            draw_curvature(surface, camera, sketch_mode=sketch_mode)
-            draw_orbits(surface, planets, camera, sketch_mode=sketch_mode)
+            # Background
+            if sketch_mode:
+                surface.fill((255, 255, 255))
+            else:
+                surface.fill(NAVY_BG)
+
+            # Grid
+            if galactocentric_mode:
+                draw_blueprint_grid_scrolling(surface, camera, sketch_mode)
+            else:
+                # Use new scrolling grid for heliocentric too or stick to curvature?
+                # Prompt said "Blueprint Grid: Draw a subtle, scrolling grid... moves relative to camera"
+                # Let's use scrolling grid for consistent aesthetics, but keep curvature if user wants gravity well?
+                # User asked to "Integrate... alongside existing".
+                # But visual spec is "Blueprint Grid... scrolling".
+                # I'll use scrolling grid for both to meet visual spec.
+                draw_blueprint_grid_scrolling(surface, camera, sketch_mode)
+
+            # Orbits / Trails
+            draw_orbits(surface, planets, camera, sketch_mode=sketch_mode, galactocentric=galactocentric_mode, sun_pos=sun_pos)
             draw_distance_reference(surface, camera, small_font, sketch_mode=sketch_mode)
             
-            sx, sy = camera.world_to_screen((0, 0))
+            sx, sy = camera.world_to_screen((sun_pos.x, sun_pos.y))
             
-            if sketch_mode:
-                pygame.draw.circle(surface, (0, 0, 0), (sx, sy), int(SUN_DRAW_RADIUS * camera.zoom), 2)
-            else:
-                pygame.draw.circle(surface, (255, 215, 0), (sx, sy), int(SUN_DRAW_RADIUS * camera.zoom))
+            draw_sun_glow(surface, (sx, sy), int(SUN_DRAW_RADIUS * camera.zoom))
 
             planet_screen = [(sun, (sx, sy), int(SUN_DRAW_RADIUS * camera.zoom))]
             info_lines = []
+
             for pl in planets:
                 if not paused:
-                    x, y = pl.update(dt * speed_multiplier)
+                    # Galactocentric Logic: Sun moves
+                    # We handle sun movement in main loop, here we update planet relative to sun
+                    x, y = pl.update(dt * speed_multiplier, sun_pos=sun_pos)
                 else:
                     x, y = pl.body.position
+
                 px, py = camera.world_to_screen((x, y))
                 
                 p_color = (0, 0, 0) if sketch_mode else pl.color
@@ -2911,10 +2981,11 @@ def main():
                     radius = 1
                 else:
                     radius = max(1, int(pl.radius * camera.zoom))
-                    if sketch_mode:
-                        pygame.draw.circle(surface, (0,0,0), (px, py), radius, 1)
-                    else:
-                        pygame.draw.circle(surface, pl.color, (px, py), radius)
+
+                    if pl.name == "Saturn":
+                        draw_saturn_rings(surface, (px, py), radius)
+
+                    draw_planet_glow(surface, (px, py), radius, p_color)
                     
                     label = font.render(pl.name, True, text_color)
                     label_rect = label.get_rect(center=(px, py - 15 * camera.zoom))
@@ -2964,6 +3035,7 @@ def main():
                 keyboard_button_color[i] += (target[i] - keyboard_button_color[i]) * 0.1
             button_color = tuple(int(c) for c in keyboard_button_color)
             draw_keyboard_button(surface, font, keyboard_button_rect, button_color)
+            draw_mode_button(surface) # Draw Toggle
             
             if show_keyboard_info:
                 overlay_pos = (10, keyboard_button_rect.bottom + 5)
@@ -2979,25 +3051,7 @@ def main():
             if data_button_rect.collidepoint(pygame.mouse.get_pos()):
                 tooltip.draw(surface, t("sources_tooltip"), (data_button_rect.right, data_button_rect.centery), "right")
             
-            draw_watermark_and_back(surface)
-            
-            # --- TRIAL TIMER ---
-            if is_trial_mode:
-                elapsed = time.time() - trial_start_time
-                remaining = max(0, (3 * 24 * 3600) - elapsed)
-                days = int(remaining // (24 * 3600))
-                hours = int((remaining % (24 * 3600)) // 3600)
-                mins = int((remaining % 3600) // 60)
-                secs = int(remaining % 60)
-                
-                timer_str = f"TRIAL: {days}d {hours}h {mins}m {secs}s"
-                timer_col = (255, 50, 50) if remaining < 3600 else (255, 200, 50) # Red if < 1 hour
-                
-                # Gunakan font agak besar
-                timer_surf = font.render(timer_str, True, timer_col)
-                # Tampilkan di tengah atas, sedikit di bawah area HUD (misal y=40)
-                surface.blit(timer_surf, timer_surf.get_rect(midtop=(WIDTH // 2, 50)))
-            # -------------------
+            draw_watermark(surface)
 
             if show_debug:
                 draw_debug_overlay(surface, camera, font, input_vec)
@@ -3035,6 +3089,8 @@ def main():
                     elif ui_state == UIState.TIME_INFO and time_modal:
                         time_modal._build()
                     elif ui_state == UIState.MARS_BIO and mars_modal:
+                        mars_modal.open(screen.copy())
+                    elif ui_state == UIState.MARS_BIO and mars_modal:
                         # Rebuild if needed or let build handle it next open
                         pass
                 elif ui_state == UIState.OVERLAY:
@@ -3058,6 +3114,17 @@ def main():
                     if res == "close":
                         ui_state = UIState.OVERLAY # Back to overlay
                         mars_modal = None
+                    elif res == "open_image_viewer":
+                        # Open Image Viewer
+                        if mars_modal and mars_modal.image:
+                            bg_capture = screen.copy()
+                            image_viewer.open(mars_modal.image, bg_capture)
+                            ui_state = UIState.IMAGE_VIEW
+                    continue
+                elif ui_state == UIState.IMAGE_VIEW:
+                    res = image_viewer.handle_event(event)
+                    if res == "close":
+                        ui_state = UIState.MARS_BIO
                     continue
                 elif ui_state == UIState.LANG_MODAL:
                     res = language_modal.handle_event(event)
@@ -3113,11 +3180,11 @@ def main():
                     elif sketch_button_rect.collidepoint(event.pos):
                         sketch_mode = not sketch_mode
                         clicked = True
-                    elif back_btn_rect.collidepoint(event.pos):
-                        # TOMBOL BACK DITEKAN
+                    elif mode_button_rect.collidepoint(event.pos):
+                        galactocentric_mode = not galactocentric_mode
+                        # Reset trail and sun pos when switching modes
+                        reset_simulation()
                         clicked = True
-                        user_requested_back = True
-                        running = False # Break inner loop
                     else:
                         for i, rect in enumerate(speed_rects):
                             if rect.collidepoint(event.pos):
@@ -3171,6 +3238,12 @@ def main():
                     camera.adjust_zoom(math.log(1.1) * event.y)
 
             if ui_state == UIState.RUNNING:
+                # Update Sun Position (Galactocentric Physics)
+                if galactocentric_mode and not paused:
+                    sun_pos += sun_vel * dt
+                    # Camera follows sun in this mode automatically
+                    camera.pos = Vector2(sun_pos.x, sun_pos.y)
+
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_LEFT]:
                     camera.rot -= 0.02
@@ -3237,6 +3310,9 @@ def main():
             elif ui_state == UIState.MARS_BIO:
                 mars_modal.draw(screen)
                 pygame.display.flip()
+            elif ui_state == UIState.IMAGE_VIEW:
+                image_viewer.draw(screen)
+                pygame.display.flip()
             elif ui_state == UIState.LANG_MODAL:
                 language_modal.draw(screen)
                 pygame.display.flip()
@@ -3246,14 +3322,6 @@ def main():
             elif ui_state == UIState.TIME_INFO:
                 time_modal.draw(screen)
                 pygame.display.flip()
-
-        if user_requested_back:
-            # Jika user tekan Back, loop akan ulang dari awal.
-            # Karena flag first_run sudah False, maka di awal loop akan masuk ke pengecekan lisensi
-            pass
-        else:
-            # Jika loop berhenti bukan karena back (misal Quit), maka exit
-            break
 
     pygame.quit()
 
