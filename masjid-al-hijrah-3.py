@@ -15,6 +15,40 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4'}
 
+# --- DATA SUMBER HUKUM (DALIL) ---
+DALIL_DATA = {
+    "waris": [
+        "QS. An-Nisa: 11 - \"Allah mensyariatkan bagimu tentang pembagian pusaka untuk anak-anakmu. Yaitu: bahagian seorang anak laki-laki sama dengan bagaikan dua orang anak perempuan.\"",
+        "QS. An-Nisa: 7 - \"Bagi orang laki-laki ada hak bagian dari harta peninggalan ibu-bapa dan kerabatnya, dan bagi orang wanita ada hak bagian (pula).\"",
+        "HR. Bukhari & Muslim - \"Berikanlah harta warisan kepada yang berhak menerimanya, sedangkan sisanya adalah untuk kerabat laki-laki yang paling dekat.\""
+    ],
+    "zakat": [
+        "QS. At-Taubah: 103 - \"Ambillah zakat dari sebagian harta mereka, dengan zakat itu kamu membersihkan dan mensucikan mereka.\"",
+        "HR. Abu Daud - \"Tidak ada kewajiban zakat pada emas hingga mencapai 20 dinar (setara 85 gram).\"",
+        "QS. Adz-Dzariyat: 19 - \"Dan pada harta-harta mereka ada hak untuk orang miskin yang meminta dan orang miskin yang tidak mendapat bagian.\""
+    ],
+    "tahajjud": [
+        "HR. Bukhari & Muslim - \"Rabb kita turun ke langit dunia pada setiap malam yaitu ketika sepertiga malam terakhir untuk mengabulkan doa hamba-Nya.\"",
+        "QS. Al-Isra: 79 - \"Dan pada sebagian malam hari shalat tahajudlah kamu sebagai suatu ibadah tambahan bagimu.\"",
+        "QS. Al-Muzzammil: 6 - \"Sesungguhnya bangun di waktu malam adalah lebih tepat untuk khusyuk dan bacaan di waktu itu lebih berkesan.\""
+    ],
+    "khatam": [
+        "HR. Tirmidzi - \"Siapa yang membaca satu huruf dari Al Quran maka baginya satu kebaikan, satu kebaikan dilipatkan menjadi 10 kebaikan.\"",
+        "HR. Bukhari - \"Amalan yang paling dicintai Allah adalah yang terus-menerus (istiqomah) meskipun sedikit.\"",
+        "HR. Muslim - \"Bacalah Al-Quran, sesungguhnya ia akan datang pada hari kiamat memberi syafaat bagi pembacanya.\""
+    ],
+    "fidyah": [
+        "QS. Al-Baqarah: 184 - \"Maka barangsiapa diantara kamu ada yang sakit atau dalam perjalanan, maka wajiblah baginya berpuasa sebanyak hari yang ditinggalkan itu pada hari-hari yang lain.\"",
+        "QS. Al-Baqarah: 184 (Lanjutan) - \"Dan wajib bagi orang-orang yang berat menjalankannya membayar fidyah, yaitu memberi makan seorang miskin.\"",
+        "Ijma Ulama / SK BAZNAS - \"Besaran fidyah adalah satu mud (sekitar 0,6 kg beras) atau setara biaya makan satu hari untuk satu orang miskin.\""
+    ],
+    "hijri": [
+        "QS. At-Taubah: 36 - \"Sesungguhnya bilangan bulan pada sisi Allah adalah dua belas bulan, dalam ketetapan Allah di waktu Dia menciptakan langit dan bumi.\"",
+        "QS. Al-Baqarah: 189 - \"Katakanlah: Bulan sabit itu adalah tanda-tanda waktu bagi manusia dan bagi ibadah haji.\"",
+        "Sejarah Islam - \"Penetapan Kalender Hijriyah dimulai pada masa Khalifah Umar bin Khattab yang menjadikan peristiwa Hijrah sebagai titik awal tahun.\""
+    ]
+}
+
 # --- DATABASE SETUP ---
 DB_NAME = 'masjid.db'
 
@@ -293,19 +327,38 @@ def calc_tahajjud(maghrib, subuh):
         third_duration = diff / 3
         
         last_third_start = subuh_dt - third_duration
-        return last_third_start.strftime("%H:%M")
+
+        # Calculate total hours and minutes for explanation
+        total_seconds = diff.total_seconds()
+        total_hours = int(total_seconds // 3600)
+        total_minutes = int((total_seconds % 3600) // 60)
+
+        return {
+            "time": last_third_start.strftime("%H:%M"),
+            "total_hours": total_hours,
+            "total_minutes": total_minutes
+        }
     except:
-        return "Error"
+        return {"error": "Invalid Time"}
 
 def calc_khatam(target_times, days, freq_per_day):
     try:
         total_pages = 604 * target_times
         total_sessions = days * freq_per_day
-        if total_sessions == 0: return 0
+        if total_sessions == 0:
+            return {
+                "pages_per_session": 0,
+                "total_pages": total_pages,
+                "total_sessions": 0
+            }
         pages_per_session = math.ceil(total_pages / total_sessions)
-        return pages_per_session
+        return {
+            "pages_per_session": pages_per_session,
+            "total_pages": total_pages,
+            "total_sessions": total_sessions
+        }
     except:
-        return 0
+        return {"error": "Error"}
 
 def calc_fidyah(days, category):
     qadha = days
@@ -879,7 +932,36 @@ HOME_HTML = """
         </div>
     </div>
 
+    <!-- Modal Explanation -->
+    <div id="modal-explanation" class="fixed inset-0 z-[110] hidden">
+        <div class="absolute inset-0 bg-white/80 backdrop-blur-md" onclick="closeModal('modal-explanation')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white/90 backdrop-blur-xl rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 border border-white/50">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-info-circle text-blue-500 mr-2"></i>Penjelasan Perhitungan</h3>
+                <button onclick="closeModal('modal-explanation')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
+            </div>
+            <div class="space-y-6 overflow-y-auto max-h-[70vh] pb-10">
+                <!-- Logic Section -->
+                <div>
+                    <h4 class="text-sm font-bold text-gray-800 uppercase tracking-wider mb-2 border-b border-gray-200 pb-1">Bedah Logika (Sains)</h4>
+                    <p id="exp-logic" class="text-sm text-gray-700 leading-relaxed font-medium bg-blue-50 p-4 rounded-xl border border-blue-100">
+                        ...
+                    </p>
+                </div>
+                <!-- Sources Section -->
+                <div>
+                    <h4 class="text-sm font-bold text-gray-800 uppercase tracking-wider mb-2 border-b border-gray-200 pb-1">Dasar Hukum & Referensi</h4>
+                    <ul id="exp-sources" class="space-y-1">
+                        <!-- LI generated by JS -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
+        let currentExplanation = {};
+
         function toggleCalc() {
             const content = document.getElementById('calc-content');
             const chevron = document.querySelector('#calc-chevron i');
@@ -897,6 +979,25 @@ HOME_HTML = """
 
         function closeModal(id) {
             document.getElementById(id).classList.add('hidden');
+        }
+
+        function showExplanation() {
+            if(!currentExplanation.logic) return;
+            document.getElementById('exp-logic').innerText = currentExplanation.logic;
+            const ul = document.getElementById('exp-sources');
+            ul.innerHTML = '';
+            currentExplanation.sources.forEach(s => {
+                const li = document.createElement('li');
+                li.className = 'text-xs text-gray-600 mb-2 border-l-2 border-emerald-500 pl-2';
+                const parts = s.split(' - ');
+                if(parts.length > 1) {
+                    li.innerHTML = `<span class="font-bold text-emerald-700">${parts[0]}</span> - ${parts[1]}`;
+                } else {
+                    li.innerText = s;
+                }
+                ul.appendChild(li);
+            });
+            openModal('modal-explanation');
         }
 
         async function postCalc(url, data) {
@@ -926,12 +1027,16 @@ HOME_HTML = """
                 if(res.error) {
                     div.innerHTML = `<span class="text-red-500 font-bold">${res.error}</span>`;
                 } else {
+                    currentExplanation = res.explanation;
                     div.innerHTML = `
                         <p class="font-bold text-emerald-800 mb-2">Hasil Pembagian:</p>
-                        <ul class="space-y-1">
-                            <li class="flex justify-between"><span>Anak Laki-laki (@):</span> <span class="font-bold">Rp ${Number(res.son_share).toLocaleString('id-ID')}</span></li>
-                            <li class="flex justify-between"><span>Anak Perempuan (@):</span> <span class="font-bold">Rp ${Number(res.daughter_share).toLocaleString('id-ID')}</span></li>
+                        <ul class="space-y-1 mb-4">
+                            <li class="flex justify-between"><span>Anak Laki-laki (@):</span> <span class="font-bold">Rp ${Number(res.result.son_share).toLocaleString('id-ID')}</span></li>
+                            <li class="flex justify-between"><span>Anak Perempuan (@):</span> <span class="font-bold">Rp ${Number(res.result.daughter_share).toLocaleString('id-ID')}</span></li>
                         </ul>
+                        <button onclick="showExplanation()" class="w-full bg-blue-100 text-blue-600 text-xs font-bold py-2 rounded-lg hover:bg-blue-200 transition flex items-center justify-center gap-2">
+                            <i class="fas fa-info-circle"></i> PENJELASAN PERHITUNGAN
+                        </button>
                     `;
                 }
             }
@@ -947,21 +1052,31 @@ HOME_HTML = """
             if(res) {
                 const div = document.getElementById('result-zakat');
                 div.classList.remove('hidden');
-                div.className = res.wajib ? "mt-4 bg-red-50 p-4 rounded-xl border border-red-100 text-sm" : "mt-4 bg-green-50 p-4 rounded-xl border border-green-100 text-sm";
+                const r = res.result;
+                currentExplanation = res.explanation;
                 
-                if(res.wajib) {
-                    div.innerHTML = `
+                div.className = r.wajib ? "mt-4 bg-red-50 p-4 rounded-xl border border-red-100 text-sm" : "mt-4 bg-green-50 p-4 rounded-xl border border-green-100 text-sm";
+
+                let content = '';
+                if(r.wajib) {
+                    content = `
                         <h4 class="font-bold text-red-600 mb-1"><i class="fas fa-exclamation-circle mr-1"></i> WAJIB ZAKAT</h4>
-                        <p class="text-gray-600 mb-2">Harta Anda melebih Nisab (Rp ${Number(res.nisab).toLocaleString()})</p>
+                        <p class="text-gray-600 mb-2">Harta Anda melebih Nisab (Rp ${Number(r.nisab).toLocaleString()})</p>
                         <p class="text-xs font-bold text-gray-500 uppercase">Zakat yang harus dikeluarkan:</p>
-                        <p class="text-2xl font-bold text-red-600">Rp ${Number(res.zakat).toLocaleString()}</p>
+                        <p class="text-2xl font-bold text-red-600 mb-3">Rp ${Number(r.zakat).toLocaleString()}</p>
                     `;
                 } else {
-                    div.innerHTML = `
+                    content = `
                         <h4 class="font-bold text-green-600 mb-1"><i class="fas fa-check-circle mr-1"></i> BELUM WAJIB</h4>
-                        <p class="text-gray-600">Total harta Anda (Rp ${Number(res.total_wealth).toLocaleString()}) belum mencapai Nisab (Rp ${Number(res.nisab).toLocaleString()}).</p>
+                        <p class="text-gray-600 mb-3">Total harta Anda (Rp ${Number(r.total_wealth).toLocaleString()}) belum mencapai Nisab (Rp ${Number(r.nisab).toLocaleString()}).</p>
                     `;
                 }
+                content += `
+                    <button onclick="showExplanation()" class="w-full bg-white/50 border border-black/5 text-gray-600 text-xs font-bold py-2 rounded-lg hover:bg-white transition flex items-center justify-center gap-2">
+                        <i class="fas fa-info-circle"></i> PENJELASAN PERHITUNGAN
+                    </button>
+                `;
+                div.innerHTML = content;
             }
         }
 
@@ -973,7 +1088,18 @@ HOME_HTML = """
             const res = await postCalc('/api/calc/tahajjud', data);
             if(res) {
                 document.getElementById('result-tahajjud').classList.remove('hidden');
-                document.getElementById('tahajjud-time').innerText = res.time;
+                document.getElementById('tahajjud-time').innerText = res.result.time;
+                currentExplanation = res.explanation;
+
+                // Check if button already exists to avoid dupes, or just append
+                const parent = document.getElementById('result-tahajjud');
+                if(!parent.querySelector('button')) {
+                     const btn = document.createElement('button');
+                     btn.className = "w-full bg-indigo-100 text-indigo-600 text-xs font-bold py-2 rounded-lg hover:bg-indigo-200 transition flex items-center justify-center gap-2 mt-3";
+                     btn.innerHTML = '<i class="fas fa-info-circle"></i> PENJELASAN PERHITUNGAN';
+                     btn.onclick = showExplanation;
+                     parent.appendChild(btn);
+                }
             }
         }
 
@@ -986,7 +1112,17 @@ HOME_HTML = """
             const res = await postCalc('/api/calc/khatam', data);
             if(res) {
                 document.getElementById('result-khatam').classList.remove('hidden');
-                document.getElementById('khatam-pages').innerText = res.pages_per_session;
+                document.getElementById('khatam-pages').innerText = res.result.pages_per_session;
+                currentExplanation = res.explanation;
+
+                const parent = document.getElementById('result-khatam');
+                if(!parent.querySelector('button')) {
+                     const btn = document.createElement('button');
+                     btn.className = "w-full bg-emerald-100 text-emerald-600 text-xs font-bold py-2 rounded-lg hover:bg-emerald-200 transition flex items-center justify-center gap-2 mt-3";
+                     btn.innerHTML = '<i class="fas fa-info-circle"></i> PENJELASAN PERHITUNGAN';
+                     btn.onclick = showExplanation;
+                     parent.appendChild(btn);
+                }
             }
         }
 
@@ -998,9 +1134,22 @@ HOME_HTML = """
             const res = await postCalc('/api/calc/fidyah', data);
             if(res) {
                 document.getElementById('result-fidyah').classList.remove('hidden');
-                document.getElementById('fidyah-qadha').innerText = res.qadha_days + " Hari";
-                document.getElementById('fidyah-rice').innerText = res.fidyah_rice.toFixed(1) + " Kg";
-                document.getElementById('fidyah-money').innerText = "Rp " + Number(res.fidyah_money).toLocaleString();
+                document.getElementById('fidyah-qadha').innerText = res.result.qadha_days + " Hari";
+                document.getElementById('fidyah-rice').innerText = res.result.fidyah_rice.toFixed(1) + " Kg";
+                document.getElementById('fidyah-money').innerText = "Rp " + Number(res.result.fidyah_money).toLocaleString();
+                currentExplanation = res.explanation;
+
+                const parent = document.getElementById('result-fidyah');
+                if(!parent.querySelector('.exp-btn')) { // Use class to identify
+                     const div = document.createElement('div');
+                     div.className = "exp-btn pt-2";
+                     div.innerHTML = `
+                        <button onclick="showExplanation()" class="w-full bg-gray-100 text-gray-600 text-xs font-bold py-2 rounded-lg hover:bg-gray-200 transition flex items-center justify-center gap-2">
+                            <i class="fas fa-info-circle"></i> PENJELASAN PERHITUNGAN
+                        </button>
+                     `;
+                     parent.appendChild(div);
+                }
             }
         }
 
@@ -1011,7 +1160,17 @@ HOME_HTML = """
             const res = await postCalc('/api/calc/hijri', data);
             if(res) {
                 document.getElementById('result-hijri').classList.remove('hidden');
-                document.getElementById('hijri-output').innerText = res.hijri;
+                document.getElementById('hijri-output').innerText = res.result.hijri;
+                currentExplanation = res.explanation;
+
+                const parent = document.getElementById('result-hijri');
+                if(!parent.querySelector('button')) {
+                     const btn = document.createElement('button');
+                     btn.className = "w-full bg-emerald-100 text-emerald-600 text-xs font-bold py-2 rounded-lg hover:bg-emerald-200 transition flex items-center justify-center gap-2 mt-3";
+                     btn.innerHTML = '<i class="fas fa-info-circle"></i> PENJELASAN PERHITUNGAN';
+                     btn.onclick = showExplanation;
+                     parent.appendChild(btn);
+                }
             }
         }
     </script>
@@ -1575,8 +1734,24 @@ def uploaded_file(filename):
 def api_calc_waris():
     try:
         data = request.json
-        res = calc_waris(int(data['harta']), int(data['sons']), int(data['daughters']))
-        return jsonify(res)
+        harta = int(data['harta'])
+        sons = int(data['sons'])
+        daughters = int(data['daughters'])
+
+        res = calc_waris(harta, sons, daughters)
+        if "error" in res:
+             return jsonify(res)
+
+        # Bedah Logika
+        logic = f"Bapak/Ibu memasukkan total harta Rp {harta:,}. Dalam matematika waris, karena ada {sons} anak laki-laki dan {daughters} perempuan, maka total poin pembagi adalah {res['points']}. Artinya, harta tersebut dibagi menjadi {res['points']} keping. Satu keping bernilai Rp {res['part_value']:,.0f}. Maka bagian anak laki-laki adalah 2 x {res['part_value']:,.0f} = Rp {res['son_share']:,.0f}, dan anak perempuan 1 x {res['part_value']:,.0f} = Rp {res['daughter_share']:,.0f}."
+
+        return jsonify({
+            "result": res,
+            "explanation": {
+                "logic": logic,
+                "sources": DALIL_DATA["waris"]
+            }
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -1584,8 +1759,24 @@ def api_calc_waris():
 def api_calc_zakat():
     try:
         data = request.json
-        res = calc_zakat(int(data['gold_price']), int(data['savings']), int(data['gold_grams']))
-        return jsonify(res)
+        gold_price = int(data['gold_price'])
+        savings = int(data['savings'])
+        gold_grams = int(data['gold_grams'])
+
+        res = calc_zakat(gold_price, savings, gold_grams)
+
+        status = "WAJIB" if res['wajib'] else "BELUM WAJIB"
+        cond_text = "lebih besar" if res['wajib'] else "lebih kecil"
+
+        logic = f"Anda memiliki tabungan uang Rp {savings:,} dan emas {gold_grams} gram. Dengan harga emas Rp {gold_price:,}/gram, maka Nisab (batas minimal wajib zakat) adalah 85 gram x Rp {gold_price:,} = Rp {res['nisab']:,}. Total harta Anda dinilai sebesar Rp {res['total_wealth']:,}. Karena Rp {res['total_wealth']:,} {cond_text} dari Nisab, maka hukumnya {status} membayar Zakat Maal sebesar 2.5% (Rp {res['zakat']:,})."
+
+        return jsonify({
+            "result": res,
+            "explanation": {
+                "logic": logic,
+                "sources": DALIL_DATA["zakat"]
+            }
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -1594,7 +1785,17 @@ def api_calc_tahajjud():
     try:
         data = request.json
         res = calc_tahajjud(data['maghrib'], data['subuh'])
-        return jsonify({"time": res})
+        if "error" in res: return jsonify(res)
+
+        logic = f"Waktu malam dihitung dari Maghrib ({data['maghrib']}) hingga Subuh ({data['subuh']}). Durasi total malam ini adalah {res['total_hours']} jam {res['total_minutes']} menit. Sepertiga malam terakhir adalah waktu istimewa (Qiyamul Lail). Kita bagi durasi malam menjadi 3 bagian, lalu ambil 1 bagian terakhir sebelum Subuh. Hasilnya, sepertiga malam terakhir dimulai pukul {res['time']}."
+
+        return jsonify({
+            "result": res,
+            "explanation": {
+                "logic": logic,
+                "sources": DALIL_DATA["tahajjud"]
+            }
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -1602,8 +1803,24 @@ def api_calc_tahajjud():
 def api_calc_khatam():
     try:
         data = request.json
-        res = calc_khatam(int(data['target_times']), int(data['days']), int(data['freq_per_day']))
-        return jsonify({"pages_per_session": res})
+        target_times = int(data['target_times'])
+        days = int(data['days'])
+        freq = int(data['freq_per_day'])
+
+        res = calc_khatam(target_times, days, freq)
+        if isinstance(res, dict) and "error" in res: return jsonify(res)
+        if isinstance(res, int): # Fallback
+             pass
+
+        logic = f"Target Anda adalah khatam Al-Quran {target_times} kali dalam {days} hari. Total halaman Al-Quran standar adalah 604 halaman. Jadi total beban bacaan adalah {target_times} x 604 = {res['total_pages']} halaman. Anda memiliki kesempatan membaca {freq} kali sehari selama {days} hari, total {res['total_sessions']} sesi baca. Maka, {res['total_pages']} halaman dibagi {res['total_sessions']} sesi = {res['pages_per_session']} halaman setiap kali duduk."
+
+        return jsonify({
+            "result": res,
+            "explanation": {
+                "logic": logic,
+                "sources": DALIL_DATA["khatam"]
+            }
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -1611,8 +1828,20 @@ def api_calc_khatam():
 def api_calc_fidyah():
     try:
         data = request.json
-        res = calc_fidyah(int(data['days']), data['category'])
-        return jsonify(res)
+        days = int(data['days'])
+        cat = data['category']
+
+        res = calc_fidyah(days, cat)
+
+        logic = f"Anda meninggalkan puasa sebanyak {days} hari karena alasan '{cat}'. Dalam fiqih, kategori ini mewajibkan membayar fidyah (memberi makan miskin). Hitungannya adalah {days} hari x 1 mud (0.6kg) = {res['fidyah_rice']:.1f} kg beras. Jika dikonversi ke uang makan (est. Rp 15.000/hari), maka totalnya Rp {res['fidyah_money']:,}."
+
+        return jsonify({
+            "result": res,
+            "explanation": {
+                "logic": logic,
+                "sources": DALIL_DATA["fidyah"]
+            }
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -1623,7 +1852,16 @@ def api_calc_hijri():
         y, m, d = map(int, data['date'].split('-'))
         date_obj = datetime.date(y, m, d)
         res = gregorian_to_hijri(date_obj)
-        return jsonify({"hijri": res})
+
+        logic = f"Anda menginput tanggal Masehi {date_obj.strftime('%d-%m-%Y')}. Algoritma Kuwaiti menghitung selisih hari dari epoch Hijriyah (16 Juli 622 M). Dengan memperhitungkan siklus 30 tahun (dimana tahun ke-2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29 adalah kabisat), sistem mengonversi tanggal tersebut menjadi {res}."
+
+        return jsonify({
+            "result": {"hijri": res},
+            "explanation": {
+                "logic": logic,
+                "sources": DALIL_DATA["hijri"]
+            }
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
