@@ -202,6 +202,122 @@ class PrayTimes:
         minutes = int((t - hours) * 60)
         return f"{hours:02d}:{minutes:02d}"
 
+# --- ISLAMIC CALCULATOR LOGIC ---
+
+def gregorian_to_hijri(date_obj):
+    # Kuwaiti Algorithm
+    day = date_obj.day
+    month = date_obj.month
+    year = date_obj.year
+
+    m = month
+    y = year
+    if m < 3:
+        y -= 1
+        m += 12
+
+    a = math.floor(y / 100.)
+    b = 2 - a + math.floor(a / 4.)
+    if y < 1583: b = 0
+    if y == 1582:
+        if m > 10: b = -10
+        if m == 10:
+            b = 0
+            if day > 4: b = -10
+
+    jd = math.floor(365.25 * (y + 4716)) + math.floor(30.6001 * (m + 1)) + day + b - 1524.5
+
+    iYear = 10631. / 30.
+    epochAstro = 1948084
+    shift1 = 8.01 / 60.
+
+    z = jd - epochAstro
+    cyc = math.floor(z / 10631.)
+    z = z - 10631 * cyc
+    j = math.floor((z - shift1) / iYear)
+    iy = 30 * cyc + j
+    z = z - math.floor(j * iYear + shift1)
+    im = math.floor((z + 28.5001) / 29.5)
+    if im == 13: im = 12
+    id = z - math.floor(29.5001 * im - 29)
+
+    months = ["Muharram", "Safar", "Rabiul Awal", "Rabiul Akhir", "Jumadil Awal", "Jumadil Akhir",
+              "Rajab", "Syaban", "Ramadan", "Syawal", "Zulqaidah", "Zulhijjah"]
+
+    return f"{int(id)} {months[int(im)-1]} {int(iy)} H"
+
+def calc_waris(harta, sons, daughters):
+    if sons == 0 and daughters == 0:
+        return {"error": "Tidak ada ahli waris anak"}
+
+    total_points = (sons * 2) + (daughters * 1)
+    if total_points == 0: return {"error": "Total poin 0"}
+
+    one_part = harta / total_points
+    son_share = one_part * 2
+    daughter_share = one_part * 1
+
+    return {
+        "harta": harta,
+        "points": total_points,
+        "part_value": one_part,
+        "son_share": son_share,
+        "daughter_share": daughter_share
+    }
+
+def calc_zakat(gold_price, savings, gold_grams):
+    nisab = 85 * gold_price
+    total_wealth = savings + (gold_grams * gold_price)
+    wajib = total_wealth >= nisab
+    zakat = total_wealth * 0.025 if wajib else 0
+    return {
+        "nisab": nisab,
+        "total_wealth": total_wealth,
+        "wajib": wajib,
+        "zakat": zakat
+    }
+
+def calc_tahajjud(maghrib, subuh):
+    # Format HH:MM
+    try:
+        m_h, m_m = map(int, maghrib.split(':'))
+        s_h, s_m = map(int, subuh.split(':'))
+
+        maghrib_dt = datetime.datetime(2023, 1, 1, m_h, m_m)
+        subuh_dt = datetime.datetime(2023, 1, 2, s_h, s_m) # Next day
+
+        if maghrib_dt > subuh_dt:
+             subuh_dt += datetime.timedelta(days=1)
+
+        diff = subuh_dt - maghrib_dt
+        third_duration = diff / 3
+
+        last_third_start = subuh_dt - third_duration
+        return last_third_start.strftime("%H:%M")
+    except:
+        return "Error"
+
+def calc_khatam(target_times, days, freq_per_day):
+    try:
+        total_pages = 604 * target_times
+        total_sessions = days * freq_per_day
+        if total_sessions == 0: return 0
+        pages_per_session = math.ceil(total_pages / total_sessions)
+        return pages_per_session
+    except:
+        return 0
+
+def calc_fidyah(days, category):
+    qadha = days
+    fidyah_rice = days * 0.6
+    fidyah_money = days * 15000
+
+    return {
+        "qadha_days": qadha,
+        "fidyah_rice": fidyah_rice,
+        "fidyah_money": fidyah_money
+    }
+
 # Samarinda Coordinates
 LAT = -0.502106
 LNG = 117.153709
@@ -523,6 +639,382 @@ HOME_HTML = """
             <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-pink-600">Kotak Saran</span>
         </a>
     </div>
+
+    <!-- SEPARATOR -->
+    <div class="h-8"></div>
+
+    <!-- KALKULATOR ISLAM SECTION -->
+    <div id="kalkulator-section" class="mb-12">
+        <button onclick="toggleCalc()" class="w-full bg-white p-6 rounded-3xl shadow-lg border border-emerald-100 flex justify-between items-center group hover:bg-emerald-50 transition-all duration-300">
+            <div class="flex items-center gap-4">
+                <div class="bg-emerald-100 p-3 rounded-xl text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors shadow-sm">
+                    <i class="fas fa-calculator text-2xl"></i>
+                </div>
+                <div class="text-left">
+                    <h3 class="text-lg font-bold text-gray-800 group-hover:text-emerald-700">Kalkulator Islam</h3>
+                    <p class="text-xs text-gray-500 font-medium">6 Alat Hitung Otomatis (Waris, Zakat, dll)</p>
+                </div>
+            </div>
+            <div id="calc-chevron" class="bg-gray-50 w-10 h-10 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-emerald-500 transition-all duration-300">
+                 <i class="fas fa-chevron-down transform transition-transform duration-300"></i>
+            </div>
+        </button>
+
+        <div id="calc-content" class="hidden mt-6 animate-[slideDown_0.3s_ease-out]">
+             <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                 <!-- WARIS -->
+                 <button onclick="openModal('modal-waris')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-users"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Waris</span>
+                 </button>
+                 <!-- ZAKAT -->
+                 <button onclick="openModal('modal-zakat')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-hand-holding-usd"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Zakat Maal</span>
+                 </button>
+                 <!-- TAHAJJUD -->
+                 <button onclick="openModal('modal-tahajjud')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-moon"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Tahajjud</span>
+                 </button>
+                 <!-- KHATAM -->
+                 <button onclick="openModal('modal-khatam')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-quran"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Target Khatam</span>
+                 </button>
+                 <!-- FIDYAH -->
+                 <button onclick="openModal('modal-fidyah')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-utensils"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Fidyah</span>
+                 </button>
+                 <!-- HIJRI -->
+                 <button onclick="openModal('modal-hijri')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-calendar-check"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Konverter Hijri</span>
+                 </button>
+             </div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+
+    <!-- Modal Waris -->
+    <div id="modal-waris" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-waris')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-users text-emerald-500 mr-2"></i>Kalkulator Waris</h3>
+                <button onclick="closeModal('modal-waris')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Total Harta (Rp)</label>
+                    <input type="number" id="waris-harta" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Anak Laki-laki</label>
+                        <input type="number" id="waris-sons" value="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Anak Perempuan</label>
+                        <input type="number" id="waris-daughters" value="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                </div>
+                <button onclick="calcWaris()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Waris</button>
+
+                <div id="result-waris" class="hidden mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-sm"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Zakat -->
+    <div id="modal-zakat" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-zakat')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-hand-holding-usd text-emerald-500 mr-2"></i>Zakat Maal</h3>
+                <button onclick="closeModal('modal-zakat')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Harga Emas (per gram)</label>
+                    <input type="number" id="zakat-gold-price" value="1000000" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Tabungan Uang (Rp)</label>
+                    <input type="number" id="zakat-savings" value="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Simpanan Emas (gram)</label>
+                    <input type="number" id="zakat-gold-grams" value="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                </div>
+                <button onclick="calcZakat()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Cek Kewajiban</button>
+                <div id="result-zakat" class="hidden mt-4 p-4 rounded-xl border text-sm"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Tahajjud -->
+    <div id="modal-tahajjud" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-tahajjud')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-moon text-emerald-500 mr-2"></i>Sepertiga Malam</h3>
+                <button onclick="closeModal('modal-tahajjud')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Maghrib</label>
+                        <input type="time" id="tahajjud-maghrib" value="18:15" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Subuh</label>
+                        <input type="time" id="tahajjud-subuh" value="04:45" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    </div>
+                </div>
+                <button onclick="calcTahajjud()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Waktu</button>
+                <div id="result-tahajjud" class="hidden mt-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-center">
+                    <p class="text-xs text-indigo-400 font-bold uppercase tracking-wider mb-1">Waktu Terbaik</p>
+                    <h2 class="text-3xl font-bold text-indigo-700" id="tahajjud-time">--:--</h2>
+                    <p class="text-xs text-indigo-500 mt-1">Mulai Sepertiga Malam Terakhir</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Khatam -->
+    <div id="modal-khatam" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-khatam')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-quran text-emerald-500 mr-2"></i>Target Khatam</h3>
+                <button onclick="closeModal('modal-khatam')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Target Khatam (kali)</label>
+                    <input type="number" id="khatam-times" value="1" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Durasi (hari)</label>
+                        <input type="number" id="khatam-days" value="30" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Baca per Hari (kali)</label>
+                        <input type="number" id="khatam-freq" value="5" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    </div>
+                </div>
+                <button onclick="calcKhatam()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Target</button>
+                <div id="result-khatam" class="hidden mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-center">
+                    <p class="text-gray-600 text-sm">Anda harus membaca:</p>
+                    <h2 class="text-3xl font-bold text-emerald-600 my-2"><span id="khatam-pages">0</span> Halaman</h2>
+                    <p class="text-xs text-gray-500">Setiap kali duduk membaca</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Fidyah -->
+    <div id="modal-fidyah" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-fidyah')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-utensils text-emerald-500 mr-2"></i>Fidyah & Qadha</h3>
+                <button onclick="closeModal('modal-fidyah')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
+            </div>
+            <div class="space-y-4">
+                 <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Jumlah Hutang Puasa (Hari)</label>
+                    <input type="number" id="fidyah-days" value="1" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Kategori</label>
+                    <select id="fidyah-cat" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                        <option value="Sakit Tua">Sakit Tua / Menahun</option>
+                        <option value="Hamil">Hamil / Menyusui (Khawatir Anak)</option>
+                        <option value="Musafir">Musafir / Sakit Biasa</option>
+                    </select>
+                </div>
+                <button onclick="calcFidyah()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Kewajiban</button>
+                <div id="result-fidyah" class="hidden mt-4 space-y-2">
+                    <div class="bg-orange-50 p-3 rounded-xl border border-orange-100 flex justify-between items-center">
+                        <span class="text-sm text-orange-800 font-bold">Qadha (Ganti Puasa)</span>
+                        <span class="text-lg font-bold text-orange-600" id="fidyah-qadha">0 Hari</span>
+                    </div>
+                    <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                        <p class="text-xs text-emerald-800 font-bold mb-1">Fidyah (Bayar)</p>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-emerald-600" id="fidyah-rice">0 Kg Beras</span>
+                            <span class="text-xs text-gray-400">atau</span>
+                            <span class="text-sm text-emerald-600" id="fidyah-money">Rp 0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Hijri -->
+    <div id="modal-hijri" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-hijri')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-calendar-check text-emerald-500 mr-2"></i>Konverter Hijriyah</h3>
+                <button onclick="closeModal('modal-hijri')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
+            </div>
+            <div class="space-y-4">
+                 <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Tanggal Masehi</label>
+                    <input type="date" id="hijri-date-input" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                </div>
+                <button onclick="calcHijri()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Konversi</button>
+                <div id="result-hijri" class="hidden mt-4 bg-emerald-50 p-6 rounded-xl border border-emerald-100 text-center">
+                    <p class="text-xs text-emerald-500 font-bold uppercase tracking-wider mb-2">Tanggal Hijriyah</p>
+                    <h2 class="text-2xl font-bold text-emerald-800" id="hijri-output">...</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleCalc() {
+            const content = document.getElementById('calc-content');
+            const chevron = document.querySelector('#calc-chevron i');
+            content.classList.toggle('hidden');
+            if(content.classList.contains('hidden')) {
+                chevron.classList.remove('rotate-180');
+            } else {
+                chevron.classList.add('rotate-180');
+            }
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        async function postCalc(url, data) {
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                return await res.json();
+            } catch(e) {
+                alert('Error: ' + e);
+                return null;
+            }
+        }
+
+        async function calcWaris() {
+            const data = {
+                harta: document.getElementById('waris-harta').value,
+                sons: document.getElementById('waris-sons').value,
+                daughters: document.getElementById('waris-daughters').value
+            };
+            const res = await postCalc('/api/calc/waris', data);
+            if(res) {
+                const div = document.getElementById('result-waris');
+                div.classList.remove('hidden');
+                if(res.error) {
+                    div.innerHTML = `<span class="text-red-500 font-bold">${res.error}</span>`;
+                } else {
+                    div.innerHTML = `
+                        <p class="font-bold text-emerald-800 mb-2">Hasil Pembagian:</p>
+                        <ul class="space-y-1">
+                            <li class="flex justify-between"><span>Anak Laki-laki (@):</span> <span class="font-bold">Rp ${Number(res.son_share).toLocaleString('id-ID')}</span></li>
+                            <li class="flex justify-between"><span>Anak Perempuan (@):</span> <span class="font-bold">Rp ${Number(res.daughter_share).toLocaleString('id-ID')}</span></li>
+                        </ul>
+                    `;
+                }
+            }
+        }
+
+        async function calcZakat() {
+            const data = {
+                gold_price: document.getElementById('zakat-gold-price').value,
+                savings: document.getElementById('zakat-savings').value,
+                gold_grams: document.getElementById('zakat-gold-grams').value
+            };
+            const res = await postCalc('/api/calc/zakat', data);
+            if(res) {
+                const div = document.getElementById('result-zakat');
+                div.classList.remove('hidden');
+                div.className = res.wajib ? "mt-4 bg-red-50 p-4 rounded-xl border border-red-100 text-sm" : "mt-4 bg-green-50 p-4 rounded-xl border border-green-100 text-sm";
+
+                if(res.wajib) {
+                    div.innerHTML = `
+                        <h4 class="font-bold text-red-600 mb-1"><i class="fas fa-exclamation-circle mr-1"></i> WAJIB ZAKAT</h4>
+                        <p class="text-gray-600 mb-2">Harta Anda melebih Nisab (Rp ${Number(res.nisab).toLocaleString()})</p>
+                        <p class="text-xs font-bold text-gray-500 uppercase">Zakat yang harus dikeluarkan:</p>
+                        <p class="text-2xl font-bold text-red-600">Rp ${Number(res.zakat).toLocaleString()}</p>
+                    `;
+                } else {
+                    div.innerHTML = `
+                        <h4 class="font-bold text-green-600 mb-1"><i class="fas fa-check-circle mr-1"></i> BELUM WAJIB</h4>
+                        <p class="text-gray-600">Total harta Anda (Rp ${Number(res.total_wealth).toLocaleString()}) belum mencapai Nisab (Rp ${Number(res.nisab).toLocaleString()}).</p>
+                    `;
+                }
+            }
+        }
+
+        async function calcTahajjud() {
+            const data = {
+                maghrib: document.getElementById('tahajjud-maghrib').value,
+                subuh: document.getElementById('tahajjud-subuh').value
+            };
+            const res = await postCalc('/api/calc/tahajjud', data);
+            if(res) {
+                document.getElementById('result-tahajjud').classList.remove('hidden');
+                document.getElementById('tahajjud-time').innerText = res.time;
+            }
+        }
+
+        async function calcKhatam() {
+             const data = {
+                target_times: document.getElementById('khatam-times').value,
+                days: document.getElementById('khatam-days').value,
+                freq_per_day: document.getElementById('khatam-freq').value
+            };
+            const res = await postCalc('/api/calc/khatam', data);
+            if(res) {
+                document.getElementById('result-khatam').classList.remove('hidden');
+                document.getElementById('khatam-pages').innerText = res.pages_per_session;
+            }
+        }
+
+        async function calcFidyah() {
+             const data = {
+                days: document.getElementById('fidyah-days').value,
+                category: document.getElementById('fidyah-cat').value
+            };
+            const res = await postCalc('/api/calc/fidyah', data);
+            if(res) {
+                document.getElementById('result-fidyah').classList.remove('hidden');
+                document.getElementById('fidyah-qadha').innerText = res.qadha_days + " Hari";
+                document.getElementById('fidyah-rice').innerText = res.fidyah_rice.toFixed(1) + " Kg";
+                document.getElementById('fidyah-money').innerText = "Rp " + Number(res.fidyah_money).toLocaleString();
+            }
+        }
+
+        async function calcHijri() {
+            const val = document.getElementById('hijri-date-input').value;
+            if(!val) return alert("Pilih tanggal dulu");
+            const data = { date: val };
+            const res = await postCalc('/api/calc/hijri', data);
+            if(res) {
+                document.getElementById('result-hijri').classList.remove('hidden');
+                document.getElementById('hijri-output').innerText = res.hijri;
+            }
+        }
+    </script>
 </div>
 """
 
@@ -1076,6 +1568,64 @@ def emergency():
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# --- CALCULATOR API ROUTES ---
+
+@app.route('/api/calc/waris', methods=['POST'])
+def api_calc_waris():
+    try:
+        data = request.json
+        res = calc_waris(int(data['harta']), int(data['sons']), int(data['daughters']))
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route('/api/calc/zakat', methods=['POST'])
+def api_calc_zakat():
+    try:
+        data = request.json
+        res = calc_zakat(int(data['gold_price']), int(data['savings']), int(data['gold_grams']))
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route('/api/calc/tahajjud', methods=['POST'])
+def api_calc_tahajjud():
+    try:
+        data = request.json
+        res = calc_tahajjud(data['maghrib'], data['subuh'])
+        return jsonify({"time": res})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route('/api/calc/khatam', methods=['POST'])
+def api_calc_khatam():
+    try:
+        data = request.json
+        res = calc_khatam(int(data['target_times']), int(data['days']), int(data['freq_per_day']))
+        return jsonify({"pages_per_session": res})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route('/api/calc/fidyah', methods=['POST'])
+def api_calc_fidyah():
+    try:
+        data = request.json
+        res = calc_fidyah(int(data['days']), data['category'])
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route('/api/calc/hijri', methods=['POST'])
+def api_calc_hijri():
+    try:
+        data = request.json
+        y, m, d = map(int, data['date'].split('-'))
+        date_obj = datetime.date(y, m, d)
+        res = gregorian_to_hijri(date_obj)
+        return jsonify({"hijri": res})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
