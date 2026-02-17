@@ -5,6 +5,7 @@ import math
 import time
 import json
 import csv
+import urllib.request
 from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify
 from werkzeug.utils import secure_filename
 
@@ -423,33 +424,40 @@ def get_takjil_data():
     return data
 
 def get_imsakiyah_schedule():
-    pt = PrayTimes()
-    # Adjust for Indonesia/Kemenag if needed, using standard MWL for now or previously defined params
-    
-    # Estimated Start Ramadhan 1447 H: 18 Feb 2026
-    start_date = datetime.date(2026, 2, 18)
     schedule = []
-    
-    today = datetime.date.today()
-    
-    for i in range(30):
-        curr_date = start_date + datetime.timedelta(days=i)
-        times = pt.get_prayer_times(curr_date.year, curr_date.month, curr_date.day, LAT, LNG, TZ)
+    try:
+        # 1. Panggil API Aladhan untuk Samarinda, Indonesia
+        # 2. Bulan Februari 2026 (Ramadhan 1447 H) & Method 20 (Kemenag RI)
+        url = "http://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month=2&year=2026"
         
-        # Calculate Imsak (10 mins before Fajr)
-        f_h, f_m = map(int, times['Fajr'].split(':'))
-        imsak_dt = datetime.datetime(2000, 1, 1, f_h, f_m) - datetime.timedelta(minutes=10)
+        with urllib.request.urlopen(url) as response:
+            data = json.loads(response.read().decode())
+
+            if 'data' in data:
+                today = datetime.date.today()
+
+                for day in data['data']:
+                    # Parse date
+                    date_obj = datetime.datetime.strptime(day['date']['gregorian']['date'], "%d-%m-%Y").date()
+                    timings = day['timings']
+
+                    # Format HH:MM (strip seconds/timezone if any)
+                    def clean_time(t): return t.split(' ')[0]
+
+                    schedule.append({
+                        'date_str': date_obj.strftime('%d/%m'),
+                        'imsak': clean_time(timings['Imsak']),
+                        'fajr': clean_time(timings['Fajr']),
+                        'dhuhr': clean_time(timings['Dhuhr']),
+                        'asr': clean_time(timings['Asr']),
+                        'maghrib': clean_time(timings['Maghrib']),
+                        'isha': clean_time(timings['Isha']),
+                        'is_today': (date_obj == today)
+                    })
+    except Exception as e:
+        print(f"Error fetching Imsakiyah API: {e}")
+        # Fallback empty or local calculation if needed, but user requested API specifically.
         
-        schedule.append({
-            'date_str': curr_date.strftime('%d/%m'),
-            'imsak': imsak_dt.strftime('%H:%M'),
-            'fajr': times['Fajr'],
-            'dhuhr': times['Dhuhr'],
-            'asr': times['Asr'],
-            'maghrib': times['Maghrib'],
-            'isha': times['Isha'],
-            'is_today': (curr_date == today)
-        })
     return schedule
 
 # --- FRONTEND ASSETS & LAYOUT ---
@@ -733,63 +741,71 @@ HOME_HTML = """
             </div>
         </div>
 
-        <!-- RIGHT COLUMN: PRAYER CARD -->
-        <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-3xl p-6 md:p-10 text-white shadow-xl relative overflow-hidden transform md:hover:scale-[1.02] transition-transform duration-500">
-            <div class="absolute top-0 right-0 opacity-10 transform translate-x-4 -translate-y-4">
-                <i class="fas fa-mosque text-9xl"></i>
-            </div>
-            <div class="relative z-10">
-                <p class="text-xs font-medium opacity-80 mb-1 tracking-wide uppercase">Waktu Sholat Berikutnya</p>
-                <h2 class="text-4xl font-bold mb-3" id="next-prayer-name">--:--</h2>
-                <div class="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 inline-block mb-6 border border-white/10">
-                    <span class="font-mono text-2xl font-bold tracking-wider" id="countdown-timer">--:--:--</span>
-                </div>
-                
-                <div class="grid grid-cols-5 gap-1 text-center text-xs opacity-90 border-t border-white/20 pt-4">
-                    <div>
-                        <div class="font-semibold mb-1">Subuh</div>
-                        <div id="fajr-time" class="font-mono">--:--</div>
-                    </div>
-                    <div>
-                        <div class="font-semibold mb-1">Dzuhur</div>
-                        <div id="dhuhr-time" class="font-mono">--:--</div>
-                    </div>
-                    <div>
-                        <div class="font-semibold mb-1">Ashar</div>
-                        <div id="asr-time" class="font-mono">--:--</div>
-                    </div>
-                    <div>
-                        <div class="font-semibold mb-1">Maghrib</div>
-                        <div id="maghrib-time" class="font-mono">--:--</div>
-                    </div>
-                    <div>
-                        <div class="font-semibold mb-1">Isya</div>
-                        <div id="isha-time" class="font-mono">--:--</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+        <!-- RIGHT COLUMN: PRAYER CARD & RAMADHAN BANNER -->
+        <div class="flex flex-col gap-6">
 
-    <!-- RAMADHAN BANNER (FLOATING CARD) -->
-    <div class="mb-8 md:mb-12 px-2">
-        <a href="/ramadhan" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300">
-            <!-- Background & Texture -->
-            <div class="absolute inset-0 bg-[#0b162c]"></div>
-            <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
-            
-            <div class="relative px-6 py-8 md:px-10 md:py-10 flex items-center justify-between">
-                <div>
-                    <h2 class="text-3xl md:text-4xl font-bold text-[#FFD700] mb-1 font-serif tracking-wide">Ramadhan Mode</h2>
-                    <p class="text-white/60 text-xs md:text-sm font-medium">Akses Dashboard Khusus Ramadhan</p>
+            <!-- PRAYER CARD -->
+            <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-3xl p-6 md:p-10 text-white shadow-xl relative overflow-hidden transform md:hover:scale-[1.02] transition-transform duration-500">
+                <div class="absolute top-0 right-0 opacity-10 transform translate-x-4 -translate-y-4">
+                    <i class="fas fa-mosque text-9xl"></i>
                 </div>
-                
-                <!-- Gold Circle Button -->
-                <div class="w-12 h-12 rounded-full bg-[#FFD700] flex items-center justify-center text-[#0b1026] shadow-[0_0_15px_rgba(255,215,0,0.4)] group-hover:scale-110 transition-transform duration-300">
-                    <i class="fas fa-arrow-right text-lg"></i>
+                <div class="relative z-10">
+                    <p class="text-xs font-medium opacity-80 mb-1 tracking-wide uppercase">Waktu Sholat Berikutnya</p>
+                    <h2 class="text-4xl font-bold mb-3" id="next-prayer-name">--:--</h2>
+                    <div class="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 inline-block mb-6 border border-white/10">
+                        <span class="font-mono text-2xl font-bold tracking-wider" id="countdown-timer">--:--:--</span>
+                    </div>
+
+                    <div class="grid grid-cols-5 gap-1 text-center text-xs opacity-90 border-t border-white/20 pt-4">
+                        <div>
+                            <div class="font-semibold mb-1">Subuh</div>
+                            <div id="fajr-time" class="font-mono">--:--</div>
+                        </div>
+                        <div>
+                            <div class="font-semibold mb-1">Dzuhur</div>
+                            <div id="dhuhr-time" class="font-mono">--:--</div>
+                        </div>
+                        <div>
+                            <div class="font-semibold mb-1">Ashar</div>
+                            <div id="asr-time" class="font-mono">--:--</div>
+                        </div>
+                        <div>
+                            <div class="font-semibold mb-1">Maghrib</div>
+                            <div id="maghrib-time" class="font-mono">--:--</div>
+                        </div>
+                        <div>
+                            <div class="font-semibold mb-1">Isya</div>
+                            <div id="isha-time" class="font-mono">--:--</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </a>
+
+            <!-- RAMADHAN BANNER (MOVED HERE) -->
+            <a href="/ramadhan" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-[#0b162c]">
+                <!-- Background & Texture -->
+                <div class="absolute inset-0 bg-[#0b162c]"></div>
+                <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+
+                <!-- Crescent Moon Background -->
+                <div class="absolute right-12 top-1/2 transform -translate-y-1/2 opacity-10 text-[#FFD700] pointer-events-none">
+                    <i class="fas fa-moon text-9xl"></i>
+                </div>
+                
+                <div class="relative px-6 py-6 md:px-8 md:py-8 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-[#FFD700] mb-1 font-sans tracking-wide leading-none">Ramadhan Mode</h2>
+                        <p class="text-white/60 text-xs md:text-sm font-medium">Akses Dashboard Khusus Ramadhan</p>
+                    </div>
+
+                    <!-- Gold Circle Button -->
+                    <div class="w-12 h-12 rounded-full bg-[#FFD700] flex items-center justify-center text-[#0b1026] shadow-[0_0_15px_rgba(255,215,0,0.4)] group-hover:scale-110 transition-transform duration-300 relative z-10">
+                        <i class="fas fa-arrow-right text-lg"></i>
+                    </div>
+                </div>
+            </a>
+
+        </div>
     </div>
 
     <!-- MAIN GRID MENU -->
@@ -2043,14 +2059,36 @@ RAMADHAN_DASHBOARD_HTML = """
     <!-- BACKGROUND PATTERN -->
     <div class="fixed inset-0 opacity-5 pointer-events-none" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
 
-    <!-- CUSTOM HEADER -->
-    <header class="fixed top-0 left-0 w-full z-50 px-6 py-4 flex justify-between items-center backdrop-blur-md bg-[#0b1026]/90 border-b border-gold/20 shadow-lg">
-        <div>
-            <p class="text-[10px] text-gray-400 font-medium tracking-widest uppercase mb-0.5">Assalamualaikum</p>
-            <h1 class="text-lg font-bold text-gold leading-none amiri-font tracking-wide">Masjid Al Hijrah</h1>
+    <!-- CUSTOM HEADER (Adapted from BASE_LAYOUT) -->
+    <nav class="hidden md:flex fixed top-0 left-0 w-full z-50 glass-gold bg-midnight shadow-sm px-8 py-4 justify-between items-center right-0 border-b border-gold/20">
+        <div class="max-w-7xl mx-auto w-full flex justify-between items-center">
+             <div class="flex items-center gap-4">
+                 <div class="bg-white/10 p-2 rounded-xl border border-gold/20">
+                    <i class="fas fa-mosque text-gold text-2xl"></i>
+                 </div>
+                 <div>
+                    <h1 class="text-xl font-bold text-gold leading-tight font-sans">Masjid Al Hijrah</h1>
+                    <p class="text-xs text-gray-400 font-medium">Samarinda, Kalimantan Timur</p>
+                 </div>
+             </div>
+             <div class="flex items-center gap-8">
+                <a href="/" class="text-gray-300 font-medium hover:text-gold transition">Beranda</a>
+                <a href="/finance" class="text-gray-300 font-medium hover:text-gold transition">Laporan Kas</a>
+                <a href="/agenda" class="text-gray-300 font-medium hover:text-gold transition">Jadwal</a>
+                <a href="/donate" class="bg-gold text-midnight px-5 py-2 rounded-full font-bold shadow-lg hover:bg-white transition transform hover:scale-105">Infaq Digital</a>
+                <a href="/emergency" class="text-red-400 font-bold hover:text-red-500 transition border border-red-500/50 px-4 py-2 rounded-full bg-red-500/10 hover:bg-red-500/20">Darurat</a>
+            </div>
         </div>
-        <div class="px-4 py-1.5 rounded-full border border-gold/50 bg-gold/10 backdrop-blur-sm shadow-[0_0_10px_rgba(255,215,0,0.2)]">
-            <p class="text-[10px] font-bold text-gold tracking-wide" id="hijri-date-ramadhan">Loading...</p>
+    </nav>
+
+    <!-- MOBILE HEADER (Adapted from BASE_LAYOUT) -->
+    <header class="md:hidden fixed top-0 left-0 w-full z-50 glass-gold bg-midnight shadow-sm px-4 py-3 flex justify-between items-center max-w-md mx-auto right-0 border-b border-gold/20">
+        <div>
+            <p class="text-xs text-gray-400 font-medium">Assalamualaikum</p>
+            <h1 class="text-lg font-bold text-gold leading-tight font-sans">Masjid Al Hijrah</h1>
+        </div>
+        <div class="text-right">
+            <p class="text-[10px] font-bold text-midnight bg-gold px-2 py-1 rounded-full border border-gold/50" id="hijri-date-ramadhan">Loading...</p>
         </div>
     </header>
 
@@ -2098,7 +2136,7 @@ RAMADHAN_DASHBOARD_HTML = """
         </div>
 
         <!-- MENU GRID -->
-        <h2 class="text-xl font-bold text-white amiri-font mb-6 border-l-4 border-gold pl-3">Menu Spesial Ramadhan</h2>
+        <h2 class="text-xl font-bold text-white font-sans mb-6 border-l-4 border-gold pl-3">Menu Spesial Ramadhan</h2>
         
         <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-24">
             
@@ -2158,24 +2196,24 @@ RAMADHAN_DASHBOARD_HTML = """
         </div>
     </div>
 
-    <!-- CUSTOM BOTTOM BAR -->
-    <nav class="fixed bottom-0 left-0 w-full z-50 dark-bottom-nav h-20 flex items-center justify-between px-8 max-w-md mx-auto right-0 shadow-[0_-5px_20px_rgba(0,0,0,0.3)]">
-        <!-- LEFT: HOME -->
-        <a href="/" class="text-gray-500 hover:text-white transition flex flex-col items-center group w-16">
-            <i class="fas fa-home text-xl mb-1 group-hover:text-gold transition-colors"></i>
-            <span class="text-[10px] font-medium group-hover:text-gold transition-colors">Beranda</span>
-        </a>
-
-        <!-- CENTER: INFAQ FAB -->
-        <a href="/donate" class="fab-center group hover:scale-105 transition-transform cursor-pointer">
-            <i class="fas fa-qrcode text-3xl text-[#0b1026] group-hover:rotate-12 transition-transform"></i>
-        </a>
-
-        <!-- RIGHT: EMERGENCY -->
-        <a href="/emergency" class="text-gray-500 hover:text-red-500 transition flex flex-col items-center group w-16">
-            <i class="fas fa-phone-alt text-xl mb-1 group-hover:text-red-400 transition-colors"></i>
-            <span class="text-[10px] font-medium group-hover:text-red-400 transition-colors">Darurat</span>
-        </a>
+    <!-- CUSTOM BOTTOM BAR (Adapted from BASE_LAYOUT) -->
+    <nav class="md:hidden fixed bottom-0 left-0 w-full bg-midnight z-50 pb-2 pt-2 max-w-md mx-auto right-0 border-t border-gold/20 rounded-t-3xl">
+        <div class="flex justify-around items-end h-14 px-2">
+            <a href="/" class="flex flex-col items-center justify-center text-gray-400 hover:text-gold w-16 mb-1 transition-colors">
+                <i class="fas fa-home text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Beranda</span>
+            </a>
+            <a href="/donate" class="flex flex-col items-center justify-center text-gray-400 hover:text-gold w-16 mb-6 relative z-10">
+                <div class="bg-gold text-midnight w-14 h-14 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(255,215,0,0.4)] border-4 border-midnight transform hover:scale-105 transition-transform">
+                    <i class="fas fa-qrcode text-2xl"></i>
+                </div>
+                <span class="text-[10px] font-bold mt-1 text-gold">Infaq</span>
+            </a>
+            <a href="/emergency" class="flex flex-col items-center justify-center text-gray-400 hover:text-red-400 w-16 mb-1 transition-colors">
+                <i class="fas fa-phone-alt text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Darurat</span>
+            </a>
+        </div>
     </nav>
 
     <!-- MODALS SECTION -->
@@ -2186,7 +2224,7 @@ RAMADHAN_DASHBOARD_HTML = """
         <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
             <div class="bg-[#0b1026] w-full md:w-[600px] h-[80vh] md:h-auto md:max-h-[80vh] rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out]">
                 <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                    <h3 class="text-xl font-bold text-gold amiri-font">Jadwal Pembagian Takjil</h3>
+                    <h3 class="text-xl font-bold text-gold font-sans">Jadwal Pembagian Takjil</h3>
                     <button onclick="closeModal('modal-takjil')" class="text-gray-400 hover:text-white">&times;</button>
                 </div>
                 <div class="p-4 bg-white/5 border-b border-white/10">
@@ -2225,7 +2263,7 @@ RAMADHAN_DASHBOARD_HTML = """
             <div class="bg-[#0b1026] w-full md:w-[800px] h-[85vh] md:h-auto md:max-h-[85vh] rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out]">
                 <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
                     <div>
-                         <h3 class="text-xl font-bold text-gold amiri-font">Jadwal Imsakiyah</h3>
+                         <h3 class="text-xl font-bold text-gold font-sans">Jadwal Imsakiyah</h3>
                          <p class="text-[10px] text-gray-400">Samarinda & Sekitarnya • Ramadhan 1447 H / 2026 M</p>
                     </div>
                     <button onclick="closeModal('modal-imsakiyah')" class="text-gray-400 hover:text-white">&times;</button>
@@ -2268,7 +2306,7 @@ RAMADHAN_DASHBOARD_HTML = """
         <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
             <div class="bg-[#0b1026] w-full md:w-[600px] h-[80vh] md:h-auto md:max-h-[80vh] rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out]">
                 <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                    <h3 class="text-xl font-bold text-gold amiri-font">Laporan Kas Ramadhan</h3>
+                    <h3 class="text-xl font-bold text-gold font-sans">Laporan Kas Ramadhan</h3>
                     <button onclick="closeModal('modal-kas-ramadhan')" class="text-gray-400 hover:text-white">&times;</button>
                 </div>
                 
@@ -2276,7 +2314,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <div class="p-6 grid grid-cols-2 gap-4 border-b border-white/10">
                     <div class="bg-green-500/10 p-4 rounded-2xl border border-green-500/20 text-center">
                         <p class="text-xs text-green-400 uppercase font-bold">Pemasukan</p>
-                        <p class="text-lg font-bold text-green-400">Rp {{ "{:,.0f}".format(ramadhan_kas_summary.in) }}</p>
+                        <p class="text-lg font-bold text-green-400">Rp {{ "{:,.0f}".format(ramadhan_kas_summary.income) }}</p>
                     </div>
                     <div class="bg-red-500/10 p-4 rounded-2xl border border-red-500/20 text-center">
                         <p class="text-xs text-red-400 uppercase font-bold">Pengeluaran</p>
@@ -2340,7 +2378,7 @@ RAMADHAN_DASHBOARD_HTML = """
         <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
             <div class="bg-[#0b1026] w-full md:w-[700px] h-[80vh] md:h-auto md:max-h-[80vh] rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out]">
                 <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                    <h3 class="text-xl font-bold text-gold amiri-font">Jadwal Imam & Penceramah</h3>
+                    <h3 class="text-xl font-bold text-gold font-sans">Jadwal Imam & Penceramah</h3>
                     <button onclick="closeModal('modal-tarawih')" class="text-gray-400 hover:text-white">&times;</button>
                 </div>
                 
@@ -2396,7 +2434,7 @@ RAMADHAN_DASHBOARD_HTML = """
         <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
             <div class="bg-[#0b1026] w-full md:w-[400px] h-auto rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out]">
                 <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                    <h3 class="text-xl font-bold text-gold amiri-font">Kalkulator Zakat Fitrah</h3>
+                    <h3 class="text-xl font-bold text-gold font-sans">Kalkulator Zakat Fitrah</h3>
                     <button onclick="closeModal('modal-zakat-fitrah')" class="text-gray-400 hover:text-white">&times;</button>
                 </div>
                 <div class="p-6 space-y-4">
@@ -2433,7 +2471,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <canvas id="fireworks" class="absolute inset-0 pointer-events-none z-50"></canvas>
                 
                 <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5 relative z-10">
-                    <h3 class="text-xl font-bold text-pink-400 amiri-font">Checklist Amalan Harian</h3>
+                    <h3 class="text-xl font-bold text-pink-400 font-sans">Checklist Amalan Harian</h3>
                     <button onclick="closeModal('modal-amalan')" class="text-gray-400 hover:text-white">&times;</button>
                 </div>
                 
@@ -2686,15 +2724,18 @@ def ramadhan_dashboard():
         
     conn.close()
     
+    # Render CONTENT first to ensure internal Jinja tags are processed
+    rendered_content = render_template_string(RAMADHAN_DASHBOARD_HTML,
+                                              takjil_data=takjil_data,
+                                              imsakiyah_data=imsakiyah_data,
+                                              ramadhan_kas_items=ramadhan_kas_items,
+                                              ramadhan_kas_summary={'income': kas_in, 'out': kas_out, 'balance': kas_in - kas_out},
+                                              tarawih_schedule=tarawih_schedule)
+
     return render_template_string(BASE_LAYOUT, 
                                   styles=STYLES_HTML + RAMADHAN_STYLES, 
                                   active_page='ramadhan', 
-                                  content=RAMADHAN_DASHBOARD_HTML,
-                                  takjil_data=takjil_data,
-                                  imsakiyah_data=imsakiyah_data,
-                                  ramadhan_kas_items=ramadhan_kas_items,
-                                  ramadhan_kas_summary={'in': kas_in, 'out': kas_out, 'balance': kas_in - kas_out},
-                                  tarawih_schedule=tarawih_schedule,
+                                  content=rendered_content,
                                   hide_nav=True)
 
 @app.route('/ramadhan/kas', methods=['POST'])
