@@ -4,8 +4,18 @@ import datetime
 import math
 import time
 import json
-from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify
+import uuid
+import google.generativeai as genai
+from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify, make_response
 from werkzeug.utils import secure_filename
+
+# --- KONFIGURASI GEMINI ---
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
+if GOOGLE_API_KEY:
+    try:
+        genai.configure(api_key=GOOGLE_API_KEY)
+    except Exception as e:
+        print(f"Error configuring Gemini: {e}")
 
 # --- KONFIGURASI FLASK ---
 app = Flask(__name__)
@@ -129,6 +139,38 @@ def init_db():
         status TEXT DEFAULT 'Unread',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
+
+    # 7. Ifthar Logistik Table
+    c.execute('''CREATE TABLE IF NOT EXISTS ifthar_logistik (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        donor_name TEXT NOT NULL,
+        portions INTEGER NOT NULL,
+        menu TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # 8. Quran Progress Table
+    c.execute('''CREATE TABLE IF NOT EXISTS quran_progress (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        pages_read INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # 9. Muhasabah Harian Table
+    c.execute('''CREATE TABLE IF NOT EXISTS muhasabah_harian (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        sholat_jemaah INTEGER DEFAULT 0, -- 1=Yes, 0=No
+        sedekah INTEGER DEFAULT 0,
+        tarawih INTEGER DEFAULT 0,
+        tilawah INTEGER DEFAULT 0,
+        catatan_hati TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
     
     conn.commit()
     conn.close()
@@ -237,6 +279,37 @@ class PrayTimes:
         return f"{hours:02d}:{minutes:02d}"
 
 # --- ISLAMIC CALCULATOR LOGIC ---
+
+def get_user_id():
+    # Helper to get user ID from request cookie
+    uid = request.cookies.get('user_id')
+    if not uid:
+        uid = str(uuid.uuid4())
+    return uid
+
+def hitung_fase_bulan():
+    # Simple algorithm based on Hijri date (approximate)
+    # Hijri 1 = New Moon (0%), 15 = Full Moon (100%), 29/30 = New Moon (0%)
+    try:
+        today = datetime.date.today()
+        # Use existing helper (which returns string "D Month Y H")
+        hijri_str = gregorian_to_hijri(today)
+        day = int(hijri_str.split(' ')[0])
+
+        # Cycle is ~30 days. Peak at 15.
+        # Logic: 1->0%, 15->100%, 30->0%
+        if day <= 15:
+            illumination = (day / 15) * 100
+        else:
+            illumination = ((30 - day) / 15) * 100
+
+        illumination = max(0, min(100, illumination))
+        return {
+            "illumination": int(illumination),
+            "age": day
+        }
+    except:
+        return {"illumination": 50, "age": 15}
 
 def gregorian_to_hijri(date_obj):
     # Kuwaiti Algorithm
@@ -383,11 +456,17 @@ def allowed_file(filename):
 
 STYLES_HTML = """
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         tailwind.config = {
           theme: {
             extend: {
               colors: {
+                ramadhan: {
+                   dark: '#0b1026',
+                   gold: '#FFD700',
+                   accent: '#1a237e'
+                },
                 emerald: {
                   50: '#ecfdf5',
                   100: '#d1fae5',
@@ -595,6 +674,477 @@ BASE_LAYOUT = """
 </html>
 """
 
+RAMADHAN_HTML = """
+<div class="bg-[#0b1026] min-h-screen pb-24 text-[#FFD700] font-sans">
+
+    <!-- RAMADHAN HEADER -->
+    <div class="relative px-6 pt-24 pb-12 overflow-hidden rounded-b-[40px] shadow-2xl border-b-4 border-[#FFD700]/30">
+        <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+        <div class="absolute inset-0 bg-gradient-to-b from-[#1a237e]/50 to-[#0b1026]"></div>
+
+        <div class="relative z-10 text-center">
+            <div class="inline-block p-3 rounded-full border-2 border-[#FFD700] mb-4 shadow-[0_0_15px_#FFD700]">
+                <i class="fas fa-moon text-3xl text-[#FFD700]"></i>
+            </div>
+            <h1 class="text-4xl md:text-5xl font-bold font-serif mb-2 text-transparent bg-clip-text bg-gradient-to-r from-[#FFD700] to-[#FDB931]">Ramadhan Dashboard</h1>
+            <p class="text-gray-300 text-sm md:text-base italic max-w-lg mx-auto">"Hai orang-orang yang beriman, diwajibkan atas kamu berpuasa sebagaimana diwajibkan atas orang-orang sebelum kamu agar kamu bertakwa." (QS. Al-Baqarah: 183)</p>
+        </div>
+    </div>
+
+    <!-- MAIN GRID DASHBOARD (2 cols x 3 rows) -->
+    <div class="max-w-7xl mx-auto px-4 md:px-8 -mt-8 relative z-20">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <!-- 1. ASTRO-FALAKIYAH (Moon Phase) -->
+            <div class="bg-[#151b3b] border border-[#FFD700]/20 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-[#FFD700]/50 transition-all duration-300">
+                <div class="flex justify-between items-center mb-6 border-b border-[#FFD700]/10 pb-3">
+                    <h3 class="text-xl font-bold font-serif"><i class="fas fa-star-and-crescent mr-2"></i>Astro-Falakiyah</h3>
+                    <span class="text-xs bg-[#FFD700]/10 text-[#FFD700] px-2 py-1 rounded">Simulator</span>
+                </div>
+                <div class="flex flex-col items-center">
+                    <!-- CSS Moon Animation -->
+                    <div class="w-32 h-32 rounded-full bg-gray-900 shadow-[inset_-10px_0px_20px_rgba(0,0,0,1)] relative mb-6 border border-gray-700 overflow-hidden">
+                        <div id="moon-shadow" class="absolute inset-0 bg-[#FFD700] rounded-full mix-blend-overlay opacity-0 transition-all duration-1000"></div>
+                        <div class="absolute inset-0 shadow-[inset_10px_10px_50px_rgba(0,0,0,0.8)]"></div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 w-full text-center">
+                        <div class="bg-[#0b1026] p-3 rounded-xl border border-[#FFD700]/10">
+                            <p class="text-xs text-gray-400">Iluminasi</p>
+                            <p class="text-lg font-bold" id="moon-illumination">--%</p>
+                        </div>
+                        <div class="bg-[#0b1026] p-3 rounded-xl border border-[#FFD700]/10">
+                            <p class="text-xs text-gray-400">Umur Bulan</p>
+                            <p class="text-lg font-bold" id="moon-age">-- Hari</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. NUTRISI AVICENNA (Health Calc) -->
+            <div class="bg-[#151b3b] border border-[#FFD700]/20 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-[#FFD700]/50 transition-all duration-300">
+                <div class="flex justify-between items-center mb-6 border-b border-[#FFD700]/10 pb-3">
+                    <h3 class="text-xl font-bold font-serif"><i class="fas fa-heartbeat mr-2"></i>Nutrisi Avicenna</h3>
+                    <span class="text-xs bg-[#FFD700]/10 text-[#FFD700] px-2 py-1 rounded">Ibnu Sina</span>
+                </div>
+                <form onsubmit="calcNutrisi(event)" class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="number" id="nutri-weight" placeholder="Berat (kg)" class="bg-[#0b1026] border border-[#FFD700]/20 rounded-xl p-2 text-sm text-white focus:outline-none focus:border-[#FFD700]" required>
+                        <input type="number" id="nutri-height" placeholder="Tinggi (cm)" class="bg-[#0b1026] border border-[#FFD700]/20 rounded-xl p-2 text-sm text-white focus:outline-none focus:border-[#FFD700]" required>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="number" id="nutri-age" placeholder="Usia" class="bg-[#0b1026] border border-[#FFD700]/20 rounded-xl p-2 text-sm text-white focus:outline-none focus:border-[#FFD700]" required>
+                        <select id="nutri-gender" class="bg-[#0b1026] border border-[#FFD700]/20 rounded-xl p-2 text-sm text-white focus:outline-none focus:border-[#FFD700]">
+                            <option value="male">Laki-laki</option>
+                            <option value="female">Perempuan</option>
+                        </select>
+                    </div>
+                    <select id="nutri-activity" class="w-full bg-[#0b1026] border border-[#FFD700]/20 rounded-xl p-2 text-sm text-white focus:outline-none focus:border-[#FFD700]">
+                        <option value="1.2">Ringan (Duduk/Kantor)</option>
+                        <option value="1.55">Sedang (Olahraga 3x/minggu)</option>
+                        <option value="1.9">Berat (Fisik/Buruh)</option>
+                    </select>
+                    <button type="submit" class="w-full bg-gradient-to-r from-[#FFD700] to-[#FDB931] text-[#0b1026] font-bold py-2 rounded-xl hover:opacity-90 transition">Hitung Bekal Puasa</button>
+                </form>
+                <div id="nutri-result" class="hidden mt-4 pt-4 border-t border-[#FFD700]/10 text-center">
+                    <p class="text-xs text-gray-400">Target Kalori</p>
+                    <div class="flex justify-around mt-2">
+                        <div>
+                            <p class="text-xs text-gray-500">Sahur (40%)</p>
+                            <p class="font-bold text-[#FFD700]" id="res-sahur">0 kkal</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Berbuka (60%)</p>
+                            <p class="font-bold text-[#FFD700]" id="res-iftar">0 kkal</p>
+                        </div>
+                    </div>
+                    <div class="mt-3 bg-[#0b1026] p-2 rounded-lg">
+                        <p class="text-xs text-gray-400">Target Air Minum</p>
+                        <p class="font-bold text-blue-400" id="res-water">0 Liter</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. LOGISTIK IFTHAR (Crowdfunding) -->
+            <div class="bg-[#151b3b] border border-[#FFD700]/20 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-[#FFD700]/50 transition-all duration-300 md:row-span-2">
+                <div class="flex justify-between items-center mb-6 border-b border-[#FFD700]/10 pb-3">
+                    <h3 class="text-xl font-bold font-serif"><i class="fas fa-utensils mr-2"></i>Logistik Ifthar</h3>
+                    <span class="text-xs bg-[#FFD700]/10 text-[#FFD700] px-2 py-1 rounded">30 Hari</span>
+                </div>
+                <div class="h-[500px] overflow-y-auto pr-2 custom-scrollbar space-y-3" id="ifthar-list">
+                    <!-- Dynamic List Generated by JS -->
+                    <div class="text-center text-gray-500 py-10">Memuat Data Logistik...</div>
+                </div>
+                <!-- Modal for Donation is separate -->
+            </div>
+
+            <!-- 4. BAYT AL-HIKMAH (AI Chatbot) -->
+            <div class="bg-[#151b3b] border border-[#FFD700]/20 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-[#FFD700]/50 transition-all duration-300 md:row-span-2 flex flex-col">
+                <div class="flex justify-between items-center mb-4 border-b border-[#FFD700]/10 pb-3">
+                    <h3 class="text-xl font-bold font-serif"><i class="fas fa-brain mr-2"></i>Bayt al-Hikmah</h3>
+                    <span class="text-xs bg-[#FFD700]/10 text-[#FFD700] px-2 py-1 rounded">AI Pustakawan</span>
+                </div>
+                <div class="flex-1 bg-[#0b1026] rounded-2xl p-4 overflow-y-auto mb-4 border border-[#FFD700]/5 h-[400px]" id="chat-history">
+                    <div class="flex items-start gap-3 mb-4">
+                        <div class="w-8 h-8 rounded-full bg-[#FFD700] flex items-center justify-center text-[#0b1026] font-bold text-xs">AI</div>
+                        <div class="bg-[#151b3b] p-3 rounded-2xl rounded-tl-none border border-[#FFD700]/20 text-sm text-gray-300">
+                            Assalamualaikum. Saya adalah penjaga Bayt al-Hikmah. Bertanyalah tentang sejarah sains Islam atau Al-Quran.
+                        </div>
+                    </div>
+                </div>
+                <form onsubmit="sendChat(event)" class="relative">
+                    <input type="text" id="chat-input" placeholder="Tanya tentang Al-Khawarizmi..." class="w-full bg-[#0b1026] border border-[#FFD700]/20 rounded-full pl-4 pr-12 py-3 text-sm text-white focus:outline-none focus:border-[#FFD700]">
+                    <button type="submit" class="absolute right-2 top-2 bg-[#FFD700] text-[#0b1026] w-8 h-8 rounded-full flex items-center justify-center hover:scale-110 transition">
+                        <i class="fas fa-paper-plane text-xs"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- 5. KHATAM ANALYTICS (Chart) -->
+            <div class="bg-[#151b3b] border border-[#FFD700]/20 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-[#FFD700]/50 transition-all duration-300">
+                <div class="flex justify-between items-center mb-6 border-b border-[#FFD700]/10 pb-3">
+                    <h3 class="text-xl font-bold font-serif"><i class="fas fa-chart-line mr-2"></i>Khatam Analytics</h3>
+                </div>
+                <canvas id="khatamChart" class="w-full h-48"></canvas>
+                <form onsubmit="saveKhatam(event)" class="mt-4 flex gap-2">
+                    <input type="number" id="khatam-input" placeholder="Bacaan Hari Ini (Halaman)" class="flex-1 bg-[#0b1026] border border-[#FFD700]/20 rounded-xl p-2 text-sm text-white">
+                    <button type="submit" class="bg-[#FFD700] text-[#0b1026] px-4 py-2 rounded-xl font-bold text-sm">Update</button>
+                </form>
+            </div>
+
+            <!-- 6. JURNAL MUHASABAH (Pie Chart) -->
+            <div class="bg-[#151b3b] border border-[#FFD700]/20 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-[#FFD700]/50 transition-all duration-300">
+                <div class="flex justify-between items-center mb-6 border-b border-[#FFD700]/10 pb-3">
+                    <h3 class="text-xl font-bold font-serif"><i class="fas fa-book-reader mr-2"></i>Jurnal Muhasabah</h3>
+                </div>
+                <div class="flex flex-col md:flex-row gap-6 items-center">
+                    <div class="w-32 h-32 relative">
+                        <canvas id="muhasabahChart"></canvas>
+                    </div>
+                    <form onsubmit="saveMuhasabah(event)" class="flex-1 space-y-2 w-full">
+                        <label class="flex items-center space-x-2 text-sm text-gray-300 cursor-pointer">
+                            <input type="checkbox" id="check-jemaah" class="form-checkbox text-[#FFD700] rounded bg-[#0b1026] border-[#FFD700]/30">
+                            <span>Sholat Berjamaah</span>
+                        </label>
+                        <label class="flex items-center space-x-2 text-sm text-gray-300 cursor-pointer">
+                            <input type="checkbox" id="check-sedekah" class="form-checkbox text-[#FFD700] rounded bg-[#0b1026] border-[#FFD700]/30">
+                            <span>Sedekah Hari Ini</span>
+                        </label>
+                        <label class="flex items-center space-x-2 text-sm text-gray-300 cursor-pointer">
+                            <input type="checkbox" id="check-tarawih" class="form-checkbox text-[#FFD700] rounded bg-[#0b1026] border-[#FFD700]/30">
+                            <span>Sholat Tarawih</span>
+                        </label>
+                        <label class="flex items-center space-x-2 text-sm text-gray-300 cursor-pointer">
+                            <input type="checkbox" id="check-tilawah" class="form-checkbox text-[#FFD700] rounded bg-[#0b1026] border-[#FFD700]/30">
+                            <span>Tilawah Quran</span>
+                        </label>
+                        <button type="submit" class="w-full mt-2 bg-[#FFD700]/10 border border-[#FFD700] text-[#FFD700] text-xs font-bold py-2 rounded-lg hover:bg-[#FFD700] hover:text-[#0b1026] transition">Simpan Jurnal</button>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- LINK TO EXISTING CALCULATORS -->
+        <div class="mt-8 text-center">
+            <a href="/#kalkulator-section" class="inline-block bg-[#1a237e] border border-[#FFD700] text-[#FFD700] px-8 py-3 rounded-full font-bold shadow-lg hover:bg-[#FFD700] hover:text-[#0b1026] transition">
+                <i class="fas fa-calculator mr-2"></i> Buka 6 Kalkulator Ilmiah Islam
+            </a>
+        </div>
+
+        <div class="mt-12 text-center text-xs text-gray-500">
+            <p>&copy; 1445 H - Masjid Al Hijrah Ramadhan Dashboard</p>
+        </div>
+    </div>
+
+    <!-- MODAL DONASI IFTHAR -->
+    <div id="modal-ifthar" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="document.getElementById('modal-ifthar').classList.add('hidden')"></div>
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-[#151b3b] rounded-3xl p-6 shadow-2xl border border-[#FFD700]/30">
+            <h3 class="text-xl font-bold text-[#FFD700] mb-4">Donasi Takjil</h3>
+            <form onsubmit="submitDonasi(event)" class="space-y-4">
+                <input type="hidden" id="donasi-date">
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-1">Tanggal</label>
+                    <input type="text" id="donasi-date-display" class="w-full bg-[#0b1026] border border-[#FFD700]/20 rounded-xl p-3 text-sm text-gray-500" disabled>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-1">Nama Donatur</label>
+                    <input type="text" id="donasi-name" class="w-full bg-[#0b1026] border border-[#FFD700]/20 rounded-xl p-3 text-sm text-white" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-1">Jumlah Porsi</label>
+                    <input type="number" id="donasi-portions" class="w-full bg-[#0b1026] border border-[#FFD700]/20 rounded-xl p-3 text-sm text-white" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-1">Menu (Opsional)</label>
+                    <input type="text" id="donasi-menu" class="w-full bg-[#0b1026] border border-[#FFD700]/20 rounded-xl p-3 text-sm text-white">
+                </div>
+                <button type="submit" class="w-full bg-[#FFD700] text-[#0b1026] font-bold py-3 rounded-xl shadow-lg hover:opacity-90">Simpan Donasi</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. ASTRO FALAKIYAH ---
+        async function loadAstro() {
+            try {
+                // Fetch data from backend helper
+                const res = await fetch('/api/ramadhan/astro');
+                const data = await res.json();
+
+                document.getElementById('moon-illumination').innerText = data.illumination + '%';
+                document.getElementById('moon-age').innerText = data.age + ' Hari';
+
+                // Visualize Shadow
+                // 0% = New Moon (Dark), 50% = Quarter, 100% = Full (Gold)
+                const moonShadow = document.getElementById('moon-shadow');
+                moonShadow.style.opacity = data.illumination / 100;
+            } catch(e) { console.error(e); }
+        }
+
+        // --- 2. NUTRISI AVICENNA ---
+        async function calcNutrisi(e) {
+            e.preventDefault();
+            const data = {
+                weight: document.getElementById('nutri-weight').value,
+                height: document.getElementById('nutri-height').value,
+                age: document.getElementById('nutri-age').value,
+                gender: document.getElementById('nutri-gender').value,
+                activity: document.getElementById('nutri-activity').value
+            };
+
+            const res = await fetch('/api/ramadhan/nutrisi', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await res.json();
+
+            document.getElementById('nutri-result').classList.remove('hidden');
+            document.getElementById('res-sahur').innerText = Math.round(result.sahur) + " kkal";
+            document.getElementById('res-iftar').innerText = Math.round(result.iftar) + " kkal";
+            document.getElementById('res-water').innerText = result.water + " Liter";
+        }
+
+        // --- 3. LOGISTIK IFTHAR ---
+        async function loadIfthar() {
+            const list = document.getElementById('ifthar-list');
+            try {
+                const res = await fetch('/api/ramadhan/ifthar');
+                const data = await res.json(); // Array of 30 days
+
+                list.innerHTML = '';
+                data.forEach((day, index) => {
+                    const pct = Math.min((day.current / 100) * 100, 100);
+                    const color = pct >= 100 ? 'bg-green-500' : 'bg-red-500';
+
+                    const item = document.createElement('div');
+                    item.className = 'bg-[#0b1026] p-4 rounded-xl border border-[#FFD700]/10 flex justify-between items-center';
+                    item.innerHTML = `
+                        <div class="flex-1 mr-4">
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span class="font-bold text-[#FFD700]">Ramadhan ke-${index + 1}</span>
+                                <span>${day.current}/100 Porsi</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-2">
+                                <div class="${color} h-2 rounded-full" style="width: ${pct}%"></div>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-1 truncate">${day.donors || 'Belum ada donatur'}</p>
+                        </div>
+                        <button onclick="openDonasi(${index + 1})" class="bg-[#FFD700]/10 hover:bg-[#FFD700] hover:text-[#0b1026] text-[#FFD700] rounded-full w-8 h-8 flex items-center justify-center transition">
+                            <i class="fas fa-plus text-xs"></i>
+                        </button>
+                    `;
+                    list.appendChild(item);
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        function openDonasi(dayIndex) {
+            document.getElementById('modal-ifthar').classList.remove('hidden');
+            document.getElementById('donasi-date').value = dayIndex;
+            document.getElementById('donasi-date-display').value = "Ramadhan Hari ke-" + dayIndex;
+        }
+
+        async function submitDonasi(e) {
+            e.preventDefault();
+            const data = {
+                day_index: document.getElementById('donasi-date').value,
+                name: document.getElementById('donasi-name').value,
+                portions: document.getElementById('donasi-portions').value,
+                menu: document.getElementById('donasi-menu').value
+            };
+            await fetch('/api/ramadhan/ifthar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            document.getElementById('modal-ifthar').classList.add('hidden');
+            loadIfthar();
+        }
+
+        // --- 4. BAYT AL-HIKMAH CHAT ---
+        async function sendChat(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input');
+            const msg = input.value;
+            if(!msg) return;
+
+            const history = document.getElementById('chat-history');
+
+            // User Msg
+            const userDiv = document.createElement('div');
+            userDiv.className = 'flex items-start gap-3 mb-4 flex-row-reverse';
+            userDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-white font-bold text-xs">U</div>
+                <div class="bg-[#FFD700] p-3 rounded-2xl rounded-tr-none text-sm text-[#0b1026] font-medium">${msg}</div>
+            `;
+            history.appendChild(userDiv);
+            input.value = '';
+            history.scrollTop = history.scrollHeight;
+
+            // Loading
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'flex items-start gap-3 mb-4';
+            loadingDiv.id = 'chat-loading';
+            loadingDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-[#FFD700] flex items-center justify-center text-[#0b1026] font-bold text-xs">AI</div>
+                <div class="bg-[#151b3b] p-3 rounded-2xl rounded-tl-none border border-[#FFD700]/20 text-sm text-gray-400 italic">Sedang berpikir...</div>
+            `;
+            history.appendChild(loadingDiv);
+
+            try {
+                const res = await fetch('/api/ramadhan/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ message: msg })
+                });
+                const data = await res.json();
+
+                loadingDiv.remove();
+
+                const botDiv = document.createElement('div');
+                botDiv.className = 'flex items-start gap-3 mb-4';
+                botDiv.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-[#FFD700] flex items-center justify-center text-[#0b1026] font-bold text-xs">AI</div>
+                    <div class="bg-[#151b3b] p-3 rounded-2xl rounded-tl-none border border-[#FFD700]/20 text-sm text-gray-300">${data.reply}</div>
+                `;
+                history.appendChild(botDiv);
+                history.scrollTop = history.scrollHeight;
+
+            } catch(e) {
+                loadingDiv.remove();
+                alert("Gagal menghubungi server.");
+            }
+        }
+
+        // --- 5 & 6. CHARTS & DATA ---
+        let khatamChartInstance = null;
+        let muhasabahChartInstance = null;
+
+        async function loadCharts() {
+            // Load Data
+            const khatamRes = await fetch('/api/ramadhan/khatam');
+            const khatamData = await khatamRes.json(); // { labels: [], data: [], target: [] }
+
+            const muhasabahRes = await fetch('/api/ramadhan/muhasabah');
+            const muhasabahData = await muhasabahRes.json(); // { good: 80, bad: 20 }
+
+            // Render Khatam Chart
+            const ctxK = document.getElementById('khatamChart').getContext('2d');
+            if(khatamChartInstance) khatamChartInstance.destroy();
+
+            khatamChartInstance = new Chart(ctxK, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 30}, (_, i) => i + 1),
+                    datasets: [{
+                        label: 'Realisasi',
+                        data: khatamData.data, // Array of 30 values (cumulative)
+                        borderColor: '#FFD700',
+                        backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: 'Target',
+                        data: khatamData.target, // Linear line
+                        borderColor: 'rgba(255, 255, 255, 0.3)',
+                        borderDash: [5, 5],
+                        tension: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: 'white' } } },
+                    scales: {
+                        y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: 'white' } },
+                        x: { display: false }
+                    }
+                }
+            });
+
+            // Render Muhasabah Pie
+            const ctxM = document.getElementById('muhasabahChart').getContext('2d');
+            if(muhasabahChartInstance) muhasabahChartInstance.destroy();
+
+            muhasabahChartInstance = new Chart(ctxM, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Kebaikan', 'Belum'],
+                    datasets: [{
+                        data: [muhasabahData.good, muhasabahData.bad],
+                        backgroundColor: ['#FFD700', '#1a237e'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        async function saveKhatam(e) {
+            e.preventDefault();
+            const pages = document.getElementById('khatam-input').value;
+            await fetch('/api/ramadhan/khatam', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ pages: pages })
+            });
+            loadCharts(); // Refresh
+            document.getElementById('khatam-input').value = '';
+        }
+
+        async function saveMuhasabah(e) {
+            e.preventDefault();
+            const data = {
+                jemaah: document.getElementById('check-jemaah').checked,
+                sedekah: document.getElementById('check-sedekah').checked,
+                tarawih: document.getElementById('check-tarawih').checked,
+                tilawah: document.getElementById('check-tilawah').checked
+            };
+            await fetch('/api/ramadhan/muhasabah', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            loadCharts();
+            alert("Jurnal tersimpan!");
+        }
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAstro();
+            loadIfthar();
+            loadCharts();
+        });
+    </script>
+</div>
+"""
+
 HOME_HTML = """
 <div class="pt-20 md:pt-32 pb-32 px-5 md:px-8">
     
@@ -651,6 +1201,31 @@ HOME_HTML = """
             </div>
         </div>
     </div>
+
+    <!-- RAMADHAN BANNER -->
+    <a href="/ramadhan" class="block mb-8 group relative overflow-hidden rounded-3xl shadow-xl border-2 border-[#FFD700] bg-[#0b1026] hover:shadow-2xl hover:scale-[1.01] transition-all duration-300">
+        <!-- Background Pattern -->
+        <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(#FFD700 1px, transparent 1px); background-size: 20px 20px;"></div>
+
+        <div class="relative z-10 flex items-center justify-between p-6 md:p-8">
+            <div class="flex-1">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="bg-[#FFD700] text-[#0b1026] text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg shadow-yellow-500/50">Spesial</span>
+                    <h3 class="text-2xl md:text-3xl font-bold text-white font-serif"><i class="fas fa-kaaba mr-2 text-[#FFD700]"></i>Dashboard Ramadhan</h3>
+                </div>
+                <p class="text-[#FFD700] text-sm md:text-base opacity-90 max-w-lg leading-relaxed">
+                    Akses fitur Astro-Falakiyah, Kalkulator Nutrisi, Donasi Ifthar, dan AI Chatbot Sejarah Islam "Bayt al-Hikmah".
+                </p>
+            </div>
+            <div class="hidden md:flex items-center justify-center bg-[#FFD700] w-12 h-12 rounded-full text-[#0b1026] group-hover:scale-110 transition-transform shadow-lg shadow-yellow-500/50 ml-4">
+                <i class="fas fa-arrow-right text-xl"></i>
+            </div>
+        </div>
+        <!-- Decoration -->
+        <div class="absolute -right-6 -bottom-6 transform rotate-12 opacity-20 pointer-events-none">
+                <i class="fas fa-moon text-9xl text-[#FFD700]"></i>
+        </div>
+    </a>
 
     <!-- MAIN GRID MENU -->
     <h3 class="text-gray-800 font-bold text-lg mb-4 pl-1 border-l-4 border-emerald-500 leading-none py-1 ml-1 md:text-2xl md:mb-8">&nbsp;Menu Utama</h3>
@@ -1183,6 +1758,15 @@ HOME_HTML = """
 def index():
     # Render Home Dashboard
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=HOME_HTML)
+
+@app.route('/ramadhan')
+def ramadhan():
+    # Render Ramadhan Dashboard
+    resp = make_response(render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='ramadhan', content=RAMADHAN_HTML))
+    # Ensure user has an ID
+    if not request.cookies.get('user_id'):
+        resp.set_cookie('user_id', str(uuid.uuid4()), max_age=60*60*24*365)
+    return resp
 
 @app.route('/finance', methods=['GET', 'POST'])
 def finance():
@@ -1864,6 +2448,195 @@ def api_calc_hijri():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+# --- RAMADHAN FEATURE ROUTES ---
+
+@app.route('/api/ramadhan/astro', methods=['GET'])
+def api_ramadhan_astro():
+    return jsonify(hitung_fase_bulan())
+
+@app.route('/api/ramadhan/nutrisi', methods=['POST'])
+def api_ramadhan_nutrisi():
+    try:
+        data = request.json
+        w = float(data['weight'])
+        h = float(data['height'])
+        a = int(data['age'])
+        g = data['gender']
+        act = float(data['activity'])
+
+        # Harris-Benedict
+        if g == 'male':
+            bmr = 88.362 + (13.397 * w) + (4.799 * h) - (5.677 * a)
+        else:
+            bmr = 447.593 + (9.247 * w) + (3.098 * h) - (4.330 * a)
+
+        tdee = bmr * act
+
+        # Water: 30ml per kg
+        water = (w * 30) / 1000 # Liters
+
+        return jsonify({
+            "sahur": tdee * 0.4,
+            "iftar": tdee * 0.6,
+            "water": round(water, 1)
+        })
+    except:
+        return jsonify({"sahur": 0, "iftar": 0, "water": 0})
+
+@app.route('/api/ramadhan/chat', methods=['POST'])
+def api_ramadhan_chat():
+    try:
+        if not GOOGLE_API_KEY:
+            return jsonify({"reply": "Maaf, fitur Chatbot belum dikonfigurasi (API Key hilang). Hubungi Admin."})
+
+        data = request.json
+        user_msg = data.get('message', '')
+
+        system_prompt = "Kamu adalah Penjaga Perpustakaan Bayt al-Hikmah dari era Kekhalifahan Abbasiyah. Kamu hanya menjawab pertanyaan seputar Sejarah Islam, Penemuan Ilmuwan Muslim (Al-Khawarizmi, Ibnu Sina, dll), dan Sains dalam Al-Quran. Gaya bicaramu bijaksana, puitis, dan menggunakan istilah klasik. Jika ditanya hal di luar itu, tolak dengan halus."
+
+        model = genai.GenerativeModel("gemini-pro")
+        response = model.generate_content(f"{system_prompt}\n\nUser: {user_msg}\nPenjaga:")
+
+        return jsonify({"reply": response.text})
+    except Exception as e:
+        print(f"Gemini Error: {e}")
+        return jsonify({"reply": "Maaf, perpustakaan sedang sibuk. Silakan tanya lagi nanti."})
+
+@app.route('/api/ramadhan/ifthar', methods=['GET', 'POST'])
+def api_ramadhan_ifthar():
+    conn = get_db_connection()
+    if request.method == 'POST':
+        # Donasi baru
+        data = request.json
+        conn.execute('INSERT INTO ifthar_logistik (date, donor_name, portions, menu) VALUES (?, ?, ?, ?)',
+                     (data['day_index'], data['name'], data['portions'], data['menu']))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success"})
+    else:
+        # Get Data for 30 Days
+        # Aggregate portions per day
+        rows = conn.execute('SELECT date, SUM(portions) as total, GROUP_CONCAT(donor_name) as donors FROM ifthar_logistik GROUP BY date').fetchall()
+        conn.close()
+
+        # Map to 1-30
+        data = []
+        lookup = {row['date']: row for row in rows}
+        for i in range(1, 31):
+            day_str = str(i)
+            entry = lookup.get(day_str)
+            data.append({
+                "day": i,
+                "current": entry['total'] if entry else 0,
+                "donors": entry['donors'] if entry else ""
+            })
+        return jsonify(data)
+
+@app.route('/api/ramadhan/khatam', methods=['GET', 'POST'])
+def api_ramadhan_khatam():
+    uid = get_user_id()
+    conn = get_db_connection()
+
+    if request.method == 'POST':
+        data = request.json
+        conn.execute('INSERT INTO quran_progress (user_id, date, pages_read) VALUES (?, ?, ?)',
+                     (uid, datetime.date.today(), data['pages']))
+        conn.commit()
+        conn.close()
+        resp = jsonify({"status": "success"})
+        if not request.cookies.get('user_id'):
+            resp.set_cookie('user_id', uid, max_age=60*60*24*365)
+        return resp
+    else:
+        # Get Chart Data
+        rows = conn.execute('SELECT date, SUM(pages_read) as daily_pages FROM quran_progress WHERE user_id = ? GROUP BY date ORDER BY date', (uid,)).fetchall()
+        conn.close()
+
+        # We need cumulative data for the chart over 30 days
+        # Simplified: Just return cumulative reading vs target
+        # Target: 604 pages / 30 days = ~20 pages/day
+
+        total_read = 0
+        realization = []
+        target = []
+
+        # This is a simplification. Ideally we map dates to Ramadhan days.
+        # For now, we just show the user's input history relative to a generic 30 day timeline
+
+        current_sum = 0
+        for row in rows:
+            current_sum += row['daily_pages']
+            realization.append(current_sum)
+
+        # Fill/Pad if less than 30 data points?
+        # Chart.js can handle partial data.
+        # But user wants "Sumbu X = Hari ke-1 sampai 30".
+
+        # Let's just return the accumulated series padded to current day or length
+        # Target line
+        for i in range(1, 31):
+            target.append(i * 20.2) # 604/30
+
+        resp = jsonify({
+            "data": realization,
+            "target": target
+        })
+        if not request.cookies.get('user_id'):
+            resp.set_cookie('user_id', uid, max_age=60*60*24*365)
+        return resp
+
+@app.route('/api/ramadhan/muhasabah', methods=['GET', 'POST'])
+def api_ramadhan_muhasabah():
+    uid = get_user_id()
+    conn = get_db_connection()
+
+    if request.method == 'POST':
+        data = request.json
+        conn.execute('''INSERT INTO muhasabah_harian
+                        (user_id, date, sholat_jemaah, sedekah, tarawih, tilawah)
+                        VALUES (?, ?, ?, ?, ?, ?)''',
+                     (uid, datetime.date.today(),
+                      1 if data['jemaah'] else 0,
+                      1 if data['sedekah'] else 0,
+                      1 if data['tarawih'] else 0,
+                      1 if data['tilawah'] else 0))
+        conn.commit()
+        conn.close()
+        resp = jsonify({"status": "success"})
+        if not request.cookies.get('user_id'):
+            resp.set_cookie('user_id', uid, max_age=60*60*24*365)
+        return resp
+    else:
+        # Get Stats
+        # "Persentase Kebaikan Bulan Ini"
+        # Sum all good deeds vs Total possible deeds (days * 4 items)
+        row = conn.execute('''SELECT
+                                SUM(sholat_jemaah) + SUM(sedekah) + SUM(tarawih) + SUM(tilawah) as total_good,
+                                COUNT(*) as total_days
+                              FROM muhasabah_harian WHERE user_id = ?''', (uid,)).fetchone()
+        conn.close()
+
+        total_good = row['total_good'] or 0
+        total_days = row['total_days'] or 0
+
+        # Total items checked per day is 4
+        total_possible = total_days * 4
+
+        if total_possible == 0:
+            good_pct = 0
+            bad_pct = 100
+        else:
+            good_pct = (total_good / total_possible) * 100
+            bad_pct = 100 - good_pct
+
+        resp = jsonify({
+            "good": round(good_pct),
+            "bad": round(bad_pct)
+        })
+        if not request.cookies.get('user_id'):
+            resp.set_cookie('user_id', uid, max_age=60*60*24*365)
+        return resp
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
