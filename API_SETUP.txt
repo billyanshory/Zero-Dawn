@@ -1,0 +1,49 @@
+PANDUAN SETTING API KEY GOOGLE GEMINI (KEAMANAN)
+==================================================
+
+Untuk fitur "Bayt al-Hikmah" (AI Chatbot), Anda perlu mengatur API Key secara aman agar tidak tertulis langsung di dalam kode (Hardcoded).
+
+PENTING: Jangan pernah menulis kunci API langsung di dalam file .py!
+
+---
+
+CARA 1: MENGATUR DI BASH CONSOLE (LINUX/MAC/PYTHONANYWHERE)
+1. Buka terminal atau konsol Bash Anda.
+2. Jalankan perintah berikut (ganti 'YOUR_API_KEY_HERE' dengan kunci asli Anda):
+
+   export GOOGLE_API_KEY='YOUR_API_KEY_HERE'
+
+3. Sekarang jalankan aplikasi Flask Anda di terminal yang sama:
+
+   python masjid-al-hijrah-4.py
+
+   (Catatan: Cara ini hanya berlaku sementara di sesi terminal tersebut. Jika terminal ditutup, kunci hilang).
+
+---
+
+CARA 2: MENGATUR DI PERMANENT ENVIRONMENT (PYTHONANYWHERE)
+Jika Anda menghosting di PythonAnywhere:
+1. Masuk ke Dashboard PythonAnywhere.
+2. Buka Tab "Web".
+3. Scroll ke bawah ke bagian "Environment variables".
+4. Klik link untuk mengedit file WSGI atau masukkan di kolom yang tersedia (tergantung konfigurasi).
+   Namun cara paling umum di PythonAnywhere adalah mengedit file WSGI configuration file (`/var/www/username_pythonanywhere_com_wsgi.py`).
+
+   Tambahkan kode ini di dalam file WSGI tersebut sebelum baris `from masjid-al-hijrah-4 import app`:
+
+   import os
+   os.environ['GOOGLE_API_KEY'] = 'YOUR_API_KEY_HERE'
+
+---
+
+CARA 3: MENGGUNAKAN FILE .env (LOKAL)
+Jika Anda ingin menjalankannya di komputer lokal secara berulang:
+1. Buat file bernama `.env` di folder yang sama dengan aplikasi.
+2. Isi file tersebut dengan:
+   GOOGLE_API_KEY=YOUR_API_KEY_HERE
+3. Pastikan Anda menginstall `python-dotenv`: `pip install python-dotenv`
+4. Tambahkan kode ini di baris paling atas `masjid-al-hijrah-4.py`:
+   `from dotenv import load_dotenv`
+   `load_dotenv()`
+
+(Kode yang saya berikan saat ini menggunakan standar os.environ yang kompatibel dengan Cara 1 & 2 tanpa perlu install library tambahan).
