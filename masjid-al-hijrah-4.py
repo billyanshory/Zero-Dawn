@@ -4,6 +4,7 @@ import datetime
 import math
 import time
 import json
+import csv
 from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify
 from werkzeug.utils import secure_filename
 
@@ -128,6 +129,27 @@ def init_db():
         date TEXT NOT NULL,
         status TEXT DEFAULT 'Unread',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # 7. Ramadhan Kas Table
+    c.execute('''CREATE TABLE IF NOT EXISTS ramadhan_kas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        type TEXT NOT NULL, -- 'Pemasukan' or 'Pengeluaran'
+        category TEXT NOT NULL,
+        description TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # 8. Tarawih Schedule Table
+    c.execute('''CREATE TABLE IF NOT EXISTS tarawih_schedule (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        night_index INTEGER NOT NULL,
+        date TEXT,
+        imam TEXT,
+        penceramah TEXT,
+        judul TEXT
     )''')
     
     conn.commit()
@@ -378,6 +400,57 @@ TZ = 8 # WITA
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# --- RAMADHAN HELPER FUNCTIONS ---
+
+def get_takjil_data():
+    csv_file = "jadwal pembagian takjil masjid al-hijrah 2024.xlsx - Sheet1.csv"
+    data = []
+    try:
+        with open(csv_file, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                # Ensure we have the needed columns, handle missing keys gracefully
+                data.append({
+                    'Tanggal': row.get('Tanggal', '-'),
+                    'Nama': row.get('Nama', 'Hamba Allah'),
+                    'Ket.': row.get('Ket.', '-')
+                })
+    except FileNotFoundError:
+        print("CSV Takjil not found.")
+    except Exception as e:
+        print(f"Error reading CSV: {e}")
+    return data
+
+def get_imsakiyah_schedule():
+    pt = PrayTimes()
+    # Adjust for Indonesia/Kemenag if needed, using standard MWL for now or previously defined params
+
+    # Estimated Start Ramadhan 1447 H: 18 Feb 2026
+    start_date = datetime.date(2026, 2, 18)
+    schedule = []
+
+    today = datetime.date.today()
+
+    for i in range(30):
+        curr_date = start_date + datetime.timedelta(days=i)
+        times = pt.get_prayer_times(curr_date.year, curr_date.month, curr_date.day, LAT, LNG, TZ)
+
+        # Calculate Imsak (10 mins before Fajr)
+        f_h, f_m = map(int, times['Fajr'].split(':'))
+        imsak_dt = datetime.datetime(2000, 1, 1, f_h, f_m) - datetime.timedelta(minutes=10)
+
+        schedule.append({
+            'date_str': curr_date.strftime('%d/%m'),
+            'imsak': imsak_dt.strftime('%H:%M'),
+            'fajr': times['Fajr'],
+            'dhuhr': times['Dhuhr'],
+            'asr': times['Asr'],
+            'maghrib': times['Maghrib'],
+            'isha': times['Isha'],
+            'is_today': (curr_date == today)
+        })
+    return schedule
 
 # --- FRONTEND ASSETS & LAYOUT ---
 
@@ -650,6 +723,23 @@ HOME_HTML = """
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- RAMADHAN BANNER -->
+    <div class="mb-8 md:mb-12">
+        <a href="/ramadhan" class="block relative rounded-3xl overflow-hidden shadow-2xl group transform hover:scale-[1.01] transition-all duration-300">
+            <div class="absolute inset-0 bg-gradient-to-r from-[#0b1026] to-[#1a237e]"></div>
+            <div class="absolute inset-0 opacity-20" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+            <div class="relative p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+                <div>
+                    <h2 class="text-3xl md:text-4xl font-bold text-[#FFD700] mb-2 font-serif">MARHABAN YA RAMADHAN</h2>
+                    <p class="text-blue-100 text-sm md:text-lg">Akses Dashboard Kegiatan, Jadwal Takjil & Imsakiyah 2026</p>
+                </div>
+                <div class="bg-[#FFD700] text-[#0b1026] px-6 py-3 rounded-full font-bold shadow-[0_0_20px_rgba(255,215,0,0.5)] animate-pulse group-hover:bg-[#FFF] group-hover:text-[#0b1026] transition-colors">
+                    Buka Dashboard <i class="fas fa-arrow-right ml-2"></i>
+                </div>
+            </div>
+        </a>
     </div>
 
     <!-- MAIN GRID MENU -->
@@ -1864,6 +1954,683 @@ def api_calc_hijri():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+# --- RAMADHAN SPECIAL FEATURES ---
+
+RAMADHAN_STYLES = """
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        .ramadhan-bg {
+            background-color: #0b1026;
+            background-image: radial-gradient(circle at 50% 0%, #1a237e 0%, #0b1026 70%);
+            color: #ecf0f1;
+            font-family: 'Poppins', sans-serif;
+        }
+        .text-gold { color: #FFD700; }
+        .bg-gold { background-color: #FFD700; }
+        .border-gold { border-color: #FFD700; }
+        .glass-gold {
+            background: rgba(11, 16, 38, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 215, 0, 0.15);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .glass-gold:hover {
+            border-color: rgba(255, 215, 0, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(255, 215, 0, 0.1);
+        }
+        .amiri-font { font-family: 'Amiri', serif; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0b1026; }
+        ::-webkit-scrollbar-thumb { background: #FFD700; border-radius: 4px; }
+    </style>
+"""
+
+RAMADHAN_DASHBOARD_HTML = """
+<div class="ramadhan-bg min-h-screen pb-24">
+    <!-- HEADER -->
+    <div class="glass-gold sticky top-0 z-50 px-6 py-4 flex justify-between items-center mb-8 border-b border-gold/20">
+        <div class="flex items-center gap-3">
+            <div class="bg-gold/10 p-2 rounded-xl text-gold">
+                <i class="fas fa-moon text-2xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-gold leading-none amiri-font">Ramadhan 1447H</h1>
+                <p class="text-[10px] text-gray-400">Masjid Al Hijrah Dashboard</p>
+            </div>
+        </div>
+        <a href="/" class="text-gray-400 hover:text-white transition"><i class="fas fa-times text-xl"></i></a>
+    </div>
+
+    <div class="px-5 md:px-8 max-w-7xl mx-auto">
+
+        <!-- PRAYER TIMES CARD (RAMADHAN THEME) -->
+        <div class="bg-gradient-to-br from-[#1a237e] to-[#000] rounded-3xl p-6 md:p-8 text-white shadow-2xl border border-gold/30 relative overflow-hidden mb-10">
+            <div class="absolute top-0 right-0 opacity-10 transform translate-x-10 -translate-y-10">
+                <i class="fas fa-kaaba text-[10rem]"></i>
+            </div>
+            <div class="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
+                <div class="text-center md:text-left">
+                    <p class="text-gold text-xs font-bold uppercase tracking-widest mb-1">Jadwal Sholat Hari Ini</p>
+                    <h2 class="text-4xl font-bold font-mono" id="ramadhan-clock">--:--:--</h2>
+                    <p class="text-sm text-gray-400 mt-1"><i class="fas fa-map-marker-alt mr-1"></i> Samarinda, Kalimantan Timur</p>
+                </div>
+
+                <div class="grid grid-cols-5 gap-2 md:gap-6 w-full md:w-auto">
+                     <div class="bg-white/5 p-2 md:p-4 rounded-xl text-center border border-white/10 backdrop-blur-sm">
+                        <span class="block text-[10px] text-gray-400 uppercase">Subuh</span>
+                        <span class="font-bold font-mono text-gold" id="r-fajr">--:--</span>
+                     </div>
+                     <div class="bg-white/5 p-2 md:p-4 rounded-xl text-center border border-white/10 backdrop-blur-sm">
+                        <span class="block text-[10px] text-gray-400 uppercase">Dzuhur</span>
+                        <span class="font-bold font-mono text-white" id="r-dhuhr">--:--</span>
+                     </div>
+                     <div class="bg-white/5 p-2 md:p-4 rounded-xl text-center border border-white/10 backdrop-blur-sm">
+                        <span class="block text-[10px] text-gray-400 uppercase">Ashar</span>
+                        <span class="font-bold font-mono text-white" id="r-asr">--:--</span>
+                     </div>
+                     <div class="bg-gold/20 p-2 md:p-4 rounded-xl text-center border border-gold/50 backdrop-blur-sm shadow-[0_0_15px_rgba(255,215,0,0.2)]">
+                        <span class="block text-[10px] text-gold uppercase font-bold">Maghrib</span>
+                        <span class="font-bold font-mono text-white" id="r-maghrib">--:--</span>
+                     </div>
+                     <div class="bg-white/5 p-2 md:p-4 rounded-xl text-center border border-white/10 backdrop-blur-sm">
+                        <span class="block text-[10px] text-gray-400 uppercase">Isya</span>
+                        <span class="font-bold font-mono text-white" id="r-isha">--:--</span>
+                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DIVIDER TITLE -->
+        <div class="flex items-center gap-4 mb-8">
+            <div class="w-1 h-10 bg-gold rounded-full"></div>
+            <h2 class="text-2xl font-bold text-white amiri-font">Menu Spesial Ramadhan</h2>
+        </div>
+
+        <!-- GRID MENU (6 BUTTONS) -->
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-12">
+
+            <!-- 1. JADWAL TAKJIL -->
+            <button onclick="openModal('modal-takjil')" class="glass-gold p-6 rounded-3xl flex flex-col items-center justify-center h-40 group transition-transform transform hover:scale-105">
+                <div class="w-14 h-14 rounded-full bg-gold/20 flex items-center justify-center text-gold mb-3 group-hover:bg-gold group-hover:text-[#0b1026] transition-colors">
+                    <i class="fas fa-utensils text-2xl"></i>
+                </div>
+                <span class="font-bold text-sm text-center">Jadwal Takjil</span>
+            </button>
+
+            <!-- 2. IMSAKIYAH -->
+            <button onclick="openModal('modal-imsakiyah')" class="glass-gold p-6 rounded-3xl flex flex-col items-center justify-center h-40 group transition-transform transform hover:scale-105">
+                <div class="w-14 h-14 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 mb-3 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                    <i class="fas fa-calendar-alt text-2xl"></i>
+                </div>
+                <span class="font-bold text-sm text-center">Imsakiyah 2026</span>
+            </button>
+
+            <!-- 3. KAS RAMADHAN -->
+            <button onclick="openModal('modal-kas-ramadhan')" class="glass-gold p-6 rounded-3xl flex flex-col items-center justify-center h-40 group transition-transform transform hover:scale-105">
+                <div class="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 mb-3 group-hover:bg-green-500 group-hover:text-white transition-colors">
+                    <i class="fas fa-wallet text-2xl"></i>
+                </div>
+                <span class="font-bold text-sm text-center">Kas Ramadhan</span>
+            </button>
+
+            <!-- 4. JADWAL TARAWIH -->
+            <button onclick="openModal('modal-tarawih')" class="glass-gold p-6 rounded-3xl flex flex-col items-center justify-center h-40 group transition-transform transform hover:scale-105">
+                <div class="w-14 h-14 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 mb-3 group-hover:bg-purple-500 group-hover:text-white transition-colors">
+                    <i class="fas fa-microphone-alt text-2xl"></i>
+                </div>
+                <span class="font-bold text-sm text-center">Imam & Penceramah</span>
+            </button>
+
+            <!-- 5. ZAKAT CALCULATOR -->
+            <button onclick="openModal('modal-zakat-fitrah')" class="glass-gold p-6 rounded-3xl flex flex-col items-center justify-center h-40 group transition-transform transform hover:scale-105">
+                <div class="w-14 h-14 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400 mb-3 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                    <i class="fas fa-calculator text-2xl"></i>
+                </div>
+                <span class="font-bold text-sm text-center">Zakat Fitrah</span>
+            </button>
+
+            <!-- 6. AMALAN CHECKLIST -->
+            <button onclick="openModal('modal-amalan')" class="glass-gold p-6 rounded-3xl flex flex-col items-center justify-center h-40 group transition-transform transform hover:scale-105">
+                <div class="w-14 h-14 rounded-full bg-pink-500/20 flex items-center justify-center text-pink-400 mb-3 group-hover:bg-pink-500 group-hover:text-white transition-colors">
+                    <i class="fas fa-check-double text-2xl"></i>
+                </div>
+                <span class="font-bold text-sm text-center">Target Amalan</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MODALS SECTION -->
+
+    <!-- 1. MODAL TAKJIL -->
+    <div id="modal-takjil" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('modal-takjil')"></div>
+        <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
+            <div class="bg-[#0b1026] w-full md:w-[600px] h-[80vh] md:h-auto md:max-h-[80vh] rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out]">
+                <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <h3 class="text-xl font-bold text-gold amiri-font">Jadwal Pembagian Takjil</h3>
+                    <button onclick="closeModal('modal-takjil')" class="text-gray-400 hover:text-white">&times;</button>
+                </div>
+                <div class="p-4 bg-white/5 border-b border-white/10">
+                    <input type="text" id="search-takjil" onkeyup="filterTakjil()" placeholder="Cari Nama Warga..." class="w-full bg-[#0b1026] border border-gold/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold">
+                </div>
+                <div class="overflow-y-auto flex-1 p-0">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gold/10 text-gold sticky top-0 backdrop-blur-md">
+                            <tr>
+                                <th class="p-4 text-xs font-bold uppercase">Tanggal</th>
+                                <th class="p-4 text-xs font-bold uppercase">Nama Warga</th>
+                                <th class="p-4 text-xs font-bold uppercase text-right">RT / Ket</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5" id="takjil-list">
+                            {% for row in takjil_data %}
+                            <tr class="hover:bg-white/5 transition">
+                                <td class="p-4 text-sm text-gray-300">{{ row['Tanggal'] }}</td>
+                                <td class="p-4 font-bold text-white name-cell">{{ row['Nama'] }}</td>
+                                <td class="p-4 text-sm text-gray-400 text-right">{{ row['Ket.'] }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="3" class="p-6 text-center text-gray-500">Data tidak tersedia atau file CSV belum diupload.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. MODAL IMSAKIYAH -->
+    <div id="modal-imsakiyah" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('modal-imsakiyah')"></div>
+        <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
+            <div class="bg-[#0b1026] w-full md:w-[800px] h-[85vh] md:h-auto md:max-h-[85vh] rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out]">
+                <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <div>
+                         <h3 class="text-xl font-bold text-gold amiri-font">Jadwal Imsakiyah</h3>
+                         <p class="text-[10px] text-gray-400">Samarinda & Sekitarnya • Ramadhan 1447 H / 2026 M</p>
+                    </div>
+                    <button onclick="closeModal('modal-imsakiyah')" class="text-gray-400 hover:text-white">&times;</button>
+                </div>
+                <div class="overflow-auto flex-1 p-0">
+                    <table class="w-full text-center border-collapse">
+                        <thead class="bg-blue-900/50 text-blue-200 sticky top-0 backdrop-blur-md z-10">
+                            <tr>
+                                <th class="p-3 text-xs font-bold border-b border-white/10">Tgl</th>
+                                <th class="p-3 text-xs font-bold border-b border-white/10 text-gold">Imsak</th>
+                                <th class="p-3 text-xs font-bold border-b border-white/10">Subuh</th>
+                                <th class="p-3 text-xs font-bold border-b border-white/10 hidden md:table-cell">Dzuhur</th>
+                                <th class="p-3 text-xs font-bold border-b border-white/10 hidden md:table-cell">Ashar</th>
+                                <th class="p-3 text-xs font-bold border-b border-white/10 text-gold">Maghrib</th>
+                                <th class="p-3 text-xs font-bold border-b border-white/10 hidden md:table-cell">Isya</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            {% for day in imsakiyah_data %}
+                            <tr class="hover:bg-white/5 transition {{ 'bg-gold/10 border-l-4 border-gold' if day.is_today else '' }}">
+                                <td class="p-3 text-xs text-gray-300">{{ day.date_str }}</td>
+                                <td class="p-3 text-sm font-bold text-gold font-mono">{{ day.imsak }}</td>
+                                <td class="p-3 text-sm text-gray-300 font-mono">{{ day.fajr }}</td>
+                                <td class="p-3 text-sm text-gray-400 font-mono hidden md:table-cell">{{ day.dhuhr }}</td>
+                                <td class="p-3 text-sm text-gray-400 font-mono hidden md:table-cell">{{ day.asr }}</td>
+                                <td class="p-3 text-sm font-bold text-gold font-mono bg-gold/5">{{ day.maghrib }}</td>
+                                <td class="p-3 text-sm text-gray-400 font-mono hidden md:table-cell">{{ day.isha }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. MODAL KAS RAMADHAN -->
+    <div id="modal-kas-ramadhan" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('modal-kas-ramadhan')"></div>
+        <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
+            <div class="bg-[#0b1026] w-full md:w-[600px] h-[80vh] md:h-auto md:max-h-[80vh] rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out]">
+                <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <h3 class="text-xl font-bold text-gold amiri-font">Laporan Kas Ramadhan</h3>
+                    <button onclick="closeModal('modal-kas-ramadhan')" class="text-gray-400 hover:text-white">&times;</button>
+                </div>
+
+                <!-- Summary -->
+                <div class="p-6 grid grid-cols-2 gap-4 border-b border-white/10">
+                    <div class="bg-green-500/10 p-4 rounded-2xl border border-green-500/20 text-center">
+                        <p class="text-xs text-green-400 uppercase font-bold">Pemasukan</p>
+                        <p class="text-lg font-bold text-green-400">Rp {{ "{:,.0f}".format(ramadhan_kas_summary.in) }}</p>
+                    </div>
+                    <div class="bg-red-500/10 p-4 rounded-2xl border border-red-500/20 text-center">
+                        <p class="text-xs text-red-400 uppercase font-bold">Pengeluaran</p>
+                        <p class="text-lg font-bold text-red-400">Rp {{ "{:,.0f}".format(ramadhan_kas_summary.out) }}</p>
+                    </div>
+                    <div class="col-span-2 bg-gold/10 p-4 rounded-2xl border border-gold/30 text-center">
+                        <p class="text-xs text-gold uppercase font-bold">Saldo Akhir</p>
+                        <p class="text-2xl font-bold text-white">Rp {{ "{:,.0f}".format(ramadhan_kas_summary.balance) }}</p>
+                    </div>
+                </div>
+
+                <!-- Input Form -->
+                <div class="p-6 bg-white/5 border-b border-white/10">
+                    <h4 class="text-sm font-bold text-gray-300 mb-3">Input Transaksi (Admin)</h4>
+                    <form action="/ramadhan/kas" method="POST" class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <input type="date" name="date" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white focus:border-gold">
+                            <select name="type" class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white focus:border-gold">
+                                <option value="Pemasukan">Pemasukan</option>
+                                <option value="Pengeluaran">Pengeluaran</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                             <input type="text" name="description" placeholder="Keterangan (ex: Infaq Tarawih Malam 1)" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white focus:border-gold">
+                             <input type="number" name="amount" placeholder="Nominal (Rp)" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white focus:border-gold">
+                        </div>
+                        <input type="hidden" name="category" value="Ramadhan"> <!-- Default Category -->
+                        <button type="submit" class="w-full bg-gold text-[#0b1026] font-bold py-2 rounded-lg hover:bg-white transition">Simpan Data</button>
+                    </form>
+                </div>
+
+                <!-- List -->
+                <div class="overflow-y-auto flex-1 p-0">
+                    <table class="w-full text-left">
+                        <tbody class="divide-y divide-white/5">
+                            {% for item in ramadhan_kas_items %}
+                            <tr class="hover:bg-white/5">
+                                <td class="p-4">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm font-bold text-white">{{ item['description'] }}</p>
+                                            <p class="text-[10px] text-gray-400">{{ item['date'] }}</p>
+                                        </div>
+                                        <span class="font-mono font-bold {{ 'text-green-400' if item['type'] == 'Pemasukan' else 'text-red-400' }}">
+                                            {{ "+" if item['type'] == 'Pemasukan' else "-" }} {{ "{:,.0f}".format(item['amount']) }}
+                                        </span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. MODAL JADWAL TARAWIH -->
+    <div id="modal-tarawih" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('modal-tarawih')"></div>
+        <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
+            <div class="bg-[#0b1026] w-full md:w-[700px] h-[80vh] md:h-auto md:max-h-[80vh] rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out]">
+                <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <h3 class="text-xl font-bold text-gold amiri-font">Jadwal Imam & Penceramah</h3>
+                    <button onclick="closeModal('modal-tarawih')" class="text-gray-400 hover:text-white">&times;</button>
+                </div>
+
+                <!-- Editor (Hidden by default, toggleable) -->
+                <div id="tarawih-editor" class="hidden p-4 bg-white/5 border-b border-white/10">
+                    <form action="/ramadhan/tarawih" method="POST" class="space-y-3">
+                         <div class="grid grid-cols-4 gap-2">
+                             <input type="number" name="night_index" placeholder="Malam ke" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white">
+                             <input type="text" name="imam" placeholder="Nama Imam" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white">
+                             <input type="text" name="penceramah" placeholder="Nama Penceramah" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white">
+                             <input type="text" name="judul" placeholder="Judul Ceramah" class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white">
+                         </div>
+                         <button type="submit" class="w-full bg-purple-600 text-white font-bold py-2 rounded-lg hover:bg-purple-500">Update Jadwal</button>
+                    </form>
+                </div>
+                <div class="p-2 text-center border-b border-white/10">
+                    <button onclick="document.getElementById('tarawih-editor').classList.toggle('hidden')" class="text-xs text-purple-400 hover:text-purple-300 font-bold uppercase tracking-wider">+ Edit Jadwal (Admin)</button>
+                </div>
+
+                <div class="overflow-y-auto flex-1 p-0">
+                    <div class="grid grid-cols-1 divide-y divide-white/5">
+                        {% for item in tarawih_schedule %}
+                        <div class="p-4 hover:bg-white/5 transition flex gap-4 items-center">
+                            <div class="bg-purple-500/20 text-purple-400 w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg flex-shrink-0">
+                                {{ item['night_index'] }}
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="text-xs text-gray-400 uppercase">Imam</p>
+                                        <p class="font-bold text-white mb-1">{{ item['imam'] }}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-xs text-gray-400 uppercase">Penceramah</p>
+                                        <p class="font-bold text-gold mb-1">{{ item['penceramah'] }}</p>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-500 italic mt-1">"{{ item['judul'] }}"</p>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="p-8 text-center text-gray-500">Jadwal belum diisi.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. MODAL ZAKAT FITRAH -->
+    <div id="modal-zakat-fitrah" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('modal-zakat-fitrah')"></div>
+        <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
+            <div class="bg-[#0b1026] w-full md:w-[400px] h-auto rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out]">
+                <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <h3 class="text-xl font-bold text-gold amiri-font">Kalkulator Zakat Fitrah</h3>
+                    <button onclick="closeModal('modal-zakat-fitrah')" class="text-gray-400 hover:text-white">&times;</button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 mb-2">Jumlah Jiwa (Orang)</label>
+                        <input type="number" id="zakat-jiwa" value="1" min="1" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl p-4 text-white text-center text-xl font-bold focus:border-gold">
+                    </div>
+
+                    <div class="bg-white/5 p-4 rounded-xl border border-white/10">
+                        <p class="text-xs text-gray-400 mb-2 uppercase font-bold text-center">Estimasi Pembayaran</p>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-gray-300">Beras (2.5 Kg)</span>
+                            <span class="font-bold text-white text-lg" id="res-beras">2.5 Kg</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-300">Uang (Rp 45.000)</span>
+                            <span class="font-bold text-gold text-lg" id="res-uang">Rp 45.000</span>
+                        </div>
+                    </div>
+
+                    <button onclick="calculateZakatFitrah()" class="w-full bg-gold text-[#0b1026] font-bold py-3 rounded-xl hover:bg-white transition">Hitung Ulang</button>
+                    <p class="text-[10px] text-gray-500 text-center italic">*Harga uang menyesuaikan standar Samarinda (Rp 45.000/jiwa)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. MODAL AMALAN -->
+    <div id="modal-amalan" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('modal-amalan')"></div>
+        <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
+            <div class="bg-[#0b1026] w-full md:w-[400px] h-[80vh] md:h-auto rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out] relative">
+                <!-- Canvas for fireworks -->
+                <canvas id="fireworks" class="absolute inset-0 pointer-events-none z-50"></canvas>
+
+                <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5 relative z-10">
+                    <h3 class="text-xl font-bold text-pink-400 amiri-font">Checklist Amalan Harian</h3>
+                    <button onclick="closeModal('modal-amalan')" class="text-gray-400 hover:text-white">&times;</button>
+                </div>
+
+                <div class="p-6 flex-1 overflow-y-auto relative z-10">
+                    <div class="mb-6">
+                         <div class="flex justify-between text-xs text-gray-400 mb-1">
+                             <span>Progress Harian</span>
+                             <span id="progress-text">0%</span>
+                         </div>
+                         <div class="w-full bg-white/10 rounded-full h-2.5">
+                              <div id="progress-bar" class="bg-pink-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                         </div>
+                    </div>
+
+                    <div class="space-y-3" id="amalan-list">
+                        <!-- Checkboxes generated by JS -->
+                        <label class="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition">
+                            <input type="checkbox" onchange="updateProgress()" class="w-5 h-5 accent-pink-500 rounded text-pink-500 focus:ring-pink-500 bg-gray-700 border-gray-600">
+                            <span class="text-gray-200 font-medium">Puasa Hari Ini</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition">
+                            <input type="checkbox" onchange="updateProgress()" class="w-5 h-5 accent-pink-500 rounded text-pink-500 focus:ring-pink-500 bg-gray-700 border-gray-600">
+                            <span class="text-gray-200 font-medium">Sholat 5 Waktu</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition">
+                            <input type="checkbox" onchange="updateProgress()" class="w-5 h-5 accent-pink-500 rounded text-pink-500 focus:ring-pink-500 bg-gray-700 border-gray-600">
+                            <span class="text-gray-200 font-medium">Sholat Tarawih</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition">
+                            <input type="checkbox" onchange="updateProgress()" class="w-5 h-5 accent-pink-500 rounded text-pink-500 focus:ring-pink-500 bg-gray-700 border-gray-600">
+                            <span class="text-gray-200 font-medium">Tilawah 1 Juz</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition">
+                            <input type="checkbox" onchange="updateProgress()" class="w-5 h-5 accent-pink-500 rounded text-pink-500 focus:ring-pink-500 bg-gray-700 border-gray-600">
+                            <span class="text-gray-200 font-medium">Sedekah Subuh</span>
+                        </label>
+                    </div>
+
+                    <button onclick="resetAmalan()" class="mt-6 w-full text-xs text-gray-500 hover:text-white underline">Reset Checklist Hari Ini</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- RAMADHAN JS UTILS ---
+
+    // CLOCK
+    function updateRamadhanClock() {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('id-ID', {hour12: false});
+        if(document.getElementById('ramadhan-clock')) {
+            document.getElementById('ramadhan-clock').innerText = timeStr;
+        }
+    }
+    setInterval(updateRamadhanClock, 1000);
+    updateRamadhanClock();
+
+    // PRAYER TIMES FOR HEADER (FETCH SAME AS HOME BUT DISPLAY HERE)
+    async function fetchRamadhanPrayer() {
+         try {
+            // Using Aladhan for Samarinda (Current)
+            const response = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
+            const result = await response.json();
+            const timings = result.data.timings;
+
+            document.getElementById('r-fajr').innerText = timings.Fajr;
+            document.getElementById('r-dhuhr').innerText = timings.Dhuhr;
+            document.getElementById('r-asr').innerText = timings.Asr;
+            document.getElementById('r-maghrib').innerText = timings.Maghrib;
+            document.getElementById('r-isha').innerText = timings.Isha;
+        } catch(e) { console.error(e); }
+    }
+    fetchRamadhanPrayer();
+
+    // MODAL UTILS
+    function openModal(id) {
+        document.getElementById(id).classList.remove('hidden');
+    }
+    function closeModal(id) {
+        document.getElementById(id).classList.add('hidden');
+    }
+
+    // TAKJIL FILTER
+    function filterTakjil() {
+        const input = document.getElementById('search-takjil');
+        const filter = input.value.toUpperCase();
+        const tbody = document.getElementById('takjil-list');
+        const tr = tbody.getElementsByTagName('tr');
+
+        for (let i = 0; i < tr.length; i++) {
+            const td = tr[i].getElementsByTagName("td")[1]; // Nama Column
+            if (td) {
+                const txtValue = td.textContent || td.innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+    }
+
+    // ZAKAT CALCULATOR
+    function calculateZakatFitrah() {
+        const jiwa = document.getElementById('zakat-jiwa').value;
+        const beras = jiwa * 2.5;
+        const uang = jiwa * 45000;
+
+        document.getElementById('res-beras').innerText = beras.toFixed(1) + " Kg";
+        document.getElementById('res-uang').innerText = "Rp " + Number(uang).toLocaleString('id-ID');
+    }
+
+    // AMALAN CHECKLIST
+    function updateProgress() {
+        const checks = document.querySelectorAll('#amalan-list input[type="checkbox"]');
+        let checkedCount = 0;
+        checks.forEach(c => {
+            if(c.checked) checkedCount++;
+            // Save state
+            localStorage.setItem('amalan_' + Array.from(checks).indexOf(c), c.checked);
+        });
+
+        const pct = Math.round((checkedCount / checks.length) * 100);
+        document.getElementById('progress-bar').style.width = pct + "%";
+        document.getElementById('progress-text').innerText = pct + "%";
+
+        if(pct === 100) {
+            triggerFireworks();
+        }
+    }
+
+    function loadAmalan() {
+        const checks = document.querySelectorAll('#amalan-list input[type="checkbox"]');
+        checks.forEach((c, index) => {
+            const saved = localStorage.getItem('amalan_' + index);
+            if(saved === 'true') c.checked = true;
+        });
+        updateProgress();
+    }
+
+    function resetAmalan() {
+        const checks = document.querySelectorAll('#amalan-list input[type="checkbox"]');
+        checks.forEach((c, index) => {
+             c.checked = false;
+             localStorage.removeItem('amalan_' + index);
+        });
+        updateProgress();
+    }
+
+    // Init Amalan
+    loadAmalan();
+
+    // FIREWORKS
+    function triggerFireworks() {
+         // Simple particle explosion
+         const canvas = document.getElementById('fireworks');
+         const ctx = canvas.getContext('2d');
+         canvas.width = canvas.parentElement.clientWidth;
+         canvas.height = canvas.parentElement.clientHeight;
+
+         let particles = [];
+         for(let i=0; i<50; i++) {
+             particles.push({
+                 x: canvas.width/2,
+                 y: canvas.height/2,
+                 vx: (Math.random() - 0.5) * 10,
+                 vy: (Math.random() - 0.5) * 10,
+                 color: `hsl(${Math.random()*360}, 100%, 50%)`,
+                 life: 1.0
+             });
+         }
+
+         function animate() {
+             ctx.clearRect(0,0,canvas.width,canvas.height);
+             particles.forEach((p, index) => {
+                 p.x += p.vx;
+                 p.y += p.vy;
+                 p.life -= 0.02;
+                 p.vy += 0.1; // gravity
+
+                 ctx.fillStyle = p.color;
+                 ctx.globalAlpha = p.life;
+                 ctx.beginPath();
+                 ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+                 ctx.fill();
+
+                 if(p.life <= 0) particles.splice(index, 1);
+             });
+
+             if(particles.length > 0) requestAnimationFrame(animate);
+             else ctx.clearRect(0,0,canvas.width,canvas.height);
+         }
+         animate();
+    }
+</script>
+"""
+
+# --- RAMADHAN ROUTES ---
+
+@app.route('/ramadhan')
+def ramadhan_dashboard():
+    # 1. Takjil Data
+    takjil_data = get_takjil_data()
+
+    # 2. Imsakiyah Data
+    imsakiyah_data = get_imsakiyah_schedule()
+
+    # 3. Kas Ramadhan Data
+    conn = get_db_connection()
+    ramadhan_kas_items = conn.execute("SELECT * FROM ramadhan_kas ORDER BY date DESC").fetchall()
+    kas_in = conn.execute("SELECT SUM(amount) FROM ramadhan_kas WHERE type='Pemasukan'").fetchone()[0] or 0
+    kas_out = conn.execute("SELECT SUM(amount) FROM ramadhan_kas WHERE type='Pengeluaran'").fetchone()[0] or 0
+
+    # 4. Tarawih Schedule
+    # Create table if not exists (double check because init_db runs on startup but we might have persistent db)
+    # Actually init_db handles creation.
+
+    tarawih_schedule = conn.execute("SELECT * FROM tarawih_schedule ORDER BY night_index ASC").fetchall()
+
+    # Pre-populate Tarawih if empty
+    if not tarawih_schedule:
+        for i in range(1, 31):
+             conn.execute("INSERT INTO tarawih_schedule (night_index, date, imam, penceramah, judul) VALUES (?, ?, ?, ?, ?)",
+                          (i, f"Ramadhan {i}", "-", "-", "-"))
+        conn.commit()
+        tarawih_schedule = conn.execute("SELECT * FROM tarawih_schedule ORDER BY night_index ASC").fetchall()
+
+    conn.close()
+
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML + RAMADHAN_STYLES,
+                                  active_page='ramadhan',
+                                  content=RAMADHAN_DASHBOARD_HTML,
+                                  takjil_data=takjil_data,
+                                  imsakiyah_data=imsakiyah_data,
+                                  ramadhan_kas_items=ramadhan_kas_items,
+                                  ramadhan_kas_summary={'in': kas_in, 'out': kas_out, 'balance': kas_in - kas_out},
+                                  tarawih_schedule=tarawih_schedule)
+
+@app.route('/ramadhan/kas', methods=['POST'])
+def ramadhan_kas_action():
+    conn = get_db_connection()
+    try:
+        conn.execute('INSERT INTO ramadhan_kas (date, type, category, description, amount) VALUES (?, ?, ?, ?, ?)',
+                     (request.form['date'], request.form['type'], request.form['category'],
+                      request.form['description'], request.form['amount']))
+        conn.commit()
+    except Exception as e:
+        print(f"Error saving kas: {e}")
+    finally:
+        conn.close()
+    return redirect(url_for('ramadhan_dashboard'))
+
+@app.route('/ramadhan/tarawih', methods=['POST'])
+def ramadhan_tarawih_action():
+    conn = get_db_connection()
+    try:
+        night = request.form['night_index']
+        exists = conn.execute("SELECT 1 FROM tarawih_schedule WHERE night_index = ?", (night,)).fetchone()
+        if exists:
+            conn.execute("UPDATE tarawih_schedule SET imam=?, penceramah=?, judul=? WHERE night_index=?",
+                         (request.form['imam'], request.form['penceramah'], request.form['judul'], night))
+        else:
+            conn.execute("INSERT INTO tarawih_schedule (night_index, imam, penceramah, judul) VALUES (?, ?, ?, ?)",
+                         (night, request.form['imam'], request.form['penceramah'], request.form['judul']))
+        conn.commit()
+    except Exception as e:
+        print(f"Error saving tarawih: {e}")
+    finally:
+        conn.close()
+    return redirect(url_for('ramadhan_dashboard'))
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
