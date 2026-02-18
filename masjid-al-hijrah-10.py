@@ -146,6 +146,60 @@ def init_db():
         penceramah TEXT,
         judul TEXT
     )''')
+
+    # 9. IRMA Duty Roster
+    c.execute('''CREATE TABLE IF NOT EXISTS irma_duty (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        role TEXT NOT NULL,
+        date TEXT NOT NULL
+    )''')
+
+    # 10. IRMA Members
+    c.execute('''CREATE TABLE IF NOT EXISTS irma_members (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        age INTEGER,
+        hobbies TEXT,
+        instagram TEXT,
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # 11. IRMA Finance
+    c.execute('''CREATE TABLE IF NOT EXISTS irma_finance (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        type TEXT NOT NULL,
+        description TEXT NOT NULL,
+        amount INTEGER NOT NULL
+    )''')
+
+    # 12. IRMA Wall (Mading)
+    c.execute('''CREATE TABLE IF NOT EXISTS irma_wall (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        type TEXT NOT NULL,
+        author TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # 13. IRMA Events (Proker)
+    c.execute('''CREATE TABLE IF NOT EXISTS irma_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        status TEXT NOT NULL,
+        date TEXT
+    )''')
+
+    # 14. IRMA Curhat (Q&A)
+    c.execute('''CREATE TABLE IF NOT EXISTS irma_qa (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        question TEXT NOT NULL,
+        answer TEXT,
+        asked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        answered_at TIMESTAMP
+    )''')
     
     conn.commit()
     conn.close()
@@ -811,6 +865,27 @@ HOME_HTML = """
                     
                     <!-- Gold Circle Button -->
                     <div class="w-12 h-12 rounded-full bg-[#FFD700] flex items-center justify-center text-[#0b1026] shadow-[0_0_15px_rgba(255,215,0,0.4)] group-hover:scale-110 transition-transform duration-300 relative z-10">
+                        <i class="fas fa-arrow-right text-lg"></i>
+                    </div>
+                </div>
+            </a>
+
+            <!-- IRMA BANNER -->
+            <a href="/irma" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-[#A0B391] mt-4">
+                <div class="absolute inset-0 bg-gradient-to-r from-[#A0B391] to-[#FFB6C1]"></div>
+                <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+
+                <div class="absolute right-12 top-1/2 transform -translate-y-1/2 opacity-20 text-white pointer-events-none">
+                    <i class="fas fa-user-friends text-9xl"></i>
+                </div>
+
+                <div class="relative px-6 py-6 md:px-8 md:py-8 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-white mb-1 font-sans tracking-wide leading-none">IRMA Dashboard</h2>
+                        <p class="text-white/80 text-xs md:text-sm font-medium">Ruang Kreatif & Kegiatan Remaja</p>
+                    </div>
+
+                    <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#A0B391] shadow-[0_0_15px_rgba(255,255,255,0.4)] group-hover:scale-110 transition-transform duration-300 relative z-10">
                         <i class="fas fa-arrow-right text-lg"></i>
                     </div>
                 </div>
@@ -1940,7 +2015,7 @@ def emergency():
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
 
 # --- CALCULATOR API ROUTES ---
 
@@ -2750,6 +2825,437 @@ RAMADHAN_DASHBOARD_HTML = """
 </script>
 """
 
+# --- IRMA DASHBOARD ASSETS ---
+
+IRMA_STYLES = """
+    <style>
+        .bg-sage { background-color: #A0B391; }
+        .text-sage { color: #A0B391; }
+        .border-sage { border-color: #A0B391; }
+
+        .bg-pastel-pink { background-color: #FFB6C1; }
+        .text-pastel-pink { color: #FFB6C1; }
+        .border-pastel-pink { border-color: #FFB6C1; }
+
+        .bg-off-white { background-color: #F4E7E1; }
+
+        .text-dark-grey { color: #4A4A4A; }
+        .text-forest { color: #2F4F4F; } /* Dark Forest Green for contrast */
+
+        .irma-header {
+            background: linear-gradient(135deg, #A0B391 0%, #8DA57B 100%);
+        }
+
+        .irma-card {
+            background-color: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(160, 179, 145, 0.2);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(160, 179, 145, 0.2);
+        }
+        .irma-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 20px 25px -5px rgba(160, 179, 145, 0.3);
+            border-color: #FFB6C1;
+        }
+
+        .btn-irma-primary {
+            background-color: #A0B391;
+            color: white;
+            border-radius: 0.75rem;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .btn-irma-primary:hover {
+            background-color: #FFB6C1;
+            transform: translateY(-2px);
+        }
+
+        /* Fade In Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+    </style>
+"""
+
+IRMA_DASHBOARD_HTML = """
+<div class="bg-off-white min-h-screen pb-24 font-sans animate-fade-in">
+
+    <!-- IRMA HEADER -->
+    <div class="irma-header rounded-b-[40px] pt-24 pb-12 px-6 shadow-lg relative overflow-hidden">
+        <div class="absolute top-0 right-0 opacity-10 transform translate-x-4 -translate-y-4">
+            <i class="fas fa-users text-8xl text-white"></i>
+        </div>
+        <div class="relative z-10 flex justify-between items-center">
+            <div>
+                <span class="bg-white/20 text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-md border border-white/20">Dashboard Remaja</span>
+                <h1 class="text-3xl font-bold text-white mt-2 leading-tight">Ikatan Remaja<br>Masjid Al-Hijrah</h1>
+                <p class="text-white/80 text-sm mt-1">Ruang Kreatif & Kegiatan Positif</p>
+            </div>
+            <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/20 shadow-lg">
+                <i class="fas fa-layer-group text-3xl text-white"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENT CONTAINER -->
+    <div class="px-5 -mt-8 relative z-20">
+
+        <!-- PRAYER CARD (IRMA THEMED) -->
+        <div class="bg-white rounded-3xl p-6 shadow-xl border border-sage/20 flex flex-col items-center text-center mb-8 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-sage-400 to-pastel-pink"></div>
+            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Waktu Sholat Berikutnya</p>
+            <h2 class="text-4xl font-bold text-forest font-mono mb-2" id="irma-next-prayer">--:--</h2>
+            <div class="bg-sage/10 px-4 py-1 rounded-full">
+                <span class="text-sage font-bold text-sm" id="irma-countdown">--:--:--</span>
+            </div>
+        </div>
+
+        <!-- MENU GRID -->
+        <h3 class="text-forest font-bold text-lg mb-4 pl-3 border-l-4 border-pastel-pink">Menu Utama</h3>
+        <div class="grid grid-cols-2 gap-4 mb-24">
+
+            <!-- 1. JADWAL PIKET -->
+            <button onclick="openModal('modal-duty')" class="irma-card p-6 flex flex-col items-center justify-center h-40 group">
+                <div class="w-14 h-14 rounded-full bg-sage/10 flex items-center justify-center text-sage mb-3 group-hover:scale-110 group-hover:bg-pastel-pink/20 group-hover:text-pastel-pink transition-all">
+                    <i class="fas fa-clipboard-list text-2xl"></i>
+                </div>
+                <span class="font-bold text-sm text-dark-grey group-hover:text-pastel-pink transition-colors">Jadwal Piket</span>
+            </button>
+
+            <!-- 2. REGISTRASI -->
+            <button onclick="openModal('modal-join')" class="irma-card p-6 flex flex-col items-center justify-center h-40 group">
+                <div class="w-14 h-14 rounded-full bg-sage/10 flex items-center justify-center text-sage mb-3 group-hover:scale-110 group-hover:bg-pastel-pink/20 group-hover:text-pastel-pink transition-all">
+                    <i class="fas fa-user-plus text-2xl"></i>
+                </div>
+                <span class="font-bold text-sm text-dark-grey group-hover:text-pastel-pink transition-colors">Join IRMA</span>
+            </button>
+
+            <!-- 3. KAS REMAJA -->
+            <button onclick="openModal('modal-finance')" class="irma-card p-6 flex flex-col items-center justify-center h-40 group">
+                <div class="w-14 h-14 rounded-full bg-sage/10 flex items-center justify-center text-sage mb-3 group-hover:scale-110 group-hover:bg-pastel-pink/20 group-hover:text-pastel-pink transition-all">
+                    <i class="fas fa-piggy-bank text-2xl"></i>
+                </div>
+                <span class="font-bold text-sm text-dark-grey group-hover:text-pastel-pink transition-colors">Kas Remaja</span>
+            </button>
+
+            <!-- 4. MADING KREATIF -->
+            <button onclick="openModal('modal-wall')" class="irma-card p-6 flex flex-col items-center justify-center h-40 group">
+                <div class="w-14 h-14 rounded-full bg-sage/10 flex items-center justify-center text-sage mb-3 group-hover:scale-110 group-hover:bg-pastel-pink/20 group-hover:text-pastel-pink transition-all">
+                    <i class="fas fa-palette text-2xl"></i>
+                </div>
+                <span class="font-bold text-sm text-dark-grey group-hover:text-pastel-pink transition-colors">Mading Kreatif</span>
+            </button>
+
+            <!-- 5. EVENT & PROKER -->
+            <button onclick="openModal('modal-events')" class="irma-card p-6 flex flex-col items-center justify-center h-40 group">
+                <div class="w-14 h-14 rounded-full bg-sage/10 flex items-center justify-center text-sage mb-3 group-hover:scale-110 group-hover:bg-pastel-pink/20 group-hover:text-pastel-pink transition-all">
+                    <i class="fas fa-tasks text-2xl"></i>
+                </div>
+                <span class="font-bold text-sm text-dark-grey group-hover:text-pastel-pink transition-colors">Proker Event</span>
+            </button>
+
+            <!-- 6. CURHAT ISLAMI -->
+            <button onclick="openModal('modal-qa')" class="irma-card p-6 flex flex-col items-center justify-center h-40 group">
+                <div class="w-14 h-14 rounded-full bg-sage/10 flex items-center justify-center text-sage mb-3 group-hover:scale-110 group-hover:bg-pastel-pink/20 group-hover:text-pastel-pink transition-all">
+                    <i class="fas fa-comments text-2xl"></i>
+                </div>
+                <span class="font-bold text-sm text-dark-grey group-hover:text-pastel-pink transition-colors">Curhat Islami</span>
+            </button>
+
+        </div>
+    </div>
+
+    <!-- MODALS SECTION -->
+
+    <!-- 1. MODAL DUTY -->
+    <div id="modal-duty" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-duty')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-off-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+            <div class="flex justify-between items-center mb-6 border-b border-sage/20 pb-4">
+                <h3 class="text-xl font-bold text-forest">Jadwal Piket</h3>
+                <button onclick="closeModal('modal-duty')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+            </div>
+
+            <form action="/irma/duty" method="POST" class="mb-6 bg-white p-4 rounded-2xl shadow-sm border border-sage/20">
+                <h4 class="text-xs font-bold text-sage uppercase mb-3">Input Petugas Baru</h4>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <input type="text" name="name" placeholder="Nama" required class="w-full bg-off-white border-none rounded-xl p-3 text-sm">
+                    <select name="role" class="w-full bg-off-white border-none rounded-xl p-3 text-sm">
+                        <option value="MC">MC / Protokol</option>
+                        <option value="Adzan">Muadzin</option>
+                        <option value="Bersih-bersih">Kebersihan</option>
+                        <option value="Konsumsi">Konsumsi</option>
+                    </select>
+                </div>
+                <input type="date" name="date" required class="w-full bg-off-white border-none rounded-xl p-3 text-sm mb-3">
+                <button type="submit" class="w-full btn-irma-primary py-3">Simpan Jadwal</button>
+            </form>
+
+            <div class="overflow-y-auto max-h-[40vh] space-y-3">
+                {% for item in duty_list %}
+                <div class="bg-white p-4 rounded-2xl shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold bg-sage/20 text-sage px-2 py-1 rounded-md mb-1 inline-block">{{ item['role'] }}</span>
+                        <h5 class="font-bold text-dark-grey">{{ item['name'] }}</h5>
+                        <p class="text-xs text-gray-400">{{ item['date'] }}</p>
+                    </div>
+                    <form action="/irma/duty" method="POST">
+                        <input type="hidden" name="delete_id" value="{{ item['id'] }}">
+                        <button class="text-gray-300 hover:text-red-400"><i class="fas fa-trash"></i></button>
+                    </form>
+                </div>
+                {% else %}
+                <p class="text-center text-gray-400 text-sm">Belum ada jadwal.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. MODAL JOIN -->
+    <div id="modal-join" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-join')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-off-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+            <div class="flex justify-between items-center mb-6 border-b border-sage/20 pb-4">
+                <h3 class="text-xl font-bold text-forest">Registrasi Anggota</h3>
+                <button onclick="closeModal('modal-join')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+            </div>
+
+            <form action="/irma/join" method="POST" class="space-y-4">
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-sage/20">
+                    <div class="mb-4 text-center">
+                        <i class="fas fa-user-circle text-6xl text-sage/50"></i>
+                        <p class="text-xs text-gray-500 mt-2">Gabung Komunitas Remaja Positif</p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <input type="text" name="name" placeholder="Nama Lengkap" required class="w-full bg-off-white border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-sage">
+                        <div class="grid grid-cols-2 gap-3">
+                            <input type="number" name="age" placeholder="Umur" required class="w-full bg-off-white border-none rounded-xl p-3 text-sm">
+                            <input type="text" name="instagram" placeholder="@Instagram" class="w-full bg-off-white border-none rounded-xl p-3 text-sm">
+                        </div>
+                        <textarea name="hobbies" placeholder="Hobi / Skill (ex: Desain, Futsal)" class="w-full bg-off-white border-none rounded-xl p-3 text-sm h-20"></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full btn-irma-primary py-3 mt-4 shadow-lg shadow-sage/30">Daftar Sekarang</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. MODAL FINANCE -->
+    <div id="modal-finance" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-finance')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-off-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+            <div class="flex justify-between items-center mb-6 border-b border-sage/20 pb-4">
+                <h3 class="text-xl font-bold text-forest">Kas Remaja</h3>
+                <button onclick="closeModal('modal-finance')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+            </div>
+
+            <div class="bg-gradient-to-r from-sage-500 to-sage-400 text-white p-6 rounded-3xl shadow-lg mb-6 relative overflow-hidden">
+                <div class="absolute right-0 top-0 p-4 opacity-20"><i class="fas fa-wallet text-6xl"></i></div>
+                <p class="text-xs opacity-80 mb-1">Saldo Kas Saat Ini</p>
+                <h2 class="text-3xl font-bold">Rp {{ "{:,.0f}".format(finance_summary.balance) }}</h2>
+                <div class="flex gap-4 mt-4 text-xs font-bold">
+                    <span class="bg-white/20 px-2 py-1 rounded">+ Rp {{ "{:,.0f}".format(finance_summary.income) }}</span>
+                    <span class="bg-white/20 px-2 py-1 rounded">- Rp {{ "{:,.0f}".format(finance_summary.out) }}</span>
+                </div>
+            </div>
+
+            <form action="/irma/finance" method="POST" class="mb-6 bg-white p-4 rounded-2xl shadow-sm border border-sage/20">
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <select name="type" class="w-full bg-off-white border-none rounded-xl p-3 text-sm">
+                        <option value="Pemasukan">Pemasukan</option>
+                        <option value="Pengeluaran">Pengeluaran</option>
+                    </select>
+                    <input type="number" name="amount" placeholder="Nominal" required class="w-full bg-off-white border-none rounded-xl p-3 text-sm">
+                </div>
+                <input type="text" name="description" placeholder="Keterangan (ex: Iuran Anggota)" required class="w-full bg-off-white border-none rounded-xl p-3 text-sm mb-3">
+                <input type="date" name="date" required class="w-full bg-off-white border-none rounded-xl p-3 text-sm mb-3">
+                <button type="submit" class="w-full btn-irma-primary py-3">Catat Transaksi</button>
+            </form>
+
+            <div class="overflow-y-auto max-h-[30vh] space-y-2">
+                 {% for item in finance_list %}
+                 <div class="flex justify-between items-center p-3 bg-white rounded-xl shadow-sm">
+                     <div>
+                         <p class="text-xs text-gray-500">{{ item['date'] }}</p>
+                         <p class="text-sm font-bold text-dark-grey">{{ item['description'] }}</p>
+                     </div>
+                     <span class="font-bold text-sm {{ 'text-sage' if item['type'] == 'Pemasukan' else 'text-pastel-pink' }}">
+                         {{ "+" if item['type'] == 'Pemasukan' else "-" }} {{ "{:,.0f}".format(item['amount']) }}
+                     </span>
+                 </div>
+                 {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. MODAL WALL (MADING) -->
+    <div id="modal-wall" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-wall')"></div>
+        <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
+            <div class="bg-off-white w-full md:w-[600px] h-[90vh] md:h-auto md:max-h-[85vh] rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col pointer-events-auto">
+                <div class="p-6 border-b border-sage/20 flex justify-between items-center bg-white">
+                    <h3 class="text-xl font-bold text-forest">Mading Kreatif</h3>
+                    <button onclick="closeModal('modal-wall')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
+                </div>
+
+                <div class="p-4 bg-white border-b border-sage/20">
+                     <form action="/irma/wall" method="POST" enctype="multipart/form-data" class="flex gap-2">
+                         <div class="flex-1 space-y-2">
+                             <input type="text" name="title" placeholder="Judul Karya" required class="w-full bg-off-white border-none rounded-lg p-2 text-xs">
+                             <input type="file" name="image" class="w-full text-xs text-gray-500">
+                             <textarea name="content" placeholder="Cerita / Puisi / Caption..." class="w-full bg-off-white border-none rounded-lg p-2 text-xs h-16"></textarea>
+                         </div>
+                         <button type="submit" class="bg-sage text-white px-4 rounded-xl font-bold text-xs hover:bg-sage-600">Posting</button>
+                     </form>
+                </div>
+
+                <div class="overflow-y-auto flex-1 p-4 grid grid-cols-2 gap-4 content-start">
+                    {% for item in wall_list %}
+                    <div class="bg-white rounded-2xl shadow-sm overflow-hidden break-inside-avoid">
+                        {% if item['type'] == 'Image' %}
+                        <img src="/uploads/{{ item['content'] }}" class="w-full h-32 object-cover">
+                        {% endif %}
+                        <div class="p-3">
+                            <h5 class="font-bold text-dark-grey text-sm mb-1">{{ item['title'] }}</h5>
+                            {% if item['type'] == 'Text' %}
+                            <p class="text-xs text-gray-600 line-clamp-4">{{ item['content'] }}</p>
+                            {% endif %}
+                            <div class="flex justify-between items-center mt-2 border-t border-gray-100 pt-2">
+                                <span class="text-[10px] text-gray-400">{{ item['created_at'][:10] }}</span>
+                                <span class="text-[10px] font-bold text-sage"><i class="fas fa-heart mr-1"></i> Like</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="col-span-2 text-center py-10 text-gray-400">Belum ada karya.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. MODAL EVENTS -->
+    <div id="modal-events" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-events')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-off-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+            <div class="flex justify-between items-center mb-6 border-b border-sage/20 pb-4">
+                <h3 class="text-xl font-bold text-forest">Proker & Event</h3>
+                <button onclick="closeModal('modal-events')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+            </div>
+
+            <form action="/irma/events" method="POST" class="mb-6 bg-white p-4 rounded-2xl shadow-sm border border-sage/20">
+                <input type="text" name="name" placeholder="Nama Kegiatan" required class="w-full bg-off-white border-none rounded-xl p-3 text-sm mb-3">
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <select name="status" class="w-full bg-off-white border-none rounded-xl p-3 text-sm">
+                        <option value="Rencana">Rencana</option>
+                        <option value="Persiapan">Persiapan</option>
+                        <option value="Selesai">Selesai</option>
+                    </select>
+                    <input type="date" name="date" class="w-full bg-off-white border-none rounded-xl p-3 text-sm">
+                </div>
+                <button type="submit" class="w-full btn-irma-primary py-3">Tambah Proker</button>
+            </form>
+
+            <div class="space-y-3 max-h-[40vh] overflow-y-auto">
+                {% for item in event_list %}
+                <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 {{ 'border-gray-300' if item['status'] == 'Rencana' else ('border-yellow-400' if item['status'] == 'Persiapan' else 'border-green-500') }}">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h5 class="font-bold text-dark-grey">{{ item['name'] }}</h5>
+                            <p class="text-xs text-gray-400">{{ item['date'] }}</p>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-1 rounded {{ 'bg-gray-100 text-gray-600' if item['status'] == 'Rencana' else ('bg-yellow-100 text-yellow-600' if item['status'] == 'Persiapan' else 'bg-green-100 text-green-600') }}">
+                            {{ item['status'] }}
+                        </span>
+                    </div>
+
+                    <!-- Progress bar visual -->
+                    <div class="w-full bg-gray-100 rounded-full h-1.5 mt-3">
+                        <div class="h-1.5 rounded-full {{ 'bg-gray-400 w-1/3' if item['status'] == 'Rencana' else ('bg-yellow-400 w-2/3' if item['status'] == 'Persiapan' else 'bg-green-500 w-full') }}"></div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-center text-gray-400 text-sm">Belum ada proker.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. MODAL Q&A (CURHAT) -->
+    <div id="modal-qa" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-qa')"></div>
+        <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
+            <div class="bg-off-white w-full md:w-[600px] h-[90vh] md:h-auto md:max-h-[85vh] rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col pointer-events-auto">
+                <div class="p-6 border-b border-sage/20 flex justify-between items-center bg-white">
+                    <h3 class="text-xl font-bold text-forest">Curhat Islami (Anonim)</h3>
+                    <button onclick="closeModal('modal-qa')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
+                </div>
+
+                <div class="p-4 bg-white border-b border-sage/20">
+                     <form action="/irma/curhat" method="POST" class="space-y-3">
+                         <textarea name="question" placeholder="Tanya apa saja, identitasmu dirahasiakan..." required class="w-full bg-off-white border-none rounded-xl p-3 text-sm h-24 focus:ring-2 focus:ring-pastel-pink"></textarea>
+                         <button type="submit" class="w-full btn-irma-primary py-3">Kirim Pertanyaan</button>
+                     </form>
+                </div>
+
+                <div class="overflow-y-auto flex-1 p-4 space-y-4">
+                    {% for item in qa_list %}
+                    <div class="bg-white rounded-2xl shadow-sm p-4">
+                        <div class="flex gap-3 mb-2">
+                            <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400"><i class="fas fa-user-secret"></i></div>
+                            <div class="bg-gray-50 p-3 rounded-r-2xl rounded-bl-2xl text-sm text-gray-700 flex-1">
+                                {{ item['question'] }}
+                            </div>
+                        </div>
+
+                        {% if item['answer'] %}
+                        <div class="flex gap-3 flex-row-reverse">
+                            <div class="w-8 h-8 rounded-full bg-sage flex items-center justify-center text-white"><i class="fas fa-check"></i></div>
+                            <div class="bg-sage/10 p-3 rounded-l-2xl rounded-br-2xl text-sm text-dark-grey flex-1 border border-sage/20">
+                                <p class="font-bold text-sage text-xs mb-1">Mentor Menjawab:</p>
+                                {{ item['answer'] }}
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-[10px] text-gray-400 text-center italic mt-1">Menunggu jawaban mentor...</p>
+                        <!-- Admin Answer Form (Hidden by default, visible if needed or for testing) -->
+                        <form action="/irma/curhat" method="POST" class="mt-2 pt-2 border-t border-gray-50">
+                            <input type="hidden" name="answer_id" value="{{ item['id'] }}">
+                            <input type="text" name="answer" placeholder="Jawab (Admin)..." class="w-full bg-gray-50 text-xs p-2 rounded-lg">
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <p class="text-center text-gray-400 text-sm">Belum ada pertanyaan.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function updateIrmaCountdown() {
+        // Logic similar to home, or simplified
+        const now = new Date();
+        const str = now.toLocaleTimeString('id-ID');
+        if(document.getElementById('irma-countdown')) {
+            document.getElementById('irma-countdown').innerText = str;
+        }
+    }
+    setInterval(updateIrmaCountdown, 1000);
+    updateIrmaCountdown();
+</script>
+"""
+
 # --- RAMADHAN ROUTES ---
 
 @app.route('/ramadhan')
@@ -2828,6 +3334,118 @@ def ramadhan_tarawih_action():
     finally:
         conn.close()
     return redirect(url_for('ramadhan_dashboard'))
+
+# --- IRMA ROUTES ---
+
+@app.route('/irma')
+def irma_dashboard():
+    conn = get_db_connection()
+
+    # 1. Duty List
+    duty_list = conn.execute("SELECT * FROM irma_duty ORDER BY date DESC, id DESC").fetchall()
+
+    # 2. Finance
+    finance_list = conn.execute("SELECT * FROM irma_finance ORDER BY date DESC").fetchall()
+    fin_in = conn.execute("SELECT SUM(amount) FROM irma_finance WHERE type='Pemasukan'").fetchone()[0] or 0
+    fin_out = conn.execute("SELECT SUM(amount) FROM irma_finance WHERE type='Pengeluaran'").fetchone()[0] or 0
+    finance_summary = {'income': fin_in, 'out': fin_out, 'balance': fin_in - fin_out}
+
+    # 3. Wall
+    wall_list = conn.execute("SELECT * FROM irma_wall ORDER BY created_at DESC").fetchall()
+
+    # 4. Events
+    event_list = conn.execute("SELECT * FROM irma_events ORDER BY date ASC").fetchall()
+
+    # 5. Q&A
+    qa_list = conn.execute("SELECT * FROM irma_qa ORDER BY asked_at DESC").fetchall()
+
+    conn.close()
+
+    # Render with custom styles and hidden main nav
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML + IRMA_STYLES,
+                                  active_page='irma',
+                                  content=render_template_string(IRMA_DASHBOARD_HTML,
+                                                                 duty_list=duty_list,
+                                                                 finance_list=finance_list,
+                                                                 finance_summary=finance_summary,
+                                                                 wall_list=wall_list,
+                                                                 event_list=event_list,
+                                                                 qa_list=qa_list),
+                                  hide_nav=True)
+
+@app.route('/irma/duty', methods=['POST'])
+def irma_duty():
+    conn = get_db_connection()
+    if 'delete_id' in request.form:
+        conn.execute('DELETE FROM irma_duty WHERE id = ?', (request.form['delete_id'],))
+    else:
+        conn.execute('INSERT INTO irma_duty (name, role, date) VALUES (?, ?, ?)',
+                     (request.form['name'], request.form['role'], request.form['date']))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('irma_dashboard'))
+
+@app.route('/irma/join', methods=['POST'])
+def irma_join():
+    conn = get_db_connection()
+    conn.execute('INSERT INTO irma_members (name, age, hobbies, instagram) VALUES (?, ?, ?, ?)',
+                 (request.form['name'], request.form['age'], request.form['hobbies'], request.form['instagram']))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('irma_dashboard'))
+
+@app.route('/irma/finance', methods=['POST'])
+def irma_finance():
+    conn = get_db_connection()
+    conn.execute('INSERT INTO irma_finance (date, type, description, amount) VALUES (?, ?, ?, ?)',
+                 (request.form['date'], request.form['type'], request.form['description'], request.form['amount']))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('irma_dashboard'))
+
+@app.route('/irma/wall', methods=['POST'])
+def irma_wall():
+    conn = get_db_connection()
+    title = request.form['title']
+    content = request.form.get('content', '')
+    post_type = 'Text'
+
+    if 'image' in request.files:
+        file = request.files['image']
+        if file and file.filename != '':
+            if allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                content = filename
+                post_type = 'Image'
+
+    conn.execute('INSERT INTO irma_wall (title, content, type, author) VALUES (?, ?, ?, ?)',
+                 (title, content, post_type, 'Member'))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('irma_dashboard'))
+
+@app.route('/irma/events', methods=['POST'])
+def irma_events():
+    conn = get_db_connection()
+    conn.execute('INSERT INTO irma_events (name, status, date) VALUES (?, ?, ?)',
+                 (request.form['name'], request.form['status'], request.form['date']))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('irma_dashboard'))
+
+@app.route('/irma/curhat', methods=['POST'])
+def irma_curhat():
+    conn = get_db_connection()
+    if 'answer' in request.form:
+        conn.execute('UPDATE irma_qa SET answer = ?, answered_at = ? WHERE id = ?',
+                     (request.form['answer'], datetime.datetime.now(), request.form['answer_id']))
+    else:
+        conn.execute('INSERT INTO irma_qa (question) VALUES (?)', (request.form['question'],))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('irma_dashboard'))
 
 # --- PWA ROUTES ---
 
