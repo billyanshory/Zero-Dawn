@@ -815,6 +815,52 @@ HOME_HTML = """
                     </div>
                 </div>
             </a>
+
+            <!-- PWA INSTALL BANNER (Moved Here) -->
+            <div id="pwa-install-banner" class="hidden relative overflow-hidden rounded-3xl shadow-xl border border-[#FFD700] mt-4 group transform hover:scale-[1.02] transition-all duration-300 cursor-pointer" onclick="document.getElementById('pwa-install-btn').click()">
+                <!-- Background -->
+                <div class="absolute inset-0 bg-[#0b1026]"></div>
+                <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+
+                <div class="relative px-6 py-5 flex items-center justify-between z-10">
+                    <div class="flex items-center gap-4">
+                        <div class="bg-white/10 p-3 rounded-full border border-[#FFD700]/30 shadow-inner">
+                            <img src="/static/logomasjidalhijrah.png" class="w-8 h-8 object-contain">
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-[#FFD700] leading-tight">Install Aplikasi</h3>
+                            <p class="text-xs text-gray-300 font-medium">Akses Cepat & Offline</p>
+                        </div>
+                    </div>
+
+                    <button id="pwa-install-btn" class="bg-[#FFD700] text-[#0b1026] text-xs font-bold px-5 py-2.5 rounded-full hover:bg-white transition shadow-lg shadow-[#FFD700]/20 transform hover:scale-105" onclick="event.stopPropagation()">
+                        Install
+                    </button>
+                </div>
+            </div>
+
+            <script>
+                let deferredPrompt;
+                const installBanner = document.getElementById('pwa-install-banner');
+                const installBtn = document.getElementById('pwa-install-btn');
+
+                window.addEventListener('beforeinstallprompt', (e) => {
+                    e.preventDefault();
+                    deferredPrompt = e;
+                    installBanner.classList.remove('hidden');
+                });
+
+                installBtn.addEventListener('click', (e) => {
+                    installBanner.classList.add('hidden');
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then((choiceResult) => {
+                        if (choiceResult.outcome === 'accepted') {
+                            console.log('User accepted the A2HS prompt');
+                        }
+                        deferredPrompt = null;
+                    });
+                });
+            </script>
             
         </div>
     </div>
@@ -1342,46 +1388,6 @@ HOME_HTML = """
         }
     </script>
 
-    <!-- PWA INSTALL BANNER -->
-    <div id="pwa-install-banner" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-[#0b1026] text-white px-4 py-3 rounded-full shadow-2xl flex items-center gap-3 z-50 hidden border border-[#FFD700] animate-[slideUp_0.5s_ease-out] w-[90%] max-w-sm">
-        <div class="bg-white/10 p-2 rounded-full flex-shrink-0">
-            <img src="/static/logomasjidalhijrah.png" class="w-8 h-8 object-contain">
-        </div>
-        <div class="flex-1">
-            <p class="text-xs font-bold text-[#FFD700]">Install Aplikasi</p>
-            <p class="text-[10px] text-gray-300">Akses lebih cepat & offline</p>
-        </div>
-        <button id="pwa-install-btn" class="bg-[#FFD700] text-[#0b1026] text-xs font-bold px-4 py-2 rounded-full hover:bg-white transition">
-            Install
-        </button>
-        <button onclick="document.getElementById('pwa-install-banner').classList.add('hidden')" class="text-gray-400 hover:text-white px-2">
-            &times;
-        </button>
-    </div>
-
-    <script>
-        let deferredPrompt;
-        const installBanner = document.getElementById('pwa-install-banner');
-        const installBtn = document.getElementById('pwa-install-btn');
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            installBanner.classList.remove('hidden');
-            installBanner.classList.add('flex');
-        });
-
-        installBtn.addEventListener('click', (e) => {
-            installBanner.classList.add('hidden');
-            deferredPrompt.prompt();
-            deferredPrompt.userChoice.then((choiceResult) => {
-                if (choiceResult.outcome === 'accepted') {
-                    console.log('User accepted the A2HS prompt');
-                }
-                deferredPrompt = null;
-            });
-        });
-    </script>
 </div>
 """
 
@@ -2851,7 +2857,7 @@ def manifest():
 @app.route('/sw.js')
 def service_worker():
     sw_code = """
-const CACHE_NAME = 'masjid-al-hijrah-v1';
+const CACHE_NAME = 'al-hijrah-v1';
 const ASSETS_TO_CACHE = [
     '/',
     '/static/logomasjidalhijrah.png',
@@ -2860,6 +2866,7 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
+    self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             return cache.addAll(ASSETS_TO_CACHE);
@@ -2867,10 +2874,48 @@ self.addEventListener('install', (event) => {
     );
 });
 
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    if (cacheName !== CACHE_NAME) {
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        })
+    );
+    return self.clients.claim();
+});
+
 self.addEventListener('fetch', (event) => {
+    // Network First Strategy for HTML (Navigation)
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request).catch(() => {
+                return caches.match(event.request);
+            })
+        );
+        return;
+    }
+
+    // Cache First Strategy for Static Assets
     event.respondWith(
         caches.match(event.request).then((response) => {
-            return response || fetch(event.request);
+            if (response) {
+                return response;
+            }
+            return fetch(event.request).then((networkResponse) => {
+                if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+                    return networkResponse;
+                }
+                const responseToCache = networkResponse.clone();
+                caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(event.request, responseToCache);
+                });
+                return networkResponse;
+            });
         })
     );
 });
