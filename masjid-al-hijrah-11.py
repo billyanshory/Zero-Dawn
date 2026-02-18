@@ -680,6 +680,33 @@ BASE_LAYOUT = """
     </nav>
     {% endif %}
 
+    <!-- PWA INSTALL BANNER (Floating Bottom) -->
+    <div id="pwa-floating-banner" class="hidden fixed bottom-20 left-4 right-4 z-[100] md:bottom-8 md:right-8 md:left-auto md:w-96 animate-[slideUp_0.5s_ease-out]">
+        <div class="glass-nav bg-[#0b1026]/90 border border-[#FFD700]/30 rounded-2xl p-4 shadow-2xl backdrop-blur-xl flex items-center justify-between relative overflow-hidden group">
+             <!-- Background Texture -->
+             <div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+
+             <div class="flex items-center gap-3 relative z-10">
+                 <div class="bg-white/10 p-2 rounded-xl border border-white/10 shadow-inner">
+                    <img src="/static/logomasjidalhijrah.png" class="w-10 h-10 object-contain drop-shadow-md">
+                 </div>
+                 <div id="pwa-text-content">
+                     <h4 class="text-white font-bold text-sm leading-tight drop-shadow-sm">Pasang Aplikasi</h4>
+                     <p class="text-[10px] text-gray-300 font-medium">Masjid Al Hijrah</p>
+                 </div>
+             </div>
+
+             <div class="flex items-center gap-2 relative z-10">
+                 <button id="pwa-floating-trigger" class="bg-[#FFD700] text-[#0b1026] font-bold text-xs px-4 py-2 rounded-full shadow-lg shadow-[#FFD700]/20 hover:bg-white hover:text-[#0b1026] transition transform hover:scale-105 active:scale-95">
+                     INSTALL
+                 </button>
+                 <button onclick="document.getElementById('pwa-floating-banner').classList.add('hidden')" class="bg-white/10 text-white w-7 h-7 rounded-full text-xs shadow-sm flex items-center justify-center hover:bg-red-500 hover:text-white transition backdrop-blur-md border border-white/5">
+                    <i class="fas fa-times"></i>
+                 </button>
+             </div>
+        </div>
+    </div>
+
     <script>
         // PWA SERVICE WORKER
         if ('serviceWorker' in navigator) {
@@ -782,6 +809,62 @@ BASE_LAYOUT = """
             fetchPrayerTimes();
             setInterval(fetchPrayerTimes, 1000);
         });
+
+        // PWA INSTALL LOGIC (GLOBAL)
+        let deferredPrompt;
+        const pwaBanner = document.getElementById('pwa-floating-banner');
+        const installBtn = document.getElementById('pwa-floating-trigger');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent Chrome 67 and earlier from automatically showing the prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+            // Update UI to notify the user they can add to home screen
+            if (pwaBanner) pwaBanner.classList.remove('hidden');
+        });
+
+        if (installBtn) {
+            installBtn.addEventListener('click', (e) => {
+                // hide our user interface that shows our A2HS button
+                if (pwaBanner) pwaBanner.classList.add('hidden');
+                // Show the prompt
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    // Wait for the user to respond to the prompt
+                    deferredPrompt.userChoice.then((choiceResult) => {
+                        if (choiceResult.outcome === 'accepted') {
+                            console.log('User accepted the A2HS prompt');
+                        } else {
+                            console.log('User dismissed the A2HS prompt');
+                        }
+                        deferredPrompt = null;
+                    });
+                }
+            });
+        }
+
+        // iOS Detection & Instructions
+        const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+        const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone);
+
+        if (isIos && !isInStandaloneMode) {
+             // Show banner for iOS
+             if (pwaBanner) {
+                 pwaBanner.classList.remove('hidden');
+                 const textContainer = document.getElementById('pwa-text-content');
+                 if (textContainer) {
+                     textContainer.innerHTML = `
+                        <h4 class="text-white font-bold text-sm mb-1">Install di iOS</h4>
+                        <p class="text-[10px] text-gray-300 leading-tight">
+                            Klik tombol Share <i class="fas fa-share-square mx-1 text-blue-400"></i> lalu pilih <br>
+                            <span class="font-bold text-white bg-white/20 px-1 rounded">Add to Home Screen</span>
+                        </p>
+                     `;
+                 }
+                 if (installBtn) installBtn.style.display = 'none'; // Hide install button as it doesn't work on iOS
+             }
+        }
     </script>
 </body>
 </html>
