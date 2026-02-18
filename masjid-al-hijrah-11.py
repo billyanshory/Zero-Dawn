@@ -534,6 +534,16 @@ STYLES_HTML = """
               },
               borderRadius: {
                 '3xl': '1.5rem',
+              },
+              keyframes: {
+                slideUp: {
+                  '0%': { transform: 'translateY(100%)', opacity: '0' },
+                  '100%': { transform: 'translateY(0)', opacity: '1' },
+                },
+                slideDown: {
+                  '0%': { transform: 'translateY(-20px)', opacity: '0' },
+                  '100%': { transform: 'translateY(0)', opacity: '1' },
+                }
               }
             }
           }
@@ -680,7 +690,88 @@ BASE_LAYOUT = """
     </nav>
     {% endif %}
 
+    <!-- PWA INSTALL BANNER (Fixed Bottom) -->
+    <div id="pwa-install-banner" class="hidden fixed bottom-4 left-4 right-4 md:left-auto md:right-8 md:w-96 bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl rounded-3xl z-[100] overflow-hidden animate-[slideUp_0.5s_ease-out]">
+        <div class="absolute inset-0 bg-gradient-to-r from-emerald-600/90 to-teal-600/90 opacity-90"></div>
+        <div class="relative p-4 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-white p-2 rounded-xl shadow-sm">
+                    <img src="/static/logomasjidalhijrah.png" class="w-8 h-8 object-contain">
+                </div>
+                <div class="text-white">
+                    <h4 class="font-bold text-sm leading-tight">Masjid Al Hijrah</h4>
+                    <p class="text-[10px] opacity-80 font-medium" id="pwa-banner-text">Pasang aplikasi sekarang!</p>
+                </div>
+            </div>
+            <div class="flex gap-2 items-center">
+                <button onclick="dismissPwa()" class="text-white/60 hover:text-white p-2"><i class="fas fa-times"></i></button>
+                <button id="pwa-install-trigger" class="bg-white text-emerald-600 px-4 py-2 rounded-xl text-xs font-bold shadow-lg hover:bg-emerald-50 transition transform hover:scale-105">INSTALL</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // PWA INSTALL LOGIC
+        let deferredPrompt;
+        const pwaBanner = document.getElementById('pwa-install-banner');
+        const pwaTrigger = document.getElementById('pwa-install-trigger');
+        const pwaText = document.getElementById('pwa-banner-text');
+
+        // Static Button Elements (in HOME_HTML)
+        const pwaStaticContainer = document.getElementById('pwa-static-btn-container');
+        const pwaStaticBtn = document.getElementById('pwa-static-btn');
+
+        // Detect iOS
+        const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone);
+
+        // Function to Show Install Promotion
+        function showInstallPromotion() {
+            if(pwaBanner) pwaBanner.classList.remove('hidden');
+            if(pwaStaticContainer) pwaStaticContainer.classList.remove('hidden');
+        }
+
+        // 1. Handle Android / Desktop
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            showInstallPromotion();
+        });
+
+        // 2. Handle iOS (Manual Check)
+        if (isIos && !isInStandaloneMode) {
+             showInstallPromotion();
+             // Update Text for iOS
+             if(pwaText) pwaText.innerText = "Klik Share -> Add to Home Screen";
+             // Hide Install Button (since it's manual)
+             if(pwaTrigger) pwaTrigger.style.display = 'none';
+
+             // Setup Static Button Alert
+             if(pwaStaticBtn) {
+                 pwaStaticBtn.onclick = () => alert("Untuk menginstal di iOS:\\n1. Klik tombol Share (kotak panah atas)\\n2. Pilih 'Add to Home Screen' (Tambah ke Utama)");
+             }
+        }
+
+        // Install Action
+        async function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log('User response:', outcome);
+                deferredPrompt = null;
+                if(outcome === 'accepted') {
+                     dismissPwa();
+                }
+            }
+        }
+
+        if(pwaTrigger) pwaTrigger.addEventListener('click', installApp);
+        if(pwaStaticBtn && !isIos) pwaStaticBtn.addEventListener('click', installApp);
+
+        function dismissPwa() {
+            if(pwaBanner) pwaBanner.classList.add('hidden');
+        }
+
         // PWA SERVICE WORKER
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -891,51 +982,6 @@ HOME_HTML = """
                 </div>
             </a>
 
-            <!-- PWA INSTALL BANNER (Moved Here) -->
-            <div id="pwa-install-banner" class="hidden relative overflow-hidden rounded-3xl shadow-xl border border-[#FFD700] mt-4 group transform hover:scale-[1.02] transition-all duration-300 cursor-pointer" onclick="document.getElementById('pwa-install-btn').click()">
-                <!-- Background -->
-                <div class="absolute inset-0 bg-[#0b1026]"></div>
-                <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
-                
-                <div class="relative px-6 py-5 flex items-center justify-between z-10">
-                    <div class="flex items-center gap-4">
-                        <div class="bg-white/10 p-3 rounded-full border border-[#FFD700]/30 shadow-inner">
-                            <img src="/static/logomasjidalhijrah.png" class="w-8 h-8 object-contain">
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-bold text-[#FFD700] leading-tight">Install Aplikasi</h3>
-                            <p class="text-xs text-gray-300 font-medium">Akses Cepat & Offline</p>
-                        </div>
-                    </div>
-                    
-                    <button id="pwa-install-btn" class="bg-[#FFD700] text-[#0b1026] text-xs font-bold px-5 py-2.5 rounded-full hover:bg-white transition shadow-lg shadow-[#FFD700]/20 transform hover:scale-105" onclick="event.stopPropagation()">
-                        Install
-                    </button>
-                </div>
-            </div>
-
-            <script>
-                let deferredPrompt;
-                const installBanner = document.getElementById('pwa-install-banner');
-                const installBtn = document.getElementById('pwa-install-btn');
-
-                window.addEventListener('beforeinstallprompt', (e) => {
-                    e.preventDefault();
-                    deferredPrompt = e;
-                    installBanner.classList.remove('hidden');
-                });
-
-                installBtn.addEventListener('click', (e) => {
-                    installBanner.classList.add('hidden');
-                    deferredPrompt.prompt();
-                    deferredPrompt.userChoice.then((choiceResult) => {
-                        if (choiceResult.outcome === 'accepted') {
-                            console.log('User accepted the A2HS prompt');
-                        }
-                        deferredPrompt = null;
-                    });
-                });
-            </script>
             
         </div>
     </div>
@@ -1035,6 +1081,24 @@ HOME_HTML = """
                  </button>
              </div>
         </div>
+    </div>
+
+    <!-- PWA INSTALL BUTTON (Static - Added) -->
+    <div id="pwa-static-btn-container" class="hidden mb-12">
+        <button id="pwa-static-btn" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-5 rounded-3xl shadow-lg flex items-center justify-between group transform hover:scale-[1.02] transition-all duration-300 border border-emerald-400/50">
+            <div class="flex items-center gap-4">
+                <div class="bg-white/20 p-3 rounded-2xl backdrop-blur-sm border border-white/20">
+                    <i class="fas fa-mobile-screen-button text-2xl"></i>
+                </div>
+                <div class="text-left">
+                    <h3 class="text-lg font-bold leading-none mb-1">Pasang Aplikasi</h3>
+                    <p class="text-xs text-emerald-100 font-medium">Akses Offline & Lebih Cepat</p>
+                </div>
+            </div>
+            <div class="bg-white/20 w-10 h-10 rounded-full flex items-center justify-center group-hover:bg-white group-hover:text-emerald-600 transition-colors">
+                <i class="fas fa-download"></i>
+            </div>
+        </button>
     </div>
 
     <!-- MODALS -->
