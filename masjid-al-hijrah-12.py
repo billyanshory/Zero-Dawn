@@ -681,6 +681,7 @@ BASE_LAYOUT = """
     {% set t_bottom_active = theme.bottom_active if theme and theme.bottom_active else 'text-emerald-600' %}
     {% set t_bottom_btn_bg = theme.bottom_btn_bg if theme and theme.bottom_btn_bg else 'bg-emerald-500' %}
     {% set t_bottom_btn_text = theme.bottom_btn_text if theme and theme.bottom_btn_text else 'text-emerald-600' %}
+    {% set t_bottom_text_inactive = theme.bottom_text_inactive if theme and theme.bottom_text_inactive else 'text-gray-400' %}
 
     <!-- DESKTOP NAVBAR -->
     {% if not hide_nav %}
@@ -726,7 +727,7 @@ BASE_LAYOUT = """
     {% if not hide_nav %}
     <nav class="md:hidden fixed bottom-0 left-0 w-full {{ t_bottom_bg }} z-50 pb-2 pt-2 max-w-md mx-auto right-0 border-t border-gray-100">
         <div class="flex justify-around items-end h-14 px-2">
-            <a href="/" class="flex flex-col items-center justify-center text-gray-400 {{ t_link_hover }} w-16 mb-1 transition-colors {{ t_bottom_active if active_page == 'home' else '' }}">
+            <a href="/" class="flex flex-col items-center justify-center {{ t_bottom_text_inactive }} {{ t_link_hover }} w-16 mb-1 transition-colors {{ t_bottom_active if active_page == 'home' else '' }}">
                 <i class="fas fa-home text-xl mb-1"></i>
                 <span class="text-[10px] font-medium">Beranda</span>
             </a>
@@ -736,7 +737,7 @@ BASE_LAYOUT = """
                 </div>
                 <span class="text-[10px] font-bold mt-1 {{ t_bottom_btn_text }}">Infaq</span>
             </a>
-            <a href="/emergency" class="flex flex-col items-center justify-center text-gray-400 hover:text-red-500 w-16 mb-1 transition-colors">
+            <a href="/emergency" class="flex flex-col items-center justify-center {{ t_bottom_text_inactive }} hover:text-red-500 w-16 mb-1 transition-colors">
                 <i class="fas fa-phone-alt text-xl mb-1"></i>
                 <span class="text-[10px] font-medium">Darurat</span>
             </a>
@@ -3030,9 +3031,8 @@ IRMA_DASHBOARD_HTML = """
     <!-- MODALS SECTION -->
     
     <!-- 1. MODAL DUTY -->
-    <div id="modal-duty" class="hidden fixed inset-0 z-[100]">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-duty')"></div>
-        <div class="absolute bottom-0 left-0 w-full bg-[#F4E7E1] rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+    <div id="modal-duty" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
             <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
                 <h3 class="text-xl font-bold text-[#2F4F4F]">Jadwal Piket</h3>
                 <button onclick="closeModal('modal-duty')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
@@ -3074,9 +3074,8 @@ IRMA_DASHBOARD_HTML = """
     </div>
 
     <!-- 2. MODAL JOIN -->
-    <div id="modal-join" class="hidden fixed inset-0 z-[100]">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-join')"></div>
-        <div class="absolute bottom-0 left-0 w-full bg-[#F4E7E1] rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+    <div id="modal-join" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
             <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
                 <h3 class="text-xl font-bold text-[#2F4F4F]">Join IRMA</h3>
                 <button onclick="closeModal('modal-join')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
@@ -3107,9 +3106,8 @@ IRMA_DASHBOARD_HTML = """
         </div>
     </div>
     <!-- 3. MODAL FINANCE -->
-    <div id="modal-finance" class="hidden fixed inset-0 z-[100]">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-finance')"></div>
-        <div class="absolute bottom-0 left-0 w-full bg-[#F4E7E1] rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+    <div id="modal-finance" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
             <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
                 <h3 class="text-xl font-bold text-[#2F4F4F]">Kas Remaja</h3>
                 <button onclick="closeModal('modal-finance')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
@@ -3155,9 +3153,8 @@ IRMA_DASHBOARD_HTML = """
     </div>
 
     <!-- 4. MODAL MADING -->
-    <div id="modal-wall" class="hidden fixed inset-0 z-[100]">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-wall')"></div>
-        <div class="absolute bottom-0 left-0 w-full bg-[#F4E7E1] rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+    <div id="modal-wall" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
             <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
                 <h3 class="text-xl font-bold text-[#2F4F4F]">Mading Kreatif</h3>
                 <button onclick="closeModal('modal-wall')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
@@ -3196,9 +3193,8 @@ IRMA_DASHBOARD_HTML = """
         </div>
     </div>
     <!-- 5. MODAL PROKER -->
-    <div id="modal-events" class="hidden fixed inset-0 z-[100]">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-events')"></div>
-        <div class="absolute bottom-0 left-0 w-full bg-[#F4E7E1] rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+    <div id="modal-events" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
             <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
                 <h3 class="text-xl font-bold text-[#2F4F4F]">Proker & Event</h3>
                 <button onclick="closeModal('modal-events')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
@@ -3244,56 +3240,59 @@ IRMA_DASHBOARD_HTML = """
     </div>
 
     <!-- 6. MODAL CURHAT -->
-    <div id="modal-qa" class="hidden fixed inset-0 z-[100]">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-qa')"></div>
-        <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
-            <div class="bg-[#F4E7E1] w-full md:w-[600px] h-[90vh] md:h-auto md:max-h-[85vh] rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col pointer-events-auto">
-                <div class="p-6 border-b border-[#A0B391]/20 flex justify-between items-center bg-white">
-                    <h3 class="text-xl font-bold text-[#2F4F4F]">Curhat Islami (Anonim)</h3>
-                    <button onclick="closeModal('modal-qa')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
-                </div>
-                
-                <div class="p-4 bg-white border-b border-[#A0B391]/20">
-                     <form action="/irma/curhat" method="POST" class="space-y-3">
-                         <textarea name="question" placeholder="Tanya apa saja, identitasmu dirahasiakan..." required class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm h-24 focus:ring-2 focus:ring-[#FFB6C1]"></textarea>
-                         <button type="submit" class="w-full bg-[#A0B391] text-white font-bold py-3 rounded-xl hover:bg-[#FFB6C1] transition">Kirim Pertanyaan</button>
-                     </form>
-                </div>
+    <div id="modal-qa" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
+                <h3 class="text-xl font-bold text-[#2F4F4F]">Curhat Islami (Anonim)</h3>
+                <button onclick="closeModal('modal-qa')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+            </div>
 
-                <div class="overflow-y-auto flex-1 p-4 space-y-4">
-                    {% for item in curhat_list %}
-                    <div class="bg-white rounded-2xl shadow-sm p-4">
-                        <div class="flex gap-3 mb-2">
-                            <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400"><i class="fas fa-user-secret"></i></div>
-                            <div class="bg-gray-50 p-3 rounded-r-2xl rounded-bl-2xl text-sm text-gray-700 flex-1">
-                                {{ item['question'] }}
-                            </div>
+            <div class="p-4 bg-white border-b border-[#A0B391]/20">
+                    <form action="/irma/curhat" method="POST" class="space-y-3">
+                        <textarea name="question" placeholder="Tanya apa saja, identitasmu dirahasiakan..." required class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm h-24 focus:ring-2 focus:ring-[#FFB6C1]"></textarea>
+                        <button type="submit" class="w-full bg-[#A0B391] text-white font-bold py-3 rounded-xl hover:bg-[#FFB6C1] transition">Kirim Pertanyaan</button>
+                    </form>
+            </div>
+
+            <div class="overflow-y-auto flex-1 p-4 space-y-4">
+                {% for item in curhat_list %}
+                <div class="bg-white rounded-2xl shadow-sm p-4">
+                    <div class="flex gap-3 mb-2">
+                        <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400"><i class="fas fa-user-secret"></i></div>
+                        <div class="bg-gray-50 p-3 rounded-r-2xl rounded-bl-2xl text-sm text-gray-700 flex-1">
+                            {{ item['question'] }}
                         </div>
-                        
-                        {% if item['answer'] %}
-                        <div class="flex gap-3 flex-row-reverse">
-                            <div class="w-8 h-8 rounded-full bg-[#A0B391] flex items-center justify-center text-white"><i class="fas fa-check"></i></div>
-                            <div class="bg-[#A0B391]/10 p-3 rounded-l-2xl rounded-br-2xl text-sm text-[#2F4F4F] flex-1 border border-[#A0B391]/20">
-                                <p class="font-bold text-[#A0B391] text-xs mb-1">Mentor Menjawab:</p>
-                                {{ item['answer'] }}
-                            </div>
+                    </div>
+
+                    {% if item['answer'] %}
+                    <div class="flex gap-3 flex-row-reverse">
+                        <div class="w-8 h-8 rounded-full bg-[#A0B391] flex items-center justify-center text-white"><i class="fas fa-check"></i></div>
+                        <div class="bg-[#A0B391]/10 p-3 rounded-l-2xl rounded-br-2xl text-sm text-[#2F4F4F] flex-1 border border-[#A0B391]/20">
+                            <p class="font-bold text-[#A0B391] text-xs mb-1">Mentor Menjawab:</p>
+                            {{ item['answer'] }}
                         </div>
-                        {% else %}
-                        <p class="text-[10px] text-gray-400 text-center italic mt-1">Menunggu jawaban mentor...</p>
-                        <form action="/irma/curhat" method="POST" class="mt-2 pt-2 border-t border-gray-50">
-                            <input type="hidden" name="answer_id" value="{{ item['id'] }}">
-                            <input type="text" name="answer" placeholder="Jawab (Admin)..." class="w-full bg-gray-50 text-xs p-2 rounded-lg">
-                        </form>
-                        {% endif %}
                     </div>
                     {% else %}
-                    <p class="text-center text-gray-400 text-sm">Belum ada pertanyaan.</p>
-                    {% endfor %}
+                    <p class="text-[10px] text-gray-400 text-center italic mt-1">Menunggu jawaban mentor...</p>
+                    <form action="/irma/curhat" method="POST" class="mt-2 pt-2 border-t border-gray-50">
+                        <input type="hidden" name="answer_id" value="{{ item['id'] }}">
+                        <input type="text" name="answer" placeholder="Jawab (Admin)..." class="w-full bg-gray-50 text-xs p-2 rounded-lg">
+                    </form>
+                    {% endif %}
                 </div>
+                {% else %}
+                <p class="text-center text-gray-400 text-sm">Belum ada pertanyaan.</p>
+                {% endfor %}
             </div>
         </div>
     </div>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const open = '{{ open_modal }}';
+            if(open && open !== 'None') openModal(open);
+        });
+    </script>
 </div>
 """
 
@@ -3414,8 +3413,11 @@ def irma_dashboard():
         'bottom_nav_bg': 'bg-[#A0B391]',
         'bottom_active': 'text-[#FFB6C1]',
         'bottom_btn_bg': 'bg-[#FFB6C1]',
-        'bottom_btn_text': 'text-white'
+        'bottom_btn_text': 'text-white',
+        'bottom_text_inactive': 'text-[#F4E7E1]'
     }
+
+    open_modal = request.args.get('open')
 
     # Render with custom styles
     return render_template_string(BASE_LAYOUT, 
@@ -3428,7 +3430,8 @@ def irma_dashboard():
                                                                  kas_summary=kas_summary,
                                                                  gallery_list=gallery_list,
                                                                  proker_list=proker_list,
-                                                                 curhat_list=curhat_list))
+                                                                 curhat_list=curhat_list,
+                                                                 open_modal=open_modal))
 
 @app.route('/irma/schedule', methods=['POST'])
 def irma_schedule():
@@ -3440,7 +3443,7 @@ def irma_schedule():
                      (request.form['name'], request.form['role'], request.form['date']))
     conn.commit()
     conn.close()
-    return redirect(url_for('irma_dashboard'))
+    return redirect(url_for('irma_dashboard', open='modal-duty'))
 
 @app.route('/irma/join', methods=['POST'])
 def irma_join():
@@ -3449,7 +3452,7 @@ def irma_join():
                  (request.form['name'], request.form['age'], request.form['hobbies'], request.form['instagram'], request.form['wa_number']))
     conn.commit()
     conn.close()
-    return redirect(url_for('irma_dashboard'))
+    return redirect(url_for('irma_dashboard', open='modal-join'))
 
 @app.route('/irma/kas', methods=['POST'])
 def irma_kas():
@@ -3458,7 +3461,7 @@ def irma_kas():
                  (request.form['date'], request.form['type'], request.form['description'], request.form['amount']))
     conn.commit()
     conn.close()
-    return redirect(url_for('irma_dashboard'))
+    return redirect(url_for('irma_dashboard', open='modal-finance'))
 
 @app.route('/irma/gallery', methods=['POST'])
 def irma_gallery():
@@ -3481,7 +3484,7 @@ def irma_gallery():
                  (title, creator, post_type, content))
     conn.commit()
     conn.close()
-    return redirect(url_for('irma_dashboard'))
+    return redirect(url_for('irma_dashboard', open='modal-wall'))
 
 @app.route('/irma/proker', methods=['POST'])
 def irma_proker():
@@ -3490,7 +3493,7 @@ def irma_proker():
                  (request.form['title'], request.form['status'], request.form['description'], request.form['date']))
     conn.commit()
     conn.close()
-    return redirect(url_for('irma_dashboard'))
+    return redirect(url_for('irma_dashboard', open='modal-events'))
 
 @app.route('/irma/curhat', methods=['POST'])
 def irma_curhat():
@@ -3502,7 +3505,7 @@ def irma_curhat():
         conn.execute('INSERT INTO irma_curhat (question) VALUES (?)', (request.form['question'],))
     conn.commit()
     conn.close()
-    return redirect(url_for('irma_dashboard'))
+    return redirect(url_for('irma_dashboard', open='modal-qa'))
 
 # --- PWA ROUTES ---
 
