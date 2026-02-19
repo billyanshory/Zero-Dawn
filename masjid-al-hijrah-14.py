@@ -873,85 +873,70 @@ BASE_LAYOUT = """
             setInterval(fetchPrayerTimes, 1000);
         });
 
-        // --- PWA INSTALL LOGIC (NEW) ---
-        (() => {
-            let deferredPromptGlobal;
-            let banner, installBtn, staticBtnContainer, staticBtn;
+        // --- PWA INSTALL LOGIC (GLOBAL) ---
+        window.deferredPrompt = null;
 
-            const init = () => {
-                 banner = document.getElementById('pwa-floating-banner');
-                 installBtn = document.getElementById('pwa-install-btn-fixed');
-                 staticBtnContainer = document.getElementById('pwa-static-btn-container');
-                 staticBtn = document.getElementById('pwa-install-btn-static');
-                 
-                 if(installBtn) installBtn.addEventListener('click', triggerInstall);
-                 if(staticBtn) staticBtn.addEventListener('click', triggerInstall);
-                 
-                 checkIOS();
-                 
-                 // If prompt was already caught
-                 if (deferredPromptGlobal) showPromotion();
-            };
-
-            const showPromotion = () => {
-                if(banner) banner.classList.remove('hidden');
-                if(staticBtnContainer) staticBtnContainer.classList.remove('hidden');
-            };
-
-            const triggerInstall = async () => {
-                if (deferredPromptGlobal) {
-                    deferredPromptGlobal.prompt();
-                    const { outcome } = await deferredPromptGlobal.userChoice;
-                    console.log('User response to install prompt:', outcome);
-                    deferredPromptGlobal = null;
-                    if(outcome === 'accepted') {
-                        if(banner) banner.classList.add('hidden');
-                        if(staticBtnContainer) staticBtnContainer.classList.add('hidden');
-                    }
+        window.triggerInstall = async () => {
+            if (window.deferredPrompt) {
+                window.deferredPrompt.prompt();
+                const { outcome } = await window.deferredPrompt.userChoice;
+                window.deferredPrompt = null;
+                // If accepted, hide prompt
+                if(outcome === 'accepted') {
+                     document.querySelectorAll('.pwa-btn-container').forEach(el => el.classList.add('hidden'));
                 }
-            };
-
-            window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
-                deferredPromptGlobal = e;
-                showPromotion();
-            });
-            
-            // iOS Detection
-            const checkIOS = () => {
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-                const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-
-                if (isIOS && !isStandalone) {
-                    // Show Banner with iOS Instructions
-                    if(banner) {
-                        banner.classList.remove('hidden');
-                        // Update content for iOS
-                        const textDiv = banner.querySelector('.pwa-text');
-                        const btnDiv = banner.querySelector('.pwa-btn');
-                        if(textDiv) textDiv.innerHTML = '<h3 class="text-sm font-bold text-[#FFD700] leading-tight">Install di iPhone</h3><p class="text-[10px] text-gray-300">Klik tombol Share <i class="fas fa-share-square"></i> lalu pilih "Add to Home Screen" <i class="fas fa-plus-square"></i></p>';
-                        if(btnDiv) btnDiv.style.display = 'none'; // Hide button as it's manual
-                    }
-                    // Also show static button
-                    if(staticBtnContainer) {
-                        staticBtnContainer.classList.remove('hidden');
-                        if(staticBtn) {
-                            staticBtn.onclick = () => alert("Untuk menginstal di iOS:\\n1. Klik tombol Share (ikon kotak panah atas)\\n2. Cari dan pilih 'Add to Home Screen' / 'Tambah ke Utama'");
-                        }
-                    }
-                }
-            };
-
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', init);
             } else {
-                init();
+                // Manual Instructions Logic
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                const isAndroid = /Android/.test(navigator.userAgent);
+
+                if (isIOS) {
+                    alert("Untuk menginstal di iOS:\\n1. Klik tombol Share (ikon kotak panah atas)\\n2. Cari dan pilih 'Add to Home Screen' / 'Tambah ke Utama' (ikon kotak plus)");
+                } else if (isAndroid) {
+                    alert("Untuk menginstal:\\n1. Klik ikon tiga titik di pojok kanan atas browser\\n2. Pilih 'Install App' atau 'Tambahkan ke Layar Utama'");
+                } else {
+                    alert("Untuk menginstal di PC/Laptop:\\nCari ikon 'Install' atau (+) di ujung kanan kolom alamat browser (Address Bar).");
+                }
             }
-        })();
+        };
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            window.deferredPrompt = e;
+            // Ensure buttons are visible if not standalone
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+            if (!isStandalone) {
+                document.querySelectorAll('.pwa-btn-container').forEach(el => el.classList.remove('hidden'));
+            }
+        });
+
+        window.addEventListener('load', () => {
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+            if (isStandalone) {
+                 // Hide all if installed
+                 document.querySelectorAll('.pwa-btn-container').forEach(el => el.classList.add('hidden'));
+            } else {
+                 // Show all if not installed (Buttons are hidden by default in HTML to prevent FOUC, so we remove hidden here)
+                 document.querySelectorAll('.pwa-btn-container').forEach(el => el.classList.remove('hidden'));
+
+                 // Special check for iOS which doesn't fire beforeinstallprompt
+                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                 if(isIOS) {
+                     // Customize floating banner text for iOS
+                     const banner = document.getElementById('pwa-floating-banner');
+                     if(banner) {
+                        const textDiv = banner.querySelector('.pwa-text');
+                        if(textDiv) textDiv.innerHTML = '<h3 class="text-sm font-bold text-[#FFD700] leading-tight">Install di iPhone</h3><p class="text-[10px] text-gray-300">Klik tombol Share <i class="fas fa-share-square"></i> lalu "Add to Home Screen"</p>';
+                        const btnDiv = banner.querySelector('.pwa-btn');
+                        if(btnDiv) btnDiv.style.display = 'none'; // Manual action only
+                     }
+                 }
+            }
+        });
     </script>
     
-    <!-- FIXED BOTTOM BANNER (NEW) -->
-    <div id="pwa-floating-banner" class="hidden fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-[9999] bg-[#0b1026]/90 backdrop-blur-md border border-[#FFD700]/30 rounded-2xl shadow-2xl animate-[slideUp_0.3s_ease-out]">
+    <!-- FIXED BOTTOM BANNER (GLOBAL) -->
+    <div id="pwa-floating-banner" class="pwa-btn-container hidden fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-[9999] bg-[#0b1026]/90 backdrop-blur-md border border-[#FFD700]/30 rounded-2xl shadow-2xl animate-[slideUp_0.3s_ease-out]">
         <div class="flex items-center justify-between p-4">
             <div class="flex items-center gap-3">
                 <div class="bg-white/10 p-2 rounded-xl border border-[#FFD700]/20">
@@ -963,7 +948,7 @@ BASE_LAYOUT = """
                 </div>
             </div>
             <div class="pwa-btn">
-                <button id="pwa-install-btn-fixed" class="bg-[#FFD700] text-[#0b1026] text-xs font-bold px-4 py-2 rounded-full hover:bg-white transition shadow-lg shadow-[#FFD700]/20">
+                <button onclick="triggerInstall()" class="bg-[#FFD700] text-[#0b1026] text-xs font-bold px-4 py-2 rounded-full hover:bg-white transition shadow-lg shadow-[#FFD700]/20">
                     INSTALL
                 </button>
             </div>
@@ -1079,7 +1064,7 @@ HOME_HTML = """
             </a>
 
             <!-- PWA INSTALL BANNER (Moved Here) -->
-            <div id="pwa-install-banner" class="hidden relative overflow-hidden rounded-3xl shadow-xl border border-[#FFD700] mt-4 group transform hover:scale-[1.02] transition-all duration-300 cursor-pointer" onclick="document.getElementById('pwa-install-btn').click()">
+            <div id="pwa-install-banner" class="pwa-btn-container hidden relative overflow-hidden rounded-3xl shadow-xl border border-[#FFD700] mt-4 group transform hover:scale-[1.02] transition-all duration-300 cursor-pointer" onclick="triggerInstall()">
                 <!-- Background -->
                 <div class="absolute inset-0 bg-[#0b1026]"></div>
                 <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
@@ -1095,34 +1080,11 @@ HOME_HTML = """
                         </div>
                     </div>
                     
-                    <button id="pwa-install-btn" class="bg-[#FFD700] text-[#0b1026] text-xs font-bold px-5 py-2.5 rounded-full hover:bg-white transition shadow-lg shadow-[#FFD700]/20 transform hover:scale-105" onclick="event.stopPropagation()">
+                    <button class="bg-[#FFD700] text-[#0b1026] text-xs font-bold px-5 py-2.5 rounded-full hover:bg-white transition shadow-lg shadow-[#FFD700]/20 transform hover:scale-105" onclick="event.stopPropagation(); triggerInstall()">
                         Install
                     </button>
                 </div>
             </div>
-
-            <script>
-                let deferredPrompt;
-                const installBanner = document.getElementById('pwa-install-banner');
-                const installBtn = document.getElementById('pwa-install-btn');
-
-                window.addEventListener('beforeinstallprompt', (e) => {
-                    e.preventDefault();
-                    deferredPrompt = e;
-                    installBanner.classList.remove('hidden');
-                });
-
-                installBtn.addEventListener('click', (e) => {
-                    installBanner.classList.add('hidden');
-                    deferredPrompt.prompt();
-                    deferredPrompt.userChoice.then((choiceResult) => {
-                        if (choiceResult.outcome === 'accepted') {
-                            console.log('User accepted the A2HS prompt');
-                        }
-                        deferredPrompt = null;
-                    });
-                });
-            </script>
             
         </div>
     </div>
@@ -1225,8 +1187,8 @@ HOME_HTML = """
     </div>
 
     <!-- STATIC PWA INSTALL BUTTON (NEW) -->
-    <div id="pwa-static-btn-container" class="mb-12 hidden">
-        <button id="pwa-install-btn-static" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-4 rounded-3xl shadow-lg border border-emerald-400 flex justify-between items-center group hover:scale-[1.02] transition-all duration-300">
+    <div id="pwa-static-btn-container" class="pwa-btn-container mb-12 hidden">
+        <button onclick="triggerInstall()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-4 rounded-3xl shadow-lg border border-emerald-400 flex justify-between items-center group hover:scale-[1.02] transition-all duration-300">
             <div class="flex items-center gap-4">
                 <div class="bg-white/20 p-3 rounded-xl text-white shadow-inner">
                     <i class="fas fa-download text-2xl"></i>
