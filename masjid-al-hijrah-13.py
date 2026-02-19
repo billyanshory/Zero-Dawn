@@ -872,7 +872,104 @@ BASE_LAYOUT = """
             fetchPrayerTimes();
             setInterval(fetchPrayerTimes, 1000);
         });
+
+        // --- PWA INSTALL LOGIC (NEW) ---
+        (() => {
+            let deferredPromptGlobal;
+            let banner, installBtn, staticBtnContainer, staticBtn;
+
+            const init = () => {
+                 banner = document.getElementById('pwa-floating-banner');
+                 installBtn = document.getElementById('pwa-install-btn-fixed');
+                 staticBtnContainer = document.getElementById('pwa-static-btn-container');
+                 staticBtn = document.getElementById('pwa-install-btn-static');
+
+                 if(installBtn) installBtn.addEventListener('click', triggerInstall);
+                 if(staticBtn) staticBtn.addEventListener('click', triggerInstall);
+
+                 checkIOS();
+
+                 // If prompt was already caught
+                 if (deferredPromptGlobal) showPromotion();
+            };
+
+            const showPromotion = () => {
+                if(banner) banner.classList.remove('hidden');
+                if(staticBtnContainer) staticBtnContainer.classList.remove('hidden');
+            };
+
+            const triggerInstall = async () => {
+                if (deferredPromptGlobal) {
+                    deferredPromptGlobal.prompt();
+                    const { outcome } = await deferredPromptGlobal.userChoice;
+                    console.log('User response to install prompt:', outcome);
+                    deferredPromptGlobal = null;
+                    if(outcome === 'accepted') {
+                        if(banner) banner.classList.add('hidden');
+                        if(staticBtnContainer) staticBtnContainer.classList.add('hidden');
+                    }
+                }
+            };
+
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPromptGlobal = e;
+                showPromotion();
+            });
+
+            // iOS Detection
+            const checkIOS = () => {
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+                if (isIOS && !isStandalone) {
+                    // Show Banner with iOS Instructions
+                    if(banner) {
+                        banner.classList.remove('hidden');
+                        // Update content for iOS
+                        const textDiv = banner.querySelector('.pwa-text');
+                        const btnDiv = banner.querySelector('.pwa-btn');
+                        if(textDiv) textDiv.innerHTML = '<h3 class="text-sm font-bold text-[#FFD700] leading-tight">Install di iPhone</h3><p class="text-[10px] text-gray-300">Klik tombol Share <i class="fas fa-share-square"></i> lalu pilih "Add to Home Screen" <i class="fas fa-plus-square"></i></p>';
+                        if(btnDiv) btnDiv.style.display = 'none'; // Hide button as it's manual
+                    }
+                    // Also show static button
+                    if(staticBtnContainer) {
+                        staticBtnContainer.classList.remove('hidden');
+                        if(staticBtn) {
+                            staticBtn.onclick = () => alert("Untuk menginstal di iOS:\\n1. Klik tombol Share (ikon kotak panah atas)\\n2. Cari dan pilih 'Add to Home Screen' / 'Tambah ke Utama'");
+                        }
+                    }
+                }
+            };
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
     </script>
+
+    <!-- FIXED BOTTOM BANNER (NEW) -->
+    <div id="pwa-floating-banner" class="hidden fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-[9999] bg-[#0b1026]/90 backdrop-blur-md border border-[#FFD700]/30 rounded-2xl shadow-2xl animate-[slideUp_0.3s_ease-out]">
+        <div class="flex items-center justify-between p-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-white/10 p-2 rounded-xl border border-[#FFD700]/20">
+                    <img src="/static/logomasjidalhijrah.png" class="w-10 h-10 object-contain">
+                </div>
+                <div class="pwa-text">
+                    <h3 class="text-sm font-bold text-[#FFD700] leading-tight">Pasang Aplikasi</h3>
+                    <p class="text-[10px] text-gray-300 font-medium">Akses Cepat & Offline</p>
+                </div>
+            </div>
+            <div class="pwa-btn">
+                <button id="pwa-install-btn-fixed" class="bg-[#FFD700] text-[#0b1026] text-xs font-bold px-4 py-2 rounded-full hover:bg-white transition shadow-lg shadow-[#FFD700]/20">
+                    INSTALL
+                </button>
+            </div>
+            <button onclick="document.getElementById('pwa-floating-banner').classList.add('hidden')" class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full text-xs shadow-md border border-white flex items-center justify-center">&times;</button>
+        </div>
+    </div>
 </body>
 </html>
 """
@@ -1125,6 +1222,24 @@ HOME_HTML = """
                  </button>
              </div>
         </div>
+    </div>
+
+    <!-- STATIC PWA INSTALL BUTTON (NEW) -->
+    <div id="pwa-static-btn-container" class="mb-12 hidden">
+        <button id="pwa-install-btn-static" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-4 rounded-3xl shadow-lg border border-emerald-400 flex justify-between items-center group hover:scale-[1.02] transition-all duration-300">
+            <div class="flex items-center gap-4">
+                <div class="bg-white/20 p-3 rounded-xl text-white shadow-inner">
+                    <i class="fas fa-download text-2xl"></i>
+                </div>
+                <div class="text-left">
+                    <h3 class="text-lg font-bold text-white">Install Aplikasi</h3>
+                    <p class="text-xs text-emerald-100 font-medium">Akses Cepat Tanpa Buka Browser</p>
+                </div>
+            </div>
+            <div class="bg-white/20 w-10 h-10 rounded-full flex items-center justify-center text-white group-hover:bg-white group-hover:text-emerald-600 transition-all duration-300">
+                 <i class="fas fa-arrow-right"></i>
+            </div>
+        </button>
     </div>
 
     <!-- MODALS -->
