@@ -505,6 +505,51 @@ def allowed_file(filename):
 
 # --- RAMADHAN HELPER FUNCTIONS ---
 
+def seed_ramadhan_schedule(conn):
+    # Check if data exists
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM tarawih_schedule")
+    count = cursor.fetchone()[0]
+
+    if count == 0:
+        schedule_data = [
+            (1, "Ustadz M. Faisal Bulqiah", "Ustadz M. Faisal Bulqiah"),
+            (2, "Ustadz H. Bunyamin LC MA", "Ustadz H. Bunyamin LC MA"),
+            (3, "Ustadz H. Sutanil fadlan M. Al Hafidz", "Ustadz H. Sutanil fadlan M. Al Hafidz"),
+            (4, "Ustadz Fathurrahman Al Hafidz", "Ustadz Fathurrahman Al Hafidz"),
+            (5, "Ustadz H. Abdul Syakur LC MA", "Ustadz H. Abdul Syakur LC MA"),
+            (6, "Ustadz Ibnu Mulkan M.Pd", "Ustadz Ibnu Mulkan M.Pd"),
+            (7, "KH Muhammad Mansur", "KH Muhammad Mansur"),
+            (8, "Ustadz Mahyudin S. Ag M.Pd", "Ustadz Mahyudin S. Ag M.Pd"),
+            (9, "Ustadz Dr Ahmad Nur Zahrani M.Ag", "Ustadz Dr Ahmad Nur Zahrani M.Ag"),
+            (10, "Ustadz Wahyu Utami L.C M. Pd", "Ustadz Wahyu Utami L.C M. Pd"),
+            (11, "Ustadz Prof Dr Abdul Majid MA", "Ustadz Prof Dr Abdul Majid MA"),
+            (12, "KH Azhar Qowiem M. Pd", "KH Azhar Qowiem M. Pd"),
+            (13, "Ustadz Fathur Rojak", "Ustadz Fathur Rojak"),
+            (14, "Ustadz Amirullah M.Ud", "Ustadz Amirullah M.Ud"),
+            (15, "Ustadz H. Dr. Akmad Haries M.Si", "Ustadz H. Dr. Akmad Haries M.Si"),
+            (16, "Ustadz Ahmad Nur Jamil", "Ustadz Ahmad Nur Jamil"),
+            (17, "Ustadz H. Susanto L.C", "Ustadz H. Susanto L.C"),
+            (18, "Ustadz Ahmad Husairi S. Pd", "Ustadz Ahmad Husairi S. Pd"),
+            (19, "Ustadz M. Faisal Bulqiah", "Ustadz M. Faisal Bulqiah"),
+            (20, "Ustadz Rivky Cahaya Hakiki", "Ustadz Rivky Cahaya Hakiki"),
+            (21, "Ustadz Imam Syafii", "Ustadz Imam Syafii"),
+            (22, "Ustadz Ahmad Subhi", "Ustadz Ahmad Subhi"),
+            (23, "Ustadz Ahmad Ihsan S.Pd", "Ustadz Ahmad Ihsan S.Pd"),
+            (24, "Ustadz Syahrial M.Ud", "Ustadz Syahrial M.Ud"),
+            (25, "Ustadz Rivky Cahaya Hakiki", "Ustadz Rivky Cahaya Hakiki"),
+            (26, "Ustadz H. Maraio L.C. M.Pd.I", "Ustadz H. Maraio L.C. M.Pd.I"),
+            (27, "Ustadz H. Darmaizar LC M.Ag", "Ustadz H. Darmaizar LC M.Ag"),
+            (28, "Ustadz Ahmad Jailani", "Ustadz Ahmad Jailani"),
+            (29, "Ustadz Robi Ar-Rasyid", "Ustadz Robi Ar-Rasyid"),
+            (30, "Ustadz Fathur Rojak", "Ustadz Fathur Rojak"),
+        ]
+
+        for night, imam, penceramah in schedule_data:
+            cursor.execute("INSERT INTO tarawih_schedule (night_index, date, imam, penceramah, judul) VALUES (?, ?, ?, ?, ?)",
+                           (night, f"Ramadhan {night}", imam, penceramah, "-"))
+        conn.commit()
+
 def get_takjil_data():
     csv_file = "jadwal pembagian takjil masjid al-hijrah 2024.xlsx - Sheet1.csv"
     data = []
@@ -885,18 +930,6 @@ BASE_LAYOUT = """
                 if(outcome === 'accepted') {
                      document.querySelectorAll('.pwa-btn-container').forEach(el => el.classList.add('hidden'));
                 }
-            } else {
-                // Manual Instructions Logic
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-                const isAndroid = /Android/.test(navigator.userAgent);
-                
-                if (isIOS) {
-                    alert("Untuk menginstal di iOS:\\n1. Klik tombol Share (ikon kotak panah atas)\\n2. Cari dan pilih 'Add to Home Screen' / 'Tambah ke Utama' (ikon kotak plus)");
-                } else if (isAndroid) {
-                    alert("Untuk menginstal:\\n1. Klik ikon tiga titik di pojok kanan atas browser\\n2. Pilih 'Install App' atau 'Tambahkan ke Layar Utama'");
-                } else {
-                    alert("Untuk menginstal di PC/Laptop:\\nCari ikon 'Install' atau (+) di ujung kanan kolom alamat browser (Address Bar).");
-                }
             }
         };
 
@@ -935,26 +968,6 @@ BASE_LAYOUT = """
         });
     </script>
     
-    <!-- FIXED BOTTOM BANNER (GLOBAL) -->
-    <div id="pwa-floating-banner" class="pwa-btn-container hidden fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-[9999] bg-[#0b1026]/90 backdrop-blur-md border border-[#FFD700]/30 rounded-2xl shadow-2xl animate-[slideUp_0.3s_ease-out]">
-        <div class="flex items-center justify-between p-4">
-            <div class="flex items-center gap-3">
-                <div class="bg-white/10 p-2 rounded-xl border border-[#FFD700]/20">
-                    <img src="/static/logomasjidalhijrah.png" class="w-10 h-10 object-contain">
-                </div>
-                <div class="pwa-text">
-                    <h3 class="text-sm font-bold text-[#FFD700] leading-tight">Pasang Aplikasi</h3>
-                    <p class="text-[10px] text-gray-300 font-medium">Akses Cepat & Offline</p>
-                </div>
-            </div>
-            <div class="pwa-btn">
-                <button onclick="triggerInstall()" class="bg-[#FFD700] text-[#0b1026] text-xs font-bold px-4 py-2 rounded-full hover:bg-white transition shadow-lg shadow-[#FFD700]/20">
-                    INSTALL
-                </button>
-            </div>
-            <button onclick="document.getElementById('pwa-floating-banner').classList.add('hidden')" class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full text-xs shadow-md border border-white flex items-center justify-center">&times;</button>
-        </div>
-    </div>
 </body>
 </html>
 """
@@ -1063,29 +1076,6 @@ HOME_HTML = """
                 </div>
             </a>
 
-            <!-- PWA INSTALL BANNER (Moved Here) -->
-            <div id="pwa-install-banner" class="pwa-btn-container hidden relative overflow-hidden rounded-3xl shadow-xl border border-[#FFD700] mt-4 group transform hover:scale-[1.02] transition-all duration-300 cursor-pointer" onclick="triggerInstall()">
-                <!-- Background -->
-                <div class="absolute inset-0 bg-[#0b1026]"></div>
-                <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
-                
-                <div class="relative px-6 py-5 flex items-center justify-between z-10">
-                    <div class="flex items-center gap-4">
-                        <div class="bg-white/10 p-3 rounded-full border border-[#FFD700]/30 shadow-inner">
-                            <img src="/static/logomasjidalhijrah.png" class="w-8 h-8 object-contain">
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-bold text-[#FFD700] leading-tight">Install Aplikasi</h3>
-                            <p class="text-xs text-gray-300 font-medium">Akses Cepat & Offline</p>
-                        </div>
-                    </div>
-                    
-                    <button class="bg-[#FFD700] text-[#0b1026] text-xs font-bold px-5 py-2.5 rounded-full hover:bg-white transition shadow-lg shadow-[#FFD700]/20 transform hover:scale-105" onclick="event.stopPropagation(); triggerInstall()">
-                        Install
-                    </button>
-                </div>
-            </div>
-            
         </div>
     </div>
 
@@ -2497,299 +2487,299 @@ RAMADHAN_DASHBOARD_HTML = """
     <!-- MODALS SECTION -->
     
     <!-- 1. MODAL TAKJIL -->
-    <div id="modal-takjil" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('modal-takjil')"></div>
-        <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
-            <div class="bg-[#0b1026] w-full md:w-[600px] h-[80vh] md:h-auto md:max-h-[80vh] rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out]">
-                <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                    <h3 class="text-xl font-bold text-gold font-sans">Jadwal Pembagian Takjil</h3>
-                    <button onclick="closeModal('modal-takjil')" class="text-gray-400 hover:text-white">&times;</button>
-                </div>
-                <div class="p-4 bg-white/5 border-b border-white/10">
-                    <input type="text" id="search-takjil" onkeyup="filterTakjil()" placeholder="Cari Nama Warga..." class="w-full bg-[#0b1026] border border-gold/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold">
-                </div>
-                <div class="overflow-y-auto flex-1 p-0">
-                    <table class="w-full text-left border-collapse">
-                        <thead class="bg-gold/10 text-gold sticky top-0 backdrop-blur-md">
-                            <tr>
-                                <th class="p-4 text-xs font-bold uppercase">Tanggal</th>
-                                <th class="p-4 text-xs font-bold uppercase">Nama Warga</th>
-                                <th class="p-4 text-xs font-bold uppercase text-right">RT / Ket</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-white/5" id="takjil-list">
-                            {% for row in takjil_data %}
-                            <tr class="hover:bg-white/5 transition">
-                                <td class="p-4 text-sm text-gray-300">{{ row['Tanggal'] }}</td>
-                                <td class="p-4 font-bold text-white name-cell">{{ row['Nama'] }}</td>
-                                <td class="p-4 text-sm text-gray-400 text-right">{{ row['Ket.'] }}</td>
-                            </tr>
-                            {% else %}
-                            <tr><td colspan="3" class="p-6 text-center text-gray-500">Data tidak tersedia atau file CSV belum diupload.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+    <div id="modal-takjil" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                <h3 class="text-xl font-bold text-gold font-sans">Jadwal Pembagian Takjil</h3>
+                <button onclick="closeModal('modal-takjil')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+            </div>
+
+            <div class="p-4 bg-white/5 border-b border-white/10 rounded-xl mb-4">
+                <input type="text" id="search-takjil" onkeyup="filterTakjil()" placeholder="Cari Nama Warga..." class="w-full bg-[#0b1026] border border-gold/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold">
+            </div>
+
+            <div class="overflow-hidden rounded-xl border border-white/10">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gold/10 text-gold backdrop-blur-md">
+                        <tr>
+                            <th class="p-4 text-xs font-bold uppercase">Tanggal</th>
+                            <th class="p-4 text-xs font-bold uppercase">Nama Warga</th>
+                            <th class="p-4 text-xs font-bold uppercase text-right">RT / Ket</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/5" id="takjil-list">
+                        {% for row in takjil_data %}
+                        <tr class="hover:bg-white/5 transition">
+                            <td class="p-4 text-sm text-gray-300">{{ row['Tanggal'] }}</td>
+                            <td class="p-4 font-bold text-white name-cell">{{ row['Nama'] }}</td>
+                            <td class="p-4 text-sm text-gray-400 text-right">{{ row['Ket.'] }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="p-6 text-center text-gray-500">Data tidak tersedia atau file CSV belum diupload.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
     <!-- 2. MODAL IMSAKIYAH -->
-    <div id="modal-imsakiyah" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('modal-imsakiyah')"></div>
-        <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
-            <div class="bg-[#0b1026] w-full md:w-[800px] h-[85vh] md:h-auto md:max-h-[85vh] rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out]">
-                <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                    <div>
-                         <h3 class="text-xl font-bold text-gold font-sans">Jadwal Imsakiyah</h3>
-                         <p class="text-[10px] text-gray-400">Samarinda & Sekitarnya • Ramadhan 1447 H / 2026 M</p>
-                    </div>
-                    <button onclick="closeModal('modal-imsakiyah')" class="text-gray-400 hover:text-white">&times;</button>
+    <div id="modal-imsakiyah" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                <div>
+                     <h3 class="text-xl font-bold text-gold font-sans">Jadwal Imsakiyah</h3>
+                     <p class="text-[10px] text-gray-400">Samarinda & Sekitarnya • Ramadhan 1447 H / 2026 M</p>
                 </div>
-                <div class="overflow-auto flex-1 p-0">
-                    <table class="w-full text-center border-collapse">
-                        <thead class="bg-blue-900/50 text-blue-200 sticky top-0 backdrop-blur-md z-10">
-                            <tr>
-                                <th class="p-3 text-xs font-bold border-b border-white/10">Tgl</th>
-                                <th class="p-3 text-xs font-bold border-b border-white/10 text-gold">Imsak</th>
-                                <th class="p-3 text-xs font-bold border-b border-white/10">Subuh</th>
-                                <th class="p-3 text-xs font-bold border-b border-white/10 hidden md:table-cell">Dzuhur</th>
-                                <th class="p-3 text-xs font-bold border-b border-white/10 hidden md:table-cell">Ashar</th>
-                                <th class="p-3 text-xs font-bold border-b border-white/10 text-gold">Maghrib</th>
-                                <th class="p-3 text-xs font-bold border-b border-white/10 hidden md:table-cell">Isya</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-white/5">
-                            {% for day in imsakiyah_data %}
-                            <tr class="hover:bg-white/5 transition {{ 'bg-gold/10 border-l-4 border-gold' if day.is_today else '' }}">
-                                <td class="p-3 text-xs text-gray-300">{{ day.date_str }}</td>
-                                <td class="p-3 text-sm font-bold text-gold font-mono">{{ day.imsak }}</td>
-                                <td class="p-3 text-sm text-gray-300 font-mono">{{ day.fajr }}</td>
-                                <td class="p-3 text-sm text-gray-400 font-mono hidden md:table-cell">{{ day.dhuhr }}</td>
-                                <td class="p-3 text-sm text-gray-400 font-mono hidden md:table-cell">{{ day.asr }}</td>
-                                <td class="p-3 text-sm font-bold text-gold font-mono bg-gold/5">{{ day.maghrib }}</td>
-                                <td class="p-3 text-sm text-gray-400 font-mono hidden md:table-cell">{{ day.isha }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                <button onclick="closeModal('modal-imsakiyah')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+            </div>
+
+            <div class="overflow-hidden rounded-xl border border-white/10">
+                <table class="w-full text-center border-collapse">
+                    <thead class="bg-blue-900/50 text-blue-200 backdrop-blur-md">
+                        <tr>
+                            <th class="p-3 text-xs font-bold border-b border-white/10">Tgl</th>
+                            <th class="p-3 text-xs font-bold border-b border-white/10 text-gold">Imsak</th>
+                            <th class="p-3 text-xs font-bold border-b border-white/10">Subuh</th>
+                            <th class="p-3 text-xs font-bold border-b border-white/10 hidden md:table-cell">Dzuhur</th>
+                            <th class="p-3 text-xs font-bold border-b border-white/10 hidden md:table-cell">Ashar</th>
+                            <th class="p-3 text-xs font-bold border-b border-white/10 text-gold">Maghrib</th>
+                            <th class="p-3 text-xs font-bold border-b border-white/10 hidden md:table-cell">Isya</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/5">
+                        {% for day in imsakiyah_data %}
+                        <tr class="hover:bg-white/5 transition {{ 'bg-gold/10 border-l-4 border-gold' if day.is_today else '' }}">
+                            <td class="p-3 text-xs text-gray-300">{{ day.date_str }}</td>
+                            <td class="p-3 text-sm font-bold text-gold font-mono">{{ day.imsak }}</td>
+                            <td class="p-3 text-sm text-gray-300 font-mono">{{ day.fajr }}</td>
+                            <td class="p-3 text-sm text-gray-400 font-mono hidden md:table-cell">{{ day.dhuhr }}</td>
+                            <td class="p-3 text-sm text-gray-400 font-mono hidden md:table-cell">{{ day.asr }}</td>
+                            <td class="p-3 text-sm font-bold text-gold font-mono bg-gold/5">{{ day.maghrib }}</td>
+                            <td class="p-3 text-sm text-gray-400 font-mono hidden md:table-cell">{{ day.isha }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
     <!-- 3. MODAL KAS RAMADHAN -->
-    <div id="modal-kas-ramadhan" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('modal-kas-ramadhan')"></div>
-        <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
-            <div class="bg-[#0b1026] w-full md:w-[600px] h-[80vh] md:h-auto md:max-h-[80vh] rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out]">
-                <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                    <h3 class="text-xl font-bold text-gold font-sans">Laporan Kas Ramadhan</h3>
-                    <button onclick="closeModal('modal-kas-ramadhan')" class="text-gray-400 hover:text-white">&times;</button>
-                </div>
-                
-                <!-- Summary -->
-                <div class="p-6 grid grid-cols-2 gap-4 border-b border-white/10">
-                    <div class="bg-green-500/10 p-4 rounded-2xl border border-green-500/20 text-center">
-                        <p class="text-xs text-green-400 uppercase font-bold">Pemasukan</p>
-                        <p class="text-lg font-bold text-green-400">Rp {{ "{:,.0f}".format(ramadhan_kas_summary.income) }}</p>
-                    </div>
-                    <div class="bg-red-500/10 p-4 rounded-2xl border border-red-500/20 text-center">
-                        <p class="text-xs text-red-400 uppercase font-bold">Pengeluaran</p>
-                        <p class="text-lg font-bold text-red-400">Rp {{ "{:,.0f}".format(ramadhan_kas_summary.out) }}</p>
-                    </div>
-                    <div class="col-span-2 bg-gold/10 p-4 rounded-2xl border border-gold/30 text-center">
-                        <p class="text-xs text-gold uppercase font-bold">Saldo Akhir</p>
-                        <p class="text-2xl font-bold text-white">Rp {{ "{:,.0f}".format(ramadhan_kas_summary.balance) }}</p>
-                    </div>
-                </div>
+    <div id="modal-kas-ramadhan" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                <h3 class="text-xl font-bold text-gold font-sans">Laporan Kas Ramadhan</h3>
+                <button onclick="closeModal('modal-kas-ramadhan')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+            </div>
 
-                <!-- Input Form -->
-                <div class="p-6 bg-white/5 border-b border-white/10">
-                    <h4 class="text-sm font-bold text-gray-300 mb-3">Input Transaksi (Admin)</h4>
-                    <form action="/ramadhan/kas" method="POST" class="space-y-3">
-                        <div class="grid grid-cols-2 gap-3">
-                            <input type="date" name="date" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white focus:border-gold">
-                            <select name="type" class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white focus:border-gold">
-                                <option value="Pemasukan">Pemasukan</option>
-                                <option value="Pengeluaran">Pengeluaran</option>
-                            </select>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                             <input type="text" name="description" placeholder="Keterangan (ex: Infaq Tarawih Malam 1)" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white focus:border-gold">
-                             <input type="number" name="amount" placeholder="Nominal (Rp)" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white focus:border-gold">
-                        </div>
-                        <input type="hidden" name="category" value="Ramadhan"> <!-- Default Category -->
-                        <button type="submit" class="w-full bg-gold text-[#0b1026] font-bold py-2 rounded-lg hover:bg-white transition">Simpan Data</button>
-                    </form>
+            <!-- Summary -->
+            <div class="grid grid-cols-2 gap-4 border-b border-white/10 pb-6 mb-6">
+                <div class="bg-green-500/10 p-4 rounded-2xl border border-green-500/20 text-center">
+                    <p class="text-xs text-green-400 uppercase font-bold">Pemasukan</p>
+                    <p class="text-lg font-bold text-green-400">Rp {{ "{:,.0f}".format(ramadhan_kas_summary.income) }}</p>
                 </div>
+                <div class="bg-red-500/10 p-4 rounded-2xl border border-red-500/20 text-center">
+                    <p class="text-xs text-red-400 uppercase font-bold">Pengeluaran</p>
+                    <p class="text-lg font-bold text-red-400">Rp {{ "{:,.0f}".format(ramadhan_kas_summary.out) }}</p>
+                </div>
+                <div class="col-span-2 bg-gold/10 p-4 rounded-2xl border border-gold/30 text-center">
+                    <p class="text-xs text-gold uppercase font-bold">Saldo Akhir</p>
+                    <p class="text-2xl font-bold text-white">Rp {{ "{:,.0f}".format(ramadhan_kas_summary.balance) }}</p>
+                </div>
+            </div>
 
-                <!-- List -->
-                <div class="overflow-y-auto flex-1 p-0">
-                    <table class="w-full text-left">
-                        <tbody class="divide-y divide-white/5">
-                            {% for item in ramadhan_kas_items %}
-                            <tr class="hover:bg-white/5">
-                                <td class="p-4">
-                                    <div class="flex items-center justify-between">
-                                        <div>
-                                            <p class="text-sm font-bold text-white">{{ item['description'] }}</p>
-                                            <p class="text-[10px] text-gray-400">{{ item['date'] }}</p>
-                                        </div>
-                                        <span class="font-mono font-bold {{ 'text-green-400' if item['type'] == 'Pemasukan' else 'text-red-400' }}">
-                                            {{ "+" if item['type'] == 'Pemasukan' else "-" }} {{ "{:,.0f}".format(item['amount']) }}
-                                        </span>
+            <!-- Input Form -->
+            <div class="bg-white/5 border border-white/10 p-6 rounded-2xl mb-6">
+                <h4 class="text-sm font-bold text-gray-300 mb-3">Input Transaksi (Admin)</h4>
+                <form action="/ramadhan/kas" method="POST" class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" name="date" required class="w-full bg-[#0b1026] border border-gray-600 rounded-lg p-3 text-sm text-white focus:border-gold">
+                        <select name="type" class="w-full bg-[#0b1026] border border-gray-600 rounded-lg p-3 text-sm text-white focus:border-gold">
+                            <option value="Pemasukan">Pemasukan</option>
+                            <option value="Pengeluaran">Pengeluaran</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                         <input type="text" name="description" placeholder="Keterangan (ex: Infaq Tarawih Malam 1)" required class="w-full bg-[#0b1026] border border-gray-600 rounded-lg p-3 text-sm text-white focus:border-gold">
+                         <input type="number" name="amount" placeholder="Nominal (Rp)" required class="w-full bg-[#0b1026] border border-gray-600 rounded-lg p-3 text-sm text-white focus:border-gold">
+                    </div>
+                    <input type="hidden" name="category" value="Ramadhan">
+                    <button type="submit" class="w-full bg-gold text-[#0b1026] font-bold py-3 rounded-lg hover:bg-white transition shadow-lg">Simpan Data</button>
+                </form>
+            </div>
+
+            <!-- List -->
+            <div class="overflow-hidden rounded-xl border border-white/10">
+                <table class="w-full text-left">
+                    <tbody class="divide-y divide-white/5">
+                        {% for item in ramadhan_kas_items %}
+                        <tr class="hover:bg-white/5">
+                            <td class="p-4">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm font-bold text-white">{{ item['description'] }}</p>
+                                        <p class="text-[10px] text-gray-400">{{ item['date'] }}</p>
                                     </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                                    <span class="font-mono font-bold {{ 'text-green-400' if item['type'] == 'Pemasukan' else 'text-red-400' }}">
+                                        {{ "+" if item['type'] == 'Pemasukan' else "-" }} {{ "{:,.0f}".format(item['amount']) }}
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
     <!-- 4. MODAL JADWAL TARAWIH -->
-    <div id="modal-tarawih" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('modal-tarawih')"></div>
-        <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
-            <div class="bg-[#0b1026] w-full md:w-[700px] h-[80vh] md:h-auto md:max-h-[80vh] rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out]">
-                <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                    <h3 class="text-xl font-bold text-gold font-sans">Jadwal Imam & Penceramah</h3>
-                    <button onclick="closeModal('modal-tarawih')" class="text-gray-400 hover:text-white">&times;</button>
-                </div>
-                
-                <!-- Editor (Hidden by default, toggleable) -->
-                <div id="tarawih-editor" class="hidden p-4 bg-white/5 border-b border-white/10">
-                    <form action="/ramadhan/tarawih" method="POST" class="space-y-3">
-                         <div class="grid grid-cols-4 gap-2">
-                             <input type="number" name="night_index" placeholder="Malam ke" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white">
-                             <input type="text" name="imam" placeholder="Nama Imam" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white">
-                             <input type="text" name="penceramah" placeholder="Nama Penceramah" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white">
-                             <input type="text" name="judul" placeholder="Judul Ceramah" class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white">
-                         </div>
-                         <button type="submit" class="w-full bg-purple-600 text-white font-bold py-2 rounded-lg hover:bg-purple-500">Update Jadwal</button>
-                    </form>
-                </div>
-                <div class="p-2 text-center border-b border-white/10">
-                    <button onclick="document.getElementById('tarawih-editor').classList.toggle('hidden')" class="text-xs text-purple-400 hover:text-purple-300 font-bold uppercase tracking-wider">+ Edit Jadwal (Admin)</button>
-                </div>
+    <div id="modal-tarawih" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                <h3 class="text-xl font-bold text-gold font-sans">Jadwal Imam & Penceramah</h3>
+                <button onclick="closeModal('modal-tarawih')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+            </div>
 
-                <div class="overflow-y-auto flex-1 p-0">
-                    <div class="grid grid-cols-1 divide-y divide-white/5">
-                        {% for item in tarawih_schedule %}
-                        <div class="p-4 hover:bg-white/5 transition flex gap-4 items-center">
-                            <div class="bg-purple-500/20 text-purple-400 w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg flex-shrink-0">
-                                {{ item['night_index'] }}
-                            </div>
-                            <div class="flex-1">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <p class="text-xs text-gray-400 uppercase">Imam</p>
-                                        <p class="font-bold text-white mb-1">{{ item['imam'] }}</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="text-xs text-gray-400 uppercase">Penceramah</p>
-                                        <p class="font-bold text-gold mb-1">{{ item['penceramah'] }}</p>
-                                    </div>
-                                </div>
-                                <p class="text-xs text-gray-500 italic mt-1">"{{ item['judul'] }}"</p>
-                            </div>
+            <!-- Editor (Hidden by default, toggleable) -->
+            <div id="tarawih-editor" class="hidden p-4 bg-white/5 border border-white/10 rounded-xl mb-6">
+                <form action="/ramadhan/tarawih" method="POST" class="space-y-3">
+                     <div class="grid grid-cols-4 gap-2">
+                         <input type="number" name="night_index" placeholder="Malam ke" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white focus:border-gold">
+                         <input type="text" name="imam" placeholder="Nama Imam" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white focus:border-gold">
+                         <input type="text" name="penceramah" placeholder="Nama Penceramah" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white focus:border-gold">
+                         <input type="text" name="judul" placeholder="Judul Ceramah" class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white focus:border-gold">
+                     </div>
+                     <button type="submit" class="w-full bg-purple-600 text-white font-bold py-2 rounded-lg hover:bg-purple-500 shadow-lg">Update Jadwal</button>
+                </form>
+            </div>
+            <div class="p-2 text-center border-b border-white/10 mb-4">
+                <button onclick="document.getElementById('tarawih-editor').classList.toggle('hidden')" class="text-xs text-purple-400 hover:text-purple-300 font-bold uppercase tracking-wider bg-purple-500/10 px-4 py-2 rounded-full border border-purple-500/20">+ Edit Jadwal (Admin)</button>
+            </div>
+
+            <div class="overflow-hidden rounded-xl border border-white/10">
+                <div class="grid grid-cols-1 divide-y divide-white/5">
+                    {% for item in tarawih_schedule %}
+                    <div class="p-4 hover:bg-white/5 transition flex gap-4 items-center">
+                        <div class="bg-purple-500/20 text-purple-400 w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg flex-shrink-0">
+                            {{ item['night_index'] }}
                         </div>
-                        {% else %}
-                        <div class="p-8 text-center text-gray-500">Jadwal belum diisi.</div>
-                        {% endfor %}
+                        <div class="flex-1">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs text-gray-400 uppercase">Imam</p>
+                                    <p class="font-bold text-white mb-1">{{ item['imam'] }}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xs text-gray-400 uppercase">Penceramah</p>
+                                    <p class="font-bold text-gold mb-1">{{ item['penceramah'] }}</p>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 italic mt-1">"{{ item['judul'] }}"</p>
+                        </div>
                     </div>
+                    {% else %}
+                    <div class="p-8 text-center text-gray-500">Jadwal belum diisi.</div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
     </div>
 
     <!-- 5. MODAL ZAKAT FITRAH -->
-    <div id="modal-zakat-fitrah" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('modal-zakat-fitrah')"></div>
-        <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
-            <div class="bg-[#0b1026] w-full md:w-[400px] h-auto rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out]">
-                <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                    <h3 class="text-xl font-bold text-gold font-sans">Kalkulator Zakat Fitrah</h3>
-                    <button onclick="closeModal('modal-zakat-fitrah')" class="text-gray-400 hover:text-white">&times;</button>
+    <div id="modal-zakat-fitrah" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                <h3 class="text-xl font-bold text-gold font-sans">Kalkulator Zakat Fitrah</h3>
+                <button onclick="closeModal('modal-zakat-fitrah')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+            </div>
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-2">Jumlah Jiwa (Orang)</label>
+                    <input type="number" id="zakat-jiwa" value="1" min="1" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl p-4 text-white text-center text-xl font-bold focus:border-gold">
                 </div>
-                <div class="p-6 space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-400 mb-2">Jumlah Jiwa (Orang)</label>
-                        <input type="number" id="zakat-jiwa" value="1" min="1" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl p-4 text-white text-center text-xl font-bold focus:border-gold">
+
+                <div class="bg-white/5 p-6 rounded-2xl border border-white/10">
+                    <p class="text-xs text-gray-400 mb-4 uppercase font-bold text-center tracking-widest">Estimasi Pembayaran</p>
+                    <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-4">
+                        <span class="text-gray-300">Beras (2.5 Kg)</span>
+                        <span class="font-bold text-white text-2xl" id="res-beras">2.5 Kg</span>
                     </div>
-                    
-                    <div class="bg-white/5 p-4 rounded-xl border border-white/10">
-                        <p class="text-xs text-gray-400 mb-2 uppercase font-bold text-center">Estimasi Pembayaran</p>
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-gray-300">Beras (2.5 Kg)</span>
-                            <span class="font-bold text-white text-lg" id="res-beras">2.5 Kg</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-300">Uang (Rp 45.000)</span>
-                            <span class="font-bold text-gold text-lg" id="res-uang">Rp 45.000</span>
-                        </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-300">Uang (Rp 45.000)</span>
+                        <span class="font-bold text-gold text-2xl" id="res-uang">Rp 45.000</span>
                     </div>
-                    
-                    <button onclick="calculateZakatFitrah()" class="w-full bg-gold text-[#0b1026] font-bold py-3 rounded-xl hover:bg-white transition">Hitung Ulang</button>
-                    <p class="text-[10px] text-gray-500 text-center italic">*Harga uang menyesuaikan standar Samarinda (Rp 45.000/jiwa)</p>
                 </div>
+
+                <button onclick="calculateZakatFitrah()" class="w-full bg-gold text-[#0b1026] font-bold py-4 rounded-xl hover:bg-white transition shadow-lg shadow-gold/20">Hitung Ulang</button>
+                <p class="text-[10px] text-gray-500 text-center italic">*Harga uang menyesuaikan standar Samarinda (Rp 45.000/jiwa)</p>
             </div>
         </div>
     </div>
 
     <!-- 6. MODAL AMALAN -->
-    <div id="modal-amalan" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('modal-amalan')"></div>
-        <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
-            <div class="bg-[#0b1026] w-full md:w-[400px] h-[80vh] md:h-auto rounded-t-3xl md:rounded-3xl shadow-2xl border border-gold/30 flex flex-col pointer-events-auto overflow-hidden animate-[slideUp_0.3s_ease-out] relative">
-                <!-- Canvas for fireworks -->
-                <canvas id="fireworks" class="absolute inset-0 pointer-events-none z-50"></canvas>
-                
-                <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5 relative z-10">
-                    <h3 class="text-xl font-bold text-pink-400 font-sans">Checklist Amalan Harian</h3>
-                    <button onclick="closeModal('modal-amalan')" class="text-gray-400 hover:text-white">&times;</button>
-                </div>
-                
-                <div class="p-6 flex-1 overflow-y-auto relative z-10">
-                    <div class="mb-6">
-                         <div class="flex justify-between text-xs text-gray-400 mb-1">
-                             <span>Progress Harian</span>
-                             <span id="progress-text">0%</span>
-                         </div>
-                         <div class="w-full bg-white/10 rounded-full h-2.5">
-                              <div id="progress-bar" class="bg-pink-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
-                         </div>
-                    </div>
+    <div id="modal-amalan" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
+        <!-- Canvas for fireworks needs to be full screen -->
+        <canvas id="fireworks" class="fixed inset-0 pointer-events-none z-50"></canvas>
 
-                    <div class="space-y-3" id="amalan-list">
-                        <!-- Checkboxes generated by JS -->
-                        <label class="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition">
-                            <input type="checkbox" onchange="updateProgress()" class="w-5 h-5 accent-pink-500 rounded text-pink-500 focus:ring-pink-500 bg-gray-700 border-gray-600">
-                            <span class="text-gray-200 font-medium">Puasa Hari Ini</span>
-                        </label>
-                        <label class="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition">
-                            <input type="checkbox" onchange="updateProgress()" class="w-5 h-5 accent-pink-500 rounded text-pink-500 focus:ring-pink-500 bg-gray-700 border-gray-600">
-                            <span class="text-gray-200 font-medium">Sholat 5 Waktu</span>
-                        </label>
-                        <label class="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition">
-                            <input type="checkbox" onchange="updateProgress()" class="w-5 h-5 accent-pink-500 rounded text-pink-500 focus:ring-pink-500 bg-gray-700 border-gray-600">
-                            <span class="text-gray-200 font-medium">Sholat Tarawih</span>
-                        </label>
-                        <label class="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition">
-                            <input type="checkbox" onchange="updateProgress()" class="w-5 h-5 accent-pink-500 rounded text-pink-500 focus:ring-pink-500 bg-gray-700 border-gray-600">
-                            <span class="text-gray-200 font-medium">Tilawah 1 Juz</span>
-                        </label>
-                        <label class="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition">
-                            <input type="checkbox" onchange="updateProgress()" class="w-5 h-5 accent-pink-500 rounded text-pink-500 focus:ring-pink-500 bg-gray-700 border-gray-600">
-                            <span class="text-gray-200 font-medium">Sedekah Subuh</span>
-                        </label>
-                    </div>
-                    
-                    <button onclick="resetAmalan()" class="mt-6 w-full text-xs text-gray-500 hover:text-white underline">Reset Checklist Hari Ini</button>
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4 relative z-10">
+                <h3 class="text-xl font-bold text-pink-400 font-sans">Checklist Amalan Harian</h3>
+                <button onclick="closeModal('modal-amalan')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+            </div>
+
+            <div class="relative z-10">
+                <div class="mb-8">
+                     <div class="flex justify-between text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">
+                         <span>Progress Harian</span>
+                         <span id="progress-text">0%</span>
+                     </div>
+                     <div class="w-full bg-white/10 rounded-full h-4 overflow-hidden">
+                          <div id="progress-bar" class="bg-pink-500 h-4 rounded-full transition-all duration-500 shadow-[0_0_10px_#EC4899]" style="width: 0%"></div>
+                     </div>
                 </div>
+
+                <div class="space-y-4" id="amalan-list">
+                    <!-- Checkboxes generated by JS -->
+                    <label class="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10 cursor-pointer hover:bg-white/10 transition group">
+                        <div class="relative flex items-center">
+                            <input type="checkbox" onchange="updateProgress()" class="peer appearance-none w-6 h-6 border-2 border-gray-500 rounded-md checked:bg-pink-500 checked:border-pink-500 transition-colors">
+                            <i class="fas fa-check absolute left-1 top-1 text-white opacity-0 peer-checked:opacity-100 text-xs pointer-events-none"></i>
+                        </div>
+                        <span class="text-gray-300 font-medium group-hover:text-white transition-colors">Puasa Hari Ini</span>
+                    </label>
+                    <label class="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10 cursor-pointer hover:bg-white/10 transition group">
+                        <div class="relative flex items-center">
+                            <input type="checkbox" onchange="updateProgress()" class="peer appearance-none w-6 h-6 border-2 border-gray-500 rounded-md checked:bg-pink-500 checked:border-pink-500 transition-colors">
+                            <i class="fas fa-check absolute left-1 top-1 text-white opacity-0 peer-checked:opacity-100 text-xs pointer-events-none"></i>
+                        </div>
+                        <span class="text-gray-300 font-medium group-hover:text-white transition-colors">Sholat 5 Waktu</span>
+                    </label>
+                    <label class="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10 cursor-pointer hover:bg-white/10 transition group">
+                        <div class="relative flex items-center">
+                            <input type="checkbox" onchange="updateProgress()" class="peer appearance-none w-6 h-6 border-2 border-gray-500 rounded-md checked:bg-pink-500 checked:border-pink-500 transition-colors">
+                            <i class="fas fa-check absolute left-1 top-1 text-white opacity-0 peer-checked:opacity-100 text-xs pointer-events-none"></i>
+                        </div>
+                        <span class="text-gray-300 font-medium group-hover:text-white transition-colors">Sholat Tarawih</span>
+                    </label>
+                    <label class="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10 cursor-pointer hover:bg-white/10 transition group">
+                        <div class="relative flex items-center">
+                             <input type="checkbox" onchange="updateProgress()" class="peer appearance-none w-6 h-6 border-2 border-gray-500 rounded-md checked:bg-pink-500 checked:border-pink-500 transition-colors">
+                            <i class="fas fa-check absolute left-1 top-1 text-white opacity-0 peer-checked:opacity-100 text-xs pointer-events-none"></i>
+                        </div>
+                        <span class="text-gray-300 font-medium group-hover:text-white transition-colors">Tilawah 1 Juz</span>
+                    </label>
+                    <label class="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10 cursor-pointer hover:bg-white/10 transition group">
+                        <div class="relative flex items-center">
+                             <input type="checkbox" onchange="updateProgress()" class="peer appearance-none w-6 h-6 border-2 border-gray-500 rounded-md checked:bg-pink-500 checked:border-pink-500 transition-colors">
+                            <i class="fas fa-check absolute left-1 top-1 text-white opacity-0 peer-checked:opacity-100 text-xs pointer-events-none"></i>
+                        </div>
+                        <span class="text-gray-300 font-medium group-hover:text-white transition-colors">Sedekah Subuh</span>
+                    </label>
+                </div>
+
+                <button onclick="resetAmalan()" class="mt-8 w-full text-xs text-gray-500 hover:text-white underline uppercase tracking-wider">Reset Checklist Hari Ini</button>
             </div>
         </div>
     </div>
@@ -2797,6 +2787,11 @@ RAMADHAN_DASHBOARD_HTML = """
 
 <script>
     // --- RAMADHAN JS UTILS ---
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const open = '{{ open_modal }}';
+        if(open && open !== 'None') openModal(open);
+    });
     
     // CLOCK
     function updateRamadhanClock() {
@@ -3390,18 +3385,8 @@ def ramadhan_dashboard():
     kas_out = conn.execute("SELECT SUM(amount) FROM ramadhan_kas WHERE type='Pengeluaran'").fetchone()[0] or 0
     
     # 4. Tarawih Schedule
-    # Create table if not exists (double check because init_db runs on startup but we might have persistent db)
-    # Actually init_db handles creation.
-    
+    seed_ramadhan_schedule(conn)
     tarawih_schedule = conn.execute("SELECT * FROM tarawih_schedule ORDER BY night_index ASC").fetchall()
-    
-    # Pre-populate Tarawih if empty
-    if not tarawih_schedule:
-        for i in range(1, 31):
-             conn.execute("INSERT INTO tarawih_schedule (night_index, date, imam, penceramah, judul) VALUES (?, ?, ?, ?, ?)",
-                          (i, f"Ramadhan {i}", "-", "-", "-"))
-        conn.commit()
-        tarawih_schedule = conn.execute("SELECT * FROM tarawih_schedule ORDER BY night_index ASC").fetchall()
         
     conn.close()
     
@@ -3411,7 +3396,8 @@ def ramadhan_dashboard():
                                               imsakiyah_data=imsakiyah_data,
                                               ramadhan_kas_items=ramadhan_kas_items,
                                               ramadhan_kas_summary={'income': kas_in, 'out': kas_out, 'balance': kas_in - kas_out},
-                                              tarawih_schedule=tarawih_schedule)
+                                              tarawih_schedule=tarawih_schedule,
+                                              open_modal=request.args.get('open'))
 
     return render_template_string(BASE_LAYOUT, 
                                   styles=STYLES_HTML + RAMADHAN_STYLES, 
@@ -3431,7 +3417,7 @@ def ramadhan_kas_action():
         print(f"Error saving kas: {e}")
     finally:
         conn.close()
-    return redirect(url_for('ramadhan_dashboard'))
+    return redirect(url_for('ramadhan_dashboard', open='modal-kas-ramadhan'))
 
 @app.route('/ramadhan/tarawih', methods=['POST'])
 def ramadhan_tarawih_action():
@@ -3450,7 +3436,7 @@ def ramadhan_tarawih_action():
         print(f"Error saving tarawih: {e}")
     finally:
         conn.close()
-    return redirect(url_for('ramadhan_dashboard'))
+    return redirect(url_for('ramadhan_dashboard', open='modal-tarawih'))
 
 # --- IRMA ROUTES ---
 
