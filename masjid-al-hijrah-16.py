@@ -930,6 +930,18 @@ BASE_LAYOUT = """
                 if(outcome === 'accepted') {
                      document.querySelectorAll('.pwa-btn-container').forEach(el => el.classList.add('hidden'));
                 }
+            } else {
+                // Fallback for when event didn't fire (iOS, or already installed, or browser blocked it)
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                const isAndroid = /Android/.test(navigator.userAgent);
+
+                if (isIOS) {
+                    alert("Untuk menginstall di iOS:\\n1. Klik tombol Share (ikon panah ke atas/kotak)\\n2. Pilih 'Add to Home Screen' (Tambah ke Layar Utama)");
+                } else if (isAndroid) {
+                    alert("Untuk menginstall:\\n1. Klik ikon tiga titik di pojok kanan atas browser\\n2. Pilih 'Install App' atau 'Tambahkan ke Layar Utama'");
+                } else {
+                    alert("Untuk menginstall di PC/Laptop:\\nKlik ikon 'Install' (simbol monitor/panah) di bagian kanan kolom URL browser Anda.");
+                }
             }
         };
 
