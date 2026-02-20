@@ -2667,7 +2667,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 </form>
             </div>
             <div class="p-2 text-center border-b border-white/10 mb-4">
-                <button onclick="document.getElementById('tarawih-editor').classList.toggle('hidden')" class="text-xs text-purple-400 hover:text-purple-300 font-bold uppercase tracking-wider bg-purple-500/10 px-4 py-2 rounded-full border border-purple-500/20">+ Edit Jadwal (Admin)</button>
+                <button onclick="document.getElementById('tarawih-editor').classList.toggle('hidden')" class="text-xs text-purple-400 hover:text-purple-300 font-bold uppercase tracking-wider bg-purple-500/10 px-4 py-2 rounded-full border border-purple-500/20" style="display: none;">+ Edit Jadwal (Admin)</button>
             </div>
 
             <div class="overflow-hidden rounded-xl border border-white/10">
@@ -3397,9 +3397,43 @@ def ramadhan_dashboard():
     kas_out = conn.execute("SELECT SUM(amount) FROM ramadhan_kas WHERE type='Pengeluaran'").fetchone()[0] or 0
     
     # 4. Tarawih Schedule
-    seed_ramadhan_schedule(conn)
-    tarawih_schedule = conn.execute("SELECT * FROM tarawih_schedule ORDER BY night_index ASC").fetchall()
+    # seed_ramadhan_schedule(conn)
+    # tarawih_schedule = conn.execute("SELECT * FROM tarawih_schedule ORDER BY night_index ASC").fetchall()
         
+    # Hardcoded Data (Absolute)
+    tarawih_schedule = [
+        {"night_index": 1, "imam": "Ustadz M. Faisal Bulqiah", "penceramah": "Ustadz M. Faisal Bulqiah", "judul": "-"},
+        {"night_index": 2, "imam": "Ustadz H. Bunyamin LC MA", "penceramah": "Ustadz H. Bunyamin LC MA", "judul": "-"},
+        {"night_index": 3, "imam": "Ustadz H. Sutanil fadlan M. Al Hafidz", "penceramah": "Ustadz H. Sutanil fadlan M. Al Hafidz", "judul": "-"},
+        {"night_index": 4, "imam": "Ustadz Fathurrahman Al Hafidz", "penceramah": "Ustadz Fathurrahman Al Hafidz", "judul": "-"},
+        {"night_index": 5, "imam": "Ustadz H. Abdul Syakur LC MA", "penceramah": "Ustadz H. Abdul Syakur LC MA", "judul": "-"},
+        {"night_index": 6, "imam": "Ustadz Ibnu Mulkan M.Pd", "penceramah": "Ustadz Ibnu Mulkan M.Pd", "judul": "-"},
+        {"night_index": 7, "imam": "KH Muhammad Mansur", "penceramah": "KH Muhammad Mansur", "judul": "-"},
+        {"night_index": 8, "imam": "Ustadz Mahyudin S. Ag M.Pd", "penceramah": "Ustadz Mahyudin S. Ag M.Pd", "judul": "-"},
+        {"night_index": 9, "imam": "Ustadz Dr Ahmad Nur Zahrani M.Ag", "penceramah": "Ustadz Dr Ahmad Nur Zahrani M.Ag", "judul": "-"},
+        {"night_index": 10, "imam": "Ustadz Wahyu Utami L.C M. Pd", "penceramah": "Ustadz Wahyu Utami L.C M. Pd", "judul": "-"},
+        {"night_index": 11, "imam": "Ustadz Prof Dr Abdul Majid MA", "penceramah": "Ustadz Prof Dr Abdul Majid MA", "judul": "-"},
+        {"night_index": 12, "imam": "KH Azhar Qowiem M. Pd", "penceramah": "KH Azhar Qowiem M. Pd", "judul": "-"},
+        {"night_index": 13, "imam": "Ustadz Fathur Rojak", "penceramah": "Ustadz Fathur Rojak", "judul": "-"},
+        {"night_index": 14, "imam": "Ustadz Amirullah M.Ud", "penceramah": "Ustadz Amirullah M.Ud", "judul": "-"},
+        {"night_index": 15, "imam": "Ustadz H. Dr. Akmad Haries M.Si", "penceramah": "Ustadz H. Dr. Akmad Haries M.Si", "judul": "-"},
+        {"night_index": 16, "imam": "Ustadz Ahmad Nur Jamil", "penceramah": "Ustadz Ahmad Nur Jamil", "judul": "-"},
+        {"night_index": 17, "imam": "Ustadz H. Susanto L.C", "penceramah": "Ustadz H. Susanto L.C", "judul": "-"},
+        {"night_index": 18, "imam": "Ustadz Ahmad Husairi S. Pd", "penceramah": "Ustadz Ahmad Husairi S. Pd", "judul": "-"},
+        {"night_index": 19, "imam": "Ustadz M. Faisal Bulqiah", "penceramah": "Ustadz M. Faisal Bulqiah", "judul": "-"},
+        {"night_index": 20, "imam": "Ustadz Rivky Cahaya Hakiki", "penceramah": "Ustadz Rivky Cahaya Hakiki", "judul": "-"},
+        {"night_index": 21, "imam": "Ustadz Imam Syafii", "penceramah": "Ustadz Imam Syafii", "judul": "-"},
+        {"night_index": 22, "imam": "Ustadz Ahmad Subhi", "penceramah": "Ustadz Ahmad Subhi", "judul": "-"},
+        {"night_index": 23, "imam": "Ustadz Ahmad Ihsan S.Pd", "penceramah": "Ustadz Ahmad Ihsan S.Pd", "judul": "-"},
+        {"night_index": 24, "imam": "Ustadz Syahrial M.Ud", "penceramah": "Ustadz Syahrial M.Ud", "judul": "-"},
+        {"night_index": 25, "imam": "Ustadz Rivky Cahaya Hakiki", "penceramah": "Ustadz Rivky Cahaya Hakiki", "judul": "-"},
+        {"night_index": 26, "imam": "Ustadz H. Maraio L.C. M.Pd.I", "penceramah": "Ustadz H. Maraio L.C. M.Pd.I", "judul": "-"},
+        {"night_index": 27, "imam": "Ustadz H. Darmaizar LC M.Ag", "penceramah": "Ustadz H. Darmaizar LC M.Ag", "judul": "-"},
+        {"night_index": 28, "imam": "Ustadz Ahmad Jailani", "penceramah": "Ustadz Ahmad Jailani", "judul": "-"},
+        {"night_index": 29, "imam": "Ustadz Robi Ar-Rasyid", "penceramah": "Ustadz Robi Ar-Rasyid", "judul": "-"},
+        {"night_index": 30, "imam": "Ustadz Fathur Rojak", "penceramah": "Ustadz Fathur Rojak", "judul": "-"}
+    ]
+
     conn.close()
     
     # Render CONTENT first to ensure internal Jinja tags are processed
@@ -3589,20 +3623,28 @@ def manifest():
     return jsonify({
         "name": "Masjid Al Hijrah",
         "short_name": "Al Hijrah",
+        "description": "Aplikasi Masjid Al Hijrah Samarinda",
         "start_url": "/",
+        "id": "/",
+        "scope": "/",
         "display": "standalone",
+        "orientation": "portrait",
         "background_color": "#0b1026",
         "theme_color": "#FFD700",
+        "categories": ["lifestyle", "religious"],
+        "prefer_related_applications": False,
         "icons": [
             {
                 "src": "/static/logomasjidalhijrah.png",
                 "sizes": "192x192",
-                "type": "image/png"
+                "type": "image/png",
+                "purpose": "any maskable"
             },
             {
                 "src": "/static/logomasjidalhijrah.png",
                 "sizes": "512x512",
-                "type": "image/png"
+                "type": "image/png",
+                "purpose": "any maskable"
             }
         ]
     })
