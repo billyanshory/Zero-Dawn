@@ -550,24 +550,148 @@ def seed_ramadhan_schedule(conn):
                            (night, f"Ramadhan {night}", imam, penceramah, "-"))
         conn.commit()
 
-def get_takjil_data():
-    csv_file = "jadwal pembagian takjil masjid al-hijrah 2024.xlsx - Sheet1.csv"
+RAW_TAKJIL_DATA = """
+### **DATA JADWAL TAKJIL MASJID AL HIJRAH (RAMADHAN 2026)**
+
+**Hari 1 (18-Feb-26)**
+1. H.Muhtadi (RT.49), 2. La Juadi (RT.50), 3. Hariyadi (RT.51), 4. H. Hadransyah (RT.52), 5. Mukayan (RT.52), 6. Ibu Abdulah (RT.52), 7. M. Latif (RT.53), 8. Mahfud (RT.57), 9. Eko Pranoto (RT.53), 10. Hj. Elnawati (RT.49), 11. Maryono (RT.49), 12. Rindayanto (RT.50), 13. Yoyo P. (RT.55), 14. Sabran (RT.55)
+
+**Hari 2 (19-Feb-26)**
+1. H. Haryoto (RT.49), 2. Ahmad Zaidi (RT.51), 3. Ovan Iskandar (RT.51), 4. H. Kandi H. (RT.52), 5. La Nuju (RT.53), 6. Hj. Rusmiati (RT.56), 7. H. Parto Sirun (RT.56), 8. H. Asnan Alus (RT.57), 9. H. Herman (RT.49), 10. Ibu sabaruddin (RT.53), 11. Ibu sugi / muntoha (RT.52), 12. Subandi (RT.55), 13. Sofyansyah (RT.50), 14. Asmudin (RT.56)
+
+**Hari 3 (20-Feb-26)**
+1. H. Harsuji (RT.49), 2. Andre/ Landito (RT.51), 3. Najiman (RT.51), 4. Syamsu (RT.52), 5. Pak Waras (RT.55), 6. Ulil Azmi (RT.56), 7. La sidun (RT.51), 8. Hariyanto (RT.57), 9. Ibu asan basri (bengkel asa) (RT.57), 10. Bimo Sunaryo (RT.53), 11. Syaiful Bakri (RT.55), 12. La Bano (RT.53), 13. Ibu ideham dekot (RT.57), 14. Jufri (RT.52), 15. Rohmad Muslim (RT.51), 16. Boby (RT.51)
+
+**Hari 4 (21-Feb-26)**
+1. H. Mardjuni (RT.49), 2. La Bondu (RT.51), 3. Misdan (RT.51), 4. Adi Wibowo (RT.52), 5. Suyanto (RT.55), 6. H. Syamsudin Japri (RT.56), 7. Hj. M. Ishak (RT.49), 8. Suryadi (RT.52), 9. Andri (RT.57), 10. Budi Hariana (RT.55), 11. Mukhlis (RT.56), 12. Mama Daus (RT.51), 13. condro Lukito (RT.53), 14. Haludin (RT.51), 15. Aidil (RT.56), 16. Kahar (RT.57)
+
+**Hari 5 (22-Feb-26)**
+1. La Bila (RT.50), 2. Darmaji /Erna (RT.50), 3. Rusmianti (RT.51), 4. Rony Pasla (RT.52), 5. Sumoharjo (RT.53), 6. Ujianto (RT.53), 7. Jamaludin Eka (RT.56), 8. Umar Uji (RT.50), 9. Supriyansyah (RT.50), 10. H. F. Suwarno (RT.52), 11. Dr. Dedy S. (RT.49), 12. La Asri (RT.50), 13. Pak Asmin (RT.55), 14. Paiman (RT.56), 15. kastum (RT.52)
+
+**Hari 6 (23-Feb-26)**
+1. Ir. Ari Mulyadi (RT.49), 2. Sudalil (RT.52), 3. Mistono (RT.51), 4. Kasim (RT.52), 5. Dr. Randy (RT.52), 6. Yayat (RT.53), 7. Sarno (RT.55), 8. M. Taufik (RT.50), 9. Hj. Eva Paqun (RT.57), 10. La Ludu (RT.50), 11. La Komu (RT.52), 12. Sapto (RT.51), 13. Asep (RT.53), 14. Jufri (RT.52), 15. Drs. safii (RT.55)
+
+**Hari 7 (24-Feb-26)**
+1. Ir. Haryoto (RT.49), 2. Sukadi (RT.50), 3. Samingan (RT.51), 4. Mianto (RT.51), 5. Sakti (RT.57), 6. Sabar (RT.53), 7. Gunaji (RT.49), 8. La Jumadi (RT.56), 9. Rusli (RT.57), 10. Jamrah (RT.57), 11. H. Marsaid (RT.50), 12. La Jamulia (RT.56), 13. Irwanto (RT.55), 14. Rudiman /idim (RT.53), 15. Sudihardani (RT.57)
+
+**Hari 8 (25-Feb-26)**
+1. Latif (RT.56), 2. Mangin (RT.50), 3. La Jemo (RT.55), 4. Sanyoto (RT.52), 5. H. Andreas (RT.53), 6. Ahmad Adha (RT.53), 7. H. Katmidi (RT.49), 8. Agus S. (RT.56), 9. Syarifudin (RT.53), 10. sardi (RT.52), 11. Babang Legiono (RT.52), 12. Ibu sabarudin (RT.53), 13. Sri budi (RT.57), 14. La beo (RT.51), 15. La Saani (RT.51)
+
+**Hari 9 (26-Feb-26)**
+1. Sumardiansyah (RT.53), 2. Nanang / Ny. Kastun (RT.56), 3. Adi Setiawan (RT.50), 4. Ibu Erlena (RT.53), 5. La Juru (RT.53), 6. Kaslim (RT.55), 7. Wr. Magetan (RT.57), 8. H. Sugiyono (RT.57), 9. Taufik Hidayat (RT.50), 10. Supriyadi (Pak Yono) (RT.51), 11. Edy Sulistyo (RT.53), 12. Edy rusmini (RT.52), 13. H. Hamsanudin P. (RT.52), 14. La Besa (RT.53)
+
+**Hari 10 (27-Feb-26)**
+1. Ibu Heru Santoso (Alm) (RT.49), 2. Syahdan Hadib (RT.57), 3. H.Umar/La kenje (RT.51), 4. Irfan Iskandar (RT.55), 5. Margi R. (RT.52), 6. Zainudin (bladuk) (RT.53), 7. Siman (RT.55), 8. La Bango (RT.55), 9. Kris Kurniawan (RT.52), 10. Safrani (RT.50), 11. Edi ( Bapak Mia ) (RT.51), 12. Sugeng PLN (RT.51), 13. H. Lanaya (RT.50), 14. Rukayat (RT.51)
+
+**Hari 11 (28-Feb-26)**
+1. Sirun /Ipah (RT.49), 2. Tomi Libra (RT.50), 3. Untung Suparno (RT.52), 4. Wijaya (RT.53), 5. Suriansyah (RT.53), 6. Ibu asan basri (bengkel asa) (RT.57), 7. La Edi (RT.55), 8. La Mandiri (RT.55), 9. M. Latif (RT.53), 10. Rifai (RT.53), 11. paino (RT.50), 12. M. Rusli (RT.50), 13. La Mihadi (RT.51), 14. Tajuddin Djuna/ Jainal (RT.55), 15. Kahar (RT.57)
+
+**Hari 12 (1-Mar-26)**
+1. H. Syaifudin (RT.49), 2. Asrani Karim (RT.49), 3. Slamet Susanto (RT.50), 4. Erwin Donanto (RT.51), 5. Lisna Wati (RT.53), 6. Lela (RT.53), 7. Sunarto (RT.55), 8. Denok (RT.51), 9. Loso (RT.53), 10. Tony Bowo (RT.53), 11. H. Zainudin (RT.57), 12. La Bano (RT.53), 13. Agus /Dwiyanto (RT.51), 14. Adi Setiawan (RT.50), 15. La Jayani (RT.50)
+
+**Hari 13 (2-Mar-26)**
+1. Sutrisno (RT.49), 2. La Haludin (RT.55), 3. Samiin (RT.50), 4. Yoyok Ardiansyah (RT.52), 5. Ribut Setiawan (RT.57), 6. Elven Noor (RT.53), 7. Ny. Sidik (RT.55), 8. Sanjaya (RT.56), 9. Sugeng Anas (RT.57), 10. H. Firdaus (RT.53), 11. Sugeng Chairudin (RT.53), 12. Zainuri (RT.51), 13. Johan (RT.51), 14. Syamjudin (RT.55), 15. La Yanto (RT.51)
+
+**Hari 14 (3-Mar-26)**
+1. Sigit (RT.49), 2. Eka/Jeliteng Prasojo (RT.50), 3. La Japo (RT.51), 4. Jarot (RT.52), 5. Agustinawati (RT.53), 6. Mulyono Edy (RT.53), 7. Mat Rais (RT.55), 8. Legianto (RT.56), 9. La Jahali (RT.56), 10. La Mili Tale (RT.55), 11. Mulyadi (wa Pain) (RT.56), 12. La Amirudin (RT.55), 13. Wr. Magetan (RT.57), 14. sujai (RT.55), 15. Pak Asmin (RT.55)
+
+**Hari 15 (4-Mar-26)**
+1. La Suri Hamsa (RT.51), 2. Prianto (RT.49), 3. Misrun (RT.50), 4. Usman / Meti (RT.51), 5. H. Noor Hamdi (RT.52), 6. La Rumpu (RT.53), 7. Mas'ud Effendi (RT.53), 8. Subandi (RT.55), 9. La Anjo (RT.56), 10. H. Sofyan Noor (RT.57), 11. Lampero (RT.50), 12. Bambang (RT.50), 13. Siska (RT.51), 14. supriono (RT.55), 15. Boby (RT.51)
+
+**Hari 16 (5-Mar-26)**
+1. H. Muhtadi (RT.49), 2. La Juadi (RT.50), 3. H. Hadransyah (RT.52), 4. Mukayan (RT.52), 5. Ibu Abdulah (RT.52), 6. M. Ali (RT.56), 7. Mahfud (RT.57), 8. Eko Pranoto (RT.53), 9. Hj. Elnawati (RT.49), 10. Maryono (RT.49), 11. Yoyo P. (RT.55), 12. Rindayanto (RT.50), 13. Syahran (RT.56), 14. Rohmad Muslim (RT.51), 15. La sidun (RT.51)
+
+**Hari 17 (6-Mar-26)**
+1. H. Haryoto (RT.49), 2. Ahmad Zaidi (RT.51), 3. Ovan Iskandar (RT.51), 4. H. Kandi H. (RT.52), 5. La suju (RT.53), 6. Hj. Rusmiati (RT.56), 7. H. Parto Sirun (RT.56), 8. H. Asnan Alus (RT.57), 9. H. Herman (RT.49), 10. sukadi (RT.50), 11. Ibu sugi / Muntoha (RT.52), 12. Tomi Libra (RT.50), 13. Deni Wibawa (RT.50), 14. Asmudin (RT.56), 15. Sabran (RT.55)
+
+**Hari 18 (7-Mar-26)**
+1. H. Harsuji (RT.49), 2. Andre/Landito (RT.51), 3. Najiman (RT.51), 4. Syamsu (RT.52), 5. Pak Waras (RT.55), 6. Ulil Azmi (RT.56), 7. La Saani (RT.51), 8. Hariyanto (RT.57), 9. Rusli (RT.57), 10. Bimo Sunaryo (RT.53), 11. Syaiful Bakri (RT.55), 12. H. Marsaid (RT.50), 13. ibu Ideham dekot (RT.57), 14. Amiruddin (RT.56), 15. Pina/Miadi (RT.53)
+
+**Hari 19 (8-Mar-26)**
+1. H. Mardjuni (RT.49), 2. H. Lanaya (RT.50), 3. Misdan (RT.51), 4. Adi Wibowo (RT.52), 5. Suyanto (RT.55), 6. H. Syamsudin Japri (RT.56), 7. H. M. Ishak (RT.49), 8. Suryadi (RT.52), 9. Wa Pipa (RT.55), 10. Budi Hariana (RT.55), 11. Mukhlis (RT.56), 12. Mama Daus (RT.51), 13. condro Lukito (RT.53), 14. Aidil (RT.56), 15. Sudihardani (RT.57)
+
+**Hari 20 (9-Mar-26)**
+1. Dr. Indra (RT.49), 2. Darmaji/Erna (RT.50), 3. Rusmianti (RT.51), 4. Rony Pasla (RT.52), 5. La Mili Ruca (RT.53), 6. Ujianto (RT.53), 7. Jamaludin /eka (RT.56), 8. Drs. Safii (RT.55), 9. Supriyansyah (RT.50), 10. H. F. Suwarno (RT.52), 11. Dr. Dedy S. (RT.49), 12. La Asri (RT.50), 13. Porimin (RT.55), 14. Paiman (RT.56), 15. Hj. Eva Paqun (RT.57)
+
+**Hari 21 (10-Mar-26)**
+1. Ir. Ari Mulyadi (RT.49), 2. Sudalil (RT.52), 3. Mistono (RT.51), 4. Kasim (RT.52), 5. Dr. Randy (RT.52), 6. Yayat (RT.53), 7. Sarno (RT.55), 8. La Rilu (RT.55), 9. La Yare (RT.55), 10. La Bila (RT.50), 11. La Komu (RT.52), 12. Sapto (RT.51), 13. Asep (RT.53), 14. Haludin (RT.51), 15. Jupi (RT.52)
+
+**Hari 22 (11-Mar-26)**
+1. Ir. Haryoto (RT.49), 2. Kris Kurniawan (RT.52), 3. Samingan (RT.51), 4. Agustinawati (RT.53), 5. Sakti (RT.57), 6. Sabar (RT.53), 7. Rudin Lapandewa (RT.53), 8. La Jumadi (RT.56), 9. Mianto (RT.51), 10. Jamrah (RT.57), 11. Hariyadi (RT.51), 12. La Jamulia (RT.56), 13. Irwanto (RT.55), 14. Rudiman /idim (RT.53), 15. Mulyadi (wa Pain) (RT.56)
+
+**Hari 23 (12-Mar-26)**
+1. Latif (RT.56), 2. Mangin (RT.50), 3. La Jemo (RT.55), 4. Sanyoto (RT.52), 5. H. Andreas (RT.53), 6. Ahmad Adha (RT.53), 7. La beo (RT.51), 8. Agus S. (RT.56), 9. Syarifudin (RT.53), 10. Sardi (RT.52), 11. Bambang Legiono (RT.52), 12. Slamet Susanto (RT.50), 13. Sri budi (RT.57), 14. Sugeng PLN (RT.51), 15. Kastum (RT.52)
+
+**Hari 24 (13-Mar-26)**
+1. La Piy (RT.53), 2. Nanang / Ny. Kastun (RT.56), 3. La Sani (RT.55), 4. Ibu Erlena (RT.53), 5. Sedek Buton (RT.53), 6. Syahran (RT.56), 7. H. Sugiyono (RT.57), 8. La pudin (RT.50), 9. Supriyadi (Pak Yono) (RT.51), 10. Syarif Rahman (RT.52), 11. Edy Sulistyo (RT.53), 12. Edy rusmini (RT.52), 13. H. Hamsanudin P. (RT.52), 14. Joko (kunci) (RT.56), 15. Suprianto (RT.55)
+
+**Hari 25 (14-Mar-26)**
+1. Ibu Heru Santoso (Alm) (RT.49), 2. H. Syahdan Hadib (RT.57), 3. H.Umar/La kenje (RT.51), 4. Irfan Iskandar (RT.55), 5. Margi R. (RT.52), 6. Zainudin (bladuk) (RT.53), 7. Siman (RT.55), 8. La Wardi (RT.55), 9. Yando (RT.52), 10. Safrani (RT.50), 11. Edi (bapak Mia) (RT.51), 12. Sulistio (RT.51), 13. La Ami Arni (RT.55), 14. Rukayat (RT.51), 15. paino (RT.50)
+
+**Hari 26 (15-Mar-26)**
+1. Sirun /ipah (RT.49), 2. Umar Uji (RT.50), 3. Untung Suparno (RT.52), 4. Roby Hermawan (RT.53), 5. Suriansyah (RT.53), 6. Syamjudin (RT.55), 7. La Edi (RT.55), 8. Wa Pipa (RT.55), 9. La Bondu (RT.51), 10. Rifai (RT.53), 11. M. Rusli (RT.50), 12. La Mihadi (RT.51), 13. Tajuddin Djuna/Jainal (RT.55), 14. suprio (RT.55), 15. Tony Bowo (RT.53)
+
+**Hari 27 (16-Mar-26)**
+1. H. Syaifudin (RT.49), 2. Asrani Karim (RT.49), 3. Sofyansyah (RT.50), 4. Erwin Donanto (RT.51), 5. Lisna Wati (RT.53), 6. Lela (RT.53), 7. Sunarto (RT.55), 8. Denok (RT.51), 9. Loso (RT.53), 10. Pak Bibit (RT.50), 11. H. Zainudin (RT.57), 12. Deni Wibawa (RT.50), 13. Agus dwiyanto (RT.51), 14. Yuliansah (RT.50), 15. Gunawan (RT.50)
+
+**Hari 28 (17-Mar-26)**
+1. Sutrisno (RT.49), 2. La Haludin (RT.55), 3. Johan (RT.51), 4. Yoyok Ardiansyah (RT.52), 5. Ribut Setiawan (RT.57), 6. La Besa (RT.53), 7. Ny. Sidik (RT.55), 8. Sanjaya (RT.56), 9. Sugeng Anas (RT.57), 10. H. Firdaus (RT.53), 11. Sugeng Chairudin (RT.53), 12. Zainuri (RT.51), 13. La Bango (RT.55), 14. La Yanto (RT.51), 15. Joko (kunci) (RT.56)
+
+**Hari 29 (18-Mar-26)**
+1. Sigit (RT.49), 2. Eka/ Jeliteng (RT.50), 3. La Japo (RT.51), 4. Jarot (RT.52), 5. La Jayani (RT.50), 6. Mulyono Edy (RT.53), 7. Mat Rais (RT.55), 8. Legianto (RT.56), 9. La Jahali (RT.56), 10. H. Sofyan Noor (RT.57), 11. Aril (RT.51), 12. La Anjo (RT.56), 13. Jupi (RT.52), 14. sujai (RT.55), 15. Yando (RT.52)
+
+**Hari 30 (19-Mar-26)**
+1. La Suri Hamsa (RT.51), 2. Ibu Edy Heflin (RT.49), 3. Misrun (RT.50), 4. Usman / Meti (RT.51), 5. H. Noor Hamdi (RT.52), 6. La Rumpu (RT.53), 7. Mas'ud Effendi (RT.53), 8. suprio (RT.55), 9. Mulyono (RT.56), 10. Andri (RT.57), 11. Lampero (RT.50), 12. Bambang (RT.50), 13. Siska (RT.51), 14. Wijaya (RT.53), 15. La pudin (RT.50)
+"""
+
+def parse_takjil_data():
     data = []
-    try:
-        with open(csv_file, mode='r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                # Ensure we have the needed columns, handle missing keys gracefully
+    import re
+
+    current_date = None
+
+    # Split by newlines
+    lines = RAW_TAKJIL_DATA.strip().split('\n')
+
+    for line in lines:
+        line = line.strip()
+        if not line: continue
+
+        # Check for Date Header: **Hari 1 (18-Feb-26)**
+        date_match = re.search(r'\((.*?)\)', line)
+        if line.startswith('**Hari') and date_match:
+            current_date = date_match.group(1)
+            continue
+
+        # Parse items: 1. Name (RT), 2. Name (RT)
+        # We split by comma followed by number and dot: ", \d+\."
+        # Or simpler: split by regex ", (?=\d+\.)"
+
+        if current_date:
+            items = re.split(r', (?=\d+\.)', line)
+            for item in items:
+                # Format: "1. Name (RT)" or "1. Name"
+                # Remove number prefix
+                item = re.sub(r'^\d+\.\s*', '', item)
+
+                # Extract RT if exists
+                rt_match = re.search(r'\((.*?)\)$', item)
+                if rt_match:
+                    rt = rt_match.group(1)
+                    name = item.replace(f'({rt})', '').strip()
+                else:
+                    rt = '-'
+                    name = item.strip()
+
                 data.append({
-                    'Tanggal': row.get('Tanggal', '-'),
-                    'Nama': row.get('Nama', 'Hamba Allah'),
-                    'Ket.': row.get('Ket.', '-')
+                    'Tanggal': current_date,
+                    'Nama': name,
+                    'Ket.': rt
                 })
-    except FileNotFoundError:
-        print("CSV Takjil not found.")
-    except Exception as e:
-        print(f"Error reading CSV: {e}")
     return data
+
+def get_takjil_data():
+    return parse_takjil_data()
 
 def get_imsakiyah_schedule():
     schedule = []
@@ -764,7 +888,7 @@ BASE_LAYOUT = """
     {% endif %}
 
     <!-- CONTENT -->
-    <main class="min-h-screen relative w-full max-w-md md:max-w-7xl mx-auto bg-[#F8FAFC]">
+    <main class="min-h-screen relative w-full {{ 'max-w-md md:max-w-7xl mx-auto bg-[#F8FAFC]' if not full_width else '' }}">
         {{ content|safe }}
     </main>
 
@@ -2377,42 +2501,60 @@ RAMADHAN_DASHBOARD_HTML = """
 
     <div class="px-5 md:px-8 max-w-7xl mx-auto relative z-10">
         
-        <!-- PRAYER TIMES CARD -->
-        <div class="bg-[#151e3f] rounded-3xl p-6 md:p-8 text-white shadow-2xl border border-white/5 relative overflow-hidden mb-10 group">
-            <div class="absolute top-0 right-0 opacity-5 transform translate-x-10 -translate-y-10 transition-transform duration-700 group-hover:scale-110">
-                <i class="fas fa-kaaba text-[10rem]"></i>
-            </div>
-            <div class="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
-                <div class="text-center md:text-left">
-                    <p class="text-gold text-xs font-bold uppercase tracking-widest mb-2">Jadwal Sholat Hari Ini</p>
-                    <h2 class="text-5xl font-bold font-mono tracking-tighter text-white drop-shadow-lg" id="ramadhan-clock">--:--</h2>
-                    <p class="text-sm text-gray-400 mt-2 flex items-center justify-center md:justify-start gap-2"><i class="fas fa-map-marker-alt text-gold"></i> Samarinda, Kalimantan Timur</p>
+        <!-- SPLIT HEADER -->
+        <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-10">
+
+             <!-- LEFT: WELCOME -->
+             <div class="hidden md:block pl-2">
+                <p class="text-xl text-gray-400 font-medium mb-2">Assalamualaikum Warahmatullahi Wabarakatuh</p>
+                <h1 class="text-5xl font-bold text-white leading-tight mb-6">Selamat Datang di<br>Masjid Al Hijrah</h1>
+                <p class="text-gray-300 text-lg leading-relaxed mb-8">
+                    Sambut Ramadhan dengan Hati yang Suci. Mari hidupkan malam dengan Tarawih, tadarus Al-Quran, dan berbagi kebahagiaan melalui Infaq dan Takjil.
+                </p>
+                <div class="flex gap-4">
+                    <button onclick="openModal('modal-tarawih')" class="bg-gold text-midnight px-8 py-3 rounded-full font-bold shadow-lg hover:bg-white transition transform hover:scale-105">Lihat Agenda</button>
+                    <a href="/donate" class="bg-transparent text-gold border-2 border-gold px-8 py-3 rounded-full font-bold hover:bg-gold hover:text-midnight transition transform hover:scale-105">Infaq Sekarang</a>
                 </div>
-                
-                <div class="grid grid-cols-5 gap-2 md:gap-4 w-full md:w-auto">
-                     <!-- Times -->
-                     <div class="bg-[#0b1026] p-3 rounded-2xl text-center border border-white/5">
-                        <span class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Subuh</span>
-                        <span class="font-bold font-mono text-gold" id="r-fajr">--:--</span>
-                     </div>
-                     <div class="bg-[#0b1026] p-3 rounded-2xl text-center border border-white/5">
-                        <span class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Dzuhur</span>
-                        <span class="font-bold font-mono text-white" id="r-dhuhr">--:--</span>
-                     </div>
-                     <div class="bg-[#0b1026] p-3 rounded-2xl text-center border border-white/5">
-                        <span class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Ashar</span>
-                        <span class="font-bold font-mono text-white" id="r-asr">--:--</span>
-                     </div>
-                     <div class="bg-gold p-3 rounded-2xl text-center shadow-lg shadow-gold/20 transform scale-110 z-10">
-                        <span class="block text-[10px] text-[#0b1026] uppercase font-extrabold mb-1">Maghrib</span>
-                        <span class="font-bold font-mono text-[#0b1026]" id="r-maghrib">--:--</span>
-                     </div>
-                     <div class="bg-[#0b1026] p-3 rounded-2xl text-center border border-white/5">
-                        <span class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Isya</span>
-                        <span class="font-bold font-mono text-white" id="r-isha">--:--</span>
-                     </div>
+             </div>
+
+             <!-- RIGHT: PRAYER CARD -->
+             <div>
+                <div class="bg-[#151e3f] rounded-3xl p-6 md:p-8 text-white shadow-2xl border border-white/5 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 opacity-5 transform translate-x-10 -translate-y-10 transition-transform duration-700 group-hover:scale-110">
+                        <i class="fas fa-kaaba text-[10rem]"></i>
+                    </div>
+                    <div class="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div class="text-center md:text-left">
+                            <p class="text-gold text-xs font-bold uppercase tracking-widest mb-2">Jadwal Sholat Hari Ini</p>
+                            <h2 class="text-5xl font-bold font-mono tracking-tighter text-white drop-shadow-lg" id="ramadhan-clock">--:--</h2>
+                            <p class="text-sm text-gray-400 mt-2 flex items-center justify-center md:justify-start gap-2"><i class="fas fa-map-marker-alt text-gold"></i> Samarinda, Kalimantan Timur</p>
+                        </div>
+
+                        <div class="grid grid-cols-5 gap-2 md:gap-4 w-full md:w-auto">
+                             <div class="bg-[#0b1026] p-3 rounded-2xl text-center border border-white/5">
+                                <span class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Subuh</span>
+                                <span class="font-bold font-mono text-gold" id="r-fajr">--:--</span>
+                             </div>
+                             <div class="bg-[#0b1026] p-3 rounded-2xl text-center border border-white/5">
+                                <span class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Dzuhur</span>
+                                <span class="font-bold font-mono text-white" id="r-dhuhr">--:--</span>
+                             </div>
+                             <div class="bg-[#0b1026] p-3 rounded-2xl text-center border border-white/5">
+                                <span class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Ashar</span>
+                                <span class="font-bold font-mono text-white" id="r-asr">--:--</span>
+                             </div>
+                             <div class="bg-gold p-3 rounded-2xl text-center shadow-lg shadow-gold/20 transform scale-110 z-10">
+                                <span class="block text-[10px] text-[#0b1026] uppercase font-extrabold mb-1">Maghrib</span>
+                                <span class="font-bold font-mono text-[#0b1026]" id="r-maghrib">--:--</span>
+                             </div>
+                             <div class="bg-[#0b1026] p-3 rounded-2xl text-center border border-white/5">
+                                <span class="block text-[10px] text-gray-500 uppercase font-bold mb-1">Isya</span>
+                                <span class="font-bold font-mono text-white" id="r-isha">--:--</span>
+                             </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+             </div>
         </div>
 
         <!-- MENU GRID -->
@@ -3037,24 +3179,43 @@ IRMA_STYLES = """
 IRMA_DASHBOARD_HTML = """
 <div class="pt-24 pb-32 px-5 md:px-8 bg-[#F4E7E1] min-h-screen">
     
-    <!-- PRAYER CARD (Standard Logic, Sage Theme) -->
-    <div class="bg-gradient-to-br from-[#A0B391] to-[#8DA57B] rounded-3xl p-6 md:p-10 text-white shadow-xl relative overflow-hidden transform md:hover:scale-[1.02] transition-transform duration-500 mb-8 border border-white/20">
-        <div class="absolute top-0 right-0 opacity-10 transform translate-x-4 -translate-y-4">
-            <i class="fas fa-mosque text-9xl"></i>
-        </div>
-        <div class="relative z-10">
-            <p class="text-xs font-medium opacity-80 mb-1 tracking-wide uppercase">Waktu Sholat Berikutnya</p>
-            <h2 class="text-4xl font-bold mb-3" id="next-prayer-name">--:--</h2>
-            <div class="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 inline-block mb-6 border border-white/10">
-                <span class="font-mono text-2xl font-bold tracking-wider" id="countdown-timer">--:--:--</span>
+    <!-- SPLIT HEADER -->
+    <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-10">
+
+        <!-- LEFT: WELCOME -->
+        <div class="hidden md:block pl-2">
+            <p class="text-xl text-gray-500 font-medium mb-2">Assalamualaikum Warahmatullahi Wabarakatuh</p>
+            <h1 class="text-5xl font-bold text-[#2F4F4F] leading-tight mb-6">Selamat Datang di<br>IRMA Masjid Al Hijrah</h1>
+            <p class="text-gray-600 text-lg leading-relaxed mb-8">
+                Wadah Pemuda Pemudi Kreatif dan Islami. Mari bersama membangun generasi Rabbani yang produktif, berakhlak mulia, dan bermanfaat bagi umat.
+            </p>
+            <div class="flex gap-4">
+                <button onclick="openModal('modal-events')" class="bg-[#A0B391] text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-[#8DA57B] transition transform hover:scale-105">Lihat Proker</button>
+                <button onclick="openModal('modal-join')" class="bg-transparent text-[#A0B391] border-2 border-[#A0B391] px-8 py-3 rounded-full font-bold hover:bg-[#A0B391] hover:text-white transition transform hover:scale-105">Gabung Sekarang</button>
             </div>
-            
-            <div class="grid grid-cols-5 gap-1 text-center text-xs opacity-90 border-t border-white/20 pt-4">
-                <div><div class="font-semibold mb-1">Subuh</div><div id="fajr-time" class="font-mono">--:--</div></div>
-                <div><div class="font-semibold mb-1">Dzuhur</div><div id="dhuhr-time" class="font-mono">--:--</div></div>
-                <div><div class="font-semibold mb-1">Ashar</div><div id="asr-time" class="font-mono">--:--</div></div>
-                <div><div class="font-semibold mb-1">Maghrib</div><div id="maghrib-time" class="font-mono">--:--</div></div>
-                <div><div class="font-semibold mb-1">Isya</div><div id="isha-time" class="font-mono">--:--</div></div>
+        </div>
+
+        <!-- RIGHT: PRAYER CARD -->
+        <div>
+            <div class="bg-gradient-to-br from-[#A0B391] to-[#8DA57B] rounded-3xl p-6 md:p-10 text-white shadow-xl relative overflow-hidden transform md:hover:scale-[1.02] transition-transform duration-500 border border-white/20">
+                <div class="absolute top-0 right-0 opacity-10 transform translate-x-4 -translate-y-4">
+                    <i class="fas fa-mosque text-9xl"></i>
+                </div>
+                <div class="relative z-10">
+                    <p class="text-xs font-medium opacity-80 mb-1 tracking-wide uppercase">Waktu Sholat Berikutnya</p>
+                    <h2 class="text-4xl font-bold mb-3" id="next-prayer-name">--:--</h2>
+                    <div class="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 inline-block mb-6 border border-white/10">
+                        <span class="font-mono text-2xl font-bold tracking-wider" id="countdown-timer">--:--:--</span>
+                    </div>
+
+                    <div class="grid grid-cols-5 gap-1 text-center text-xs opacity-90 border-t border-white/20 pt-4">
+                        <div><div class="font-semibold mb-1">Subuh</div><div id="fajr-time" class="font-mono">--:--</div></div>
+                        <div><div class="font-semibold mb-1">Dzuhur</div><div id="dhuhr-time" class="font-mono">--:--</div></div>
+                        <div><div class="font-semibold mb-1">Ashar</div><div id="asr-time" class="font-mono">--:--</div></div>
+                        <div><div class="font-semibold mb-1">Maghrib</div><div id="maghrib-time" class="font-mono">--:--</div></div>
+                        <div><div class="font-semibold mb-1">Isya</div><div id="isha-time" class="font-mono">--:--</div></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -3449,7 +3610,8 @@ def ramadhan_dashboard():
                                   styles=STYLES_HTML + RAMADHAN_STYLES, 
                                   active_page='ramadhan', 
                                   content=rendered_content,
-                                  hide_nav=True)
+                                  hide_nav=True,
+                                  full_width=True)
 
 @app.route('/ramadhan/kas', methods=['POST'])
 def ramadhan_kas_action():
@@ -3540,7 +3702,8 @@ def irma_dashboard():
                                                                  gallery_list=gallery_list,
                                                                  proker_list=proker_list,
                                                                  curhat_list=curhat_list,
-                                                                 open_modal=open_modal))
+                                                                 open_modal=open_modal),
+                                  full_width=True)
 
 @app.route('/irma/schedule', methods=['POST'])
 def irma_schedule():
