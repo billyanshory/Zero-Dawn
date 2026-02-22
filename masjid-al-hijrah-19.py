@@ -253,6 +253,16 @@ def init_db():
         c.execute('ALTER TABLE irma_members ADD COLUMN wa_number TEXT')
     except sqlite3.OperationalError:
         pass
+
+    # 20. Epilepsi Log (Terapi Digital)
+    c.execute('''CREATE TABLE IF NOT EXISTS epilepsi_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        time TEXT NOT NULL,
+        trigger TEXT NOT NULL,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
     
     conn.commit()
     conn.close()
@@ -1256,6 +1266,59 @@ HOME_HTML = """
         </a>
     </div>
 
+    <!-- TERAPI SECTION -->
+    <div class="mb-8">
+        <button onclick="toggleTerapi()" class="w-full bg-white p-6 rounded-3xl shadow-lg border border-blue-50 flex justify-between items-center group hover:bg-blue-50 transition-all duration-500">
+            <div class="flex items-center gap-4">
+                <div class="bg-blue-100 p-3 rounded-xl text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors shadow-sm">
+                    <i class="fas fa-heartbeat text-2xl"></i>
+                </div>
+                <div class="text-left">
+                    <h3 class="text-lg font-bold text-gray-800 group-hover:text-blue-700 border-l-4 border-blue-500 pl-3">Terapi</h3>
+                    <p class="text-xs text-gray-500 font-medium pl-3">Bantuan Kesehatan & Epilepsi</p>
+                </div>
+            </div>
+            <div id="terapi-chevron" class="bg-gray-50 w-10 h-10 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-blue-500 transition-all duration-500">
+                 <i class="fas fa-chevron-down transform transition-transform duration-500"></i>
+            </div>
+        </button>
+
+        <div id="terapi-content" class="hidden mt-6 transition-all duration-1000 ease-in-out opacity-0 -translate-y-4">
+             <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                 <!-- 1. Audio Healing -->
+                 <button onclick="openModal('modal-terapi-audio')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
+                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-music"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Terapi Suara</span>
+                 </button>
+                 <!-- 2. Latihan Napas -->
+                 <button onclick="startBreathing()" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
+                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-lungs"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Latihan Napas</span>
+                 </button>
+                 <!-- 3. Sleep Monitor -->
+                 <button onclick="openModal('modal-terapi-tidur')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
+                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-bed"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Tracker Tidur</span>
+                 </button>
+                 <!-- 4. Seizure Log -->
+                 <button onclick="openModal('modal-terapi-log')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
+                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-file-medical"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Jurnal Kejang</span>
+                 </button>
+                 <!-- 5. Medication Alarm -->
+                 <button onclick="openModal('modal-terapi-alarm')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
+                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-capsules"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Alarm Obat</span>
+                 </button>
+                 <!-- 6. Diet Keton -->
+                 <button onclick="openModal('modal-terapi-diet')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
+                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-apple-alt"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Diet Keton</span>
+                 </button>
+             </div>
+        </div>
+    </div>
+
     <!-- SEPARATOR -->
     <div class="h-8"></div>
 
@@ -1331,6 +1394,222 @@ HOME_HTML = """
     </div>
 
     <!-- MODALS -->
+
+    <!-- Modal Terapi Audio -->
+    <div id="modal-terapi-audio" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-terapi-audio')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-music text-blue-500 mr-2"></i>Terapi Suara</h3>
+                <button onclick="closeModal('modal-terapi-audio')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <p class="text-sm text-gray-600 bg-blue-50 p-3 rounded-xl border border-blue-100">
+                    <i class="fas fa-info-circle mr-1"></i> Dengarkan 15 menit untuk menstabilkan gelombang otak.
+                </p>
+                <div class="space-y-3">
+                    <div class="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-gray-100">
+                        <span class="font-bold text-gray-700 text-sm">Frekuensi Alpha</span>
+                        <button onclick="playAudio('alpha')" class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors"><i class="fas fa-play"></i></button>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-gray-100">
+                        <span class="font-bold text-gray-700 text-sm">Mozart K.448</span>
+                        <button onclick="playAudio('mozart')" class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors"><i class="fas fa-play"></i></button>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-gray-100">
+                        <span class="font-bold text-gray-700 text-sm">Murattal Relaksasi</span>
+                        <button onclick="playAudio('murattal')" class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors"><i class="fas fa-play"></i></button>
+                    </div>
+                </div>
+                <audio id="audio-player" class="hidden"></audio>
+                <div id="now-playing" class="hidden text-center text-xs text-blue-500 font-bold mt-2">Sedang Memutar...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Terapi Napas -->
+    <div id="modal-terapi-napas" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-blue-900/95 backdrop-blur-md transition-opacity" onclick="stopBreathing(); closeModal('modal-terapi-napas')"></div>
+        <div class="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
+            <h3 class="text-2xl font-bold text-white mb-12 opacity-90">Latihan Napas</h3>
+            <div class="relative flex items-center justify-center w-80 h-80">
+                <div id="breath-circle" class="w-32 h-32 bg-blue-300/30 rounded-full absolute"></div>
+                <div class="w-32 h-32 bg-white rounded-full flex items-center justify-center relative z-20 shadow-[0_0_50px_rgba(255,255,255,0.3)]">
+                    <span id="breath-text" class="text-blue-600 font-bold text-xl">Mulai</span>
+                </div>
+            </div>
+            <p class="text-white/70 text-sm mt-12 max-w-xs text-center">Ikuti instruksi. Fokus pada lingkaran.</p>
+            <button onclick="stopBreathing(); closeModal('modal-terapi-napas')" class="mt-8 bg-white/20 text-white px-6 py-2 rounded-full hover:bg-white/30 pointer-events-auto backdrop-blur-sm border border-white/10">Selesai</button>
+        </div>
+    </div>
+
+    <!-- Modal Terapi Tidur -->
+    <div id="modal-terapi-tidur" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-terapi-tidur')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-bed text-blue-500 mr-2"></i>Tracker Tidur</h3>
+                <button onclick="closeModal('modal-terapi-tidur')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
+            </div>
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-bold text-gray-600 mb-2">Berapa jam Anda tidur semalam?</label>
+                    <input type="number" id="sleep-hours" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-center text-2xl font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="0">
+                </div>
+                <button onclick="checkSleep()" class="w-full bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-600 transition">Cek Kondisi</button>
+                <div id="sleep-result" class="hidden p-4 rounded-xl border text-sm"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Seizure Log -->
+    <div id="modal-terapi-log" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-terapi-log')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-file-medical text-blue-500 mr-2"></i>Jurnal Kejang</h3>
+                <button onclick="closeModal('modal-terapi-log')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
+            </div>
+
+            <form action="/therapy/log" method="POST" class="space-y-4 mb-8 bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Tanggal</label>
+                        <input type="date" name="date" class="w-full bg-white border border-blue-100 rounded-xl p-2 text-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Jam</label>
+                        <input type="time" name="time" class="w-full bg-white border border-blue-100 rounded-xl p-2 text-sm" required>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Pemicu</label>
+                    <select name="trigger" class="w-full bg-white border border-blue-100 rounded-xl p-2 text-sm">
+                        <option value="Stres">Stres / Cemas</option>
+                        <option value="Kurang Tidur">Kurang Tidur</option>
+                        <option value="Lupa Obat">Lupa Minum Obat</option>
+                        <option value="Silau">Cahaya Silau / Berkedip</option>
+                        <option value="Kelelahan">Kelelahan Fisik</option>
+                        <option value="Lainnya">Lainnya</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Catatan Tambahan</label>
+                    <input type="text" name="notes" placeholder="Durasi, kondisi setelahnya..." class="w-full bg-white border border-blue-100 rounded-xl p-2 text-sm">
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-600 transition">Simpan Laporan</button>
+            </form>
+
+            <h4 class="text-sm font-bold text-gray-800 mb-4 pl-2 border-l-4 border-blue-500">Riwayat Terakhir</h4>
+            <div class="space-y-3">
+                {% for log in epilepsi_logs %}
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-start">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{{ log['date'] }}</span>
+                            <span class="text-xs text-gray-400">{{ log['time'] }}</span>
+                        </div>
+                        <p class="text-sm font-bold text-gray-800">{{ log['trigger'] }}</p>
+                        {% if log['notes'] %}<p class="text-xs text-gray-500 mt-1 italic">"{{ log['notes'] }}"</p>{% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-center text-gray-400 text-xs py-4">Belum ada data rekaman.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Medication Alarm -->
+    <div id="modal-terapi-alarm" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-terapi-alarm')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-capsules text-blue-500 mr-2"></i>Alarm Obat</h3>
+                <button onclick="closeModal('modal-terapi-alarm')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
+            </div>
+
+            <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100 mb-6">
+                <p class="text-sm text-gray-700 mb-3 font-medium">Set Jam Minum Obat:</p>
+                <div class="flex gap-4">
+                    <input type="time" id="alarm-time-1" class="w-full p-3 rounded-xl border border-blue-200 focus:outline-none" value="07:00">
+                    <input type="time" id="alarm-time-2" class="w-full p-3 rounded-xl border border-blue-200 focus:outline-none" value="19:00">
+                </div>
+                <button onclick="saveAlarm()" class="mt-3 w-full bg-blue-500 text-white text-xs font-bold py-2 rounded-lg hover:bg-blue-600 transition">Simpan Pengaturan</button>
+                <p id="alarm-status" class="text-xs text-green-600 mt-2 hidden text-center font-bold">Alarm Aktif!</p>
+            </div>
+
+            <p class="text-xs text-gray-500 text-center">
+                Alarm akan mengunci layar dan meminta Anda menyelesaikan soal matematika untuk memastikan Anda bangun.
+            </p>
+        </div>
+    </div>
+
+    <!-- LOCKED ALARM SCREEN (Hidden by default) -->
+    <div id="alarm-lock-screen" class="fixed inset-0 z-[150] bg-red-600 text-white flex flex-col items-center justify-center hidden p-8">
+        <i class="fas fa-bell text-6xl mb-6 animate-bounce"></i>
+        <h2 class="text-4xl font-bold mb-2">Waktunya Obat!</h2>
+        <p class="mb-8 text-white/80">Selesaikan soal untuk mematikan alarm.</p>
+
+        <div class="bg-white text-gray-800 p-6 rounded-3xl w-full max-w-xs text-center shadow-2xl">
+            <p class="text-2xl font-bold mb-4" id="math-problem">5 + 7 = ?</p>
+            <input type="number" id="math-answer" class="w-full p-3 border-2 border-gray-300 rounded-xl text-center text-xl mb-4" placeholder="Jawab...">
+            <button onclick="checkMath()" class="w-full bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700">Matikan Alarm</button>
+        </div>
+    </div>
+
+    <!-- Modal Diet Keton -->
+    <div id="modal-terapi-diet" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-terapi-diet')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-apple-alt text-blue-500 mr-2"></i>Panduan Diet & Puasa</h3>
+                <button onclick="closeModal('modal-terapi-diet')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
+            </div>
+
+            <div class="space-y-6">
+                <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl p-5 text-white shadow-lg">
+                    <h4 class="font-bold text-lg mb-1">Puasa Sunnah</h4>
+                    <p class="text-xs opacity-90 mb-3">Puasa membantu menstabilkan aktivitas listrik otak (neuroprotektif).</p>
+                    <div class="bg-white/20 rounded-xl p-3 text-sm font-medium backdrop-blur-sm">
+                        <i class="fas fa-calendar-check mr-2"></i> Jadwal Terdekat: Senin & Kamis
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-gray-800 mb-3 border-l-4 border-green-500 pl-2">Diet Ketogenik (Rendah Karbo)</h4>
+                    <p class="text-sm text-gray-600 mb-4 leading-relaxed">
+                        Diet tinggi lemak dan sangat rendah karbohidrat terbukti efektif mengurangi frekuensi kejang.
+                    </p>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-green-50 p-3 rounded-xl border border-green-100">
+                            <p class="text-xs font-bold text-green-700 uppercase mb-2">Dianjurkan <i class="fas fa-check float-right"></i></p>
+                            <ul class="text-xs text-gray-600 space-y-1">
+                                <li>• Alpukat</li>
+                                <li>• Minyak Zaitun/Kelapa</li>
+                                <li>• Ikan & Telur</li>
+                                <li>• Sayuran Hijau</li>
+                            </ul>
+                        </div>
+                        <div class="bg-red-50 p-3 rounded-xl border border-red-100">
+                            <p class="text-xs font-bold text-red-700 uppercase mb-2">Hindari <i class="fas fa-times float-right"></i></p>
+                            <ul class="text-xs text-gray-600 space-y-1">
+                                <li>• Gula Pasir</li>
+                                <li>• Nasi Putih (Kurangi)</li>
+                                <li>• Roti & Tepung</li>
+                                <li>• Minuman Manis</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-xl text-xs text-gray-500 italic border border-gray-200">
+                    <i class="fas fa-info-circle mr-1"></i> Konsultasikan dengan dokter gizi sebelum mengubah pola makan secara drastis.
+                </div>
+            </div>
+        </div>
+    </div>
     
     <!-- Modal Waris -->
     <div id="modal-waris" class="fixed inset-0 z-[100] hidden">
@@ -1543,6 +1822,181 @@ HOME_HTML = """
     <script>
         let currentExplanation = {};
 
+        function toggleTerapi() {
+            const content = document.getElementById('terapi-content');
+            const chevron = document.querySelector('#terapi-chevron i');
+
+            if (content.classList.contains('hidden')) {
+                // Open
+                content.classList.remove('hidden');
+                setTimeout(() => {
+                    content.classList.remove('opacity-0', '-translate-y-4');
+                    content.classList.add('opacity-100', 'translate-y-0');
+                }, 20);
+                chevron.classList.add('rotate-180');
+            } else {
+                // Close
+                content.classList.remove('opacity-100', 'translate-y-0');
+                content.classList.add('opacity-0', '-translate-y-4');
+                chevron.classList.remove('rotate-180');
+
+                setTimeout(() => {
+                    content.classList.add('hidden');
+                }, 1000);
+            }
+        }
+
+        // --- TERAPI DIGITAL LOGIC ---
+
+        // 1. Audio Healing
+        let audio = null;
+        function playAudio(type) {
+            const player = document.getElementById('audio-player');
+            const status = document.getElementById('now-playing');
+
+            // Dummy URLs
+            const sources = {
+                'alpha': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+                'mozart': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+                'murattal': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3'
+            };
+
+            if(audio) {
+                audio.pause();
+            }
+
+            audio = new Audio(sources[type]);
+            audio.play();
+            status.innerText = "Sedang Memutar: " + type.toUpperCase();
+            status.classList.remove('hidden');
+        }
+
+        // 2. Breathing Exercise
+        let breathInterval = null;
+        function startBreathing() {
+            openModal('modal-terapi-napas');
+            const circle = document.getElementById('breath-circle');
+            const text = document.getElementById('breath-text');
+
+            // Reset
+            circle.style.transition = 'none';
+            circle.style.transform = 'scale(1)';
+            text.innerText = "Mulai";
+
+            setTimeout(() => {
+                runCycle();
+                breathInterval = setInterval(runCycle, 12000); // 4+2+6 = 12s
+            }, 500);
+
+            function runCycle() {
+                // Inhale (4s)
+                text.innerText = "Tarik Napas";
+                circle.style.transition = 'transform 4s ease-in-out';
+                circle.style.transform = 'scale(2.5)';
+
+                setTimeout(() => {
+                    // Hold (2s)
+                    text.innerText = "Tahan";
+
+                    setTimeout(() => {
+                        // Exhale (6s)
+                        text.innerText = "Hembuskan";
+                        circle.style.transition = 'transform 6s ease-in-out';
+                        circle.style.transform = 'scale(1)';
+                    }, 2000);
+
+                }, 4000);
+            }
+        }
+
+        function stopBreathing() {
+            if(breathInterval) clearInterval(breathInterval);
+            const circle = document.getElementById('breath-circle');
+            if(circle) circle.style.transform = 'scale(1)';
+        }
+
+        // 3. Sleep Tracker
+        function checkSleep() {
+            const hours = parseFloat(document.getElementById('sleep-hours').value);
+            const resDiv = document.getElementById('sleep-result');
+            resDiv.classList.remove('hidden');
+
+            if (!hours) return;
+
+            if (hours < 6) {
+                resDiv.className = "mt-4 p-4 rounded-xl border border-red-200 bg-red-50 text-sm";
+                resDiv.innerHTML = `
+                    <h4 class="font-bold text-red-600 mb-1"><i class="fas fa-exclamation-triangle"></i> PERINGATAN</h4>
+                    <p class="text-gray-700">Waktu tidur Anda kurang dari 6 jam. <b>Risiko kejang meningkat.</b></p>
+                    <ul class="list-disc ml-4 mt-2 text-gray-600 text-xs">
+                        <li>Hindari aktivitas fisik berat hari ini.</li>
+                        <li>Jangan menyetir kendaraan.</li>
+                        <li>Segera minum obat jika ada jadwal.</li>
+                    </ul>
+                `;
+            } else {
+                resDiv.className = "mt-4 p-4 rounded-xl border border-green-200 bg-green-50 text-sm";
+                resDiv.innerHTML = `
+                    <h4 class="font-bold text-green-600 mb-1"><i class="fas fa-check-circle"></i> AMAN</h4>
+                    <p class="text-gray-700">Alhamdulillah, waktu tidur Anda cukup. Tetap jaga pola makan dan hindari stres.</p>
+                `;
+            }
+        }
+
+        // 5. Medication Alarm Simulation
+        let alarmInterval = null;
+        let alarmTimes = [];
+
+        function saveAlarm() {
+            const t1 = document.getElementById('alarm-time-1').value;
+            const t2 = document.getElementById('alarm-time-2').value;
+            alarmTimes = [t1, t2];
+
+            document.getElementById('alarm-status').classList.remove('hidden');
+
+            // Start checking
+            if(alarmInterval) clearInterval(alarmInterval);
+            alarmInterval = setInterval(checkAlarm, 60000); // Check every minute
+            checkAlarm(); // Initial check
+
+            alert("Alarm diaktifkan pada jam " + t1 + " dan " + t2);
+        }
+
+        function checkAlarm() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const currentTime = `${hours}:${minutes}`;
+
+            if (alarmTimes.includes(currentTime)) {
+                triggerAlarm();
+            }
+        }
+
+        let currentMathAnswer = 0;
+
+        function triggerAlarm() {
+            const lockScreen = document.getElementById('alarm-lock-screen');
+            lockScreen.classList.remove('hidden');
+
+            // Generate simple math problem
+            const n1 = Math.floor(Math.random() * 10) + 5;
+            const n2 = Math.floor(Math.random() * 10) + 1;
+            currentMathAnswer = n1 + n2;
+            document.getElementById('math-problem').innerText = `${n1} + ${n2} = ?`;
+            document.getElementById('math-answer').value = '';
+        }
+
+        function checkMath() {
+            const ans = parseInt(document.getElementById('math-answer').value);
+            if(ans === currentMathAnswer) {
+                document.getElementById('alarm-lock-screen').classList.add('hidden');
+                alert("Alarm dimatikan. Jangan lupa minum obat!");
+            } else {
+                alert("Jawaban salah! Coba lagi.");
+            }
+        }
+
         function toggleCalc() {
             const content = document.getElementById('calc-content');
             const chevron = document.querySelector('#calc-chevron i');
@@ -1741,8 +2195,29 @@ HOME_HTML = """
 
 @app.route('/')
 def index():
-    # Render Home Dashboard
-    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=HOME_HTML)
+    conn = get_db_connection()
+    try:
+        epilepsi_logs = conn.execute("SELECT * FROM epilepsi_log ORDER BY date DESC, time DESC LIMIT 5").fetchall()
+    except sqlite3.OperationalError:
+        epilepsi_logs = []
+    conn.close()
+
+    # Render Home Dashboard with epilepsy logs context
+    rendered_home = render_template_string(HOME_HTML, epilepsi_logs=epilepsi_logs, open_modal=request.args.get('open'))
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=rendered_home)
+
+@app.route('/therapy/log', methods=['POST'])
+def therapy_log():
+    conn = get_db_connection()
+    try:
+        conn.execute('INSERT INTO epilepsi_log (date, time, trigger, notes) VALUES (?, ?, ?, ?)',
+                     (request.form['date'], request.form['time'], request.form['trigger'], request.form['notes']))
+        conn.commit()
+    except Exception as e:
+        print(f"Error logging therapy: {e}")
+    finally:
+        conn.close()
+    return redirect(url_for('index', open='modal-terapi-log'))
 
 @app.route('/finance', methods=['GET', 'POST'])
 def finance():
