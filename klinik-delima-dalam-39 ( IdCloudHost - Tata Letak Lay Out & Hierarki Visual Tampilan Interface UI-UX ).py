@@ -314,6 +314,12 @@ def landing_page():
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_title }}', 'BERANDA KLINIK')
     return render_template_string(HTML_LANDING.replace('{{ navbar|safe }}', navbar))
 
+@app.route('/dashboard')
+@role_required(['admin', 'doctor'])
+def dashboard_page():
+    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_title }}', 'DASHBOARD MEDIS')
+    return render_template_string(HTML_DASHBOARD.replace('{{ navbar|safe }}', navbar))
+
 @app.route('/antrean')
 def antrean_page():
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'group').replace('{{ page_title }}', 'ANTREAN')
@@ -738,13 +744,13 @@ def login():
     
     if uid == 'dokter' and pwd == 'dokter123':
         session['role'] = 'doctor'
-        return redirect(url_for('landing_page'))
+        return redirect(url_for('dashboard_page'))
     elif uid == 'admin' and pwd == 'admin123':
         session['role'] = 'admin'
-        return redirect(url_for('landing_page'))
+        return redirect(url_for('dashboard_page'))
     elif uid == 'adminwebsite' and pwd == '4dm1nw3bs1t3':
         session['role'] = 'admin'
-        return redirect(url_for('landing_page'))
+        return redirect(url_for('dashboard_page'))
         
     return redirect(url_for('landing_page'))
 
@@ -1176,7 +1182,7 @@ def upload_lab():
 # --- FRONTEND ASSETS ---
 
 MEDICAL_FOOTER_TEMPLATE = """
-<footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+<footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
     <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
     <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
 </footer>
@@ -1587,6 +1593,11 @@ MEDICAL_NAVBAR_TEMPLATE = """
     <div class="medical-title">{{ page_title }}</div>
     
     <div class="role-btn-group">
+        {% if role in ['admin', 'doctor'] %}
+        <a href="/" class="role-btn role-btn-pasien" title="Mode Warga">
+            <span class="material-icons">home</span> <span class="d-none d-md-inline">Mode Warga</span>
+        </a>
+        {% endif %}
         <div class="theme-switch-wrapper" style="position:relative; display:inline-block;">
             <button onclick="toggleThemeMenu()" class="role-btn" style="background: #34495e; color: white;" title="Ganti Tema">
                 <span id="theme-main-icon" class="material-icons">palette</span> <span id="theme-text">Tema</span>
@@ -1720,97 +1731,7 @@ MEDICAL_NAVBAR_TEMPLATE = """
 
 <div class="medical-horizontal-menu" style="display: none;"></div>
 
-{% if role in ['admin', 'doctor'] %}
-<div class="banner-grid-container">
-    
-    <!-- Group 1: Manajemen Pasien & Antrean -->
-    <div class="feature-banner" style="background-color: #e8eaf6;">
-        <div class="feature-banner-header">
-            <span class="material-icons feature-banner-icon" style="color: #3f51b5;">people</span>
-            <div class="feature-banner-title">Manajemen Pasien & Antrean</div>
-        </div>
-        <div class="feature-banner-links">
-            <a href="/antrean" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">group</span> Antrean</a>
-            <a href="/booking" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">event_available</span> Booking</a>
-            <a href="/booking-list" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">event</span> Daftar Janji</a>
-            <a href="/wa-reminder" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">chat</span> WA Reminder</a>
-            <a href="/pencarian-pasien" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">search</span> Cari Pasien</a>
-        </div>
-    </div>
-    
-    <!-- Group 2: Tindakan Medis & Observasi -->
-    <div class="feature-banner" style="background-color: #e1f5fe;">
-        <div class="feature-banner-header">
-            <span class="material-icons feature-banner-icon" style="color: #03a9f4;">medical_services</span>
-            <div class="feature-banner-title">Tindakan Medis & Observasi</div>
-        </div>
-        <div class="feature-banner-links">
-            <a href="/symptom-checker" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">local_hospital</span> Cek Gejala</a>
-            {% if role == 'doctor' %}
-            <a href="/rekam-medis" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">medical_information</span> Rekam Medis</a>
-            {% endif %}
-            <a href="/database-pasien" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">storage</span> Data Pasien</a>
-            <a href="/lab-results" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">science</span> Hasil Lab</a>
-            {% if role == 'doctor' %}
-            <a href="/peta-sebaran" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">map</span> Peta Penyakit</a>
-            {% endif %}
-        </div>
-    </div>
-    
-    <!-- Group 3: Farmasi & Logistik -->
-    <div class="feature-banner" style="background-color: #e8f5e9;">
-        <div class="feature-banner-header">
-            <span class="material-icons feature-banner-icon" style="color: #4caf50;">medication</span>
-            <div class="feature-banner-title">Farmasi & Logistik</div>
-        </div>
-        <div class="feature-banner-links">
-            <a href="/stok-obat" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">medication</span> Stok Obat</a>
-            {% if role == 'doctor' %}
-            <a href="/prediksi-stok" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">show_chart</span> Prediksi Stok</a>
-            {% endif %}
-            <a href="/expiry-tracker" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">warning</span> Expiry Alert</a>
-        </div>
-    </div>
-    
-    <!-- Group 4: Administrasi & Keuangan -->
-    <div class="feature-banner" style="background-color: #fff3e0;">
-        <div class="feature-banner-header">
-            <span class="material-icons feature-banner-icon" style="color: #ff9800;">account_balance_wallet</span>
-            <div class="feature-banner-title">Administrasi & Keuangan</div>
-        </div>
-        <div class="feature-banner-links">
-            <a href="/kasir" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">point_of_sale</span> Kasir & Laporan</a>
-            {% if role == 'doctor' %}
-            <a href="/financial-dashboard" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">show_chart</span> Keuangan</a>
-            {% endif %}
-            <a href="/receipt-list" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">receipt</span> Cetak Struk</a>
-            {% if role == 'doctor' %}
-            <a href="/surat-sakit" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">medical_information</span> Surat Sakit</a>
-            {% endif %}
-        </div>
-    </div>
-    
-    <!-- Group 5: Analitik & Manajemen Sistem -->
-    <div class="feature-banner" style="background-color: #f5f5f5;">
-        <div class="feature-banner-header">
-            <span class="material-icons feature-banner-icon" style="color: #9e9e9e;">settings</span>
-            <div class="feature-banner-title">Analitik & Manajemen Sistem</div>
-        </div>
-        <div class="feature-banner-links">
-            <a href="javascript:void(0)" onclick="document.getElementById('devInfoModal').style.display='flex'; return false;" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">local_hospital</span> Profil Klinik</a>
-            {% if role == 'doctor' %}
-            <a href="/statistik" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">pie_chart</span> Statistik</a>
-            {% endif %}
-            <a href="/download-data" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">picture_as_pdf</span> Unduh Data</a>
-            {% if role == 'doctor' %}
-            <a href="/audit-log" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">history</span> Audit Log</a>
-            <a href="/backup-db" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">security</span> Backup DB</a>
-            {% endif %}
-            <a href="/qr-pasien" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">qr_code</span> Pasien QR</a>
-        </div>
-    </div>
-</div>
-{% endif %}
+
 
 <!-- Login Modal -->
 <div id="loginModal" class="login-modal-overlay">
@@ -1916,7 +1837,6 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 
 <!-- Bottom Navigation for Patients -->
-{% if role == 'patient' %}
 <style>
     .bottom-nav {
         position: fixed;
@@ -3410,8 +3330,6 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 </script>
 
-{% endif %}
-
 <script>
     // Highlight active menu
     document.addEventListener("DOMContentLoaded", function() {
@@ -3571,6 +3489,131 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
 </script>
+"""
+
+HTML_DASHBOARD = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Medis</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container-fluid px-3 py-4">
+        {% if role in ['admin', 'doctor'] %}
+<div class="banner-grid-container">
+
+    <!-- Group 1: Manajemen Pasien & Antrean -->
+    <div class="feature-banner" style="background-color: #e8eaf6;">
+        <div class="feature-banner-header">
+            <span class="material-icons feature-banner-icon" style="color: #3f51b5;">people</span>
+            <div class="feature-banner-title">Manajemen Pasien & Antrean</div>
+        </div>
+        <div class="feature-banner-links">
+            <a href="/antrean" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">group</span> Antrean</a>
+            <a href="/booking" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">event_available</span> Booking</a>
+            <a href="/booking-list" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">event</span> Daftar Janji</a>
+            <a href="/wa-reminder" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">chat</span> WA Reminder</a>
+            <a href="/pencarian-pasien" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">search</span> Cari Pasien</a>
+        </div>
+    </div>
+
+    <!-- Group 2: Tindakan Medis & Observasi -->
+    <div class="feature-banner" style="background-color: #e1f5fe;">
+        <div class="feature-banner-header">
+            <span class="material-icons feature-banner-icon" style="color: #03a9f4;">medical_services</span>
+            <div class="feature-banner-title">Tindakan Medis & Observasi</div>
+        </div>
+        <div class="feature-banner-links">
+            <a href="/symptom-checker" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">local_hospital</span> Cek Gejala</a>
+            {% if role == 'doctor' %}
+            <a href="/rekam-medis" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">medical_information</span> Rekam Medis</a>
+            {% endif %}
+            <a href="/database-pasien" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">storage</span> Data Pasien</a>
+            <a href="/lab-results" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">science</span> Hasil Lab</a>
+            {% if role == 'doctor' %}
+            <a href="/peta-sebaran" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">map</span> Peta Penyakit</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Group 3: Farmasi & Logistik -->
+    <div class="feature-banner" style="background-color: #e8f5e9;">
+        <div class="feature-banner-header">
+            <span class="material-icons feature-banner-icon" style="color: #4caf50;">medication</span>
+            <div class="feature-banner-title">Farmasi & Logistik</div>
+        </div>
+        <div class="feature-banner-links">
+            <a href="/stok-obat" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">medication</span> Stok Obat</a>
+            {% if role == 'doctor' %}
+            <a href="/prediksi-stok" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">show_chart</span> Prediksi Stok</a>
+            {% endif %}
+            <a href="/expiry-tracker" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">warning</span> Expiry Alert</a>
+        </div>
+    </div>
+
+    <!-- Group 4: Administrasi & Keuangan -->
+    <div class="feature-banner" style="background-color: #fff3e0;">
+        <div class="feature-banner-header">
+            <span class="material-icons feature-banner-icon" style="color: #ff9800;">account_balance_wallet</span>
+            <div class="feature-banner-title">Administrasi & Keuangan</div>
+        </div>
+        <div class="feature-banner-links">
+            <a href="/kasir" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">point_of_sale</span> Kasir & Laporan</a>
+            {% if role == 'doctor' %}
+            <a href="/financial-dashboard" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">show_chart</span> Keuangan</a>
+            {% endif %}
+            <a href="/receipt-list" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">receipt</span> Cetak Struk</a>
+            {% if role == 'doctor' %}
+            <a href="/surat-sakit" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">medical_information</span> Surat Sakit</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Group 5: Analitik & Manajemen Sistem -->
+    <div class="feature-banner" style="background-color: #f5f5f5;">
+        <div class="feature-banner-header">
+            <span class="material-icons feature-banner-icon" style="color: #9e9e9e;">settings</span>
+            <div class="feature-banner-title">Analitik & Manajemen Sistem</div>
+        </div>
+        <div class="feature-banner-links">
+            <a href="javascript:void(0)" onclick="document.getElementById('devInfoModal').style.display='flex'; return false;" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">local_hospital</span> Profil Klinik</a>
+            {% if role == 'doctor' %}
+            <a href="/statistik" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">pie_chart</span> Statistik</a>
+            {% endif %}
+            <a href="/download-data" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">picture_as_pdf</span> Unduh Data</a>
+            {% if role == 'doctor' %}
+            <a href="/audit-log" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">history</span> Audit Log</a>
+            <a href="/backup-db" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">security</span> Backup DB</a>
+            {% endif %}
+            <a href="/qr-pasien" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">qr_code</span> Pasien QR</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    {{ MEDICAL_FOOTER_TEMPLATE | safe }}
+</body>
+</html>
 """
 
 HTML_LANDING = """
@@ -3845,7 +3888,7 @@ HTML_LANDING = """
         <span class="material-icons">chat</span>
     </a>
 
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -4045,7 +4088,7 @@ HTML_LAB = """
             });
         }
     </script>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -4107,7 +4150,7 @@ HTML_STOCK_PRED = """
             </div>
         </div>
     </div>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -4224,7 +4267,7 @@ HTML_MAP = """
             list.innerHTML += `<div class="mt-3 p-3 bg-light rounded small"><strong>Saran Tindakan:</strong><br>Lakukan fogging atau penyuluhan kesehatan di wilayah ini.</div>`;
         }
     </script>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -4292,7 +4335,7 @@ HTML_SYMPTOM = """
             });
         }
     </script>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -4404,7 +4447,7 @@ HTML_QR_PAGE = """
             win.print();
         }
     </script>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -4462,7 +4505,7 @@ HTML_AUDIT = """
             </div>
         </div>
     </div>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -4621,7 +4664,7 @@ HTML_QUEUE = """
             if(params.has('phone')) document.getElementById('q-phone').value = params.get('phone');
         }
     </script>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -5072,7 +5115,7 @@ HTML_DOCTOR_REKAM = """
         el.classList.toggle('show');
     }
     </script>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -5244,7 +5287,7 @@ HTML_DOCTOR_STOCK = """
         
         loadStock();
     </script>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -6197,7 +6240,7 @@ HTML_UR_FC = """
         <img src="{{ url_for('static', filename='logo-tahkil-fc.png') }}" class="logo-popup-img">
     </div>
     
-    <footer class="bg-black text-white py-5 text-center mt-5">
+    <footer class="bg-black text-white py-5 text-center mt-5" style="display: none;">
         <div class="container">
             <h3 class="fw-bold mb-3">TAHFIZH <span class="text-warning">KILAT FC</span></h3>
             <p contenteditable="{{ 'true' if admin else 'false' }}" onblur="saveText('site_settings', 'footer_text', 'value', this)">
@@ -6780,7 +6823,7 @@ HTML_SICK_LIST = """
             </div>
         </div>
     </div>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -6948,7 +6991,7 @@ HTML_CASHIER = """
         calcTotal({{ p.id }});
         {% endfor %}
     </script>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -7013,7 +7056,7 @@ HTML_PATIENT_DB = """
             </div>
         </div>
     </div>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -7197,7 +7240,7 @@ HTML_SEARCH = """
             document.getElementById('player-card-modal').style.display = 'none';
         }
     </script>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -7254,7 +7297,7 @@ HTML_STATS = """
             }
         });
     </script>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -7486,7 +7529,7 @@ HTML_BOOKING = """
             });
         }
     </script>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -7561,7 +7604,7 @@ HTML_FINANCE = """
             }
         });
     </script>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -7642,7 +7685,7 @@ HTML_EXPIRY = """
             }).then(() => location.reload());
         }
     </script>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -7696,7 +7739,7 @@ HTML_RECEIPT_LIST = """
             </div>
         </div>
     </div>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -7795,7 +7838,7 @@ HTML_WA_REMINDER = """
             </div>
         </div>
     </div>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
@@ -7856,7 +7899,7 @@ HTML_BOOKING_LIST = """
             </div>
         </div>
     </div>
-    <footer class="text-center py-4 mt-auto" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
         <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
     </footer>
