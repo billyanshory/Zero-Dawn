@@ -1,5 +1,4 @@
 import os
-import sqlite3
 import time
 import datetime
 import json
@@ -9,15 +8,26 @@ import base64
 import qrcode
 import subprocess
 import imghdr
+import logging
+import shutil
+from typing import Dict, List, Any, Optional
 from functools import wraps
 from PIL import Image
-from flask import Flask, request, send_from_directory, redirect, url_for, render_template_string, jsonify, session
+from flask import Flask, request, send_from_directory, redirect, url_for, render_template_string, jsonify, session, Response
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from dotenv import load_dotenv
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+
+# --- LOGGING SETUP ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[
+    logging.FileHandler("server.log"),
+    logging.StreamHandler()
+])
+logger = logging.getLogger(__name__)
 
 # --- FLASK CONFIGURATION ---
 app = Flask(__name__)
@@ -39,6 +49,11 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY")
 if not app.secret_key:
     raise RuntimeError("Secret key is missing from environment. Application cannot start securely.")
 
+# Security Headers & Cookies
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
 # Database Configuration 
 db_uri = os.getenv("SQLALCHEMY_DATABASE_URI")
 
@@ -48,32 +63,52 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 20,
     'max_overflow': 100,
     'pool_recycle': 280,
+    'pool_timeout': 30,
     'pool_pre_ping': True
 }
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 
 
 # --- DATABASE MODELS ---
+class User(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    username = db.Column(db.String(100), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(50), nullable=False)
+    session_version = db.Column(db.Integer, default=1)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns if c.name != 'password_hash'}
+
+
 class AgendaContent(db.Model):
     __tablename__ = 'agenda_content'
     id = db.Column(db.String(100), primary_key=True)
     title = db.Column(db.String(255))
     status = db.Column(db.String(100))
     price = db.Column(db.String(100))
-    event_date = db.Column(db.String(100))
+    event_date = db.Column(db.DateTime)
     details = db.Column(db.Text)
     image_path = db.Column(db.String(255))
-    def to_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        if d['event_date']: d['event_date'] = d['event_date'].strftime("%Y-%m-%d %H:%M:%S")
+        return d
 
 class AgendaList(db.Model):
     __tablename__ = 'agenda_list'
     id = db.Column(db.String(100), primary_key=True)
     section = db.Column(db.Integer)
-    created_at = db.Column(db.String(100), default=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    def to_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        if d['created_at']: d['created_at'] = d['created_at'].strftime("%Y-%m-%d %H:%M:%S")
+        return d
 
 class NewsContent(db.Model):
     __tablename__ = 'news_content'
@@ -81,13 +116,17 @@ class NewsContent(db.Model):
     title = db.Column(db.String(255))
     subtitle = db.Column(db.String(255))
     category = db.Column(db.String(100))
-    timestamp = db.Column(db.String(100))
+    timestamp = db.Column(db.DateTime)
     image_path = db.Column(db.String(255))
     type = db.Column(db.String(100))
     details = db.Column(db.Text)
-    updated_at = db.Column(db.String(100), default=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    def to_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        if d['timestamp']: d['timestamp'] = d['timestamp'].strftime("%Y-%m-%d %H:%M:%S")
+        if d['updated_at']: d['updated_at'] = d['updated_at'].strftime("%Y-%m-%d %H:%M:%S")
+        return d
 
 class Personnel(db.Model):
     __tablename__ = 'personnel'
@@ -97,12 +136,16 @@ class Personnel(db.Model):
     position = db.Column(db.String(100))
     nationality = db.Column(db.String(100), default='Indonesia')
     joined = db.Column(db.String(100), default='2024')
-    matches = db.Column(db.String(100), default='0')
-    goals = db.Column(db.String(100), default='0')
+    matches = db.Column(db.Integer, default=0)
+    goals = db.Column(db.Integer, default=0)
     details = db.Column(db.Text)
     image_path = db.Column(db.String(255))
-    def to_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        d['matches'] = str(d['matches'])
+        d['goals'] = str(d['goals'])
+        return d
 
 class Sponsor(db.Model):
     __tablename__ = 'sponsors'
@@ -110,23 +153,25 @@ class Sponsor(db.Model):
     name = db.Column(db.String(255))
     image_path = db.Column(db.String(255))
     size = db.Column(db.Integer, default=80)
-    def to_dict(self):
+
+    def to_dict(self) -> Dict[str, Any]:
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 class SiteSetting(db.Model):
     __tablename__ = 'site_settings'
     key = db.Column(db.String(100), primary_key=True)
     value = db.Column(db.Text)
-    def to_dict(self):
+
+    def to_dict(self) -> Dict[str, Any]:
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 class Queue(db.Model):
     __tablename__ = 'queue'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.String(255))
-    phone = db.Column(db.String(100))
+    name = db.Column(db.String(255), index=True)
+    phone = db.Column(db.String(100), index=True)
     complaint = db.Column(db.Text)
-    status = db.Column(db.String(50), default='waiting')
+    status = db.Column(db.String(50), default='waiting', index=True)
     number = db.Column(db.Integer)
     diagnosis = db.Column(db.Text)
     prescription = db.Column(db.Text)
@@ -134,11 +179,15 @@ class Queue(db.Model):
     cancellation_reason = db.Column(db.Text)
     fee_doctor = db.Column(db.Integer, default=0)
     fee_medicine = db.Column(db.Integer, default=0)
-    finished_at = db.Column(db.String(100))
+    finished_at = db.Column(db.DateTime)
     address = db.Column(db.Text)
-    created_at = db.Column(db.String(100), default=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    def to_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, index=True)
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        if d['created_at']: d['created_at'] = d['created_at'].strftime("%Y-%m-%d %H:%M:%S")
+        if d['finished_at']: d['finished_at'] = d['finished_at'].strftime("%Y-%m-%d %H:%M:%S")
+        return d
 
 class AuditLog(db.Model):
     __tablename__ = 'audit_logs'
@@ -146,9 +195,12 @@ class AuditLog(db.Model):
     user = db.Column(db.String(100))
     action = db.Column(db.String(255))
     details = db.Column(db.Text)
-    timestamp = db.Column(db.String(100), default=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    def to_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        if d['timestamp']: d['timestamp'] = d['timestamp'].strftime("%Y-%m-%d %H:%M:%S")
+        return d
 
 class LabResult(db.Model):
     __tablename__ = 'lab_results'
@@ -156,9 +208,12 @@ class LabResult(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey('queue.id'))
     description = db.Column(db.Text)
     file_path = db.Column(db.String(255))
-    created_at = db.Column(db.String(100), default=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    def to_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        if d['created_at']: d['created_at'] = d['created_at'].strftime("%Y-%m-%d %H:%M:%S")
+        return d
 
 class MedicineStock(db.Model):
     __tablename__ = 'medicine_stock'
@@ -166,20 +221,28 @@ class MedicineStock(db.Model):
     name = db.Column(db.String(255))
     stock = db.Column(db.Integer, default=0)
     unit = db.Column(db.String(50), default='pcs')
-    expiry_date = db.Column(db.String(100))
-    def to_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    expiry_date = db.Column(db.Date)
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        if d['expiry_date']: d['expiry_date'] = d['expiry_date'].strftime("%Y-%m-%d")
+        return d
 
 class Appointment(db.Model):
     __tablename__ = 'appointments'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(255))
     phone = db.Column(db.String(100))
-    date = db.Column(db.String(100))
-    time = db.Column(db.String(100))
-    created_at = db.Column(db.String(100), default=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    def to_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    date = db.Column(db.Date)
+    time = db.Column(db.Time)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        if d['date']: d['date'] = d['date'].strftime("%Y-%m-%d")
+        if d['time']: d['time'] = d['time'].strftime("%H:%M")
+        if d['created_at']: d['created_at'] = d['created_at'].strftime("%Y-%m-%d %H:%M:%S")
+        return d
 
 # Load Symptom Data
 try:
@@ -189,12 +252,51 @@ except Exception as e:
     print(f"Error loading symptom data: {e}")
     SYMPTOM_RULES = []
 
+@app.before_request
+def enforce_absolute_session():
+    # Only protect specific routes if we want, but since it's a monolith, let's protect the global state
+    if 'role' in session and session['role'] in ['admin', 'doctor']:
+        user_id = session.get('user_id')
+        session_v = session.get('session_version')
+        login_time = session.get('login_time')
+
+        # Absolute Timeout Control
+        if not login_time:
+            session.clear()
+            return redirect(url_for('landing_page'))
+
+        elapsed = time.time() - login_time
+        timeout_limit = 8 * 3600 if session['role'] == 'doctor' else 4 * 3600 # 8 hours for doc, 4 hours for admin
+        if elapsed > timeout_limit:
+            session.clear()
+            return redirect(url_for('landing_page'))
+
+        # Check Kill-Switch Version
+        user = db.session.get(User, user_id)
+        if not user or user.session_version != session_v:
+            session.clear()
+            return redirect(url_for('landing_page'))
+
+
 @app.context_processor
 def inject_rbac():
     return dict(role=session.get('role', 'patient'), menu_items=MENU_ITEMS)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+app.config['BACKUP_FOLDER'] = 'private_backups'
+os.makedirs(app.config['BACKUP_FOLDER'], exist_ok=True)
+
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt'}
+
+@app.after_request
+def apply_security_headers(response: Response) -> Response:
+    response.headers['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:;"
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
+
 
 def allowed_file(filename, stream):
     if not ('.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS):
@@ -349,49 +451,71 @@ def get_all_data():
 
 # --- CLINIC ROUTES ---
 
+def render_page(content: str, **kwargs: Any) -> str:
+    """ Centralized render wrapper for the Monolith architecture """
+    content = content.replace('{{ styles|safe }}', STYLES_HTML)
+    content = content.replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE)
+    if 'navbar|safe' in content:
+        content = content.replace('{{ navbar|safe }}', NAVBAR_HTML)
+    if 'timestamp' not in kwargs:
+        kwargs['timestamp'] = int(time.time())
+    return render_template_string(content, **kwargs)
+
+def render_medical_page(content: str, title: str, icon: str = '', **kwargs: Any) -> str:
+    """ Renders medical pages using the specific medical navbar template """
+    nav = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_title }}', title).replace('{{ page_icon }}', icon)
+    content = content.replace('{{ navbar|safe }}', nav)
+    return render_page(content, **kwargs)
+
+@app.route('/health')
+def health_check() -> Response:
+    return jsonify({"status": "healthy", "timestamp": time.time()})
+
+@app.errorhandler(404)
+def not_found_error(error) -> tuple:
+    return render_medical_page("<h1>404 Not Found</h1><p>Halaman tidak ditemukan.</p><a href='/' class='btn btn-primary'>Kembali</a>", "404 Error"), 404
+
+@app.errorhandler(500)
+def internal_error(error) -> tuple:
+    db.session.rollback()
+    logger.error(f"Internal Error: {error}")
+    return render_medical_page("<h1>500 Internal Error</h1><p>Terjadi kesalahan server. Mohon coba lagi nanti.</p><a href='/' class='btn btn-primary'>Kembali</a>", "500 Error"), 500
+
+
 @app.route('/')
-def landing_page():
-    # Render Landing / Hub as Home
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_title }}', 'BERANDA KLINIK')
-    return render_template_string(HTML_LANDING.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE))
+def landing_page() -> str:
+    return render_medical_page(HTML_LANDING, 'BERANDA KLINIK')
 
 @app.route('/dashboard')
 @role_required(['admin', 'doctor'])
-def dashboard_page():
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_title }}', 'DASHBOARD MEDIS')
-    return render_template_string(HTML_DASHBOARD.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE))
+def dashboard_page() -> str:
+    return render_medical_page(HTML_DASHBOARD, 'DASHBOARD MEDIS')
 
 @app.route('/antrean')
-def antrean_page():
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'group').replace('{{ page_title }}', 'ANTREAN')
-    return render_template_string(HTML_QUEUE.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE))
+def antrean_page() -> str:
+    return render_medical_page(HTML_QUEUE, 'ANTREAN', 'group')
 
 @app.route('/rekam-medis')
 @role_required(['doctor'])
-def rekam_medis_page():
-    # Admin check removed for development
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'medical_information').replace('{{ page_title }}', 'REKAM MEDIS')
-    return render_template_string(HTML_DOCTOR_REKAM.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE))
+def rekam_medis_page() -> str:
+    return render_medical_page(HTML_DOCTOR_REKAM, 'REKAM MEDIS', 'medical_information')
 
 @app.route('/stok-obat')
 @role_required(['admin', 'doctor'])
-def stok_obat_page():
-    # Admin check removed for development
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'medication').replace('{{ page_title }}', 'STOK OBAT')
-    return render_template_string(HTML_DOCTOR_STOCK.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE))
+def stok_obat_page() -> str:
+    return render_medical_page(HTML_DOCTOR_STOCK, 'STOK OBAT', 'medication')
 
 @app.route('/surat-sakit')
 @role_required(['doctor'])
-def surat_sakit_list():
+def surat_sakit_list() -> str:
     patients = [r.to_dict() for r in Queue.query.filter_by(status='done').order_by(Queue.created_at.desc()).limit(50).all()]
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'medical_information').replace('{{ page_title }}', 'SURAT SAKIT')
-    return render_template_string(HTML_SICK_LIST.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), patients=patients)
+    return render_medical_page(HTML_SICK_LIST, 'SURAT SAKIT', 'medical_information', patients=patients)
 
-@app.route('/surat-sakit/print/<int:id>')
+@app.route('/surat-sakit/print/<int:item_id>')
 @role_required(['doctor'])
-def surat_sakit_print(id):
-    row = db.session.get(Queue, id)
-    if not row: return "Pasien tidak ditemukan", 404
+def surat_sakit_print(item_id: int) -> str:
+    row = db.session.get(Queue, item_id)
+    if not row: return render_template_string("<h1>Pasien tidak ditemukan</h1>"), 404
     
     p = row.to_dict()
     days = request.args.get('days', '3')
@@ -409,16 +533,15 @@ def surat_sakit_print(id):
 
 @app.route('/kasir')
 @role_required(['admin', 'doctor'])
-def kasir_page():
+def kasir_page() -> str:
     today = datetime.date.today().isoformat()
     patients = [r.to_dict() for r in Queue.query.filter_by(status='done').filter(Queue.created_at.like(f"{today}%")).order_by(Queue.created_at.desc()).all()]
     
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'point_of_sale').replace('{{ page_title }}', 'KASIR & LAPORAN')
-    return render_template_string(HTML_CASHIER.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), patients=patients)
+    return render_medical_page(HTML_CASHIER, 'KASIR & LAPORAN', 'point_of_sale', patients=patients)
 
 @app.route('/api/kasir/update', methods=['POST'])
 @role_required(['admin', 'doctor'])
-def api_kasir_update():
+def api_kasir_update() -> Response:
     data = request.json
     try:
         q = db.session.get(Queue, data.get('id'))
@@ -433,7 +556,7 @@ def api_kasir_update():
 
 @app.route('/database-pasien')
 @role_required(['admin', 'doctor'])
-def database_pasien_page():
+def database_pasien_page() -> str:
     q = request.args.get('q', '')
     query = Queue.query.filter_by(status='done')
     if q:
@@ -442,12 +565,11 @@ def database_pasien_page():
     else:
         patients = [r.to_dict() for r in query.order_by(Queue.created_at.desc()).limit(20).all()]
     
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'storage').replace('{{ page_title }}', 'DATABASE PASIEN')
-    return render_template_string(HTML_PATIENT_DB.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), patients=patients)
+    return render_medical_page(HTML_PATIENT_DB, 'DATABASE PASIEN', 'storage', patients=patients)
 
 @app.route('/pencarian-pasien')
 @role_required(['admin', 'doctor'])
-def pencarian_pasien_page():
+def pencarian_pasien_page() -> str:
     q = request.args.get('q', '')
     patients = []
     if q:
@@ -457,12 +579,11 @@ def pencarian_pasien_page():
         rows = Queue.query.filter(Queue.id.in_(subquery)).limit(20).all()
         patients = [r.to_dict() for r in rows]
     
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'search').replace('{{ page_title }}', 'CARI PASIEN')
-    return render_template_string(HTML_SEARCH.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), patients=patients)
+    return render_medical_page(HTML_SEARCH, 'CARI PASIEN', 'search', patients=patients)
 
 @app.route('/statistik')
 @role_required(['doctor'])
-def statistik_page():
+def statistik_page() -> str:
     rows = db.session.query(Queue.diagnosis, db.func.count(Queue.id).label('cnt')).filter(
         Queue.status == 'done', Queue.diagnosis.isnot(None), Queue.diagnosis != ''
     ).group_by(Queue.diagnosis).order_by(db.desc('cnt')).limit(10).all()
@@ -472,25 +593,24 @@ def statistik_page():
         'values': [r[1] for r in rows]
     }
     
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'pie_chart').replace('{{ page_title }}', 'STATISTIK')
-    return render_template_string(HTML_STATS.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), chart_data=chart_data)
+    return render_medical_page(HTML_STATS, 'STATISTIK', 'pie_chart', chart_data=chart_data)
 
 @app.route('/download-data')
 @role_required(['admin', 'doctor'])
-def download_data_page():
+def download_data_page() -> str:
     return render_template_string(HTML_DOWNLOAD_PDF)
 
 @app.route('/api/export-data')
 @role_required(['admin', 'doctor'])
-def api_export_data():
+def api_export_data() -> Response:
     rows = db.session.query(
         db.func.substring(Queue.created_at, 1, 10).label('d'), 
         db.func.count(Queue.id).label('c')
     ).group_by('d').order_by(db.desc('d')).all()
     queue_stats = [{'d': r[0], 'c': r[1]} for r in rows]
     
-    history = [r.to_dict() for r in Queue.query.order_by(Queue.created_at.desc()).all()]
-    cashier = [r.to_dict() for r in Queue.query.filter_by(status='done').order_by(Queue.created_at.desc()).all()]
+    history = [r.to_dict() for r in Queue.query.order_by(Queue.created_at.desc()).limit(1000).all()] # Limit for performance
+    cashier = [r.to_dict() for r in Queue.query.filter_by(status='done').order_by(Queue.created_at.desc()).limit(1000).all()]
     
     return jsonify({
         'queue_stats': queue_stats,
@@ -528,17 +648,19 @@ def api_clinic_status():
     return jsonify({'open': is_open})
 
 @app.route('/api/queue/add', methods=['POST'])
-def api_queue_add():
+def api_queue_add() -> Response:
     data = request.json
     name = data.get('name')
     phone = data.get('phone')
     complaint = data.get('complaint')
     address = data.get('address', '')
     
-    if not name or not name.strip():
-        return jsonify({'success': False, 'error': 'Nama pasien tidak boleh kosong'}), 400
-    if not phone or not phone.strip():
-        return jsonify({'success': False, 'error': 'Nomor telepon tidak boleh kosong'}), 400
+    if not name or not name.strip() or len(name) > 100:
+        return jsonify({'success': False, 'error': 'Nama pasien tidak boleh kosong atau terlalu panjang (max 100)'}), 400
+    if not phone or not phone.strip() or not phone.isdigit() or len(phone) > 15:
+        return jsonify({'success': False, 'error': 'Nomor telepon harus berupa angka yang valid (max 15 digit)'}), 400
+    if complaint and len(complaint) > 500:
+        return jsonify({'success': False, 'error': 'Keluhan terlalu panjang (max 500)'}), 400
     
     try:
         today = datetime.date.today().isoformat()
@@ -588,8 +710,11 @@ def api_queue_status():
 
 @app.route('/api/queue/archive')
 @role_required(['admin', 'doctor'])
-def api_queue_archive():
-    rows = [r.to_dict() for r in Queue.query.filter(Queue.status.in_(['done', 'cancelled'])).order_by(Queue.created_at.desc()).all()]
+def api_queue_archive() -> Response:
+    page = int(request.args.get('page', 1))
+    per_page = 100 # Pagination limit to prevent memory blowup
+    rows = [r.to_dict() for r in Queue.query.filter(Queue.status.in_(['done', 'cancelled'])).order_by(Queue.created_at.desc()).paginate(page=page, per_page=per_page).items]
+
     grouped = {}
     for r in rows:
         time_source = r.get('finished_at') or r.get('created_at')
@@ -632,7 +757,7 @@ def api_patient_lab():
 
 @app.route('/api/queue/action', methods=['POST'])
 @role_required(['admin', 'doctor'])
-def api_queue_action():
+def api_queue_action() -> Response:
     data = request.json
     action = data.get('action')
     item_id = data.get('id')
@@ -648,13 +773,20 @@ def api_queue_action():
                 target.status = 'examining'
                 
         elif action == 'finish':
+            diagnosis = data.get('diagnosis', '')
+            prescription = data.get('prescription', '')
+            medical_action = data.get('medical_action', '')
+
+            if len(diagnosis) > 500 or len(prescription) > 500 or len(medical_action) > 500:
+                return jsonify({'success': False, 'error': 'Input teks terlalu panjang (max 500)'}), 400
+
             target = db.session.get(Queue, item_id)
             if target:
                 target.status = 'done'
-                target.diagnosis = data.get('diagnosis')
-                target.prescription = data.get('prescription')
-                target.medical_action = data.get('medical_action')
-                target.finished_at = get_wita_now().strftime("%Y-%m-%d %H:%M:%S")
+                target.diagnosis = diagnosis
+                target.prescription = prescription
+                target.medical_action = medical_action
+                target.finished_at = get_wita_now()
             log_audit('QUEUE_FINISH', f"Finished patient ID {item_id}")
             
         elif action == 'cancel':
@@ -712,7 +844,8 @@ def api_stock_update():
                 db.session.delete(m)
                 
         db.session.commit()
-        log_audit('STOCK_UPDATE', f"Action: {action}, Data: {str(data)}")
+        # Save as JSON for easier parsing in predictions
+        log_audit('STOCK_UPDATE', json.dumps({"action": action, **data}))
         return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
@@ -804,29 +937,81 @@ def profil_klinik():
 
 @app.route('/login', methods=['POST'])
 @limiter.limit("5 per minute")
-def login():
+def login() -> Response:
     uid = request.form.get('userid')
     pwd = request.form.get('password')
     
+    user = User.query.filter_by(username=uid).first()
+
+    # Fallback to .env config if DB doesn't have the user yet (for seamless migration)
     dokter_hash = os.getenv("DOKTER_PWD_HASH")
     admin_hash = os.getenv("ADMIN_PWD_HASH")
     adminweb_hash = os.getenv("ADMIN_WEB_PWD_HASH")
     
-    if uid == 'dokter' and dokter_hash and check_password_hash(dokter_hash, pwd):
+    if user and check_password_hash(user.password_hash, pwd):
+        session['role'] = user.role
+        session['user_id'] = user.id
+        session['session_version'] = user.session_version
+        session['login_time'] = time.time()
+        log_audit('LOGIN_SUCCESS', f"User {uid} logged in", user=uid)
+        return redirect(url_for('dashboard_page'))
+
+    # Legacy env fallback
+    elif uid == 'dokter' and dokter_hash and check_password_hash(dokter_hash, pwd):
+        # Auto-migrate legacy user to DB
+        legacy_doc = User.query.filter_by(username='dokter').first()
+        if not legacy_doc:
+            legacy_doc = User(username='dokter', password_hash=dokter_hash, role='doctor')
+            db.session.add(legacy_doc)
+            db.session.commit()
+
         session['role'] = 'doctor'
+        session['user_id'] = legacy_doc.id
+        session['session_version'] = legacy_doc.session_version
+        session['login_time'] = time.time()
         return redirect(url_for('dashboard_page'))
     elif uid == 'admin' and admin_hash and check_password_hash(admin_hash, pwd):
+        legacy_admin = User.query.filter_by(username='admin').first()
+        if not legacy_admin:
+            legacy_admin = User(username='admin', password_hash=admin_hash, role='admin')
+            db.session.add(legacy_admin)
+            db.session.commit()
+
         session['role'] = 'admin'
+        session['user_id'] = legacy_admin.id
+        session['session_version'] = legacy_admin.session_version
+        session['login_time'] = time.time()
         return redirect(url_for('dashboard_page'))
     elif uid == 'adminwebsite' and adminweb_hash and check_password_hash(adminweb_hash, pwd):
         session['role'] = 'admin'
+        session['user_id'] = 0 # Dummy for website admin without DB link
+        session['session_version'] = 1
+        session['login_time'] = time.time()
         return redirect(url_for('dashboard_page'))
         
     log_audit('LOGIN_FAILED', f"Failed login attempt for user: {uid} from IP: {get_remote_address()}", user="System")
     return redirect(url_for('landing_page'))
 
+@app.route('/api/kill-session', methods=['POST'])
+@role_required(['admin', 'doctor'])
+def api_kill_session() -> Response:
+    """ Emergency Session Kill Switch """
+    try:
+        data = request.json
+        target_uid = data.get('username')
+        user = User.query.filter_by(username=target_uid).first()
+        if user:
+            user.session_version += 1
+            db.session.commit()
+            log_audit('EMERGENCY_KILL', f"All sessions for {target_uid} terminated.")
+            return jsonify({'success': True})
+        return jsonify({'error': 'User not found'}), 404
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/logout')
-def logout():
+def logout() -> Response:
     session.clear()
     return redirect(url_for('landing_page'))
 
@@ -836,7 +1021,11 @@ def uploaded_file(filename):
 
 @app.route('/upload/<item_type>/<item_id>', methods=['POST'])
 @role_required(['admin', 'doctor'])
-def upload_image(item_type, item_id):
+def upload_image(item_type: str, item_id: str) -> Response:
+    # Strict directory traversal and param validation
+    if not re.match(r'^[a-zA-Z0-9_]+$', item_type) or not re.match(r'^[a-zA-Z0-9_]+$', item_id):
+        return "Invalid parameters", 400
+
     if 'image' not in request.files: return "No file", 400
     
     file = request.files['image']
@@ -873,10 +1062,11 @@ def upload_image(item_type, item_id):
 
 @app.route('/api/update-text', methods=['POST'])
 @role_required(['admin', 'doctor'])
-def api_update_text():
+def api_update_text() -> Response:
+    """ Update generic text fields based on table name and item_id """
     data = request.json
     table = data.get('table') 
-    id = data.get('id')
+    item_id = data.get('id')
     field = data.get('field')
     value = data.get('value')
 
@@ -899,19 +1089,35 @@ def api_update_text():
     try:
         model_cls = model_map[table]
         if table == 'site_settings':
-            setting = db.session.get(model_cls, id)
+            setting = db.session.get(model_cls, item_id)
             if setting: setting.value = value
-            else: db.session.add(model_cls(key=id, value=value))
+            else: db.session.add(model_cls(key=item_id, value=value))
         else:
-            item = db.session.get(model_cls, id)
+            item = db.session.get(model_cls, item_id)
             if not item:
                 if table == 'personnel':
-                    item = model_cls(id=id, role=data.get('role', 'player'))
+                    item = model_cls(id=item_id, role=data.get('role', 'player'))
                 else:
-                    item = model_cls(id=id)
+                    item = model_cls(id=item_id)
                 db.session.add(item)
-            setattr(item, field, value)
+
+            if field in ['timestamp', 'event_date'] and value:
+                try:
+                    # Convert JS ISO string or custom format to datetime
+                    # If string has T, handle it
+                    if 'T' in value:
+                        dt_val = datetime.datetime.fromisoformat(value.replace('Z', ''))
+                    else:
+                        dt_val = datetime.datetime.strptime(value, "%Y-%m-%d %H:%M:%S" if ' ' in value else "%Y-%m-%d")
+                    setattr(item, field, dt_val)
+                except ValueError as ve:
+                    return jsonify({'success': False, 'error': f"Date format error: {ve}"}), 400
+            else:
+                setattr(item, field, value)
+
         db.session.commit()
+        global _clinic_data_cache
+        _clinic_data_cache = {'data': None, 'time': 0}
         return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
@@ -919,7 +1125,7 @@ def api_update_text():
 
 @app.route('/api/add-card', methods=['POST'])
 @role_required(['admin', 'doctor'])
-def api_add_card():
+def api_add_card() -> Response:
     item_type = request.json.get('type')
     item_id = f"{item_type}_{int(time.time()*1000)}"
     
@@ -942,23 +1148,24 @@ def api_add_card():
 
 @app.route('/api/delete-item', methods=['POST'])
 @role_required(['admin', 'doctor'])
-def api_delete_item():
+def api_delete_item() -> Response:
+    """ Deletes generic portfolio items (Personnel, Sponsors, Agenda) by table and ID """
     data = request.json
     table = data.get('table')
-    id = data.get('id')
+    item_id = data.get('id')
     
     if table not in ['personnel', 'sponsors', 'agenda_content', 'agenda_list']:
         return jsonify({'error': 'Invalid table'}), 400
         
     try:
         if table == 'agenda_content':
-            a_list = db.session.get(AgendaList, id)
+            a_list = db.session.get(AgendaList, item_id)
             if a_list: db.session.delete(a_list)
-            a_cont = db.session.get(AgendaContent, id)
+            a_cont = db.session.get(AgendaContent, item_id)
             if a_cont: db.session.delete(a_cont)
         else:
             model_map = {'personnel': Personnel, 'sponsors': Sponsor, 'agenda_list': AgendaList}
-            item = db.session.get(model_map[table], id)
+            item = db.session.get(model_map[table], item_id)
             if item: db.session.delete(item)
             
         db.session.commit()
@@ -970,22 +1177,21 @@ def api_delete_item():
 # --- NEW ENTERPRISE ROUTES ---
 
 @app.route('/booking')
-def booking_page():
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'event_available').replace('{{ page_title }}', 'BOOKING JANJI TEMU')
-    return render_template_string(HTML_BOOKING.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE))
+def booking_page() -> str:
+    return render_medical_page(HTML_BOOKING, 'BOOKING JANJI TEMU', 'event_available')
 
 @app.route('/api/booking/add', methods=['POST'])
-def api_booking_add():
+def api_booking_add() -> Response:
     data = request.json
     name = data.get('name')
     phone = data.get('phone')
     date_str = data.get('date')
     time_str = data.get('time')
     
-    if not name or not name.strip():
-        return jsonify({'success': False, 'error': 'Nama pasien tidak boleh kosong'}), 400
-    if not phone or not phone.strip():
-        return jsonify({'success': False, 'error': 'Nomor telepon tidak boleh kosong'}), 400
+    if not name or not name.strip() or len(name) > 100:
+        return jsonify({'success': False, 'error': 'Nama pasien tidak boleh kosong/terlalu panjang'}), 400
+    if not phone or not phone.strip() or not phone.isdigit() or len(phone) > 15:
+        return jsonify({'success': False, 'error': 'Nomor telepon harus angka valid'}), 400
         
     try:
         datetime.datetime.strptime(date_str, '%Y-%m-%d')
@@ -994,6 +1200,11 @@ def api_booking_add():
         return jsonify({'success': False, 'error': 'Format tanggal atau waktu tidak valid'}), 400
 
     try:
+        # Check if slot is taken
+        existing_appt = Appointment.query.filter_by(date=date_str, time=time_str).first()
+        if existing_appt:
+            return jsonify({'success': False, 'error': f'Slot {date_str} {time_str} sudah penuh terisi pasien lain.'}), 400
+
         appt = Appointment(name=name, phone=phone, date=date_str, time=time_str)
         db.session.add(appt)
         db.session.commit()
@@ -1004,7 +1215,7 @@ def api_booking_add():
 
 @app.route('/financial-dashboard')
 @role_required(['doctor'])
-def financial_dashboard():
+def financial_dashboard() -> str:
     rows = db.session.query(
         db.func.substring(Queue.created_at, 1, 7).label('m'),
         db.func.sum(Queue.fee_doctor + Queue.fee_medicine).label('total')
@@ -1014,13 +1225,11 @@ def financial_dashboard():
         'labels': [r[0] for r in rows],
         'values': [int(r[1] or 0) for r in rows]
     }
-    
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'show_chart').replace('{{ page_title }}', 'DASHBOARD KEUANGAN')
-    return render_template_string(HTML_FINANCE.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), chart_data=chart_data)
+    return render_medical_page(HTML_FINANCE, 'DASHBOARD KEUANGAN', 'show_chart', chart_data=chart_data)
 
 @app.route('/expiry-tracker')
 @role_required(['admin', 'doctor'])
-def expiry_tracker():
+def expiry_tracker() -> str:
     rows = [r.to_dict() for r in MedicineStock.query.order_by(MedicineStock.expiry_date.asc()).all()]
     
     medicines = []
@@ -1033,16 +1242,15 @@ def expiry_tracker():
                 if (exp - today).days < 30:
                     is_expiring = True
             except Exception as e:
-                print(f"Error parsing expiry_date '{r['expiry_date']}' for item {r['id']}: {str(e)}")
+                logger.error(f"Error parsing expiry_date '{r['expiry_date']}' for item {r['id']}: {str(e)}")
         r['is_expiring'] = is_expiring
         medicines.append(r)
         
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'warning').replace('{{ page_title }}', 'ALERT KEDALUWARSA')
-    return render_template_string(HTML_EXPIRY.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), medicines=medicines)
+    return render_medical_page(HTML_EXPIRY, 'ALERT KEDALUWARSA', 'warning', medicines=medicines)
 
 @app.route('/api/stock/update-expiry', methods=['POST'])
 @role_required(['admin', 'doctor'])
-def api_stock_update_expiry():
+def api_stock_update_expiry() -> Response:
     data = request.json
     try:
         m = db.session.get(MedicineStock, data.get('id'))
@@ -1056,16 +1264,15 @@ def api_stock_update_expiry():
 
 @app.route('/receipt-list')
 @role_required(['admin', 'doctor'])
-def receipt_list():
+def receipt_list() -> str:
     patients = [r.to_dict() for r in Queue.query.filter_by(status='done').order_by(Queue.created_at.desc()).limit(50).all()]
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'receipt').replace('{{ page_title }}', 'CETAK STRUK')
-    return render_template_string(HTML_RECEIPT_LIST.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), patients=patients)
+    return render_medical_page(HTML_RECEIPT_LIST, 'CETAK STRUK', 'receipt', patients=patients)
 
-@app.route('/print-receipt/<int:id>')
+@app.route('/print-receipt/<int:item_id>')
 @role_required(['admin', 'doctor'])
-def print_receipt(id):
-    row = db.session.get(Queue, id)
-    if not row: return "Not Found", 404
+def print_receipt(item_id: int) -> str:
+    row = db.session.get(Queue, item_id)
+    if not row: return render_template_string("<h1>Pasien tidak ditemukan</h1>"), 404
     p = row.to_dict()
     
     total = (p.get('fee_doctor') or 0) + (p.get('fee_medicine') or 0)
@@ -1078,26 +1285,37 @@ def print_receipt(id):
 
 @app.route('/wa-reminder')
 @role_required(['admin', 'doctor'])
-def wa_reminder_page():
+def wa_reminder_page() -> str:
     patients = [r.to_dict() for r in Queue.query.filter_by(status='waiting').order_by(Queue.number.asc()).all()]
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'chat').replace('{{ page_title }}', 'WA REMINDER')
-    return render_template_string(HTML_WA_REMINDER.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), patients=patients)
+    return render_medical_page(HTML_WA_REMINDER, 'WA REMINDER', 'chat', patients=patients)
 
 @app.route('/booking-list')
 @role_required(['admin', 'doctor'])
-def booking_list_page():
+def booking_list_page() -> str:
     rows = [r.to_dict() for r in Appointment.query.order_by(Appointment.date.desc(), Appointment.time.asc()).all()]
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'event').replace('{{ page_title }}', 'DAFTAR JANJI TEMU')
-    return render_template_string(HTML_BOOKING_LIST.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), appointments=rows)
+    return render_medical_page(HTML_BOOKING_LIST, 'DAFTAR JANJI TEMU', 'event', appointments=rows)
 
 @app.route('/backup-db')
 @role_required(['doctor'])
-def backup_db():
-    backup_file = os.path.join(app.config['UPLOAD_FOLDER'], 'backup.sql')
+def backup_db() -> Response:
+    from flask import after_this_request
+    backup_file = os.path.join(app.config['BACKUP_FOLDER'], 'backup.sql')
     db_uri = app.config['SQLALCHEMY_DATABASE_URI']
     
+    if not shutil.which('mysqldump') and "mysql" in db_uri:
+        return "Backup failed: 'mysqldump' utility not found on server.", 500
+
+    @after_this_request
+    def remove_backup(response: Response) -> Response:
+        try:
+            if os.path.exists(backup_file):
+                os.remove(backup_file)
+                logger.info(f"Successfully deleted secure backup: {backup_file}")
+        except Exception as e:
+            logger.error(f"Error removing backup file: {e}")
+        return response
+
     if "mysql" in db_uri:
-        # Extract db credentials from uri roughly
         import urllib.parse
         try:
             parsed = urllib.parse.urlparse(db_uri)
@@ -1106,31 +1324,30 @@ def backup_db():
             db_host = parsed.hostname
             db_name = parsed.path.lstrip('/')
             
-            # Form mysqldump command
             cmd = ['mysqldump', f'--user={db_user}', f'--host={db_host}', db_name]
             env = os.environ.copy()
-            if db_pass:
-                env['MYSQL_PWD'] = db_pass
+            if db_pass: env['MYSQL_PWD'] = db_pass
+
             with open(backup_file, 'w') as f:
                 subprocess.Popen(cmd, stdout=f, env=env).wait()
             
-            return send_from_directory(app.config['UPLOAD_FOLDER'], 'backup.sql', as_attachment=True)
+            log_audit('BACKUP_GENERATED', f"MySQL DB Backup requested.")
+            return send_from_directory(app.config['BACKUP_FOLDER'], 'backup.sql', as_attachment=True)
         except Exception as e:
             return f"Backup failed: {str(e)}", 500
     else:
-        # Fallback to older logic if not mysql
+        log_audit('BACKUP_GENERATED', f"SQLite DB Backup requested.")
         return send_from_directory('.', 'data.db', as_attachment=True)
 
 @app.route('/audit-log')
 @role_required(['doctor'])
-def audit_log_page():
+def audit_log_page() -> str:
     logs = [r.to_dict() for r in AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(100).all()]
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'history').replace('{{ page_title }}', 'AUDIT TRAIL')
-    return render_template_string(HTML_AUDIT.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), logs=logs)
+    return render_medical_page(HTML_AUDIT, 'AUDIT TRAIL', 'history', logs=logs)
 
 @app.route('/qr-pasien')
 @role_required(['admin', 'doctor'])
-def qr_pasien_page():
+def qr_pasien_page() -> str:
     q = request.args.get('q', '')
     patients = []
     if q:
@@ -1140,12 +1357,11 @@ def qr_pasien_page():
         rows = Queue.query.filter(Queue.id.in_(subquery)).limit(20).all()
         patients = [r.to_dict() for r in rows]
     
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'qr_code').replace('{{ page_title }}', 'KARTU PASIEN QR')
-    return render_template_string(HTML_QR_PAGE.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), patients=patients)
+    return render_medical_page(HTML_QR_PAGE, 'KARTU PASIEN QR', 'qr_code', patients=patients)
 
 @app.route('/api/qr/generate', methods=['POST'])
 @role_required(['admin', 'doctor'])
-def api_qr_generate():
+def api_qr_generate() -> Response:
     data = request.json
     # Content of QR: JSON string with ID, Name, Phone
     qr_content = json.dumps({
@@ -1166,12 +1382,11 @@ def api_qr_generate():
     return jsonify({'image': img_b64})
 
 @app.route('/symptom-checker')
-def symptom_checker_page():
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'local_hospital').replace('{{ page_title }}', 'SYMPTOM CHECKER')
-    return render_template_string(HTML_SYMPTOM.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE))
+def symptom_checker_page() -> str:
+    return render_medical_page(HTML_SYMPTOM, 'SYMPTOM CHECKER', 'local_hospital')
 
 @app.route('/api/symptom/check', methods=['POST'])
-def api_symptom_check():
+def api_symptom_check() -> Response:
     text = request.json.get('text', '').lower()
     
     best_match = None
@@ -1205,7 +1420,7 @@ def api_symptom_check():
 
 @app.route('/peta-sebaran')
 @role_required(['doctor'])
-def peta_sebaran_page():
+def peta_sebaran_page() -> str:
     rows = Queue.query.with_entities(Queue.address, Queue.diagnosis).filter(Queue.status == 'done', Queue.diagnosis.isnot(None)).all()
     
     data = {}
@@ -1216,32 +1431,41 @@ def peta_sebaran_page():
         if diag not in data[addr]: data[addr][diag] = 0
         data[addr][diag] += 1
         
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'map').replace('{{ page_title }}', 'PETA SEBARAN PENYAKIT')
-    return render_template_string(HTML_MAP.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), map_data=data)
+    return render_medical_page(HTML_MAP, 'PETA SEBARAN PENYAKIT', 'map', map_data=data)
 
 
 @app.route('/prediksi-stok')
 @role_required(['doctor'])
-def prediksi_stok_page():
+def prediksi_stok_page() -> str:
     rows = [r.to_dict() for r in MedicineStock.query.all()]
-    
     predictions = []
     
+    # Pre-fetch all relevant logs to memory once to prevent O(N) DB queries
+    logs = AuditLog.query.filter(AuditLog.action == 'STOCK_UPDATE').all()
+    parsed_logs = []
+    for log in logs:
+        try:
+            # We assume logs are saved as JSON strings (implemented below)
+            # If they are legacy strings, try to parse or ignore
+            details = json.loads(log.details.replace("'", '"')) if '{' in log.details else {}
+            if 'id' in details and 'change' in details:
+                parsed_logs.append(details)
+        except Exception:
+            pass
+
     for r in rows:
-        # Menghitung rata-rata dari riwayat AuditLog (STOCK_UPDATE)
-        logs = AuditLog.query.filter(AuditLog.action == 'STOCK_UPDATE').all()
         total_usage = 0
         update_count = 0
-        for log in logs:
-            if f"'id': {r['id']}" in log.details and "'change':" in log.details:
+
+        for details in parsed_logs:
+            if str(details.get('id')) == str(r['id']):
                 try:
-                    change_str = log.details.split("'change': ")[1].split(",")[0].replace("'", "").strip()
-                    change_val = int(change_str)
-                    if change_val < 0: # Pengurangan stok = usage
+                    change_val = int(details.get('change', 0))
+                    if change_val < 0:
                         total_usage += abs(change_val)
                         update_count += 1
-                except Exception as e:
-                    print(f"Error parsing log details '{log.details}' for usage average: {str(e)}")
+                except ValueError:
+                    continue
         
         avg_usage = total_usage // update_count if update_count > 0 else 0
         days_left = r['stock'] // avg_usage if avg_usage > 0 else 999
@@ -1266,13 +1490,11 @@ def prediksi_stok_page():
         })
         
     predictions.sort(key=lambda x: x['days_left'])
-    
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'show_chart').replace('{{ page_title }}', 'PREDIKSI STOK (AI)')
-    return render_template_string(HTML_STOCK_PRED.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), predictions=predictions)
+    return render_medical_page(HTML_STOCK_PRED, 'PREDIKSI STOK (AI)', 'show_chart', predictions=predictions)
 
 @app.route('/lab-results')
 @role_required(['admin', 'doctor'])
-def lab_results_page():
+def lab_results_page() -> str:
     q = request.args.get('q', '')
     if q:
         patients = [r.to_dict() for r in Queue.query.filter(Queue.name.like(f"%{q}%")).order_by(Queue.created_at.desc()).all()]
@@ -1282,17 +1504,24 @@ def lab_results_page():
     for p in patients:
         p['results'] = [r.to_dict() for r in LabResult.query.filter_by(patient_id=p['id']).order_by(LabResult.created_at.desc()).all()]
         
-    navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'science').replace('{{ page_title }}', 'HASIL LAB DIGITAL')
-    return render_template_string(HTML_LAB.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), patients=patients)
+    return render_medical_page(HTML_LAB, 'HASIL LAB DIGITAL', 'science', patients=patients)
 
 @app.route('/upload/lab', methods=['POST'])
 @role_required(['admin', 'doctor'])
-def upload_lab():
+def upload_lab() -> Response:
     if 'file' not in request.files: return "No file", 400
     file = request.files['file']
     patient_id = request.form.get('patient_id')
     desc = request.form.get('description')
     
+    # Validation: Patient ID must be digit and exist
+    if not patient_id or not str(patient_id).isdigit():
+        return "Invalid Patient ID", 400
+
+    patient = db.session.get(Queue, int(patient_id))
+    if not patient:
+        return "Patient not found", 404
+
     if file and file.filename != '' and allowed_file(file.filename, file.stream):
         ext = file.filename.rsplit('.', 1)[1].lower()
         filename = f"lab_{patient_id}_{int(time.time())}.{ext}"
