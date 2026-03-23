@@ -7,10 +7,13 @@ import io
 import re
 import base64
 import qrcode
+import subprocess
+import imghdr
 from functools import wraps
 from PIL import Image
 from flask import Flask, request, send_from_directory, redirect, url_for, render_template_string, jsonify, session
 from werkzeug.utils import secure_filename
+from werkzeug.security import check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 
@@ -22,20 +25,15 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB Limit
 basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(basedir, '.env'))
 
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecretkey")
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
 # Database Configuration 
-# Prioritaskan mengambil URL utuh dari .env
 db_uri = os.getenv("SQLALCHEMY_DATABASE_URI")
-
-# Jika .env gagal terbaca, gunakan fallback ini
-if not db_uri:
-    db_uri = "mysql+pymysql://tahkilfc_user:PasswordRahasia123!@localhost/db_slb"
 
 app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_size': 50,
+    'pool_size': 20,
     'max_overflow': 100,
     'pool_recycle': 280,
     'pool_pre_ping': True
@@ -143,7 +141,7 @@ class AuditLog(db.Model):
 class LabResult(db.Model):
     __tablename__ = 'lab_results'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    patient_id = db.Column(db.Integer)
+    patient_id = db.Column(db.Integer, db.ForeignKey('queue.id'))
     description = db.Column(db.Text)
     file_path = db.Column(db.String(255))
     created_at = db.Column(db.String(100), default=lambda: datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -184,10 +182,22 @@ def inject_rbac():
     return dict(role=session.get('role', 'patient'), menu_items=MENU_ITEMS)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt'}
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def allowed_file(filename, stream):
+    if not ('.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS):
+        return False
+
+    # Check magic bytes for images only
+    ext = filename.rsplit('.', 1)[1].lower()
+    if ext in {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff'}:
+        header = stream.read(512)
+        stream.seek(0)
+        format = imghdr.what(None, header)
+        if not format:
+            return False
+
+    return True
 
 def get_wita_now():
     return datetime.datetime.utcnow() + datetime.timedelta(hours=8)
@@ -205,7 +215,8 @@ def format_date_indo(date_str):
             
         months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
         return f"{dt.day} {months[dt.month - 1]} {dt.year}"
-    except:
+    except Exception as e:
+        print(f"Error in format_date_indo for '{date_str}': {str(e)}")
         return date_str
 
 # --- RBAC CONFIGURATION ---
@@ -494,10 +505,15 @@ def api_queue_add():
     complaint = data.get('complaint')
     address = data.get('address', '')
     
+    if not name or not name.strip():
+        return jsonify({'success': False, 'error': 'Nama pasien tidak boleh kosong'}), 400
+    if not phone or not phone.strip():
+        return jsonify({'success': False, 'error': 'Nomor telepon tidak boleh kosong'}), 400
+
     try:
         today = datetime.date.today().isoformat()
-        max_num = db.session.query(db.func.max(Queue.number)).filter(Queue.created_at.like(f"{today}%")).scalar()
-        next_num = (max_num or 0) + 1
+        last_q = Queue.query.with_for_update().filter(Queue.created_at.like(f"{today}%")).order_by(Queue.number.desc()).first()
+        next_num = (last_q.number if last_q and last_q.number else 0) + 1
         
         new_q = Queue(name=name, phone=phone, complaint=complaint, number=next_num, status='waiting', address=address)
         db.session.add(new_q)
@@ -589,31 +605,34 @@ def api_patient_lab():
 def api_queue_action():
     data = request.json
     action = data.get('action')
-    id = data.get('id')
+    item_id = data.get('id')
     
     try:
         if action == 'call':
-            db.session.query(Queue).filter(Queue.status == 'examining').update({'status': 'done'}, synchronize_session=False)
-            target = Queue.query.get(id)
+            examining = Queue.query.filter_by(status='examining').first()
+            if examining:
+                return jsonify({'success': False, 'error': 'Terdapat pasien yang belum diselesaikan pemeriksaannya.'}), 400
+
+            target = Queue.query.get(item_id)
             if target:
                 target.status = 'examining'
                 
         elif action == 'finish':
-            target = Queue.query.get(id)
+            target = Queue.query.get(item_id)
             if target:
                 target.status = 'done'
                 target.diagnosis = data.get('diagnosis')
                 target.prescription = data.get('prescription')
                 target.medical_action = data.get('medical_action')
                 target.finished_at = get_wita_now().strftime("%Y-%m-%d %H:%M:%S")
-            log_audit('QUEUE_FINISH', f"Finished patient ID {id}")
+            log_audit('QUEUE_FINISH', f"Finished patient ID {item_id}")
             
         elif action == 'cancel':
-            target = Queue.query.get(id)
+            target = Queue.query.get(item_id)
             if target:
                 target.status = 'cancelled'
                 target.cancellation_reason = data.get('reason')
-            log_audit('QUEUE_CANCEL', f"Cancelled patient ID {id}: {data.get('reason')}")
+            log_audit('QUEUE_CANCEL', f"Cancelled patient ID {item_id}: {data.get('reason')}")
 
         db.session.commit()
         return jsonify({'success': True})
@@ -635,14 +654,28 @@ def api_stock_update():
     
     try:
         if action == 'create':
-            new_m = MedicineStock(name=data.get('name'), stock=data.get('stock'), unit=data.get('unit'))
+            name = data.get('name')
+            if not name or not name.strip():
+                return jsonify({'success': False, 'error': 'Nama obat tidak boleh kosong'}), 400
+            try:
+                stock_val = int(data.get('stock', 0))
+            except ValueError:
+                return jsonify({'success': False, 'error': 'Format stok salah (harus angka)'}), 400
+
+            new_m = MedicineStock(name=name, stock=stock_val, unit=data.get('unit'))
             db.session.add(new_m)
+
         elif action == 'update':
-            id = data.get('id')
-            change = int(data.get('change'))
-            m = MedicineStock.query.get(id)
+            item_id = data.get('id')
+            try:
+                change = int(data.get('change'))
+            except (ValueError, TypeError):
+                return jsonify({'success': False, 'error': 'Format perubahan stok salah (harus angka)'}), 400
+
+            m = MedicineStock.query.get(item_id)
             if m:
                 m.stock += change
+
         elif action == 'delete':
             m = MedicineStock.query.get(data.get('id'))
             if m:
@@ -670,6 +703,7 @@ def api_dental_settings():
             return jsonify({'success': True})
         except Exception as e:
             db.session.rollback()
+            print(f"Error in dental game config: {str(e)}")
             return jsonify({'success': False, 'error': str(e)}), 500
         
     row = SiteSetting.query.get('dental_game_config')
@@ -742,13 +776,17 @@ def login():
     uid = request.form.get('userid')
     pwd = request.form.get('password')
     
-    if uid == 'dokter' and pwd == 'dokter123':
+    dokter_hash = os.getenv("DOKTER_PWD_HASH")
+    admin_hash = os.getenv("ADMIN_PWD_HASH")
+    adminweb_hash = os.getenv("ADMIN_WEB_PWD_HASH")
+
+    if uid == 'dokter' and dokter_hash and check_password_hash(dokter_hash, pwd):
         session['role'] = 'doctor'
         return redirect(url_for('dashboard_page'))
-    elif uid == 'admin' and pwd == 'admin123':
+    elif uid == 'admin' and admin_hash and check_password_hash(admin_hash, pwd):
         session['role'] = 'admin'
         return redirect(url_for('dashboard_page'))
-    elif uid == 'adminwebsite' and pwd == '4dm1nw3bs1t3':
+    elif uid == 'adminwebsite' and adminweb_hash and check_password_hash(adminweb_hash, pwd):
         session['role'] = 'admin'
         return redirect(url_for('dashboard_page'))
         
@@ -763,39 +801,40 @@ def logout():
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-@app.route('/upload/<type>/<id>', methods=['POST'])
+@app.route('/upload/<item_type>/<item_id>', methods=['POST'])
 @role_required(['admin', 'doctor'])
-def upload_image(type, id):
+def upload_image(item_type, item_id):
     if 'image' not in request.files: return "No file", 400
     
     file = request.files['image']
-    if file and file.filename != '' and allowed_file(file.filename):
+    if file and file.filename != '' and allowed_file(file.filename, file.stream):
         ext = file.filename.rsplit('.', 1)[1].lower()
-        filename = f"{type}_{id}_{int(time.time())}.{ext}"
+        filename = f"{item_type}_{item_id}_{int(time.time())}.{ext}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
         try:
-            if type == 'history':
+            if item_type == 'history':
                 setting = SiteSetting.query.get('history_image')
                 if setting: setting.value = filename
                 else: db.session.add(SiteSetting(key='history_image', value=filename))
-            elif type == 'news':
-                item = NewsContent.query.get(id)
+            elif item_type == 'news':
+                item = NewsContent.query.get(item_id)
                 if item: item.image_path = filename
-            elif type == 'personnel':
-                item = Personnel.query.get(id)
+            elif item_type == 'personnel':
+                item = Personnel.query.get(item_id)
                 if item: item.image_path = filename
-            elif type == 'sponsor':
-                item = Sponsor.query.get(id)
+            elif item_type == 'sponsor':
+                item = Sponsor.query.get(item_id)
                 if item: item.image_path = filename
-            elif type == 'agenda':
-                item = AgendaContent.query.get(id)
+            elif item_type == 'agenda':
+                item = AgendaContent.query.get(item_id)
                 if item: item.image_path = filename
                 
             db.session.commit()
         except Exception as e:
             db.session.rollback()
+            print(f"Error saving uploaded image path for {item_type}_{item_id}: {str(e)}")
             
     return redirect(url_for('profil_klinik'))
 
@@ -944,7 +983,8 @@ def expiry_tracker():
                 exp = datetime.datetime.strptime(r['expiry_date'], '%Y-%m-%d').date()
                 if (exp - today).days < 30:
                     is_expiring = True
-            except: pass
+            except Exception as e:
+                print(f"Error parsing expiry_date '{r['expiry_date']}' for item {r['id']}: {str(e)}")
         r['is_expiring'] = is_expiring
         medicines.append(r)
         
@@ -1004,8 +1044,30 @@ def booking_list_page():
 @app.route('/backup-db')
 @role_required(['doctor'])
 def backup_db():
-    # if not session.get('admin'): return "Unauthorized", 403
-    return send_from_directory('.', 'data.db', as_attachment=True)
+    backup_file = os.path.join(app.config['UPLOAD_FOLDER'], 'backup.sql')
+    db_uri = app.config['SQLALCHEMY_DATABASE_URI']
+
+    if "mysql" in db_uri:
+        # Extract db credentials from uri roughly
+        import urllib.parse
+        try:
+            parsed = urllib.parse.urlparse(db_uri)
+            db_user = parsed.username
+            db_pass = parsed.password
+            db_host = parsed.hostname
+            db_name = parsed.path.lstrip('/')
+
+            # Form mysqldump command
+            cmd = ['mysqldump', f'--user={db_user}', f'--password={db_pass}', f'--host={db_host}', db_name]
+            with open(backup_file, 'w') as f:
+                subprocess.Popen(cmd, stdout=f).wait()
+
+            return send_from_directory(app.config['UPLOAD_FOLDER'], 'backup.sql', as_attachment=True)
+        except Exception as e:
+            return f"Backup failed: {str(e)}", 500
+    else:
+        # Fallback to older logic if not mysql
+        return send_from_directory('.', 'data.db', as_attachment=True)
 
 @app.route('/audit-log')
 @role_required(['doctor'])
@@ -1105,16 +1167,32 @@ def peta_sebaran_page():
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'map').replace('{{ page_title }}', 'PETA SEBARAN PENYAKIT')
     return render_template_string(HTML_MAP.replace('{{ navbar|safe }}', navbar), map_data=data)
 
+import random
+
 @app.route('/prediksi-stok')
 @role_required(['doctor'])
 def prediksi_stok_page():
     rows = [r.to_dict() for r in MedicineStock.query.all()]
     
     predictions = []
-    import random
     
     for r in rows:
-        avg_usage = random.randint(1, 5) # 1-5 units per day
+        # Menghitung rata-rata dari riwayat AuditLog (STOCK_UPDATE)
+        logs = AuditLog.query.filter(AuditLog.action == 'STOCK_UPDATE').all()
+        total_usage = 0
+        update_count = 0
+        for log in logs:
+            if f"'id': {r['id']}" in log.details and "'change':" in log.details:
+                try:
+                    change_str = log.details.split("'change': ")[1].split(",")[0].replace("'", "").strip()
+                    change_val = int(change_str)
+                    if change_val < 0: # Pengurangan stok = usage
+                        total_usage += abs(change_val)
+                        update_count += 1
+                except Exception as e:
+                    print(f"Error parsing log details '{log.details}' for usage average: {str(e)}")
+
+        avg_usage = total_usage // update_count if update_count > 0 else 0
         days_left = r['stock'] // avg_usage if avg_usage > 0 else 999
         
         status = "Aman"
@@ -1164,7 +1242,7 @@ def upload_lab():
     patient_id = request.form.get('patient_id')
     desc = request.form.get('description')
     
-    if file and file.filename != '' and allowed_file(file.filename):
+    if file and file.filename != '' and allowed_file(file.filename, file.stream):
         ext = file.filename.rsplit('.', 1)[1].lower()
         filename = f"lab_{patient_id}_{int(time.time())}.{ext}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -1176,6 +1254,7 @@ def upload_lab():
             log_audit('LAB_UPLOAD', f"Uploaded {filename} for patient {patient_id}")
         except Exception as e:
             db.session.rollback()
+            print(f"Error saving lab result for patient {patient_id}: {str(e)}")
         
     return redirect('/lab-results')
 
