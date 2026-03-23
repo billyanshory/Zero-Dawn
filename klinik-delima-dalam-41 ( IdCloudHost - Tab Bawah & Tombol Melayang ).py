@@ -3738,7 +3738,7 @@ HTML_LANDING = """
         .btn-close { background: linear-gradient(135deg, #e74c3c, #c0392b); }
         .wa-float {
             position: fixed;
-            bottom: 30px;
+            bottom: 100px;
             right: 30px;
             background: #25D366;
             color: white;
@@ -3757,7 +3757,7 @@ HTML_LANDING = """
         .wa-float:hover { transform: scale(1.1); color: white; }
         .game-float {
             position: fixed;
-            bottom: 100px;
+            bottom: 160px;
             right: 30px;
             background: #ffb703; /* bright orange/pastel yellow */
             color: white;
@@ -5709,7 +5709,7 @@ STYLES_HTML = """
     .agenda-modal-map-overlay:hover { background: var(--gold); transform: scale(1.05); }
         .game-float {
             position: fixed;
-            bottom: 100px;
+            bottom: 160px;
             right: 30px;
             background: #ffb703; /* bright orange/pastel yellow */
             color: white;
