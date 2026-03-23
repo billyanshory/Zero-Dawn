@@ -1928,23 +1928,19 @@ document.addEventListener("DOMContentLoaded", function() {
 </style>
 
 <div class="bottom-nav">
-    <a href="/" class="nav-item" style="text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 25%;">
+    <a href="/" class="nav-item" style="text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 33.33%;">
         <span class="material-icons text-success" style="font-size: 1.8rem; margin-bottom: 2px;">home</span>
         <span style="font-size: 0.7rem; font-weight: bold; color: #2ecc71;">Beranda</span>
     </a>
-    <a href="/antrean" class="nav-item position-relative" style="text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 25%;">
-        <div class="bg-success text-white rounded-circle d-flex justify-content-center align-items-center shadow-lg" style="width: 65px; height: 65px; margin-top: -30px; border: 4px solid white;">
-            <span class="material-icons" style="font-size: 2.2rem; color: white;">how_to_reg</span>
+    <a href="javascript:void(0)" onclick="document.getElementById('myCardModal').style.display='flex';" class="nav-item position-relative" style="text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 33.33%;">
+        <div class="bg-success text-white rounded-circle d-flex justify-content-center align-items-center shadow-lg" style="width: 65px; height: 65px; margin-top: -30px; border: 4px solid white; background-color: #2ecc71 !important; box-shadow: 0 0 15px rgba(46,204,113,0.8) !important;">
+            <span class="material-icons" style="font-size: 2.2rem; color: white;">badge</span>
         </div>
-        <span style="font-size: 0.75rem; font-weight: bold; margin-top: 5px; color: #333; text-align: center;">Ambil Antrean</span>
+        <span style="font-size: 0.75rem; font-weight: bold; margin-top: 5px; color: #333; text-align: center;">Kartu Saya</span>
     </a>
-    <div class="nav-item" onclick="document.getElementById('myLabModal').style.display='flex';" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 25%;">
+    <div class="nav-item" onclick="document.getElementById('myLabModal').style.display='flex';" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 33.33%;">
         <span class="material-icons text-muted" style="font-size: 1.6rem; margin-bottom: 2px;">science</span>
         <span style="font-size: 0.7rem; font-weight: bold; color: #666; text-align: center;">Hasil Lab</span>
-    </div>
-    <div class="nav-item" onclick="openGame()" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 25%;">
-        <span class="material-icons text-muted" style="font-size: 1.6rem; margin-bottom: 2px;">sports_esports</span>
-        <span style="font-size: 0.7rem; font-weight: bold; color: #666; text-align: center;">Game</span>
     </div>
 </div>
 
@@ -3759,6 +3755,25 @@ HTML_LANDING = """
             z-index: 9999;
         }
         .wa-float:hover { transform: scale(1.1); color: white; }
+        .game-float {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            background: #ffb703; /* bright orange/pastel yellow */
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(255, 183, 3, 0.4);
+            z-index: 1000;
+            text-decoration: none;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+        .game-float:hover { transform: scale(1.1); color: white; }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -3887,6 +3902,9 @@ HTML_LANDING = """
     <a href="https://wa.me/6281241865310?text=Halo%20Dokter,%20saya%20ingin%20konsultasi%20darurat." class="wa-float" target="_blank">
         <span class="material-icons">chat</span>
     </a>
+    <div onclick="openGame()" class="game-float" title="Bermain Game">
+        <span class="material-icons">sports_esports</span>
+    </div>
 
     <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
         <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
@@ -5689,6 +5707,25 @@ STYLES_HTML = """
         transition: 0.3s;
     }
     .agenda-modal-map-overlay:hover { background: var(--gold); transform: scale(1.05); }
+        .game-float {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            background: #ffb703; /* bright orange/pastel yellow */
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(255, 183, 3, 0.4);
+            z-index: 1000;
+            text-decoration: none;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+        .game-float:hover { transform: scale(1.1); color: white; }
     
     .custom-range-slider::-webkit-slider-runnable-track {
         background: #e0f7fa; 
