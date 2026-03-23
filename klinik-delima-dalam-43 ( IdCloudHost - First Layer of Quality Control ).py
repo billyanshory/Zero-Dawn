@@ -16,9 +16,13 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # --- FLASK CONFIGURATION ---
 app = Flask(__name__)
+
+limiter = Limiter(app, key_func=get_remote_address, default_limits=["200 per day", "50 per hour"], storage_uri="memory://")
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB Limit
 
 # Pastikan dotenv membaca dari direktori absolut tempat app.py berada
@@ -26,6 +30,9 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(basedir, '.env'))
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
+
+if not app.secret_key:
+    raise RuntimeError("Secret key is missing from environment. Application cannot start securely.")
 
 # Database Configuration 
 db_uri = os.getenv("SQLALCHEMY_DATABASE_URI")
@@ -262,17 +269,17 @@ def init_db():
         db.create_all()
 
         # Seed Data
-        if not NewsContent.query.get('hero'):
+        if not db.session.get(NewsContent, 'hero'):
             db.session.add(NewsContent(id='hero', title='VICTORY IN THE DERBY', subtitle='A stunning performance secures the win', category='FIRST TEAM', type='hero'))
         for i in range(1, 5):
-            if not NewsContent.query.get(f'news_{i}'):
+            if not db.session.get(NewsContent, f'news_{i}'):
                 db.session.add(NewsContent(id=f'news_{i}', title=f'Headlines {i}', subtitle='Breaking News Headline 2', category='FIRST TEAM', type=f'sub_{i}'))
         
-        if not SiteSetting.query.get('next_match_time'):
+        if not db.session.get(SiteSetting, 'next_match_time'):
             db.session.add(SiteSetting(key='next_match_time', value='2026-02-01T20:00:00'))
-        if not SiteSetting.query.get('history_text'):
+        if not db.session.get(SiteSetting, 'history_text'):
             db.session.add(SiteSetting(key='history_text', value='Sejarah TAHKIL FC bermula pada tahun...'))
-        if not SiteSetting.query.get('footer_text'):
+        if not db.session.get(SiteSetting, 'footer_text'):
             db.session.add(SiteSetting(key='footer_text', value='© 2026 TAHKIL FC. All rights reserved.'))
 
         db.session.commit()
@@ -292,7 +299,20 @@ def log_audit(action, details, user="Admin"):
         print(f"Audit Log Error: {e}")
 
 # --- DATA HELPERS ---
+MEDICAL_FOOTER_TEMPLATE = """
+<footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
+    <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
+    <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
+</footer>
+"""
+
+_clinic_data_cache = {'data': None, 'time': 0}
+
 def get_all_data():
+    now = time.time()
+    if _clinic_data_cache['data'] and now - _clinic_data_cache['time'] < 60:
+        return _clinic_data_cache['data']
+
     agenda_content = {row.id: row.to_dict() for row in AgendaContent.query.all()}
     agenda_list = [row.to_dict() for row in AgendaList.query.order_by(AgendaList.created_at.asc()).all()]
     news_data = {row.id: row.to_dict() for row in NewsContent.query.all()}
@@ -305,7 +325,7 @@ def get_all_data():
     sponsors = [row.to_dict() for row in Sponsor.query.all()]
     settings = {row.key: row.value for row in SiteSetting.query.all()}
     
-    return {
+    result = {
         'agenda_content': agenda_content,
         'agenda_list': agenda_list,
         'news': news_data,
@@ -313,6 +333,11 @@ def get_all_data():
         'sponsors': sponsors,
         'settings': settings
     }
+
+    _clinic_data_cache['data'] = result
+    _clinic_data_cache['time'] = now
+
+    return result
 
 
 # --- ROUTES ---
@@ -323,44 +348,44 @@ def get_all_data():
 def landing_page():
     # Render Landing / Hub as Home
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_title }}', 'BERANDA KLINIK')
-    return render_template_string(HTML_LANDING.replace('{{ navbar|safe }}', navbar))
+    return render_template_string(HTML_LANDING.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE))
 
 @app.route('/dashboard')
 @role_required(['admin', 'doctor'])
 def dashboard_page():
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_title }}', 'DASHBOARD MEDIS')
-    return render_template_string(HTML_DASHBOARD.replace('{{ navbar|safe }}', navbar))
+    return render_template_string(HTML_DASHBOARD.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE))
 
 @app.route('/antrean')
 def antrean_page():
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'group').replace('{{ page_title }}', 'ANTREAN')
-    return render_template_string(HTML_QUEUE.replace('{{ navbar|safe }}', navbar))
+    return render_template_string(HTML_QUEUE.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE))
 
 @app.route('/rekam-medis')
 @role_required(['doctor'])
 def rekam_medis_page():
     # Admin check removed for development
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'medical_information').replace('{{ page_title }}', 'REKAM MEDIS')
-    return render_template_string(HTML_DOCTOR_REKAM.replace('{{ navbar|safe }}', navbar))
+    return render_template_string(HTML_DOCTOR_REKAM.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE))
 
 @app.route('/stok-obat')
 @role_required(['admin', 'doctor'])
 def stok_obat_page():
     # Admin check removed for development
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'medication').replace('{{ page_title }}', 'STOK OBAT')
-    return render_template_string(HTML_DOCTOR_STOCK.replace('{{ navbar|safe }}', navbar))
+    return render_template_string(HTML_DOCTOR_STOCK.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE))
 
 @app.route('/surat-sakit')
 @role_required(['doctor'])
 def surat_sakit_list():
     patients = [r.to_dict() for r in Queue.query.filter_by(status='done').order_by(Queue.created_at.desc()).limit(50).all()]
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'medical_information').replace('{{ page_title }}', 'SURAT SAKIT')
-    return render_template_string(HTML_SICK_LIST.replace('{{ navbar|safe }}', navbar), patients=patients)
+    return render_template_string(HTML_SICK_LIST.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), patients=patients)
 
 @app.route('/surat-sakit/print/<int:id>')
 @role_required(['doctor'])
 def surat_sakit_print(id):
-    row = Queue.query.get(id)
+    row = db.session.get(Queue, id)
     if not row: return "Pasien tidak ditemukan", 404
     
     p = row.to_dict()
@@ -384,14 +409,14 @@ def kasir_page():
     patients = [r.to_dict() for r in Queue.query.filter_by(status='done').filter(Queue.created_at.like(f"{today}%")).order_by(Queue.created_at.desc()).all()]
     
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'point_of_sale').replace('{{ page_title }}', 'KASIR & LAPORAN')
-    return render_template_string(HTML_CASHIER.replace('{{ navbar|safe }}', navbar), patients=patients)
+    return render_template_string(HTML_CASHIER.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), patients=patients)
 
 @app.route('/api/kasir/update', methods=['POST'])
 @role_required(['admin', 'doctor'])
 def api_kasir_update():
     data = request.json
     try:
-        q = Queue.query.get(data.get('id'))
+        q = db.session.get(Queue, data.get('id'))
         if q:
             q.fee_doctor = data.get('fee_doctor')
             q.fee_medicine = data.get('fee_medicine')
@@ -413,7 +438,7 @@ def database_pasien_page():
         patients = [r.to_dict() for r in query.order_by(Queue.created_at.desc()).limit(20).all()]
     
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'storage').replace('{{ page_title }}', 'DATABASE PASIEN')
-    return render_template_string(HTML_PATIENT_DB.replace('{{ navbar|safe }}', navbar), patients=patients)
+    return render_template_string(HTML_PATIENT_DB.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), patients=patients)
 
 @app.route('/pencarian-pasien')
 @role_required(['admin', 'doctor'])
@@ -428,7 +453,7 @@ def pencarian_pasien_page():
         patients = [r.to_dict() for r in rows]
     
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'search').replace('{{ page_title }}', 'CARI PASIEN')
-    return render_template_string(HTML_SEARCH.replace('{{ navbar|safe }}', navbar), patients=patients)
+    return render_template_string(HTML_SEARCH.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), patients=patients)
 
 @app.route('/statistik')
 @role_required(['doctor'])
@@ -443,7 +468,7 @@ def statistik_page():
     }
     
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'pie_chart').replace('{{ page_title }}', 'STATISTIK')
-    return render_template_string(HTML_STATS.replace('{{ navbar|safe }}', navbar), chart_data=chart_data)
+    return render_template_string(HTML_STATS.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), chart_data=chart_data)
 
 @app.route('/download-data')
 @role_required(['admin', 'doctor'])
@@ -478,11 +503,11 @@ def api_clinic_status():
             if 'set_status' in data:
                 new_val = '1' if data['set_status'] else '0'
             else:
-                row = SiteSetting.query.get('clinic_open')
+                row = db.session.get(SiteSetting, 'clinic_open')
                 curr = row.value if row else '0'
                 new_val = '0' if curr == '1' else '1'
             
-            setting = SiteSetting.query.get('clinic_open')
+            setting = db.session.get(SiteSetting, 'clinic_open')
             if setting:
                 setting.value = new_val
             else:
@@ -493,7 +518,7 @@ def api_clinic_status():
             db.session.rollback()
             return jsonify({'error': str(e)}), 500
     
-    row = SiteSetting.query.get('clinic_open')
+    row = db.session.get(SiteSetting, 'clinic_open')
     is_open = row.value == '1' if row else False
     return jsonify({'open': is_open})
 
@@ -613,12 +638,12 @@ def api_queue_action():
             if examining:
                 return jsonify({'success': False, 'error': 'Terdapat pasien yang belum diselesaikan pemeriksaannya.'}), 400
                 
-            target = Queue.query.get(item_id)
+            target = db.session.get(Queue, item_id)
             if target:
                 target.status = 'examining'
                 
         elif action == 'finish':
-            target = Queue.query.get(item_id)
+            target = db.session.get(Queue, item_id)
             if target:
                 target.status = 'done'
                 target.diagnosis = data.get('diagnosis')
@@ -628,7 +653,7 @@ def api_queue_action():
             log_audit('QUEUE_FINISH', f"Finished patient ID {item_id}")
             
         elif action == 'cancel':
-            target = Queue.query.get(item_id)
+            target = db.session.get(Queue, item_id)
             if target:
                 target.status = 'cancelled'
                 target.cancellation_reason = data.get('reason')
@@ -672,12 +697,12 @@ def api_stock_update():
             except (ValueError, TypeError):
                 return jsonify({'success': False, 'error': 'Format perubahan stok salah (harus angka)'}), 400
                 
-            m = MedicineStock.query.get(item_id)
+            m = db.session.get(MedicineStock, item_id)
             if m:
                 m.stock += change
                 
         elif action == 'delete':
-            m = MedicineStock.query.get(data.get('id'))
+            m = db.session.get(MedicineStock, data.get('id'))
             if m:
                 db.session.delete(m)
                 
@@ -694,7 +719,7 @@ def api_dental_settings():
         try:
             data = request.json
             config_str = json.dumps(data)
-            setting = SiteSetting.query.get('dental_game_config')
+            setting = db.session.get(SiteSetting, 'dental_game_config')
             if setting:
                 setting.value = config_str
             else:
@@ -706,7 +731,7 @@ def api_dental_settings():
             print(f"Error in dental game config: {str(e)}")
             return jsonify({'success': False, 'error': str(e)}), 500
         
-    row = SiteSetting.query.get('dental_game_config')
+    row = db.session.get(SiteSetting, 'dental_game_config')
     if row and row.value:
         return jsonify(json.loads(row.value))
     else:
@@ -715,6 +740,7 @@ def api_dental_settings():
 def render_page(content, **kwargs):
     content = content.replace('{{ styles|safe }}', STYLES_HTML)
     content = content.replace('{{ navbar|safe }}', NAVBAR_HTML)
+    content = content.replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE)
     if 'timestamp' not in kwargs:
         kwargs['timestamp'] = int(time.time())
     return render_template_string(content, **kwargs)
@@ -772,6 +798,7 @@ def profil_klinik():
                        admin=session.get('admin', False))
 
 @app.route('/login', methods=['POST'])
+@limiter.limit("5 per minute")
 def login():
     uid = request.form.get('userid')
     pwd = request.form.get('password')
@@ -790,6 +817,7 @@ def login():
         session['role'] = 'admin'
         return redirect(url_for('dashboard_page'))
         
+    log_audit('LOGIN_FAILED', f"Failed login attempt for user: {uid} from IP: {get_remote_address()}", user="System")
     return redirect(url_for('landing_page'))
 
 @app.route('/logout')
@@ -815,20 +843,20 @@ def upload_image(item_type, item_id):
         
         try:
             if item_type == 'history':
-                setting = SiteSetting.query.get('history_image')
+                setting = db.session.get(SiteSetting, 'history_image')
                 if setting: setting.value = filename
                 else: db.session.add(SiteSetting(key='history_image', value=filename))
             elif item_type == 'news':
-                item = NewsContent.query.get(item_id)
+                item = db.session.get(NewsContent, item_id)
                 if item: item.image_path = filename
             elif item_type == 'personnel':
-                item = Personnel.query.get(item_id)
+                item = db.session.get(Personnel, item_id)
                 if item: item.image_path = filename
             elif item_type == 'sponsor':
-                item = Sponsor.query.get(item_id)
+                item = db.session.get(Sponsor, item_id)
                 if item: item.image_path = filename
             elif item_type == 'agenda':
-                item = AgendaContent.query.get(item_id)
+                item = db.session.get(AgendaContent, item_id)
                 if item: item.image_path = filename
                 
             db.session.commit()
@@ -866,11 +894,11 @@ def api_update_text():
     try:
         model_cls = model_map[table]
         if table == 'site_settings':
-            setting = model_cls.query.get(id)
+            setting = db.session.get(model_cls, id)
             if setting: setting.value = value
             else: db.session.add(model_cls(key=id, value=value))
         else:
-            item = model_cls.query.get(id)
+            item = db.session.get(model_cls, id)
             if not item:
                 if table == 'personnel':
                     item = model_cls(id=id, role=data.get('role', 'player'))
@@ -887,22 +915,22 @@ def api_update_text():
 @app.route('/api/add-card', methods=['POST'])
 @role_required(['admin', 'doctor'])
 def api_add_card():
-    type = request.json.get('type')
-    new_id = f"{type}_{int(time.time()*1000)}"
+    item_type = request.json.get('type')
+    item_id = f"{item_type}_{int(time.time()*1000)}"
     
     try:
-        if type == 'personnel':
+        if item_type == 'personnel':
             role = request.json.get('role', 'player')
-            db.session.add(Personnel(id=new_id, role=role, name='New Name', position='Position'))
-        elif type == 'sponsor':
-            db.session.add(Sponsor(id=new_id, name='New Sponsor'))
-        elif type == 'agenda':
+            db.session.add(Personnel(id=item_id, role=role, name='New Name', position='Position'))
+        elif item_type == 'sponsor':
+            db.session.add(Sponsor(id=item_id, name='New Sponsor'))
+        elif item_type == 'agenda':
             section = request.json.get('section', 1)
-            db.session.add(AgendaList(id=new_id, section=section))
-            db.session.add(AgendaContent(id=new_id, title="New Agenda", status="Available", price="Location"))
+            db.session.add(AgendaList(id=item_id, section=section))
+            db.session.add(AgendaContent(id=item_id, title="New Agenda", status="Available", price="Location"))
             
         db.session.commit()
-        return jsonify({'success': True, 'id': new_id})
+        return jsonify({'success': True, 'id': item_id})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -919,13 +947,13 @@ def api_delete_item():
         
     try:
         if table == 'agenda_content':
-            a_list = AgendaList.query.get(id)
+            a_list = db.session.get(AgendaList, id)
             if a_list: db.session.delete(a_list)
-            a_cont = AgendaContent.query.get(id)
+            a_cont = db.session.get(AgendaContent, id)
             if a_cont: db.session.delete(a_cont)
         else:
             model_map = {'personnel': Personnel, 'sponsors': Sponsor, 'agenda_list': AgendaList}
-            item = model_map[table].query.get(id)
+            item = db.session.get(model_map[table], id)
             if item: db.session.delete(item)
             
         db.session.commit()
@@ -939,13 +967,29 @@ def api_delete_item():
 @app.route('/booking')
 def booking_page():
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'event_available').replace('{{ page_title }}', 'BOOKING JANJI TEMU')
-    return render_template_string(HTML_BOOKING.replace('{{ navbar|safe }}', navbar))
+    return render_template_string(HTML_BOOKING.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE))
 
 @app.route('/api/booking/add', methods=['POST'])
 def api_booking_add():
     data = request.json
+    name = data.get('name')
+    phone = data.get('phone')
+    date_str = data.get('date')
+    time_str = data.get('time')
+
+    if not name or not name.strip():
+        return jsonify({'success': False, 'error': 'Nama pasien tidak boleh kosong'}), 400
+    if not phone or not phone.strip():
+        return jsonify({'success': False, 'error': 'Nomor telepon tidak boleh kosong'}), 400
+
     try:
-        appt = Appointment(name=data.get('name'), phone=data.get('phone'), date=data.get('date'), time=data.get('time'))
+        datetime.datetime.strptime(date_str, '%Y-%m-%d')
+        datetime.datetime.strptime(time_str, '%H:%M')
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'Format tanggal atau waktu tidak valid'}), 400
+
+    try:
+        appt = Appointment(name=name, phone=phone, date=date_str, time=time_str)
         db.session.add(appt)
         db.session.commit()
         return jsonify({'success': True})
@@ -967,7 +1011,7 @@ def financial_dashboard():
     }
     
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'show_chart').replace('{{ page_title }}', 'DASHBOARD KEUANGAN')
-    return render_template_string(HTML_FINANCE.replace('{{ navbar|safe }}', navbar), chart_data=chart_data)
+    return render_template_string(HTML_FINANCE.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), chart_data=chart_data)
 
 @app.route('/expiry-tracker')
 @role_required(['admin', 'doctor'])
@@ -989,14 +1033,14 @@ def expiry_tracker():
         medicines.append(r)
         
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'warning').replace('{{ page_title }}', 'ALERT KEDALUWARSA')
-    return render_template_string(HTML_EXPIRY.replace('{{ navbar|safe }}', navbar), medicines=medicines)
+    return render_template_string(HTML_EXPIRY.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), medicines=medicines)
 
 @app.route('/api/stock/update-expiry', methods=['POST'])
 @role_required(['admin', 'doctor'])
 def api_stock_update_expiry():
     data = request.json
     try:
-        m = MedicineStock.query.get(data.get('id'))
+        m = db.session.get(MedicineStock, data.get('id'))
         if m:
             m.expiry_date = data.get('date')
             db.session.commit()
@@ -1010,12 +1054,12 @@ def api_stock_update_expiry():
 def receipt_list():
     patients = [r.to_dict() for r in Queue.query.filter_by(status='done').order_by(Queue.created_at.desc()).limit(50).all()]
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'receipt').replace('{{ page_title }}', 'CETAK STRUK')
-    return render_template_string(HTML_RECEIPT_LIST.replace('{{ navbar|safe }}', navbar), patients=patients)
+    return render_template_string(HTML_RECEIPT_LIST.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), patients=patients)
 
 @app.route('/print-receipt/<int:id>')
 @role_required(['admin', 'doctor'])
 def print_receipt(id):
-    row = Queue.query.get(id)
+    row = db.session.get(Queue, id)
     if not row: return "Not Found", 404
     p = row.to_dict()
     
@@ -1032,14 +1076,14 @@ def print_receipt(id):
 def wa_reminder_page():
     patients = [r.to_dict() for r in Queue.query.filter_by(status='waiting').order_by(Queue.number.asc()).all()]
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'chat').replace('{{ page_title }}', 'WA REMINDER')
-    return render_template_string(HTML_WA_REMINDER.replace('{{ navbar|safe }}', navbar), patients=patients)
+    return render_template_string(HTML_WA_REMINDER.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), patients=patients)
 
 @app.route('/booking-list')
 @role_required(['admin', 'doctor'])
 def booking_list_page():
     rows = [r.to_dict() for r in Appointment.query.order_by(Appointment.date.desc(), Appointment.time.asc()).all()]
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'event').replace('{{ page_title }}', 'DAFTAR JANJI TEMU')
-    return render_template_string(HTML_BOOKING_LIST.replace('{{ navbar|safe }}', navbar), appointments=rows)
+    return render_template_string(HTML_BOOKING_LIST.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), appointments=rows)
 
 @app.route('/backup-db')
 @role_required(['doctor'])
@@ -1058,9 +1102,12 @@ def backup_db():
             db_name = parsed.path.lstrip('/')
             
             # Form mysqldump command
-            cmd = ['mysqldump', f'--user={db_user}', f'--password={db_pass}', f'--host={db_host}', db_name]
+            cmd = ['mysqldump', f'--user={db_user}', f'--host={db_host}', db_name]
+            env = os.environ.copy()
+            if db_pass:
+                env['MYSQL_PWD'] = db_pass
             with open(backup_file, 'w') as f:
-                subprocess.Popen(cmd, stdout=f).wait()
+                subprocess.Popen(cmd, stdout=f, env=env).wait()
             
             return send_from_directory(app.config['UPLOAD_FOLDER'], 'backup.sql', as_attachment=True)
         except Exception as e:
@@ -1074,7 +1121,7 @@ def backup_db():
 def audit_log_page():
     logs = [r.to_dict() for r in AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(100).all()]
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'history').replace('{{ page_title }}', 'AUDIT TRAIL')
-    return render_template_string(HTML_AUDIT.replace('{{ navbar|safe }}', navbar), logs=logs)
+    return render_template_string(HTML_AUDIT.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), logs=logs)
 
 @app.route('/qr-pasien')
 @role_required(['admin', 'doctor'])
@@ -1089,7 +1136,7 @@ def qr_pasien_page():
         patients = [r.to_dict() for r in rows]
     
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'qr_code').replace('{{ page_title }}', 'KARTU PASIEN QR')
-    return render_template_string(HTML_QR_PAGE.replace('{{ navbar|safe }}', navbar), patients=patients)
+    return render_template_string(HTML_QR_PAGE.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), patients=patients)
 
 @app.route('/api/qr/generate', methods=['POST'])
 @role_required(['admin', 'doctor'])
@@ -1116,7 +1163,7 @@ def api_qr_generate():
 @app.route('/symptom-checker')
 def symptom_checker_page():
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'local_hospital').replace('{{ page_title }}', 'SYMPTOM CHECKER')
-    return render_template_string(HTML_SYMPTOM.replace('{{ navbar|safe }}', navbar))
+    return render_template_string(HTML_SYMPTOM.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE))
 
 @app.route('/api/symptom/check', methods=['POST'])
 def api_symptom_check():
@@ -1165,9 +1212,8 @@ def peta_sebaran_page():
         data[addr][diag] += 1
         
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'map').replace('{{ page_title }}', 'PETA SEBARAN PENYAKIT')
-    return render_template_string(HTML_MAP.replace('{{ navbar|safe }}', navbar), map_data=data)
+    return render_template_string(HTML_MAP.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), map_data=data)
 
-import random
 
 @app.route('/prediksi-stok')
 @role_required(['doctor'])
@@ -1217,7 +1263,7 @@ def prediksi_stok_page():
     predictions.sort(key=lambda x: x['days_left'])
     
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'show_chart').replace('{{ page_title }}', 'PREDIKSI STOK (AI)')
-    return render_template_string(HTML_STOCK_PRED.replace('{{ navbar|safe }}', navbar), predictions=predictions)
+    return render_template_string(HTML_STOCK_PRED.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), predictions=predictions)
 
 @app.route('/lab-results')
 @role_required(['admin', 'doctor'])
@@ -1232,7 +1278,7 @@ def lab_results_page():
         p['results'] = [r.to_dict() for r in LabResult.query.filter_by(patient_id=p['id']).order_by(LabResult.created_at.desc()).all()]
         
     navbar = MEDICAL_NAVBAR_TEMPLATE.replace('{{ page_icon }}', 'science').replace('{{ page_title }}', 'HASIL LAB DIGITAL')
-    return render_template_string(HTML_LAB.replace('{{ navbar|safe }}', navbar), patients=patients)
+    return render_template_string(HTML_LAB.replace('{{ navbar|safe }}', navbar).replace('{{ footer|safe }}', MEDICAL_FOOTER_TEMPLATE), patients=patients)
 
 @app.route('/upload/lab', methods=['POST'])
 @role_required(['admin', 'doctor'])
@@ -1260,12 +1306,6 @@ def upload_lab():
 
 # --- FRONTEND ASSETS ---
 
-MEDICAL_FOOTER_TEMPLATE = """
-<footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-    <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-    <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-</footer>
-"""
 
 MEDICAL_NAVBAR_TEMPLATE = """
 <style>
@@ -3686,7 +3726,7 @@ HTML_DASHBOARD = """
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    {{ MEDICAL_FOOTER_TEMPLATE | safe }}
+    {{ footer|safe }}
 </body>
 </html>
 """
@@ -3985,10 +4025,10 @@ HTML_LANDING = """
         <span class="material-icons">sports_esports</span>
     </div>
 
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -4185,10 +4225,10 @@ HTML_LAB = """
             });
         }
     </script>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -4247,10 +4287,10 @@ HTML_STOCK_PRED = """
             </div>
         </div>
     </div>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -4364,10 +4404,10 @@ HTML_MAP = """
             list.innerHTML += `<div class="mt-3 p-3 bg-light rounded small"><strong>Saran Tindakan:</strong><br>Lakukan fogging atau penyuluhan kesehatan di wilayah ini.</div>`;
         }
     </script>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -4432,10 +4472,10 @@ HTML_SYMPTOM = """
             });
         }
     </script>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -4544,10 +4584,10 @@ HTML_QR_PAGE = """
             win.print();
         }
     </script>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -4602,10 +4642,10 @@ HTML_AUDIT = """
             </div>
         </div>
     </div>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -4761,10 +4801,10 @@ HTML_QUEUE = """
             if(params.has('phone')) document.getElementById('q-phone').value = params.get('phone');
         }
     </script>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -5212,10 +5252,10 @@ HTML_DOCTOR_REKAM = """
         el.classList.toggle('show');
     }
     </script>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -5384,10 +5424,10 @@ HTML_DOCTOR_STOCK = """
         
         loadStock();
     </script>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -6939,10 +6979,10 @@ HTML_SICK_LIST = """
             </div>
         </div>
     </div>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -7107,10 +7147,10 @@ HTML_CASHIER = """
         calcTotal({{ p.id }});
         {% endfor %}
     </script>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -7172,10 +7212,10 @@ HTML_PATIENT_DB = """
             </div>
         </div>
     </div>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -7356,10 +7396,10 @@ HTML_SEARCH = """
             document.getElementById('player-card-modal').style.display = 'none';
         }
     </script>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -7413,10 +7453,10 @@ HTML_STATS = """
             }
         });
     </script>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -7645,10 +7685,10 @@ HTML_BOOKING = """
             });
         }
     </script>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -7720,10 +7760,10 @@ HTML_FINANCE = """
             }
         });
     </script>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -7801,10 +7841,10 @@ HTML_EXPIRY = """
             }).then(() => location.reload());
         }
     </script>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -7855,10 +7895,10 @@ HTML_RECEIPT_LIST = """
             </div>
         </div>
     </div>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -7954,10 +7994,10 @@ HTML_WA_REMINDER = """
             </div>
         </div>
     </div>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
@@ -8015,10 +8055,10 @@ HTML_BOOKING_LIST = """
             </div>
         </div>
     </div>
-    <footer class="text-center py-4 mt-auto" style="display: none; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.1);">
-        <h5 class="fw-bold mb-1" style="color: #333; letter-spacing: 1px;">KLINIK KESEHATAN</h5>
-        <small class="text-muted fw-bold" style="font-size: 0.8rem;">© 2026 KLINIK KESEHATAN. All Rights Reserved.</small>
-    </footer>
+    {{ footer|safe }}
+
+
+
 </body>
 </html>
 """
