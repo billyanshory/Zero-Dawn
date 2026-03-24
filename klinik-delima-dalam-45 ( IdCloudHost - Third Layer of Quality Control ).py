@@ -96,7 +96,7 @@ class AgendaContent(db.Model):
     
     def to_dict(self) -> Dict[str, Any]:
         d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
-        if d['event_date']: d['event_date'] = d['event_date'].strftime("%Y-%m-%d %H:%M:%S")
+        if d['event_date'] and hasattr(d['event_date'], 'strftime'): d['event_date'] = d['event_date'].strftime("%Y-%m-%d %H:%M:%S")
         return d
 
 class AgendaList(db.Model):
@@ -107,7 +107,7 @@ class AgendaList(db.Model):
     
     def to_dict(self) -> Dict[str, Any]:
         d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
-        if d['created_at']: d['created_at'] = d['created_at'].strftime("%Y-%m-%d %H:%M:%S")
+        if d['created_at'] and hasattr(d['created_at'], 'strftime'): d['created_at'] = d['created_at'].strftime("%Y-%m-%d %H:%M:%S")
         return d
 
 class NewsContent(db.Model):
@@ -124,8 +124,8 @@ class NewsContent(db.Model):
     
     def to_dict(self) -> Dict[str, Any]:
         d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
-        if d['timestamp']: d['timestamp'] = d['timestamp'].strftime("%Y-%m-%d %H:%M:%S")
-        if d['updated_at']: d['updated_at'] = d['updated_at'].strftime("%Y-%m-%d %H:%M:%S")
+        if d['timestamp'] and hasattr(d['timestamp'], 'strftime'): d['timestamp'] = d['timestamp'].strftime("%Y-%m-%d %H:%M:%S")
+        if d['updated_at'] and hasattr(d['updated_at'], 'strftime'): d['updated_at'] = d['updated_at'].strftime("%Y-%m-%d %H:%M:%S")
         return d
 
 class Personnel(db.Model):
@@ -185,8 +185,8 @@ class Queue(db.Model):
     
     def to_dict(self) -> Dict[str, Any]:
         d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
-        if d['created_at']: d['created_at'] = d['created_at'].strftime("%Y-%m-%d %H:%M:%S")
-        if d['finished_at']: d['finished_at'] = d['finished_at'].strftime("%Y-%m-%d %H:%M:%S")
+        if d['created_at'] and hasattr(d['created_at'], 'strftime'): d['created_at'] = d['created_at'].strftime("%Y-%m-%d %H:%M:%S")
+        if d['finished_at'] and hasattr(d['finished_at'], 'strftime'): d['finished_at'] = d['finished_at'].strftime("%Y-%m-%d %H:%M:%S")
         return d
 
 class AuditLog(db.Model):
@@ -199,7 +199,7 @@ class AuditLog(db.Model):
     
     def to_dict(self) -> Dict[str, Any]:
         d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
-        if d['timestamp']: d['timestamp'] = d['timestamp'].strftime("%Y-%m-%d %H:%M:%S")
+        if d['timestamp'] and hasattr(d['timestamp'], 'strftime'): d['timestamp'] = d['timestamp'].strftime("%Y-%m-%d %H:%M:%S")
         return d
 
 class LabResult(db.Model):
@@ -212,7 +212,7 @@ class LabResult(db.Model):
     
     def to_dict(self) -> Dict[str, Any]:
         d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
-        if d['created_at']: d['created_at'] = d['created_at'].strftime("%Y-%m-%d %H:%M:%S")
+        if d['created_at'] and hasattr(d['created_at'], 'strftime'): d['created_at'] = d['created_at'].strftime("%Y-%m-%d %H:%M:%S")
         return d
 
 class MedicineStock(db.Model):
@@ -225,7 +225,7 @@ class MedicineStock(db.Model):
     
     def to_dict(self) -> Dict[str, Any]:
         d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
-        if d['expiry_date']: d['expiry_date'] = d['expiry_date'].strftime("%Y-%m-%d")
+        if d['expiry_date'] and hasattr(d['expiry_date'], 'strftime'): d['expiry_date'] = d['expiry_date'].strftime("%Y-%m-%d")
         return d
 
 class Appointment(db.Model):
@@ -239,9 +239,9 @@ class Appointment(db.Model):
     
     def to_dict(self) -> Dict[str, Any]:
         d = {c.name: getattr(self, c.name) for c in self.__table__.columns}
-        if d['date']: d['date'] = d['date'].strftime("%Y-%m-%d")
-        if d['time']: d['time'] = d['time'].strftime("%H:%M")
-        if d['created_at']: d['created_at'] = d['created_at'].strftime("%Y-%m-%d %H:%M:%S")
+        if d['date'] and hasattr(d['date'], 'strftime'): d['date'] = d['date'].strftime("%Y-%m-%d")
+        if d['time'] and hasattr(d['time'], 'strftime'): d['time'] = d['time'].strftime("%H:%M")
+        if d['created_at'] and hasattr(d['created_at'], 'strftime'): d['created_at'] = d['created_at'].strftime("%Y-%m-%d %H:%M:%S")
         return d
 
 # Load Symptom Data
@@ -272,10 +272,11 @@ def enforce_absolute_session():
             return redirect(url_for('landing_page'))
             
         # Check Kill-Switch Version
-        user = db.session.get(User, user_id)
-        if not user or user.session_version != session_v:
-            session.clear()
-            return redirect(url_for('landing_page'))
+        if user_id != 0:
+            user = db.session.get(User, user_id)
+            if not user or user.session_version != session_v:
+                session.clear()
+                return redirect(url_for('landing_page'))
 
 
 @app.context_processor
@@ -371,9 +372,19 @@ def role_required(allowed_roles):
         return decorated_function
     return decorator
 
+from werkzeug.security import generate_password_hash
+
 def init_db():
     with app.app_context():
         db.create_all()
+
+        if not User.query.first():
+            from werkzeug.security import generate_password_hash
+            dokter_pw = os.getenv("DOKTER_PWD_HASH") or generate_password_hash("dokter123")
+            admin_pw = os.getenv("ADMIN_PWD_HASH") or generate_password_hash("admin123")
+            db.session.add(User(username='dokter', password_hash=dokter_pw, role='doctor'))
+            db.session.add(User(username='admin', password_hash=admin_pw, role='admin'))
+            db.session.commit()
 
         # Seed Data
         if not db.session.get(NewsContent, 'hero'):
@@ -427,6 +438,8 @@ def get_all_data():
     personnel_rows = [row.to_dict() for row in Personnel.query.all()]
     personnel = {'player': [], 'coach': [], 'mvp': []}
     for p in personnel_rows:
+        if p['role'] not in personnel:
+            personnel[p['role']] = []
         personnel[p['role']].append(p)
         
     sponsors = [row.to_dict() for row in Sponsor.query.all()]
@@ -927,13 +940,19 @@ def profil_klinik():
     if not data['personnel']['mvp']:
         for i in range(3):
             data['personnel']['mvp'].append({'id': f'mvp_placeholder_{i}', 'name': 'Nama MVP', 'position': 'Tournament X', 'role': 'mvp', 'nationality':'Indonesia', 'joined':'2024', 'matches':'0', 'goals':'0', 'image_path': None})
+
+    if 'hero' not in data['news']:
+        data['news']['hero'] = {'title': '', 'subtitle': '', 'image_path': None}
+    for i in range(1, 5):
+        if f'news_{i}' not in data['news']:
+            data['news'][f'news_{i}'] = {'title': '', 'subtitle': '', 'updated_at': None, 'image_path': None}
     
     return render_page(HTML_UR_FC, 
                        data=data, 
                        agenda_latihan=agenda_latihan, 
                        turnamen=turnamen,
                        target_countdown_time=target_countdown_time,
-                       admin=session.get('admin', False))
+                       admin=(session.get('role') in ['admin', 'doctor']))
 
 @app.route('/login', methods=['POST'])
 @limiter.limit("5 per minute")
