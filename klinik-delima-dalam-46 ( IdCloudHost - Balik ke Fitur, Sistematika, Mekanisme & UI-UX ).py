@@ -3868,6 +3868,7 @@ HTML_DASHBOARD = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Medis</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
@@ -3878,103 +3879,377 @@ HTML_DASHBOARD = """
             flex-direction: column;
             font-family: 'Plus Jakarta Sans', sans-serif;
         }
+
+        /* Box Grid System */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Make the last odd item span 2 columns */
+        .dashboard-grid .grid-card:last-child:nth-child(odd) {
+            grid-column: 1 / -1;
+        }
+
+        .grid-card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 1px solid rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            text-decoration: none;
+            color: #333;
+        }
+
+        .grid-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .grid-icon-wrap {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+        }
+
+        .grid-icon {
+            font-size: 2rem;
+        }
+
+        .grid-title {
+            font-weight: 800;
+            font-size: 1.1rem;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        /* Modal System */
+        .feature-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .feature-modal-overlay.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .feature-modal {
+            background: white;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 450px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 0;
+        }
+
+        .feature-modal-overlay.show .feature-modal {
+            transform: translateY(0);
+        }
+
+        .modal-header-color {
+            padding: 25px 20px;
+            text-align: center;
+            border-radius: 20px 20px 0 0;
+            position: relative;
+        }
+
+        .modal-header-color .grid-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            color: white;
+        }
+
+        .modal-header-color h3 {
+            margin: 0;
+            font-weight: 800;
+            color: white;
+            letter-spacing: 0.5px;
+        }
+
+        .close-modal-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .close-modal-btn:hover {
+            background: rgba(255,255,255,0.4);
+            transform: scale(1.1);
+        }
+
+        .feature-list {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .feature-list-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #333;
+            font-weight: 700;
+            font-size: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: 0.3s;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .feature-list-item .material-icons {
+            margin-right: 15px;
+            font-size: 1.5rem;
+        }
+
+        /* Themes */
+        /* 1. Manajemen Pasien (Violet) */
+        .theme-violet .grid-icon-wrap { background: #f3e5f5; color: #9c27b0; }
+        .theme-violet.grid-card:hover { border-color: #ce93d8; box-shadow: 0 8px 25px rgba(156, 39, 176, 0.15); }
+        .modal-theme-violet .modal-header-color { background: linear-gradient(135deg, #ba68c8, #9c27b0); }
+        .modal-theme-violet .feature-list-item:hover { transform: translateX(5px); border-color: #ce93d8; color: #9c27b0; box-shadow: 0 4px 15px rgba(156, 39, 176, 0.15); }
+        .modal-theme-violet .feature-list-item .material-icons { color: #ab47bc; }
+
+        /* 2. Tindakan Medis (Sky Blue) */
+        .theme-sky .grid-icon-wrap { background: #e1f5fe; color: #03a9f4; }
+        .theme-sky.grid-card:hover { border-color: #81d4fa; box-shadow: 0 8px 25px rgba(3, 169, 244, 0.15); }
+        .modal-theme-sky .modal-header-color { background: linear-gradient(135deg, #4fc3f7, #03a9f4); }
+        .modal-theme-sky .feature-list-item:hover { transform: translateX(5px); border-color: #81d4fa; color: #03a9f4; box-shadow: 0 4px 15px rgba(3, 169, 244, 0.15); }
+        .modal-theme-sky .feature-list-item .material-icons { color: #29b6f6; }
+
+        /* 3. Logistik Farmasi (Green) */
+        .theme-green .grid-icon-wrap { background: #e8f5e9; color: #4caf50; }
+        .theme-green.grid-card:hover { border-color: #a5d6a7; box-shadow: 0 8px 25px rgba(76, 175, 80, 0.15); }
+        .modal-theme-green .modal-header-color { background: linear-gradient(135deg, #81c784, #4caf50); }
+        .modal-theme-green .feature-list-item:hover { transform: translateX(5px); border-color: #a5d6a7; color: #4caf50; box-shadow: 0 4px 15px rgba(76, 175, 80, 0.15); }
+        .modal-theme-green .feature-list-item .material-icons { color: #66bb6a; }
+
+        /* 4. Kelola Keuangan (Orange) */
+        .theme-orange .grid-icon-wrap { background: #fff3e0; color: #ff9800; }
+        .theme-orange.grid-card:hover { border-color: #ffcc80; box-shadow: 0 8px 25px rgba(255, 152, 0, 0.15); }
+        .modal-theme-orange .modal-header-color { background: linear-gradient(135deg, #ffb74d, #ff9800); }
+        .modal-theme-orange .feature-list-item:hover { transform: translateX(5px); border-color: #ffcc80; color: #ff9800; box-shadow: 0 4px 15px rgba(255, 152, 0, 0.15); }
+        .modal-theme-orange .feature-list-item .material-icons { color: #ffa726; }
+
+        /* 5. Sistem Analitik (Teal) */
+        .theme-teal .grid-icon-wrap { background: #e0f2f1; color: #009688; }
+        .theme-teal.grid-card:hover { border-color: #80cbc4; box-shadow: 0 8px 25px rgba(0, 150, 136, 0.15); }
+        .modal-theme-teal .modal-header-color { background: linear-gradient(135deg, #4db6ac, #009688); }
+        .modal-theme-teal .feature-list-item:hover { transform: translateX(5px); border-color: #80cbc4; color: #009688; box-shadow: 0 4px 15px rgba(0, 150, 136, 0.15); }
+        .modal-theme-teal .feature-list-item .material-icons { color: #26a69a; }
+
+        @media (max-width: 768px) {
+            .dashboard-grid { gap: 15px; }
+            .grid-card { padding: 20px 15px; }
+            .grid-icon-wrap { width: 50px; height: 50px; }
+            .grid-icon { font-size: 1.5rem; }
+            .grid-title { font-size: 0.95rem; }
+        }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     {{ navbar|safe }}
-    <div class="container-fluid px-3 py-4">
+    <div class="container-fluid px-3 py-5">
         {% if role in ['admin', 'doctor'] %}
-<div class="banner-grid-container">
-    
-    <!-- Group 1: Manajemen Pasien & Antrean -->
-    <div class="feature-banner" style="background-color: #e8eaf6;">
-        <div class="feature-banner-header">
-            <span class="material-icons feature-banner-icon" style="color: #3f51b5;">people</span>
-            <div class="feature-banner-title">Manajemen Pasien & Antrean</div>
+        <div class="dashboard-grid">
+
+            <div class="grid-card theme-violet" onclick="openFeatureModal('modal-pasien')">
+                <div class="grid-icon-wrap"><span class="material-icons grid-icon">people</span></div>
+                <h3 class="grid-title">Manajemen<br>Pasien</h3>
+            </div>
+
+            <div class="grid-card theme-sky" onclick="openFeatureModal('modal-medis')">
+                <div class="grid-icon-wrap"><span class="material-icons grid-icon">medical_services</span></div>
+                <h3 class="grid-title">Tindakan<br>Medis</h3>
+            </div>
+
+            <div class="grid-card theme-green" onclick="openFeatureModal('modal-farmasi')">
+                <div class="grid-icon-wrap"><span class="material-icons grid-icon">medication</span></div>
+                <h3 class="grid-title">Logistik<br>Farmasi</h3>
+            </div>
+
+            <div class="grid-card theme-orange" onclick="openFeatureModal('modal-keuangan')">
+                <div class="grid-icon-wrap"><span class="material-icons grid-icon">account_balance_wallet</span></div>
+                <h3 class="grid-title">Kelola<br>Keuangan</h3>
+            </div>
+
+            <div class="grid-card theme-teal" onclick="openFeatureModal('modal-analitik')">
+                <div class="grid-icon-wrap"><span class="material-icons grid-icon">settings</span></div>
+                <h3 class="grid-title">Sistem<br>Analitik</h3>
+            </div>
+
         </div>
-        <div class="feature-banner-links">
-            <a href="/antrean" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">group</span> Antrean</a>
-            <a href="/booking" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">event_available</span> Booking</a>
-            <a href="/booking-list" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">event</span> Daftar Janji</a>
-            <a href="/wa-reminder" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">chat</span> WA Reminder</a>
-            <a href="/pencarian-pasien" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">search</span> Cari Pasien</a>
+
+        <!-- Modals -->
+
+        <!-- Modal Manajemen Pasien -->
+        <div id="modal-pasien" class="feature-modal-overlay modal-theme-violet" onclick="closeFeatureModal(event, 'modal-pasien')">
+            <div class="feature-modal" onclick="event.stopPropagation()">
+                <div class="modal-header-color">
+                    <button class="close-modal-btn" onclick="forceCloseModal('modal-pasien')"><span class="material-icons">close</span></button>
+                    <span class="material-icons grid-icon">people</span>
+                    <h3>Manajemen Pasien</h3>
+                </div>
+                <div class="feature-list">
+                    <a href="/antrean" class="feature-list-item"><span class="material-icons">group</span> Antrean</a>
+                    <a href="/booking" class="feature-list-item"><span class="material-icons">event_available</span> Booking</a>
+                    <a href="/booking-list" class="feature-list-item"><span class="material-icons">event</span> Daftar Janji</a>
+                    <a href="/wa-reminder" class="feature-list-item"><span class="material-icons">chat</span> WA Reminder</a>
+                    <a href="/pencarian-pasien" class="feature-list-item"><span class="material-icons">search</span> Cari Pasien</a>
+                </div>
+            </div>
         </div>
-    </div>
-    
-    <!-- Group 2: Tindakan Medis & Observasi -->
-    <div class="feature-banner" style="background-color: #e1f5fe;">
-        <div class="feature-banner-header">
-            <span class="material-icons feature-banner-icon" style="color: #03a9f4;">medical_services</span>
-            <div class="feature-banner-title">Tindakan Medis & Observasi</div>
+
+        <!-- Modal Tindakan Medis -->
+        <div id="modal-medis" class="feature-modal-overlay modal-theme-sky" onclick="closeFeatureModal(event, 'modal-medis')">
+            <div class="feature-modal" onclick="event.stopPropagation()">
+                <div class="modal-header-color">
+                    <button class="close-modal-btn" onclick="forceCloseModal('modal-medis')"><span class="material-icons">close</span></button>
+                    <span class="material-icons grid-icon">medical_services</span>
+                    <h3>Tindakan Medis</h3>
+                </div>
+                <div class="feature-list">
+                    <a href="/symptom-checker" class="feature-list-item"><span class="material-icons">local_hospital</span> Cek Gejala</a>
+                    {% if role == 'doctor' %}
+                    <a href="/rekam-medis" class="feature-list-item"><span class="material-icons">medical_information</span> Rekam Medis</a>
+                    {% endif %}
+                    <a href="/database-pasien" class="feature-list-item"><span class="material-icons">storage</span> Data Pasien</a>
+                    <a href="/lab-results" class="feature-list-item"><span class="material-icons">science</span> Hasil Lab</a>
+                    {% if role == 'doctor' %}
+                    <a href="/peta-sebaran" class="feature-list-item"><span class="material-icons">map</span> Peta Penyakit</a>
+                    {% endif %}
+                </div>
+            </div>
         </div>
-        <div class="feature-banner-links">
-            <a href="/symptom-checker" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">local_hospital</span> Cek Gejala</a>
-            {% if role == 'doctor' %}
-            <a href="/rekam-medis" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">medical_information</span> Rekam Medis</a>
-            {% endif %}
-            <a href="/database-pasien" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">storage</span> Data Pasien</a>
-            <a href="/lab-results" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">science</span> Hasil Lab</a>
-            {% if role == 'doctor' %}
-            <a href="/peta-sebaran" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">map</span> Peta Penyakit</a>
-            {% endif %}
+
+        <!-- Modal Logistik Farmasi -->
+        <div id="modal-farmasi" class="feature-modal-overlay modal-theme-green" onclick="closeFeatureModal(event, 'modal-farmasi')">
+            <div class="feature-modal" onclick="event.stopPropagation()">
+                <div class="modal-header-color">
+                    <button class="close-modal-btn" onclick="forceCloseModal('modal-farmasi')"><span class="material-icons">close</span></button>
+                    <span class="material-icons grid-icon">medication</span>
+                    <h3>Logistik Farmasi</h3>
+                </div>
+                <div class="feature-list">
+                    <a href="/stok-obat" class="feature-list-item"><span class="material-icons">medication</span> Stok Obat</a>
+                    {% if role == 'doctor' %}
+                    <a href="/prediksi-stok" class="feature-list-item"><span class="material-icons">show_chart</span> Prediksi Stok</a>
+                    {% endif %}
+                    <a href="/expiry-tracker" class="feature-list-item"><span class="material-icons">warning</span> Expiry Alert</a>
+                </div>
+            </div>
         </div>
-    </div>
-    
-    <!-- Group 3: Farmasi & Logistik -->
-    <div class="feature-banner" style="background-color: #e8f5e9;">
-        <div class="feature-banner-header">
-            <span class="material-icons feature-banner-icon" style="color: #4caf50;">medication</span>
-            <div class="feature-banner-title">Farmasi & Logistik</div>
+
+        <!-- Modal Kelola Keuangan -->
+        <div id="modal-keuangan" class="feature-modal-overlay modal-theme-orange" onclick="closeFeatureModal(event, 'modal-keuangan')">
+            <div class="feature-modal" onclick="event.stopPropagation()">
+                <div class="modal-header-color">
+                    <button class="close-modal-btn" onclick="forceCloseModal('modal-keuangan')"><span class="material-icons">close</span></button>
+                    <span class="material-icons grid-icon">account_balance_wallet</span>
+                    <h3>Kelola Keuangan</h3>
+                </div>
+                <div class="feature-list">
+                    <a href="/kasir" class="feature-list-item"><span class="material-icons">point_of_sale</span> Kasir & Laporan</a>
+                    {% if role == 'doctor' %}
+                    <a href="/financial-dashboard" class="feature-list-item"><span class="material-icons">show_chart</span> Keuangan</a>
+                    {% endif %}
+                    <a href="/receipt-list" class="feature-list-item"><span class="material-icons">receipt</span> Cetak Struk</a>
+                    {% if role == 'doctor' %}
+                    <a href="/surat-sakit" class="feature-list-item"><span class="material-icons">medical_information</span> Surat Sakit</a>
+                    {% endif %}
+                </div>
+            </div>
         </div>
-        <div class="feature-banner-links">
-            <a href="/stok-obat" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">medication</span> Stok Obat</a>
-            {% if role == 'doctor' %}
-            <a href="/prediksi-stok" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">show_chart</span> Prediksi Stok</a>
-            {% endif %}
-            <a href="/expiry-tracker" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">warning</span> Expiry Alert</a>
+
+        <!-- Modal Sistem Analitik -->
+        <div id="modal-analitik" class="feature-modal-overlay modal-theme-teal" onclick="closeFeatureModal(event, 'modal-analitik')">
+            <div class="feature-modal" onclick="event.stopPropagation()">
+                <div class="modal-header-color">
+                    <button class="close-modal-btn" onclick="forceCloseModal('modal-analitik')"><span class="material-icons">close</span></button>
+                    <span class="material-icons grid-icon">settings</span>
+                    <h3>Sistem Analitik</h3>
+                </div>
+                <div class="feature-list">
+                    <a href="javascript:void(0)" onclick="document.getElementById('devInfoModal').style.display='flex'; return false;" class="feature-list-item"><span class="material-icons">local_hospital</span> Profil Klinik</a>
+                    {% if role == 'doctor' %}
+                    <a href="/statistik" class="feature-list-item"><span class="material-icons">pie_chart</span> Statistik</a>
+                    {% endif %}
+                    <a href="/download-data" class="feature-list-item"><span class="material-icons">picture_as_pdf</span> Unduh Data</a>
+                    {% if role == 'doctor' %}
+                    <a href="/audit-log" class="feature-list-item"><span class="material-icons">history</span> Audit Log</a>
+                    <a href="/backup-db" class="feature-list-item"><span class="material-icons">security</span> Backup DB</a>
+                    {% endif %}
+                    <a href="/qr-pasien" class="feature-list-item"><span class="material-icons">qr_code</span> Pasien QR</a>
+                </div>
+            </div>
         </div>
-    </div>
-    
-    <!-- Group 4: Administrasi & Keuangan -->
-    <div class="feature-banner" style="background-color: #fff3e0;">
-        <div class="feature-banner-header">
-            <span class="material-icons feature-banner-icon" style="color: #ff9800;">account_balance_wallet</span>
-            <div class="feature-banner-title">Administrasi & Keuangan</div>
-        </div>
-        <div class="feature-banner-links">
-            <a href="/kasir" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">point_of_sale</span> Kasir & Laporan</a>
-            {% if role == 'doctor' %}
-            <a href="/financial-dashboard" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">show_chart</span> Keuangan</a>
-            {% endif %}
-            <a href="/receipt-list" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">receipt</span> Cetak Struk</a>
-            {% if role == 'doctor' %}
-            <a href="/surat-sakit" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">medical_information</span> Surat Sakit</a>
-            {% endif %}
-        </div>
-    </div>
-    
-    <!-- Group 5: Analitik & Manajemen Sistem -->
-    <div class="feature-banner" style="background-color: #f5f5f5;">
-        <div class="feature-banner-header">
-            <span class="material-icons feature-banner-icon" style="color: #9e9e9e;">settings</span>
-            <div class="feature-banner-title">Analitik & Manajemen Sistem</div>
-        </div>
-        <div class="feature-banner-links">
-            <a href="javascript:void(0)" onclick="document.getElementById('devInfoModal').style.display='flex'; return false;" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">local_hospital</span> Profil Klinik</a>
-            {% if role == 'doctor' %}
-            <a href="/statistik" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">pie_chart</span> Statistik</a>
-            {% endif %}
-            <a href="/download-data" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">picture_as_pdf</span> Unduh Data</a>
-            {% if role == 'doctor' %}
-            <a href="/audit-log" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">history</span> Audit Log</a>
-            <a href="/backup-db" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">security</span> Backup DB</a>
-            {% endif %}
-            <a href="/qr-pasien" class="banner-btn"><span class="material-icons" style="font-size: 1rem;">qr_code</span> Pasien QR</a>
-        </div>
-    </div>
-</div>
-{% endif %}
+
+        <script>
+            function openFeatureModal(id) {
+                const modal = document.getElementById(id);
+                modal.style.display = 'flex';
+                // Trigger reflow
+                void modal.offsetWidth;
+                modal.classList.add('show');
+            }
+
+            function closeFeatureModal(event, id) {
+                if (event.target === document.getElementById(id)) {
+                    forceCloseModal(id);
+                }
+            }
+
+            function forceCloseModal(id) {
+                const modal = document.getElementById(id);
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 300);
+            }
+        </script>
+        {% endif %}
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
