@@ -1317,7 +1317,7 @@ def wa_reminder_page() -> str:
 @app.route('/booking-list')
 @role_required(['admin', 'doctor'])
 def booking_list_page() -> str:
-    rows = [r.to_dict() for r in Appointment.query.order_by(Appointment.date.desc(), Appointment.time.asc()).all()]
+    rows = [r.to_dict() for r in Appointment.query.filter(Appointment.date.isnot(None), Appointment.time.isnot(None)).order_by(Appointment.date.desc(), Appointment.time.asc()).all()]
     return render_medical_page(HTML_BOOKING_LIST, 'DAFTAR JANJI TEMU', 'event', appointments=rows)
 
 @app.route('/backup-db')
@@ -1591,14 +1591,11 @@ MEDICAL_NAVBAR_TEMPLATE = """
         align-items: center;
         justify-content: space-between;
         padding: 0 20px;
-        position: sticky;
-        top: 0;
-        z-index: 1050;
         box-shadow: 0 4px 20px rgba(0,0,0,0.05);
         transition: background 0.3s;
     }
     .medical-split-border {
-        position: absolute; bottom: 0; left: 0; width: 100%; height: 3px;
+        width: 100%; height: 3px;
         background: linear-gradient(90deg, var(--green) 50%, var(--gold) 50%);
     }
     .medical-logo-area { display: flex; align-items: center; gap: 15px; cursor: pointer; transition: transform 0.2s; }
@@ -1963,40 +1960,22 @@ MEDICAL_NAVBAR_TEMPLATE = """
     body.clean-mode .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
 </style>
 
-<div class="medical-top-bar">
-    <div class="medical-logo-area" {% if role == 'doctor' %}onclick="openIconGallery()"{% endif %} title="Lihat Semua Fitur" style="cursor: {% if role == 'doctor' %}pointer{% else %}default{% endif %};">
-        <span class="material-icons medical-logo-icon">local_hospital</span>
-    </div>
-    
-    <div class="medical-title">{{ page_title }}</div>
-    
-    <div class="role-btn-group">
-        {% if role in ['admin', 'doctor'] %}
-        <a href="/logout" class="role-btn role-btn-pasien" title="Mode Warga">
-            <span class="material-icons">home</span> <span class="d-none d-md-inline">Mode Warga</span>
-        </a>
-        {% endif %}
-        <!--
-        <div class="theme-switch-wrapper" style="position:relative; display:none;">
-            <button onclick="toggleThemeMenu()" class="role-btn" style="background: #34495e; color: white;" title="Ganti Tema">
-                <span id="theme-main-icon" class="material-icons">palette</span> <span id="theme-text">Tema</span>
-            </button>
-        -->
-            <div id="theme-menu-dropdown" style="display:none; position:absolute; top:110%; left:50%; transform:translateX(-50%); background:white; border-radius:10px; box-shadow:0 5px 15px rgba(0,0,0,0.2); overflow:hidden; z-index:2000; min-width:120px; border:1px solid #eee;">
-                <button onclick="setTheme('light')" style="width:100%; text-align:left; padding:10px 15px; border:none; background:white; cursor:pointer; display:flex; align-items:center; gap:10px; color:#333; font-weight:bold; font-size:0.8rem; border-bottom:1px solid #f0f0f0;">
-                    <span class="material-icons text-warning" style="width:20px; text-align:center;">light_mode</span> Light
-                </button>
-                <button onclick="setTheme('dark')" style="width:100%; text-align:left; padding:10px 15px; border:none; background:white; cursor:pointer; display:flex; align-items:center; gap:10px; color:#333; font-weight:bold; font-size:0.8rem; border-bottom:1px solid #f0f0f0;">
-                    <span class="material-icons text-dark" style="width:20px; text-align:center;">dark_mode</span> Dark
-                </button>
-                <button onclick="setTheme('clean')" style="width:100%; text-align:left; padding:10px 15px; border:none; background:white; cursor:pointer; display:flex; align-items:center; gap:10px; color:#333; font-weight:bold; font-size:0.8rem;">
-                    <span class="material-icons" style="color:#FF6D00; width:20px; text-align:center;">auto_awesome</span> Clean
-                </button>
-            </div>
+<div style="position: sticky; top: 0; z-index: 1050;">
+    <div class="medical-top-bar" style="position: relative; top: auto; z-index: auto;">
+        <div class="medical-logo-area" {% if role == 'doctor' %}onclick="openIconGallery()"{% endif %} title="Lihat Semua Fitur" style="cursor: {% if role == 'doctor' %}pointer{% else %}default{% endif %};">
+            <span class="material-icons medical-logo-icon">local_hospital</span>
         </div>
-        -->
+
+        <div class="medical-title" style="position: absolute; left: 50%; transform: translateX(-50%); margin: 0;">{{ page_title }}</div>
+
+        <div class="role-btn-group" style="margin-left: auto;">
+            {% if role in ['admin', 'doctor'] %}
+            <a href="/logout" class="role-btn role-btn-pasien" title="Mode Warga">
+                <span class="material-icons">home</span> <span class="d-none d-md-inline">Mode Warga</span>
+            </a>
+            {% endif %}
+        </div>
     </div>
-    
     <div class="medical-split-border"></div>
 </div>
 
@@ -8636,59 +8615,126 @@ HTML_BOOKING_LIST = """
 <!DOCTYPE html>
 <html lang="id">
 <head>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daftar Janji Temu</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <style>body{background:#f4f7f6; font-family: 'Plus Jakarta Sans', sans-serif; min-height: 100vh; display: flex; flex-direction: column;}</style>
+    <style>
+        body {
+            background: linear-gradient(135deg, #e6e6fa 0%, #d8bfd8 100%);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .lavender-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(138, 43, 226, 0.2);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(138, 43, 226, 0.15);
+        }
+        .lavender-header {
+            background: linear-gradient(90deg, #9370db, #8a2be2);
+            color: white;
+            border-radius: 20px 20px 0 0;
+            padding: 20px;
+        }
+        .table-lavender thead th {
+            background-color: #f3e5f5;
+            color: #4a148c;
+            font-weight: 800;
+            border-bottom: 2px solid #ce93d8;
+        }
+        .table-lavender tbody tr {
+            transition: all 0.3s;
+        }
+        .table-lavender tbody tr:hover {
+            background-color: rgba(225, 190, 231, 0.3);
+            transform: scale(1.01);
+        }
+        .time-badge {
+            background: #ab47bc;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 50px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(171, 71, 188, 0.4);
+        }
+        .wa-btn {
+            background: #25d366;
+            color: white;
+            border-radius: 50px;
+            padding: 5px 15px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: 0.3s;
+        }
+        .wa-btn:hover {
+            background: #128c7e;
+            color: white;
+            box-shadow: 0 4px 10px rgba(37, 211, 102, 0.4);
+        }
+    </style>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     {{ navbar|safe }}
     <div class="container py-5">
-        <h2 class="mb-4 fw-bold text-center text-primary"><span class="material-icons me-2">event</span> Daftar Janji Temu</h2>
-        <div class="card shadow border-0 rounded-4">
+        <div class="lavender-card">
+            <div class="lavender-header text-center">
+                <h3 class="mb-0 fw-bold d-flex align-items-center justify-content-center gap-2">
+                    <span class="material-icons fs-2">event_note</span> DAFTAR PASIEN PEMESAN
+                </h3>
+                <p class="mb-0 mt-1 opacity-75">Jadwal Perjanjian dan Janji Temu Pasien</p>
+            </div>
+
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
+                    <table class="table table-lavender table-hover align-middle mb-0">
+                        <thead>
                             <tr>
-                                <th>Tanggal</th>
-                                <th>Jam</th>
-                                <th>Nama Pasien</th>
-                                <th>No WhatsApp</th>
-                                <th>Dibuat</th>
+                                <th class="text-center">Tanggal</th>
+                                <th class="text-center">Waktu</th>
+                                <th>Data Pasien</th>
+                                <th class="text-center">Kontak</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for a in appointments %}
                             <tr>
-                                <td class="fw-bold">{{ a.date }}</td>
-                                <td><span class="badge bg-info text-dark">{{ a.time }}</span></td>
-                                <td class="fw-bold">{{ a.name }}</td>
+                                <td class="text-center fw-bold" style="color: #6a1b9a;">{{ a.date }}</td>
+                                <td class="text-center">
+                                    <span class="time-badge">{{ a.time }}</span>
+                                </td>
                                 <td>
-                                    <a href="https://wa.me/{{ a.phone|replace('0', '62', 1) if a.phone.startswith('0') else a.phone }}" target="_blank" class="text-decoration-none">
-                                        <span class="material-icons text-success">chat</span> {{ a.phone }}
+                                    <div class="fw-bold" style="font-size: 1.1rem; color: #333;">{{ a.name }}</div>
+                                    <div class="text-muted small"><span class="material-icons" style="font-size: 0.8rem; vertical-align: middle;">schedule</span> Didaftarkan: {{ a.created_at }}</div>
+                                </td>
+                                <td class="text-center">
+                                    <a href="https://wa.me/{{ a.phone|replace('0', '62', 1) if a.phone.startswith('0') else a.phone }}" target="_blank" class="wa-btn">
+                                        <span class="material-icons" style="font-size: 1.2rem;">chat</span> {{ a.phone }}
                                     </a>
                                 </td>
-                                <td class="text-muted small">{{ a.created_at }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                     {% if not appointments %}
-                    <div class="text-center py-5 text-muted">Belum ada janji temu.</div>
+                    <div class="text-center py-5">
+                        <span class="material-icons mb-3" style="font-size: 4rem; color: #ce93d8;">event_busy</span>
+                        <h5 class="text-muted fw-bold">Belum ada pasien yang melakukan pemesanan.</h5>
+                    </div>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
     {{ footer|safe }}
-        
-        
-    
 </body>
 </html>
 """
