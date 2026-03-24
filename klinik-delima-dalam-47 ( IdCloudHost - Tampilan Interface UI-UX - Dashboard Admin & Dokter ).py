@@ -497,12 +497,13 @@ def internal_error(error) -> tuple:
 
 @app.route('/')
 def landing_page() -> str:
-    return render_medical_page(HTML_LANDING, 'BERANDA KLINIK')
+    return render_medical_page(HTML_LANDING, 'DASHBOARD WARGA')
 
 @app.route('/dashboard')
 @role_required(['admin', 'doctor'])
 def dashboard_page() -> str:
-    return render_medical_page(HTML_DASHBOARD, 'DASHBOARD MEDIS')
+    title = 'DASHBOARD ADMIN' if session.get('role') == 'admin' else 'DASHBOARD DOKTER'
+    return render_medical_page(HTML_DASHBOARD, title)
 
 @app.route('/antrean')
 def antrean_page() -> str:
@@ -692,10 +693,11 @@ def api_queue_add() -> Response:
 
 @app.route('/api/queue/status')
 def api_queue_status():
-    curr = Queue.query.filter_by(status='examining').order_by(Queue.created_at.desc()).first()
+    today = datetime.date.today().isoformat()
+    curr = Queue.query.filter_by(status='examining').filter(Queue.created_at.like(f"{today}%")).order_by(Queue.created_at.desc()).first()
     current_data = curr.to_dict() if curr else None
     
-    waiting_count = Queue.query.filter_by(status='waiting').count()
+    waiting_count = Queue.query.filter_by(status='waiting').filter(Queue.created_at.like(f"{today}%")).count()
     
     if request.args.get('full'):
         if session.get('role') not in ['admin', 'doctor']:
@@ -715,10 +717,14 @@ def api_queue_status():
             'cancelled': cancelled_list
         })
         
+    # Return additional stats for public display
+    total_today = Queue.query.filter(Queue.created_at.like(f"{today}%")).count()
+
     return jsonify({
         'current_number': current_data['number'] if current_data else None,
         'current_name': current_data['name'] if current_data else None,
-        'waiting_count': waiting_count
+        'waiting_count': waiting_count,
+        'total_today': total_today
     })
 
 @app.route('/api/queue/archive')
@@ -1966,14 +1972,16 @@ MEDICAL_NAVBAR_TEMPLATE = """
     
     <div class="role-btn-group">
         {% if role in ['admin', 'doctor'] %}
-        <a href="/" class="role-btn role-btn-pasien" title="Mode Warga">
+        <a href="/logout" class="role-btn role-btn-pasien" title="Mode Warga">
             <span class="material-icons">home</span> <span class="d-none d-md-inline">Mode Warga</span>
         </a>
         {% endif %}
-        <div class="theme-switch-wrapper" style="position:relative; display:inline-block;">
+        <!--
+        <div class="theme-switch-wrapper" style="position:relative; display:none;">
             <button onclick="toggleThemeMenu()" class="role-btn" style="background: #34495e; color: white;" title="Ganti Tema">
                 <span id="theme-main-icon" class="material-icons">palette</span> <span id="theme-text">Tema</span>
             </button>
+        -->
             <div id="theme-menu-dropdown" style="display:none; position:absolute; top:110%; left:50%; transform:translateX(-50%); background:white; border-radius:10px; box-shadow:0 5px 15px rgba(0,0,0,0.2); overflow:hidden; z-index:2000; min-width:120px; border:1px solid #eee;">
                 <button onclick="setTheme('light')" style="width:100%; text-align:left; padding:10px 15px; border:none; background:white; cursor:pointer; display:flex; align-items:center; gap:10px; color:#333; font-weight:bold; font-size:0.8rem; border-bottom:1px solid #f0f0f0;">
                     <span class="material-icons text-warning" style="width:20px; text-align:center;">light_mode</span> Light
@@ -1986,6 +1994,7 @@ MEDICAL_NAVBAR_TEMPLATE = """
                 </button>
             </div>
         </div>
+        -->
     </div>
     
     <div class="medical-split-border"></div>
@@ -3712,6 +3721,62 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     });
 
+    function checkClinicStatusLanding() {
+        fetch('/api/clinic/status').then(r => r.json()).then(data => {
+            const panel = document.getElementById('klinik-status-panel');
+            const badge = document.getElementById('klinik-status-badge');
+            if(!panel || !badge) return;
+
+            if(data.open) {
+                panel.style.background = 'linear-gradient(135deg, #2ecc71, #27ae60)';
+                panel.style.boxShadow = '0 10px 20px rgba(46, 204, 113, 0.3)';
+                badge.className = 'badge shadow-sm';
+                badge.style.backgroundColor = '#fff';
+                badge.style.color = '#2ecc71';
+                badge.style.border = 'none';
+                badge.innerText = 'BUKA';
+            } else {
+                panel.style.background = 'linear-gradient(135deg, #e74c3c, #c0392b)';
+                panel.style.boxShadow = '0 10px 20px rgba(231, 76, 60, 0.3)';
+                badge.className = 'badge shadow-sm';
+                badge.style.backgroundColor = '#fff';
+                badge.style.color = '#e74c3c';
+                badge.style.border = 'none';
+                badge.innerText = 'TUTUP';
+            }
+        }).catch(err => console.error("Error fetching clinic status:", err));
+
+        fetch('/api/queue/status').then(r => r.json()).then(data => {
+            const display = document.getElementById('queue-display');
+            if(!display) return;
+
+            if (data.total_today === 0) {
+                display.innerHTML = `<span style="font-size: 0.9rem; font-weight: 500;">Tidak ada pasien mengantri hari ini</span>`;
+            } else {
+                let html = `<div class="d-flex flex-column" style="font-size: 0.85rem; line-height: 1.4;">`;
+                html += `<div><strong style="color: #2c3e50;">Total Pasien:</strong> ${data.total_today} Orang</div>`;
+
+                if (data.current_number) {
+                    html += `<div><strong style="color: #e67e22;">Pemeriksaan:</strong> Nomor #${data.current_number}</div>`;
+                }
+                if (data.waiting_count > 0) {
+                    html += `<div><strong style="color: #2980b9;">Menunggu:</strong> ${data.waiting_count} Orang di luar</div>`;
+                } else if (!data.current_number) {
+                    html += `<div style="color: #27ae60; font-weight: bold; margin-top: 5px;">Ruang tunggu lengang</div>`;
+                }
+                html += `</div>`;
+
+                display.innerHTML = html;
+            }
+        }).catch(err => console.error("Error fetching queue info:", err));
+    }
+
+    // Run the polling interval for the landing page queue & status block
+    if(document.getElementById('klinik-status-panel')) {
+        setInterval(checkClinicStatusLanding, 5000);
+        document.addEventListener('DOMContentLoaded', checkClinicStatusLanding);
+    }
+
     function openLogin(role) {
         document.getElementById('loginModal').style.display = 'flex';
         const title = document.getElementById('loginTitle');
@@ -4227,6 +4292,38 @@ HTML_DASHBOARD = """
         </div>
 
         <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const btn = document.getElementById('btn-toggle-status');
+                if(btn) {
+                    fetch('/api/clinic/status').then(r => r.json()).then(data => {
+                        if(data.open) {
+                            btn.style.background = '#2ecc71';
+                            btn.innerHTML = '<span class="material-icons align-middle me-2">storefront</span> STATUS: BUKA';
+                        } else {
+                            btn.style.background = '#e74c3c';
+                            btn.innerHTML = '<span class="material-icons align-middle me-2">storefront</span> STATUS: TUTUP';
+                        }
+                    });
+                }
+            });
+
+            function toggleClinicStatusDashboard() {
+                fetch('/api/clinic/status', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                }).then(r => r.json()).then(data => {
+                    const btn = document.getElementById('btn-toggle-status');
+                    if(data.open) {
+                        btn.style.background = '#2ecc71';
+                        btn.innerHTML = '<span class="material-icons align-middle me-2">storefront</span> STATUS: BUKA';
+                    } else {
+                        btn.style.background = '#e74c3c';
+                        btn.innerHTML = '<span class="material-icons align-middle me-2">storefront</span> STATUS: TUTUP';
+                    }
+                });
+            }
+
             function openFeatureModal(id) {
                 const modal = document.getElementById(id);
                 modal.style.display = 'flex';
@@ -4428,13 +4525,18 @@ HTML_LANDING = """
     {{ navbar|safe }}
     <div class="container-fluid px-3 py-4">
         <!-- Hero Section -->
-        <div class="glass-panel p-4 mb-4" style="background: linear-gradient(135deg, #2ecc71, #27ae60); border: none; box-shadow: 0 10px 20px rgba(46, 204, 113, 0.3); border-radius: 20px;">
-            <div class="text-white text-center">
+        <div class="glass-panel p-4 mb-4" id="klinik-status-panel" style="background: linear-gradient(135deg, #2ecc71, #27ae60); border: none; box-shadow: 0 10px 20px rgba(46, 204, 113, 0.3); border-radius: 20px; position: relative; overflow: hidden;">
+            <div id="klinik-status-badge" class="badge bg-success shadow-sm" style="position: absolute; top: 15px; left: 15px; font-size: 0.9rem; padding: 8px 15px; border: 2px solid rgba(255,255,255,0.5);">BUKA</div>
+            <div class="text-white text-center mt-3">
                 <span class="material-icons" style="font-size: 3rem; margin-bottom: 10px;">local_hospital</span>
-                <h2 class="fw-bold mb-1">Klinik Delima Buka</h2>
+                <h2 class="fw-bold mb-1">Klinik Rantau Pulung</h2>
                 <p class="mb-3 opacity-75 small">Antrean saat ini berjalan lancar</p>
-                <div class="bg-white text-success rounded-pill py-2 px-4 d-inline-block fw-bold shadow-sm" style="font-size: 1.2rem;">
-                    Nomor: #24
+
+                <div id="queue-info-container" style="display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 15px;">
+                    <!-- Queue data injected here -->
+                    <div class="bg-white text-success rounded-pill py-2 px-4 d-inline-block fw-bold shadow-sm" style="font-size: 1.2rem;" id="queue-display">
+                        Memuat antrean...
+                    </div>
                 </div>
             </div>
         </div>
