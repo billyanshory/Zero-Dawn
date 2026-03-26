@@ -214,6 +214,62 @@ class EpilepsiLog(db.Model):
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, server_default=func.now())
 
+
+class SuratOtomatis(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    npm = db.Column(db.String(255), nullable=False)
+    jenis_surat = db.Column(db.String(255), nullable=False)
+    keterangan = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(50), default='Menunggu Acc')
+    tanggal = db.Column(db.String(255), default=lambda: str(datetime.date.today()))
+    qr_code = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class PendaftaranPMB(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nama = db.Column(db.String(255), nullable=False)
+    foto_ijazah = db.Column(db.String(255))
+    foto_ktp = db.Column(db.String(255))
+    bukti_transfer = db.Column(db.String(255))
+    status = db.Column(db.String(50), default='Pending')
+    npm_generated = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class TagihanKuliah(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    npm = db.Column(db.String(255), nullable=False)
+    jenis_tagihan = db.Column(db.String(255), nullable=False)
+    jumlah = db.Column(db.Integer, nullable=False)
+    bukti_transfer = db.Column(db.String(255))
+    status = db.Column(db.String(50), default='Belum Lunas')
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class JadwalKuliah(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    hari = db.Column(db.String(50), nullable=False)
+    jam = db.Column(db.String(50), nullable=False)
+    mata_kuliah = db.Column(db.String(255), nullable=False)
+    dosen = db.Column(db.String(255), nullable=False)
+    ruangan = db.Column(db.String(50), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(255), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(50), nullable=False)
+    nama = db.Column(db.String(255))
+    status_akademik = db.Column(db.String(50), default='Aktif')
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class LaciArsip(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    npm = db.Column(db.String(255), nullable=False)
+    nama_dokumen = db.Column(db.String(255), nullable=False)
+    file_path = db.Column(db.String(255), nullable=False)
+    ukuran = db.Column(db.String(50))
+    tanggal = db.Column(db.String(255), default=lambda: str(datetime.date.today()))
+
 class AppSettings(db.Model):
     key = db.Column(db.String(255), primary_key=True)
     value = db.Column(db.Text)
@@ -781,7 +837,7 @@ def model_getitem(self, key):
 
 for model in [Finance, Agenda, Booking, Zakat, GalleryDakwah, Suggestion, RamadhanKas, 
               TarawihSchedule, IrmaSchedule, IrmaMember, IrmaKas, IrmaGallery, 
-              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings]:
+              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings, SuratOtomatis, PendaftaranPMB, TagihanKuliah, JadwalKuliah, User, LaciArsip]:
     model.__getitem__ = model_getitem
 
 STYLES_HTML = """
@@ -4509,6 +4565,21 @@ HOME_HTML = """
 
 # --- ROUTES ---
 
+@app.before_request
+def global_gatekeeper():
+    if request.endpoint in ['index', 'login', 'logout', 'static']:
+        return
+
+    user_id = session.get('user_id')
+    if user_id:
+        try:
+            user = db.session.get(User, user_id)
+            if user and user.status_akademik != 'Aktif':
+                session.clear()
+                return "Akses Ditolak: Status Akademik Anda tidak Aktif.", 403
+        except Exception as e:
+            print(f"Error in gatekeeper: {e}")
+
 @app.route('/')
 def index():
     try:
@@ -5688,7 +5759,6 @@ RAMADHAN_DASHBOARD_HTML = """
         
         <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-24">
             
-            <!-- 1. PABRIK SURAT OTOMATIS -->
             <button onclick="openModal('modal-pabrik-surat')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
                 <div class="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-gold mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
@@ -5697,42 +5767,44 @@ RAMADHAN_DASHBOARD_HTML = """
                 <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Pabrik Surat Otomatis</span>
             </button>
 
-            <!-- 2. LACI ARSIP DIGITAL -->
-            <button onclick="openModal('modal-arsip-digital')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
+            <button onclick="openModal('modal-verifikasi-pmb')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
                 <div class="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-blue-400 mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
-                    <i class="fas fa-archive text-2xl"></i>
+                <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-gold mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
+                    <i class="fas fa-id-card text-2xl"></i>
                 </div>
-                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-blue-400 transition-colors">Laci Arsip Digital</span>
+                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Verifikasi PMB Digital</span>
             </button>
 
-            
-
-            <!-- 4. JADWAL TARAWIH (Disembunyikan) -->
-            <button onclick="openModal('modal-tarawih')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
+            <button onclick="openModal('modal-laci-arsip')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
                 <div class="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-purple-400 mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
-                    <i class="fas fa-microphone-alt text-2xl"></i>
+                <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-gold mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
+                    <i class="fas fa-search text-2xl"></i>
                 </div>
-                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-purple-400 transition-colors">Imam & Penceramah</span>
+                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Laci Arsip Anti Rayap</span>
             </button>
 
-            <!-- 5. ZAKAT CALCULATOR (Disembunyikan) -->
-            <button onclick="openModal('modal-zakat-menu')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
+            <button onclick="openModal('modal-verifikasi-pembayaran')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
                 <div class="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-orange-400 mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
-                    <i class="fas fa-calculator text-2xl"></i>
+                <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-gold mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
+                    <i class="fas fa-file-invoice-dollar text-2xl"></i>
                 </div>
-                <span class="font-bold text-sm text-gray-200 group-hover:text-orange-400 transition-colors">Zakat Fitrah</span>
+                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Verifikasi Pembayaran Uang Kuliah</span>
             </button>
 
-            <!-- 6. AMALAN CHECKLIST (Disembunyikan) -->
-            <button onclick="openModal('modal-amalan')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
+            <button onclick="openModal('modal-kelola-jadwal')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
                 <div class="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-pink-400 mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
-                    <i class="fas fa-check-double text-2xl"></i>
+                <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-gold mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
+                    <i class="fas fa-calendar-alt text-2xl"></i>
                 </div>
-                <span class="font-bold text-sm text-gray-200 group-hover:text-pink-400 transition-colors">Target Amalan</span>
+                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Kelola Jadwal Perkuliahan</span>
+            </button>
+
+            <button onclick="openModal('modal-manajemen-sivitas')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
+                <div class="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-gold mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
+                    <i class="fas fa-users-cog text-2xl"></i>
+                </div>
+                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Manajemen Sivitas Akademika</span>
             </button>
         </div>
     </div>
@@ -5767,470 +5839,273 @@ RAMADHAN_DASHBOARD_HTML = """
                 <button onclick="closeModal('modal-pabrik-surat')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
             
-            <div class="p-4 bg-white/5 border border-gold/30 rounded-xl mb-4">
-                <p class="text-gray-300 text-sm mb-4">Silakan buat draf dokumen elektronik. Staf TU akan menyetujui dan membubuhkan tanda tangan elektronik (QR Code pelacak keaslian).</p>
-                <form onsubmit="event.preventDefault(); alert('Draf surat berhasil dibuat dan dikirim ke Tata Usaha untuk persetujuan.'); closeModal('modal-pabrik-surat');" class="space-y-4">
-                    <select class="w-full bg-[#0b1026] border border-gold/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold" required>
-                        <option value="">Pilih Jenis Surat...</option>
-                        <option value="aktif_kuliah">Surat Keterangan Aktif Kuliah</option>
-                        <option value="pengantar_magang">Surat Pengantar Magang</option>
-                        <option value="bebas_pustaka">Surat Keterangan Bebas Pustaka</option>
-                    </select>
-                    <input type="text" placeholder="NPM Mahasiswa" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold" required>
-                    <textarea placeholder="Keterangan / Tujuan Surat" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold" required></textarea>
-                    <button type="submit" class="w-full bg-gold text-[#0b1026] font-bold py-3 rounded-xl hover:bg-white transition">Buat Draf Surat</button>
-                </form>
-            </div>
-            
-            <h4 class="text-sm font-bold text-gray-400 mb-3 mt-8">Riwayat Pengajuan Surat</h4>
+            <h4 class="text-sm font-bold text-gray-400 mb-3">Daftar Antrean Permohonan</h4>
             <div class="overflow-hidden rounded-xl border border-white/10">
                 <table class="w-full text-left border-collapse">
                     <thead class="bg-gold/10 text-gold backdrop-blur-md">
                         <tr>
                             <th class="p-4 text-xs font-bold uppercase">Tanggal</th>
-                            <th class="p-4 text-xs font-bold uppercase">Jenis Surat</th>
-                            <th class="p-4 text-xs font-bold uppercase text-right">Status</th>
+                            <th class="p-4 text-xs font-bold uppercase">NPM / Jenis</th>
+                            <th class="p-4 text-xs font-bold uppercase text-right">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-white/5">
+                        {% for item in surat_list %}
                         <tr class="hover:bg-white/5 transition">
-                            <td class="p-4 text-sm text-gray-300">Hari ini</td>
-                            <td class="p-4 font-bold text-white">Surat Pengantar Magang</td>
-                            <td class="p-4 text-sm text-yellow-400 text-right">Menunggu Acc</td>
+                            <td class="p-4 text-sm text-gray-300">{{ item['tanggal'] }}</td>
+                            <td class="p-4">
+                                <p class="font-bold text-white">{{ item['jenis_surat'] }}</p>
+                                <p class="text-xs text-gray-400">NPM: {{ item['npm'] }}</p>
+                            </td>
+                            <td class="p-4 text-right">
+                                {% if item['status'] == 'Menunggu Acc' %}
+                                <form action="/tu/surat/acc" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                                    <input type="hidden" name="id" value="{{ item['id'] }}">
+                                    <button type="submit" class="bg-gold text-midnight px-3 py-1 rounded-lg text-xs font-bold hover:bg-white transition">Setujui</button>
+                                </form>
+                                {% else %}
+                                <span class="text-xs text-green-400 font-bold"><i class="fas fa-check-circle"></i> Selesai</span>
+                                {% endif %}
+                            </td>
                         </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="p-4 text-center text-gray-500">Tidak ada antrean</td></tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    <!-- 2. MODAL LACI ARSIP DIGITAL -->
-    <div id="modal-arsip-digital" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
+    <!-- 2. MODAL VERIFIKASI PMB DIGITAL -->
+    <div id="modal-verifikasi-pmb" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
             <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-                <h3 class="text-xl font-bold text-gold font-sans">Laci Arsip Digital</h3>
-                <button onclick="closeModal('modal-arsip-digital')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+                <h3 class="text-xl font-bold text-gold font-sans">Verifikasi PMB Digital</h3>
+                <button onclick="closeModal('modal-verifikasi-pmb')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
             
-            <div class="p-4 bg-white/5 border border-white/10 rounded-xl mb-6">
-                <p class="text-gray-400 text-sm mb-3">Pangkalan Data Awan STIESAM. Cari riwayat hidup, nilai, ijazah, dan pembayaran.</p>
-                <div class="flex gap-2">
-                    <input type="text" placeholder="Ketik NPM / Nama Mahasiswa..." class="flex-1 bg-[#0b1026] border border-gold/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold">
-                    <button onclick="alert('Mencari arsip dari pangkalan data awan...');" class="bg-blue-500 text-white px-6 rounded-xl font-bold hover:bg-blue-600 transition"><i class="fas fa-search"></i></button>
-                </div>
-            </div>
-            
-            <div class="grid grid-cols-1 gap-4">
-                <div class="bg-white/5 p-4 rounded-xl border border-white/10 flex justify-between items-center hover:border-blue-400 transition cursor-pointer" onclick="alert('Mengunduh dokumen Ijazah...')">
-                    <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 bg-blue-500/20 text-blue-400 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-file-pdf"></i>
-                        </div>
-                        <div>
-                            <p class="font-bold text-white">Ijazah_SMA_192831.pdf</p>
-                            <p class="text-[10px] text-gray-500">1.2 MB • Diunggah 12 Jan 2024</p>
-                        </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for item in pmb_list %}
+                <div class="bg-white/5 border border-white/10 p-4 rounded-xl">
+                    <p class="font-bold text-white mb-2">{{ item['nama'] }}</p>
+                    <div class="flex gap-2 mb-4">
+                        {% if item['foto_ijazah'] %}
+                        <a href="/uploads/{{ item['foto_ijazah'] }}" target="_blank" class="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">Lihat Ijazah</a>
+                        {% endif %}
+                        {% if item['foto_ktp'] %}
+                        <a href="/uploads/{{ item['foto_ktp'] }}" target="_blank" class="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded">Lihat KTP</a>
+                        {% endif %}
+                        {% if item['bukti_transfer'] %}
+                        <a href="/uploads/{{ item['bukti_transfer'] }}" target="_blank" class="text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded">Lihat Transfer</a>
+                        {% endif %}
                     </div>
-                    <i class="fas fa-download text-gray-400 hover:text-gold"></i>
-                </div>
-                <div class="bg-white/5 p-4 rounded-xl border border-white/10 flex justify-between items-center hover:border-blue-400 transition cursor-pointer" onclick="alert('Mengunduh KHS...')">
-                    <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 bg-green-500/20 text-green-400 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-file-excel"></i>
-                        </div>
-                        <div>
-                            <p class="font-bold text-white">KHS_Semester_3_192831.pdf</p>
-                            <p class="text-[10px] text-gray-500">800 KB • Diunggah 05 Feb 2025</p>
-                        </div>
-                    </div>
-                    <i class="fas fa-download text-gray-400 hover:text-gold"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    
-
-    
-
-    <!-- 4. MODAL JADWAL TARAWIH -->
-    <div id="modal-tarawih" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
-        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
-            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-                <h3 class="text-xl font-bold text-gold font-sans">Jadwal Imam & Penceramah</h3>
-                <button onclick="closeModal('modal-tarawih')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
-            </div>
-            
-            <!-- Editor (Hidden by default, toggleable) -->
-            {% if is_admin %}
-            <div id="tarawih-editor" class="hidden p-4 bg-white/5 border border-white/10 rounded-xl mb-6">
-                <form action="/ramadhan/tarawih" method="POST" class="space-y-3">
+                    {% if item['status'] == 'Pending' %}
+                    <form action="/tu/pmb/verifikasi" method="POST">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                     <div class="grid grid-cols-4 gap-2">
-                         <input type="number" name="night_index" placeholder="Malam ke" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white focus:border-gold">
-                         <input type="text" name="imam" placeholder="Nama Imam" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white focus:border-gold">
-                         <input type="text" name="penceramah" placeholder="Nama Penceramah" required class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white focus:border-gold">
-                         <input type="text" name="judul" placeholder="Judul Ceramah" class="bg-[#0b1026] border border-gray-600 rounded-lg p-2 text-sm text-white focus:border-gold">
-                     </div>
-                     <button type="submit" class="w-full bg-purple-600 text-white font-bold py-2 rounded-lg hover:bg-purple-500 shadow-lg">Update Jadwal</button>
-                </form>
-            </div>
-            <div class="p-2 text-center border-b border-white/10 mb-4">
-                <button onclick="document.getElementById('tarawih-editor').classList.toggle('hidden')" class="text-xs text-purple-400 hover:text-purple-300 font-bold uppercase tracking-wider bg-purple-500/10 px-4 py-2 rounded-full border border-purple-500/20">+ Edit Jadwal (Admin)</button>
-            </div>
-            {% endif %}
-
-            <div class="overflow-hidden rounded-xl border border-white/10">
-                <div class="grid grid-cols-1 divide-y divide-white/5">
-                    {% for item in tarawih_schedule %}
-                    <div class="p-4 hover:bg-white/5 transition flex gap-4 items-center">
-                        <div class="bg-purple-500/20 text-purple-400 w-16 h-16 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0 text-center leading-tight">
-                            Hari {{ item['night_index'] - 1 }}<br>Malam {{ item['night_index'] }}
-                        </div>
-                        <div class="flex-1">
-                            <p class="text-xs text-gray-400 uppercase font-bold mb-1 tracking-wider">IMAM & PENCERAMAH</p>
-                            <p class="font-bold text-white mb-1">{{ item['imam'] }}</p>
-                            {% if item['penceramah'] != item['imam'] %}
-                            <p class="font-bold text-gold mb-1">{{ item['penceramah'] }}</p>
-                            {% endif %}
-                            <p class="text-xs text-gray-500 italic mt-1">"{{ item['judul'] }}"</p>
-                        </div>
-                    </div>
+                        <input type="hidden" name="id" value="{{ item['id'] }}">
+                        <button type="submit" class="w-full bg-gold text-midnight font-bold py-2 rounded-lg hover:bg-white transition">Verifikasi & Buat Akun</button>
+                    </form>
                     {% else %}
-                    <div class="p-8 text-center text-gray-500">Jadwal belum diisi.</div>
-                    {% endfor %}
+                    <a href="https://wa.me/?text=Selamat! Anda telah diterima. NPM: {{ item['npm_generated'] }}" target="_blank" class="block w-full text-center bg-green-500 text-white font-bold py-2 rounded-lg hover:bg-green-600 transition"><i class="fab fa-whatsapp"></i> Kirim Akses</a>
+                    {% endif %}
                 </div>
+                {% else %}
+                <p class="text-gray-500">Belum ada pendaftar.</p>
+                {% endfor %}
             </div>
         </div>
     </div>
 
-    <!-- 5. MODAL ZAKAT FITRAH -->
-    <div id="modal-zakat-fitrah" class="hidden fixed inset-0 z-[60] bg-[#0b1026] overflow-y-auto">
+    <!-- 3. MODAL LACI ARSIP ANTI RAYAP -->
+    <div id="modal-laci-arsip" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
             <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-                <button onclick="document.getElementById('modal-zakat-fitrah').classList.add('hidden'); document.getElementById('modal-zakat-menu').classList.remove('hidden'); history.replaceState({modal: 'modal-zakat-menu'}, null, '');" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-arrow-left"></i></button>
-                <h3 class="text-xl font-bold text-gold font-sans">Kalkulator Zakat Fitrah</h3>
-                <button onclick="closeModal('modal-zakat-fitrah')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+                <h3 class="text-xl font-bold text-gold font-sans">Laci Arsip Anti Rayap</h3>
+                <button onclick="closeModal('modal-laci-arsip')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
-            <div class="space-y-6">
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-2">Jumlah Jiwa (Orang)</label>
-                    <input type="number" id="zakat-jiwa" value="1" min="1" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl p-4 text-white text-center text-xl font-bold focus:border-gold">
-                </div>
-                
-                <div class="bg-white/5 p-6 rounded-2xl border border-white/10">
-                    <p class="text-xs text-gray-400 mb-4 uppercase font-bold text-center tracking-widest">Estimasi Pembayaran</p>
-                    <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-4">
-                        <span class="text-gray-300">Beras (2.75 Kg)</span>
-                        <span class="font-bold text-white text-2xl" id="res-beras">2.75 Kg</span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-2">
-                            <span class="text-gray-300">Uang</span>
-                            <select id="zakat-uang-rate" onchange="calculateZakatFitrah()" class="bg-[#0b1026] text-gray-300 border border-gold/30 rounded p-1 text-xs">
-                                <option value="70000">Kategori I (Rp 70.000)</option>
-                                <option value="60000">Kategori II (Rp 60.000)</option>
-                                <option value="50000">Kategori III (Rp 50.000)</option>
-                                <option value="45000" selected>Standar (Rp 45.000)</option>
-                            </select>
+            
+            <div class="flex gap-2 mb-6">
+                <input type="text" id="arsip-search-npm" placeholder="Ketik NPM Mahasiswa..." class="flex-1 bg-[#0b1026] border border-gold/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold">
+                <button onclick="searchArsip()" class="bg-blue-500 text-white px-6 rounded-xl font-bold hover:bg-blue-600 transition"><i class="fas fa-search"></i></button>
+            </div>
+
+            <div id="arsip-result" class="text-white">
+                <p class="text-gray-500 text-center">Gunakan fitur pencarian di atas.</p>
+            </div>
+
+            <script>
+                async function searchArsip() {
+                    const npm = document.getElementById('arsip-search-npm').value;
+                    if(!npm) return;
+                    document.getElementById('arsip-result').innerHTML = '<p class="text-center">Mencari...</p>';
+                    try {
+                        const res = await fetch('/tu/arsip/search?npm=' + npm);
+                        const data = await res.json();
+                        if(data.error) {
+                             document.getElementById('arsip-result').innerHTML = `<p class="text-red-400 text-center">${data.error}</p>`;
+                             return;
+                        }
+                        let html = `
+                        <div class="bg-white/5 p-4 rounded-xl border border-white/10 mb-4">
+                            <h4 class="font-bold text-gold text-lg">${data.user.nama} (${data.user.username})</h4>
+                            <p class="text-sm text-gray-300">Status: ${data.user.status_akademik}</p>
                         </div>
-                        <span class="font-bold text-gold text-2xl" id="res-uang">Rp 45.000</span>
-                    </div>
-                </div>
-                
-                <button onclick="calculateZakatFitrah()" class="w-full bg-gray-200 text-gray-800 font-bold py-4 rounded-xl hover:bg-white active:bg-white active:shadow-[0_0_15px_rgba(255,255,255,0.8)] transition shadow-lg">Hitung Ulang</button>
-                <p class="text-[10px] text-gray-500 text-center italic">*Harga uang menyesuaikan standar BAZNAS (Badan Amil Zakat Nasional) KOTA SAMARINDA</p>
-            </div>
+                        <h5 class="font-bold text-gray-400 mb-2">Riwayat Tagihan</h5>
+                        <ul class="mb-4 space-y-2">`;
+                        data.tagihan.forEach(t => {
+                            html += `<li class="bg-white/5 p-2 rounded text-sm flex justify-between"><span>${t.jenis_tagihan}</span> <span class="${t.status=='Lunas' ? 'text-green-400' : 'text-red-400'}">${t.status}</span></li>`;
+                        });
+                        html += `</ul><h5 class="font-bold text-gray-400 mb-2">Dokumen Digital</h5><ul class="space-y-2">`;
+                        data.dokumen.forEach(d => {
+                            html += `<li class="bg-white/5 p-2 rounded text-sm flex justify-between"><span>${d.nama_dokumen}</span> <a href="/uploads/${d.file_path}" target="_blank" class="text-blue-400"><i class="fas fa-download"></i> Unduh</a></li>`;
+                        });
+                        html += `</ul>`;
+                        document.getElementById('arsip-result').innerHTML = html;
+                    } catch(e) {
+                        document.getElementById('arsip-result').innerHTML = '<p class="text-red-500">Error fetching data.</p>';
+                    }
+                }
+            </script>
         </div>
     </div>
 
-    <!-- 5A. MODAL ZAKAT MENU -->
-    <div id="modal-zakat-menu" class="hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm flex items-center justify-center overflow-y-auto">
-        <div class="relative w-full max-w-sm mx-4 bg-[#151e3f] border border-white/10 rounded-3xl shadow-2xl p-6 animate-[slideUp_0.3s_ease-out]">
-            <button onclick="closeModal('modal-zakat-menu')" class="absolute top-4 right-4 bg-white/10 w-8 h-8 rounded-full text-gray-300 hover:text-white hover:bg-white/20 flex items-center justify-center transition">&times;</button>
-            <h3 class="text-xl font-bold text-gold font-sans mb-6 text-center">Menu Zakat Fitrah</h3>
-            <div class="flex flex-col gap-4">
-                <button onclick="event.preventDefault(); event.stopPropagation(); document.getElementById('modal-zakat-menu').classList.add('hidden'); document.getElementById('modal-zakat-fitrah').classList.remove('hidden'); history.pushState({modal: 'modal-zakat-fitrah'}, null, '');" class="bg-gold text-midnight font-bold py-4 px-6 rounded-2xl hover:bg-white transition transform hover:scale-105 shadow-lg flex items-center justify-center gap-3">
-                    <i class="fas fa-calculator text-lg"></i> Kalkulator Zakat Fitrah
-                </button>
-                <button onclick="event.preventDefault(); event.stopPropagation(); document.getElementById('modal-zakat-menu').classList.add('hidden'); document.getElementById('modal-doa-zakat').classList.remove('hidden'); history.pushState({modal: 'modal-doa-zakat'}, null, '');" class="bg-gold text-midnight font-bold py-4 px-6 rounded-2xl hover:bg-white transition transform hover:scale-105 shadow-lg flex items-center justify-center gap-3">
-                    <i class="fas fa-hands-praying text-lg"></i> Doa Zakat
-                </button>
-                <button onclick="event.preventDefault(); event.stopPropagation(); document.getElementById('modal-zakat-menu').classList.add('hidden'); document.getElementById('modal-tabel-zakat').classList.remove('hidden'); history.pushState({modal: 'modal-tabel-zakat'}, null, '');" class="bg-gold text-midnight font-bold py-4 px-6 rounded-2xl hover:bg-white transition transform hover:scale-105 shadow-lg flex items-center justify-center gap-3">
-                    <i class="fas fa-table text-lg"></i> Tabel Zakat
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 5B. MODAL DOA ZAKAT -->
-    <div id="modal-doa-zakat" class="hidden fixed inset-0 z-[60] bg-[#0b1026] overflow-y-auto">
-        <div class="relative w-full min-h-screen pt-8 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out] max-w-3xl mx-auto">
-            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-                <button onclick="document.getElementById('modal-doa-zakat').classList.add('hidden'); document.getElementById('modal-zakat-menu').classList.remove('hidden'); history.replaceState({modal: 'modal-zakat-menu'}, null, '');" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-arrow-left"></i></button>
-                <div class="text-center flex-1">
-                    <h2 class="text-2xl md:text-3xl font-bold text-white font-sans tracking-wide">NIKMAT BERZAKAT</h2>
-                    <h3 class="text-xs md:text-sm font-bold text-[#FFD700] tracking-widest mt-1">TENTRAMNYA MUZAKI, BAHAGIANYA MUSTAHIK</h3>
-                </div>
-                <button onclick="closeModal('modal-doa-zakat')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
-            </div>
-
-            <div class="space-y-6">
-                <!-- Kartu Pertama -->
-                <div class="bg-white rounded-3xl p-6 md:p-8 shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-gray-100 relative overflow-hidden transform transition hover:-translate-y-1">
-                    <h4 class="font-bold text-gray-900 mb-6 text-sm md:text-base border-l-4 border-[#FFD700] pl-3">NIAT ZAKAT FITRAH UNTUK DIRI SENDIRI</h4>
-                    <p class="text-2xl md:text-4xl text-right font-arabic leading-[2.5] mb-6 text-gray-800" style="font-family: 'Amiri', serif;">نَوَيْتُ أَنْ أُخْرِجَ زَكَاةَ الْفِطْرِ عَنْ نَفْسِيْ فَرْضًا لِلَّهِ تَعَالَى</p>
-                    <p class="text-sky-700 italic text-sm md:text-base mb-4 leading-relaxed font-medium">Nawaitu an ukhrija zakaatal fitri 'an nafsi fardhallillahi ta'ala</p>
-                    <p class="text-gray-700 text-sm md:text-base leading-relaxed border-t border-gray-100 pt-4">Aku niat mengeluarkan zakat fitrah untuk diriku sendiri, fardu karena Allah Ta'âlâ.</p>
-                </div>
-
-                <!-- Kartu Kedua -->
-                <div class="bg-white rounded-3xl p-6 md:p-8 shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-gray-100 relative overflow-hidden transform transition hover:-translate-y-1">
-                    <h4 class="font-bold text-gray-900 mb-6 text-sm md:text-base border-l-4 border-[#FFD700] pl-3">NIAT ZAKAT FITRAH UNTUK DIRI SENDIRI DAN KELUARGA</h4>
-                    <p class="text-2xl md:text-4xl text-right font-arabic leading-[2.5] mb-6 text-gray-800" style="font-family: 'Amiri', serif;">نَوَيْتُ أَنْ أُخْرِجَ زَكَاةَ الْفِطْرِ عَنِّيْ وَعَنْ جَمِيْعِ مَا يَلْزَمُنِيْ نَفَقَاتُهُمْ شَرْعًا فَرْضًا لِلَّهِ تَعَالَى</p>
-                    <p class="text-sky-700 italic text-sm md:text-base mb-4 leading-relaxed font-medium">Nawaitu an ukhrija zakaatal fitri 'annii wa 'an jamii'i maa yal zamunii nafaqaa tuhum syar'an fardhallillahi ta'ala</p>
-                    <p class="text-gray-700 text-sm md:text-base leading-relaxed border-t border-gray-100 pt-4">Aku niat mengeluarkan zakat fitrah untuk diriku dan seluruh orang yang nafkahnya menjadi tanggunganku, fardu karena Allah Ta'âlâ.</p>
-                </div>
-
-                <!-- Kartu Ketiga -->
-                <div class="bg-white rounded-3xl p-6 md:p-8 shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-gray-100 relative overflow-hidden transform transition hover:-translate-y-1">
-                    <h4 class="font-bold text-gray-900 mb-6 text-sm md:text-base border-l-4 border-[#FFD700] pl-3">NIAT ZAKAT FITRAH UNTUK ORANG YANG DIWAKILKAN</h4>
-                    <p class="text-2xl md:text-4xl text-right font-arabic leading-[2.5] mb-6 text-gray-800" style="font-family: 'Amiri', serif;">نَوَيْتُ أَنْ أُخْرِجَ زَكَاةَ الْفِطْرِ عَنْ (...) فَرْضًا لِلَّهِ تَعَالَى</p>
-                    <p class="text-sky-700 italic text-sm md:text-base mb-4 leading-relaxed font-medium">Nawaitu an ukhrija zakaatal fitri 'an ...(nama)... fardhallillahi ta'ala</p>
-                    <p class="text-gray-700 text-sm md:text-base leading-relaxed border-t border-gray-100 pt-4">Aku niat mengeluarkan zakat fitrah untuk... (sebutkan nama spesifik), fardu karena Allah Ta'âlâ.</p>
-                </div>
-
-                <!-- Kartu Keempat -->
-                <div class="bg-white rounded-3xl p-6 md:p-8 shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-gray-100 relative overflow-hidden transform transition hover:-translate-y-1">
-                    <h4 class="font-bold text-gray-900 mb-6 text-sm md:text-base border-l-4 border-[#FFD700] pl-3">NIAT ZAKAT MAAL</h4>
-                    <p class="text-2xl md:text-4xl text-right font-arabic leading-[2.5] mb-6 text-gray-800" style="font-family: 'Amiri', serif;">نَوَيْتُ أَنْ أُخْرِجَ زَكَاةَ الْمَالِ عَنْ نَفْسِيْ فَرْضًا لِلَّهِ تَعَالَى</p>
-                    <p class="text-sky-700 italic text-sm md:text-base mb-4 leading-relaxed font-medium">Nawaitu an ukhrija zakaatal maal 'an nafsi fardhallillahi ta'ala</p>
-                    <p class="text-gray-700 text-sm md:text-base leading-relaxed border-t border-gray-100 pt-4">Saya niat mengeluarkan zakat berupa emas/perak/harta dari diriku sendiri karena Allah Ta'ala.</p>
-                </div>
-
-                <!-- Kartu Kelima -->
-                <div class="bg-white rounded-3xl p-6 md:p-8 shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-gray-100 relative overflow-hidden transform transition hover:-translate-y-1">
-                    <h4 class="font-bold text-gray-900 mb-6 text-sm md:text-base border-l-4 border-[#FFD700] pl-3">DO'A MENERIMA ZAKAT</h4>
-                    <p class="text-2xl md:text-4xl text-right font-arabic leading-[2.5] mb-6 text-gray-800" style="font-family: 'Amiri', serif;">أَجَرَكَ اللهُ فِيْمَا أَعْطَيْتَ, وَبَارَكَ لَكَ فِيْمَا أَبْقَيْتَ, وَاجْعَلْهُ لَكَ طَهُوْرًا</p>
-                    <p class="text-sky-700 italic text-sm md:text-base mb-4 leading-relaxed font-medium">Ajarakallahu fiimaa a'thoita wa baaraka laka fiimaa abqoita waj'alhu laka thohuuron.</p>
-                    <p class="text-gray-700 text-sm md:text-base leading-relaxed border-t border-gray-100 pt-4">Semoga Allah memberikan pahala kepadamu pada barang yang engkau berikan (zakatkan) dan semoga Allah memberkahimu dalam harta-harta yang masih engkau sisakan dan semoga pula menjadikannya sebagai pembersih (dosa) bagimu.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- 5C. MODAL TABEL ZAKAT -->
-    <div id="modal-tabel-zakat" class="hidden fixed inset-0 z-[60] bg-[#0b1026] overflow-y-auto">
-        <div class="relative w-full min-h-screen pt-12 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out] max-w-4xl mx-auto">
-            <button onclick="closeModal('modal-tabel-zakat')" class="absolute top-6 right-6 text-gray-400 hover:text-white bg-white/10 w-10 h-10 rounded-full z-10">&times;</button>
-            <button onclick="document.getElementById('modal-tabel-zakat').classList.add('hidden'); document.getElementById('modal-zakat-menu').classList.remove('hidden'); history.replaceState({modal: 'modal-zakat-menu'}, null, '');" class="absolute top-6 left-6 text-gray-400 hover:text-white bg-white/10 w-10 h-10 rounded-full z-10 flex items-center justify-center"><i class="fas fa-arrow-left"></i></button>
-
-            <div class="text-center mt-8 mb-6">
-                <h2 class="text-2xl md:text-3xl font-bold text-white font-sans tracking-wide">MASJID AL-HIJRAH</h2>
-                <h3 class="text-lg md:text-xl font-bold text-[#FFD700] tracking-widest mt-1">BAZNAS (Badan Amil Zakat Nasional) KOTA SAMARINDA</h3>
-            </div>
-            
-            <hr class="border-white/20 mb-6">
-            
-            <div class="text-center mb-8">
-                <h4 class="text-xl md:text-2xl font-bold text-white mb-2">TABEL KADAR ZAKAT FITRAH DAN FIDYAH</h4>
-                <p class="text-gray-300 text-sm md:text-base">Wilayah Kota Samarinda Tahun 1447 H / 2026 M</p>
-            </div>
-
-            <div class="space-y-10">
-                <!-- Tabel 1: Zakat Fitrah -->
-                <div class="bg-white rounded-3xl p-6 shadow-2xl overflow-hidden border border-gray-100">
-                    <h5 class="font-bold text-gray-900 mb-4 text-lg border-l-4 border-[#FFD700] pl-3">Kadar Zakat Fitrah</h5>
-                    <div class="overflow-x-auto custom-scrollbar">
-                        <table class="w-full text-sm text-left border-collapse min-w-[600px]">
-                            <thead class="bg-[#FFD700] text-[#0b1026]">
-                                <tr>
-                                    <th class="p-3 font-bold border border-gray-200">Jumlah Orang / Jiwa</th>
-                                    <th class="p-3 font-bold border border-gray-200">Kategori I (Rp)</th>
-                                    <th class="p-3 font-bold border border-gray-200">Kategori II (Rp)</th>
-                                    <th class="p-3 font-bold border border-gray-200">Kategori III (Rp)</th>
-                                    <th class="p-3 font-bold border border-gray-200">Beras (KG)</th>
-                                </tr>
-                            </thead>
-                            <tbody class="text-gray-800">
-                                <tr class="bg-gray-50 hover:bg-[#FFF9C4] transition">
-                                    <td class="p-3 font-bold border border-gray-200">1</td>
-                                    <td class="p-3 border border-gray-200">70.000</td>
-                                    <td class="p-3 border border-gray-200">60.000</td>
-                                    <td class="p-3 border border-gray-200">50.000</td>
-                                    <td class="p-3 border border-gray-200">2,75</td>
-                                </tr>
-                                <tr class="bg-white hover:bg-[#FFF9C4] transition">
-                                    <td class="p-3 font-bold border border-gray-200">2</td>
-                                    <td class="p-3 border border-gray-200">140.000</td>
-                                    <td class="p-3 border border-gray-200">120.000</td>
-                                    <td class="p-3 border border-gray-200">100.000</td>
-                                    <td class="p-3 border border-gray-200">5,5</td>
-                                </tr>
-                                <tr class="bg-gray-50 hover:bg-[#FFF9C4] transition">
-                                    <td class="p-3 font-bold border border-gray-200">3</td>
-                                    <td class="p-3 border border-gray-200">210.000</td>
-                                    <td class="p-3 border border-gray-200">180.000</td>
-                                    <td class="p-3 border border-gray-200">150.000</td>
-                                    <td class="p-3 border border-gray-200">8,25</td>
-                                </tr>
-                                <tr class="bg-white hover:bg-[#FFF9C4] transition">
-                                    <td class="p-3 font-bold border border-gray-200">4</td>
-                                    <td class="p-3 border border-gray-200">280.000</td>
-                                    <td class="p-3 border border-gray-200">240.000</td>
-                                    <td class="p-3 border border-gray-200">200.000</td>
-                                    <td class="p-3 border border-gray-200">11</td>
-                                </tr>
-                                <tr class="bg-gray-50 hover:bg-[#FFF9C4] transition">
-                                    <td class="p-3 font-bold border border-gray-200">5</td>
-                                    <td class="p-3 border border-gray-200">350.000</td>
-                                    <td class="p-3 border border-gray-200">300.000</td>
-                                    <td class="p-3 border border-gray-200">250.000</td>
-                                    <td class="p-3 border border-gray-200">13,75</td>
-                                </tr>
-                                <tr class="bg-white hover:bg-[#FFF9C4] transition">
-                                    <td class="p-3 font-bold border border-gray-200">6</td>
-                                    <td class="p-3 border border-gray-200">420.000</td>
-                                    <td class="p-3 border border-gray-200">360.000</td>
-                                    <td class="p-3 border border-gray-200">300.000</td>
-                                    <td class="p-3 border border-gray-200">16,5</td>
-                                </tr>
-                                <tr class="bg-gray-50 hover:bg-[#FFF9C4] transition">
-                                    <td class="p-3 font-bold border border-gray-200">7</td>
-                                    <td class="p-3 border border-gray-200">490.000</td>
-                                    <td class="p-3 border border-gray-200">420.000</td>
-                                    <td class="p-3 border border-gray-200">350.000</td>
-                                    <td class="p-3 border border-gray-200">19,25</td>
-                                </tr>
-                                <tr class="bg-white hover:bg-[#FFF9C4] transition">
-                                    <td class="p-3 font-bold border border-gray-200">8</td>
-                                    <td class="p-3 border border-gray-200">560.000</td>
-                                    <td class="p-3 border border-gray-200">480.000</td>
-                                    <td class="p-3 border border-gray-200">400.000</td>
-                                    <td class="p-3 border border-gray-200">22</td>
-                                </tr>
-                                <tr class="bg-gray-50 hover:bg-[#FFF9C4] transition">
-                                    <td class="p-3 font-bold border border-gray-200">9</td>
-                                    <td class="p-3 border border-gray-200">630.000</td>
-                                    <td class="p-3 border border-gray-200">540.000</td>
-                                    <td class="p-3 border border-gray-200">450.000</td>
-                                    <td class="p-3 border border-gray-200">24,75</td>
-                                </tr>
-                                <tr class="bg-white hover:bg-[#FFF9C4] transition">
-                                    <td class="p-3 font-bold border border-gray-200">10</td>
-                                    <td class="p-3 border border-gray-200">700.000</td>
-                                    <td class="p-3 border border-gray-200">600.000</td>
-                                    <td class="p-3 border border-gray-200">500.000</td>
-                                    <td class="p-3 border border-gray-200">27,5</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Tabel 2: Fidyah -->
-                <div class="bg-white rounded-3xl p-6 shadow-2xl overflow-hidden border border-gray-100">
-                    <h5 class="font-bold text-gray-900 mb-4 text-lg border-l-4 border-[#FFD700] pl-3">Kadar Fidyah</h5>
-                    <div class="overflow-x-auto custom-scrollbar">
-                        <table class="w-full text-sm text-left border-collapse min-w-[500px]">
-                            <thead class="bg-[#FFD700] text-[#0b1026]">
-                                <tr>
-                                    <th class="p-3 font-bold border border-gray-200">Jumlah Hari / Orang / Jiwa</th>
-                                    <th class="p-3 font-bold border border-gray-200">Kategori I (Rp)</th>
-                                    <th class="p-3 font-bold border border-gray-200">Kategori II (Rp)</th>
-                                    <th class="p-3 font-bold border border-gray-200">Beras (KG)</th>
-                                </tr>
-                            </thead>
-                            <tbody class="text-gray-800">
-                                <tr class="bg-gray-50 hover:bg-[#FFF9C4] transition">
-                                    <td class="p-3 font-bold border border-gray-200">1 Hari / Jiwa / Orang</td>
-                                    <td class="p-3 border border-gray-200">40.000</td>
-                                    <td class="p-3 border border-gray-200">25.000</td>
-                                    <td class="p-3 border border-gray-200">0,7</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- DEV TOAST NOTIFICATION -->
-    <div id="dev-toast" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-white text-gray-900 px-6 py-3 rounded-full shadow-2xl z-50 opacity-0 pointer-events-none transition-all duration-300 flex items-center gap-3">
-        <div class="w-8 h-8 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center">
-            <i class="fas fa-hammer"></i>
-        </div>
-        <span class="font-bold text-sm tracking-wide">Sedang dalam tahap pengembangan</span>
-    </div>
-
-    <!-- 6. MODAL AMALAN -->
-    <div id="modal-amalan" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
-        <!-- Canvas for fireworks needs to be full screen -->
-        <canvas id="fireworks" class="fixed inset-0 pointer-events-none z-50"></canvas>
-        
+    <!-- 4. MODAL VERIFIKASI PEMBAYARAN -->
+    <div id="modal-verifikasi-pembayaran" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
-            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4 relative z-10">
-                <h3 class="text-xl font-bold text-pink-400 font-sans">Checklist Amalan Harian</h3>
-                <button onclick="closeModal('modal-amalan')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                <h3 class="text-xl font-bold text-gold font-sans">Verifikasi Pembayaran</h3>
+                <button onclick="closeModal('modal-verifikasi-pembayaran')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
-            
-            <div class="relative z-10">
-                <div class="bg-gradient-to-r from-pink-400 to-purple-500 bg-clip-text text-transparent text-center font-bold text-lg animate-pulse mb-6">May Allah SWT always be with us...</div>
-                <div class="mb-8">
-                     <div class="flex justify-between text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">
-                         <span>Progress Harian</span>
-                         <span id="progress-text">0%</span>
-                     </div>
-                     <div class="w-full bg-white/10 rounded-full h-4 overflow-hidden">
-                          <div id="progress-bar" class="bg-pink-500 h-4 rounded-full transition-all duration-500 shadow-[0_0_10px_#EC4899]" style="width: 0%"></div>
-                     </div>
-                </div>
 
-                <div class="space-y-4" id="amalan-list">
-                    <!-- Checkboxes generated by JS -->
-                    <label class="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10 cursor-pointer hover:bg-white/10 transition group">
-                        <div class="relative flex items-center">
-                            <input type="checkbox" onchange="updateProgress()" class="peer appearance-none w-6 h-6 border-2 border-gray-500 rounded-md checked:bg-pink-500 checked:border-pink-500 transition-colors">
-                            <i class="fas fa-check absolute left-1 top-1 text-white opacity-0 peer-checked:opacity-100 text-xs pointer-events-none"></i>
-                        </div>
-                        <span class="text-gray-300 font-medium group-hover:text-white transition-colors">Puasa Hari Ini</span>
-                    </label>
-                    <label class="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10 cursor-pointer hover:bg-white/10 transition group">
-                        <div class="relative flex items-center">
-                            <input type="checkbox" onchange="updateProgress()" class="peer appearance-none w-6 h-6 border-2 border-gray-500 rounded-md checked:bg-pink-500 checked:border-pink-500 transition-colors">
-                            <i class="fas fa-check absolute left-1 top-1 text-white opacity-0 peer-checked:opacity-100 text-xs pointer-events-none"></i>
-                        </div>
-                        <span class="text-gray-300 font-medium group-hover:text-white transition-colors">Sholat 5 Waktu</span>
-                    </label>
-                    <label class="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10 cursor-pointer hover:bg-white/10 transition group">
-                        <div class="relative flex items-center">
-                            <input type="checkbox" onchange="updateProgress()" class="peer appearance-none w-6 h-6 border-2 border-gray-500 rounded-md checked:bg-pink-500 checked:border-pink-500 transition-colors">
-                            <i class="fas fa-check absolute left-1 top-1 text-white opacity-0 peer-checked:opacity-100 text-xs pointer-events-none"></i>
-                        </div>
-                        <span class="text-gray-300 font-medium group-hover:text-white transition-colors">Sholat Tarawih</span>
-                    </label>
-                    <label class="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10 cursor-pointer hover:bg-white/10 transition group">
-                        <div class="relative flex items-center">
-                             <input type="checkbox" onchange="updateProgress()" class="peer appearance-none w-6 h-6 border-2 border-gray-500 rounded-md checked:bg-pink-500 checked:border-pink-500 transition-colors">
-                            <i class="fas fa-check absolute left-1 top-1 text-white opacity-0 peer-checked:opacity-100 text-xs pointer-events-none"></i>
-                        </div>
-                        <span class="text-gray-300 font-medium group-hover:text-white transition-colors">Tilawah 1 Juz</span>
-                    </label>
-                    <label class="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10 cursor-pointer hover:bg-white/10 transition group">
-                        <div class="relative flex items-center">
-                             <input type="checkbox" onchange="updateProgress()" class="peer appearance-none w-6 h-6 border-2 border-gray-500 rounded-md checked:bg-pink-500 checked:border-pink-500 transition-colors">
-                            <i class="fas fa-check absolute left-1 top-1 text-white opacity-0 peer-checked:opacity-100 text-xs pointer-events-none"></i>
-                        </div>
-                        <span class="text-gray-300 font-medium group-hover:text-white transition-colors">Sedekah Subuh</span>
-                    </label>
+            <div class="space-y-3">
+                {% for item in tagihan_list %}
+                <div class="bg-white/5 p-4 rounded-xl border border-white/10 flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-white">{{ item['jenis_tagihan'] }}</p>
+                        <p class="text-xs text-gray-400">NPM: {{ item['npm'] }} • Rp {{ item['jumlah'] }}</p>
+                        {% if item['bukti_transfer'] %}
+                        <a href="/uploads/{{ item['bukti_transfer'] }}" target="_blank" class="text-xs text-blue-400 underline mt-1 block">Lihat Bukti Transfer</a>
+                        {% endif %}
+                    </div>
+                    {% if item['status'] != 'Lunas' %}
+                    <form action="/tu/tagihan/lunas" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <input type="hidden" name="id" value="{{ item['id'] }}">
+                        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-600 transition">Lunas</button>
+                    </form>
+                    {% else %}
+                    <span class="text-green-400 font-bold"><i class="fas fa-check-circle"></i> Lunas</span>
+                    {% endif %}
                 </div>
-                
-                <button onclick="resetAmalan()" class="mt-8 w-full text-xs text-gray-500 hover:text-white underline uppercase tracking-wider">Reset Checklist Hari Ini</button>
+                {% else %}
+                <p class="text-gray-500 text-center">Tidak ada tagihan tercatat.</p>
+                {% endfor %}
             </div>
         </div>
     </div>
+
+    <!-- 5. MODAL KELOLA JADWAL -->
+    <div id="modal-kelola-jadwal" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                <h3 class="text-xl font-bold text-gold font-sans">Kelola Jadwal Perkuliahan</h3>
+                <button onclick="closeModal('modal-kelola-jadwal')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+            </div>
+            
+            <form action="/tu/jadwal" method="POST" class="bg-white/5 p-4 border border-white/10 rounded-xl mb-6 space-y-3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" name="hari" placeholder="Hari (e.g. Senin)" required class="bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white">
+                    <input type="text" name="jam" placeholder="Jam (e.g. 08:00 - 10:30)" required class="bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white">
+                </div>
+                <input type="text" name="mata_kuliah" placeholder="Nama Mata Kuliah" required class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white">
+                <input type="text" name="dosen" placeholder="Nama Dosen Pengampu" required class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white">
+                <input type="text" name="ruangan" placeholder="Ruangan" required class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white">
+                <button type="submit" class="w-full bg-gold text-midnight font-bold py-2 rounded-lg hover:bg-white transition">+ Tambah Jadwal</button>
+            </form>
+
+            <div class="space-y-3">
+                {% for item in jadwal_list %}
+                <div class="bg-white/5 p-4 rounded-xl border border-white/10 flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-white">{{ item['mata_kuliah'] }}</p>
+                        <p class="text-xs text-gray-400">{{ item['hari'] }}, {{ item['jam'] }} • Ruang: {{ item['ruangan'] }}</p>
+                        <p class="text-xs text-gold">{{ item['dosen'] }}</p>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-gray-500 text-center">Jadwal kosong.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. MODAL MANAJEMEN SIVITAS -->
+    <div id="modal-manajemen-sivitas" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                <h3 class="text-xl font-bold text-gold font-sans">Manajemen Sivitas Akademika</h3>
+                <button onclick="closeModal('modal-manajemen-sivitas')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+            </div>
+            
+            <div class="overflow-x-auto rounded-xl border border-white/10">
+                <table class="w-full text-left border-collapse min-w-[600px]">
+                    <thead class="bg-gold/10 text-gold">
+                        <tr>
+                            <th class="p-3 text-xs font-bold uppercase">User</th>
+                            <th class="p-3 text-xs font-bold uppercase">Role</th>
+                            <th class="p-3 text-xs font-bold uppercase">Status</th>
+                            <th class="p-3 text-xs font-bold uppercase">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/5">
+                        {% for item in akun_list %}
+                        <tr class="hover:bg-white/5 transition">
+                            <td class="p-3">
+                                <p class="font-bold text-white">{{ item['nama'] }}</p>
+                                <p class="text-[10px] text-gray-400">{{ item['username'] }}</p>
+                            </td>
+                            <td class="p-3 text-xs text-gray-300">{{ item['role'] }}</td>
+                            <td class="p-3">
+                                <span class="px-2 py-1 rounded text-[10px] font-bold {{ 'bg-green-500/20 text-green-400' if item['status_akademik'] == 'Aktif' else 'bg-red-500/20 text-red-400' }}">{{ item['status_akademik'] }}</span>
+                            </td>
+                            <td class="p-3 text-xs">
+                                <div class="flex flex-col gap-2">
+                                    <form action="/tu/akun/update" method="POST" class="flex gap-2">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                                        <input type="hidden" name="id" value="{{ item['id'] }}">
+                                        <select name="status_akademik" class="bg-[#0b1026] text-white border border-gold/30 rounded p-1 text-[10px]">
+                                            <option value="Aktif" {{ 'selected' if item['status_akademik'] == 'Aktif' else '' }}>Aktif</option>
+                                            <option value="Cuti" {{ 'selected' if item['status_akademik'] == 'Cuti' else '' }}>Cuti</option>
+                                            <option value="Keluar" {{ 'selected' if item['status_akademik'] == 'Keluar' else '' }}>Keluar</option>
+                                            <option value="Lulus" {{ 'selected' if item['status_akademik'] == 'Lulus' else '' }}>Lulus</option>
+                                        </select>
+                                        <button type="submit" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Simpan</button>
+                                    </form>
+                                    <form action="/tu/akun/reset_password" method="POST" onsubmit="return confirm('Reset password ke stiesam123?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                                        <input type="hidden" name="id" value="{{ item['id'] }}">
+                                        <button type="submit" class="bg-red-500/20 text-red-400 px-2 py-1 rounded hover:bg-red-500/40 w-full text-center">Reset Password</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="p-3 text-center text-gray-500">Tidak ada data pengguna</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
 </div>
 
 <script>
@@ -6876,28 +6751,31 @@ IRMA_DASHBOARD_HTML = """
 
 @app.route('/ramadhan')
 def ramadhan_dashboard():
-    # 1. Takjil Data
-    takjil_data = get_takjil_data()
+    surat_list = []
+    pmb_list = []
+    tagihan_list = []
+    jadwal_list = []
+    akun_list = []
+    arsip_list = []
     
-    # 2. Imsakiyah Data
-    imsakiyah_data = get_imsakiyah_schedule()
-    
-    # 3. Kas Ramadhan Data
-    ramadhan_kas_items = RamadhanKas.query.order_by(RamadhanKas.date.desc()).all()
-    kas_in = db.session.query(func.sum(RamadhanKas.amount)).filter_by(type='Pemasukan').scalar() or 0
-    kas_out = db.session.query(func.sum(RamadhanKas.amount)).filter_by(type='Pengeluaran').scalar() or 0
-    
-    # 4. Tarawih Schedule
-    seed_ramadhan_schedule()
-    tarawih_schedule = TarawihSchedule.query.order_by(TarawihSchedule.night_index.asc()).all()
+    try:
+        surat_list = SuratOtomatis.query.order_by(SuratOtomatis.id.desc()).all()
+        pmb_list = PendaftaranPMB.query.order_by(PendaftaranPMB.id.desc()).all()
+        tagihan_list = TagihanKuliah.query.order_by(TagihanKuliah.id.desc()).all()
+        jadwal_list = JadwalKuliah.query.order_by(JadwalKuliah.id.desc()).all()
+        akun_list = User.query.order_by(User.id.desc()).all()
+        arsip_list = LaciArsip.query.order_by(LaciArsip.id.desc()).all()
+    except Exception as e:
+        print(f"Error fetching TU Dashboard data: {e}")
         
     # Render CONTENT first
     rendered_content = render_template_string(RAMADHAN_DASHBOARD_HTML,
-                                              takjil_data=takjil_data,
-                                              imsakiyah_data=imsakiyah_data,
-                                              ramadhan_kas_items=ramadhan_kas_items,
-                                              ramadhan_kas_summary={'income': kas_in, 'out': kas_out, 'balance': kas_in - kas_out},
-                                              tarawih_schedule=tarawih_schedule,
+                                              surat_list=surat_list,
+                                              pmb_list=pmb_list,
+                                              tagihan_list=tagihan_list,
+                                              jadwal_list=jadwal_list,
+                                              akun_list=akun_list,
+                                              arsip_list=arsip_list,
                                               open_modal=request.args.get('open'),
                                               is_admin=session.get('is_admin', False),
                                               settings=get_settings())
@@ -7338,3 +7216,131 @@ def donate_update():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
+@app.route('/tu/surat/acc', methods=['POST'])
+def tu_surat_acc():
+    if not session.get('is_admin'):
+        return 'Unauthorized', 403
+    try:
+        surat_id = request.form.get('id')
+        surat = SuratOtomatis.query.get(surat_id)
+        if surat:
+            surat.status = 'Disetujui'
+            # qr_code mock generation logic
+            surat.qr_code = f"QR-{surat.npm}-{surat.jenis_surat}"
+            db.session.commit()
+    except Exception as e:
+        print(f"Error updating surat: {e}")
+    return redirect(url_for('ramadhan_dashboard', open='modal-pabrik-surat'))
+
+@app.route('/tu/pmb/verifikasi', methods=['POST'])
+def tu_pmb_verifikasi():
+    if not session.get('is_admin'):
+        return 'Unauthorized', 403
+    try:
+        pmb_id = request.form.get('id')
+        pmb = PendaftaranPMB.query.get(pmb_id)
+        if pmb:
+            pmb.status = 'Diterima'
+            import random
+            new_npm = f"240{random.randint(1000,9999)}"
+            pmb.npm_generated = new_npm
+            from werkzeug.security import generate_password_hash
+            new_user = User(username=new_npm, password_hash=generate_password_hash("mahasiswa123"), role='Mahasiswa', nama=pmb.nama, status_akademik='Aktif')
+            db.session.add(new_user)
+            db.session.commit()
+    except Exception as e:
+        print(f"Error PMB verifikasi: {e}")
+    return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pmb'))
+
+@app.route('/tu/arsip/search', methods=['GET'])
+def tu_arsip_search():
+    npm = request.args.get('npm')
+    if not npm:
+        return jsonify({'error': 'NPM kosong'})
+
+    try:
+        user = User.query.filter_by(username=npm).first()
+        if not user:
+            return jsonify({'error': 'Mahasiswa tidak ditemukan'})
+
+        tagihan_raw = TagihanKuliah.query.filter_by(npm=npm).all()
+        tagihan = [{'jenis_tagihan': t.jenis_tagihan, 'status': t.status} for t in tagihan_raw]
+
+        dok_raw = LaciArsip.query.filter_by(npm=npm).all()
+        dokumen = [{'nama_dokumen': d.nama_dokumen, 'file_path': d.file_path} for d in dok_raw]
+
+        return jsonify({
+            'user': {
+                'nama': user.nama,
+                'username': user.username,
+                'status_akademik': user.status_akademik
+            },
+            'tagihan': tagihan,
+            'dokumen': dokumen
+        })
+    except Exception as e:
+        print(f"Error arsip search: {e}")
+        return jsonify({'error': 'Terjadi kesalahan sistem'})
+
+@app.route('/tu/tagihan/lunas', methods=['POST'])
+def tu_tagihan_lunas():
+    if not session.get('is_admin'):
+        return 'Unauthorized', 403
+    try:
+        t_id = request.form.get('id')
+        tagihan = TagihanKuliah.query.get(t_id)
+        if tagihan:
+            tagihan.status = 'Lunas'
+            db.session.commit()
+    except Exception as e:
+        print(f"Error tagihan lunas: {e}")
+    return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
+
+@app.route('/tu/jadwal', methods=['POST'])
+def tu_jadwal():
+    if not session.get('is_admin'):
+        return 'Unauthorized', 403
+    try:
+        new_jadwal = JadwalKuliah(
+            hari=request.form['hari'],
+            jam=request.form['jam'],
+            mata_kuliah=request.form['mata_kuliah'],
+            dosen=request.form['dosen'],
+            ruangan=request.form['ruangan']
+        )
+        db.session.add(new_jadwal)
+        db.session.commit()
+    except Exception as e:
+        print(f"Error tambah jadwal: {e}")
+    return redirect(url_for('ramadhan_dashboard', open='modal-kelola-jadwal'))
+
+@app.route('/tu/akun/update', methods=['POST'])
+def tu_akun_update():
+    if not session.get('is_admin'):
+        return 'Unauthorized', 403
+    try:
+        user_id = request.form.get('id')
+        status = request.form.get('status_akademik')
+        user = User.query.get(user_id)
+        if user and status in ['Aktif', 'Cuti', 'Keluar', 'Lulus']:
+            user.status_akademik = status
+            db.session.commit()
+    except Exception as e:
+        print(f"Error update status akademik: {e}")
+    return redirect(url_for('ramadhan_dashboard', open='modal-manajemen-sivitas'))
+
+@app.route('/tu/akun/reset_password', methods=['POST'])
+def tu_akun_reset_password():
+    if not session.get('is_admin'):
+        return 'Unauthorized', 403
+    try:
+        user_id = request.form.get('id')
+        user = User.query.get(user_id)
+        if user:
+            from werkzeug.security import generate_password_hash
+            user.password_hash = generate_password_hash("stiesam123")
+            db.session.commit()
+    except Exception as e:
+        print(f"Error reset password: {e}")
+    return redirect(url_for('ramadhan_dashboard', open='modal-manajemen-sivitas'))
