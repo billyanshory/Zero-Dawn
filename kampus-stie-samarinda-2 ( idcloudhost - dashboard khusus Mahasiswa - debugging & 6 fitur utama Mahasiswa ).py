@@ -292,6 +292,27 @@ class NilaiMahasiswa(db.Model):
     semester = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now())
 
+class KehadiranKelas(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    jadwal_id = db.Column(db.Integer, nullable=False)
+    npm = db.Column(db.String(255), nullable=False)
+    tanggal = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(50), default='Hadir')
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class JurnalMengajar(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    jadwal_id = db.Column(db.Integer, nullable=False)
+    tanggal = db.Column(db.String(255), nullable=False)
+    materi = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class StatusNilai(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    jadwal_id = db.Column(db.Integer, nullable=False)
+    is_published = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
 def get_settings():
     try:
         settings = {item.key: item.value for item in AppSettings.query.all()}
@@ -855,7 +876,7 @@ def model_getitem(self, key):
 
 for model in [Finance, Agenda, Booking, Zakat, GalleryDakwah, Suggestion, RamadhanKas, 
               TarawihSchedule, IrmaSchedule, IrmaMember, IrmaKas, IrmaGallery, 
-              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings, SuratOtomatis, PendaftaranPMB, TagihanKuliah, JadwalKuliah, User, LaciArsip, KRSMahasiswa, NilaiMahasiswa]:
+              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings, SuratOtomatis, PendaftaranPMB, TagihanKuliah, JadwalKuliah, User, LaciArsip, KRSMahasiswa, NilaiMahasiswa, KehadiranKelas, JurnalMengajar, StatusNilai]:
     model.__getitem__ = model_getitem
 
 STYLES_HTML = """
@@ -7253,6 +7274,93 @@ def mahasiswa_surat_request():
 
 @app.route('/dosen')
 def dosen_dashboard():
+    # Data Retrieval
+    dosen_name = session.get('nama', 'Dosen Pengampu')
+
+    # 1. Jadwal Kuliah (Cermin dari TU)
+    jadwal_dosen = JadwalKuliah.query.filter_by(dosen=dosen_name).all()
+
+    # 2. KRS Perwalian (Filter Lunas)
+    krs_raw = KRSMahasiswa.query.filter_by(dosen=dosen_name).order_by(KRSMahasiswa.id.desc()).all()
+    krs_perwalian = []
+
+    # Track unique students for "Daftar Mahasiswa Perwalian"
+    unique_npms = set()
+    mahasiswa_perwalian = []
+
+    for krs in krs_raw:
+        tagihan = TagihanKuliah.query.filter_by(npm=krs.npm).all()
+        # Ensure either there are no bills, or all bills are 'Lunas'
+        if not tagihan or all(t.status == 'Lunas' for t in tagihan):
+            krs_perwalian.append(krs)
+
+        unique_npms.add(krs.npm)
+
+    # 3. Masukan Nilai Akhir (Kelas)
+    kelas_list = []
+    for jadwal in jadwal_dosen:
+        status_nilai = StatusNilai.query.filter_by(jadwal_id=jadwal.id).first()
+        is_published = status_nilai.is_published if status_nilai else False
+
+        # Determine students taking this class
+        krs_class = KRSMahasiswa.query.filter_by(mata_kuliah=jadwal.mata_kuliah, status='Disetujui Dosen').all()
+
+        student_data = []
+        for student_krs in krs_class:
+            # Calculate presence percentage
+            total_sessions = JurnalMengajar.query.filter_by(jadwal_id=jadwal.id).count()
+            if total_sessions == 0:
+                attendance_pct = 100 # No sessions yet, default ok
+            else:
+                present_count = KehadiranKelas.query.filter_by(jadwal_id=jadwal.id, npm=student_krs.npm, status='Hadir').count()
+                attendance_pct = (present_count / total_sessions) * 100
+
+            student_data.append({
+                'npm': student_krs.npm,
+                'nama': User.query.filter_by(username=student_krs.npm).first().nama if User.query.filter_by(username=student_krs.npm).first() else 'Unknown',
+                'attendance_pct': attendance_pct
+            })
+
+        kelas_list.append({
+            'jadwal': jadwal,
+            'is_published': is_published,
+            'students': student_data
+        })
+
+    # 4. Mahasiswa Perwalian (Details, IPK, Transkrip)
+    for npm in unique_npms:
+        user = User.query.filter_by(username=npm).first()
+        if user:
+            nilai_list = NilaiMahasiswa.query.filter_by(npm=npm).all()
+            total_sks = 0
+            total_bobot = 0
+            for n in nilai_list:
+                nilai_angka = 4.0
+                if n.nilai_huruf == 'A': nilai_angka = 4.0
+                elif n.nilai_huruf == 'A-': nilai_angka = 3.7
+                elif n.nilai_huruf == 'B+': nilai_angka = 3.3
+                elif n.nilai_huruf == 'B': nilai_angka = 3.0
+                elif n.nilai_huruf == 'B-': nilai_angka = 2.7
+                elif n.nilai_huruf == 'C+': nilai_angka = 2.3
+                elif n.nilai_huruf == 'C': nilai_angka = 2.0
+                elif n.nilai_huruf == 'D': nilai_angka = 1.0
+                else: nilai_angka = 0.0
+                total_sks += n.sks
+                total_bobot += (n.sks * nilai_angka)
+
+            ipk = (total_bobot / total_sks) if total_sks > 0 else 0
+
+            arsip = LaciArsip.query.filter_by(npm=npm).all()
+
+            mahasiswa_perwalian.append({
+                'npm': npm,
+                'nama': user.nama,
+                'status': user.status_akademik,
+                'ipk': ipk,
+                'transkrip': nilai_list,
+                'arsip': arsip
+            })
+
     # DOSEN THEME
     dosen_theme = {
         'nav_bg': 'bg-[#FDFBF7]/90 backdrop-blur-md border-b border-[#E8C5A8]/20',
@@ -7295,28 +7403,380 @@ def dosen_dashboard():
             </div>
         </div>
 
-        <h3 class="text-[#A05D4A] font-bold text-lg mb-4 pl-3 border-l-4 border-[#E8C5A8]">Menu Utama (Dosen)</h3>
-        <div class="grid grid-cols-2 gap-4 mb-24 max-w-2xl">
-            <button onclick="alert('Memuat daftar KRS Mahasiswa Perwalian...')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/30 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+        <h3 class="text-[#A05D4A] font-bold text-lg mb-4 pl-3 border-l-4 border-[#E8C5A8]">Grup Perwalian & Penilaian Akademik</h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+            <button onclick="openModal('modal-persetujuan-krs')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/30 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
                  <div class="w-14 h-14 rounded-full bg-[#E8C5A8]/20 flex items-center justify-center text-[#A05D4A] mb-3 group-hover:bg-[#E8C5A8] group-hover:text-[#5D3425] transition-colors">
                     <i class="fas fa-file-signature text-2xl"></i>
                  </div>
                  <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Persetujuan<br>Rencana Studi</span>
             </button>
-            <button onclick="alert('Membuka form Input Nilai Akhir yang langsung tembus ke akun mahasiswa...')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/30 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+            <button onclick="openModal('modal-masukan-nilai')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/30 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
                  <div class="w-14 h-14 rounded-full bg-[#E8C5A8]/20 flex items-center justify-center text-[#A05D4A] mb-3 group-hover:bg-[#E8C5A8] group-hover:text-[#5D3425] transition-colors">
                     <i class="fas fa-marker text-2xl"></i>
                  </div>
-                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Input<br>Nilai Akhir</span>
+                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Masukan<br>Nilai Akhir</span>
+            </button>
+            <button onclick="openModal('modal-daftar-mahasiswa')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/30 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+                 <div class="w-14 h-14 rounded-full bg-[#E8C5A8]/20 flex items-center justify-center text-[#A05D4A] mb-3 group-hover:bg-[#E8C5A8] group-hover:text-[#5D3425] transition-colors">
+                    <i class="fas fa-users text-2xl"></i>
+                 </div>
+                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Daftar Mahasiswa<br>Perwalian</span>
             </button>
         </div>
+
+        <h3 class="text-[#A05D4A] font-bold text-lg mb-4 pl-3 border-l-4 border-[#E8C5A8]">Grup Operasional Mengajar</h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-24">
+            <button onclick="openModal('modal-jadwal-ruang')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/30 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+                 <div class="w-14 h-14 rounded-full bg-[#E8C5A8]/20 flex items-center justify-center text-[#A05D4A] mb-3 group-hover:bg-[#E8C5A8] group-hover:text-[#5D3425] transition-colors">
+                    <i class="fas fa-calendar-alt text-2xl"></i>
+                 </div>
+                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Jadwal Mengajar<br>& Ruang Kelas</span>
+            </button>
+            <button onclick="openModal('modal-presensi-jurnal')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/30 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+                 <div class="w-14 h-14 rounded-full bg-[#E8C5A8]/20 flex items-center justify-center text-[#A05D4A] mb-3 group-hover:bg-[#E8C5A8] group-hover:text-[#5D3425] transition-colors">
+                    <i class="fas fa-clipboard-check text-2xl"></i>
+                 </div>
+                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Presensi &<br>Jurnal Perkuliahan</span>
+            </button>
+            <button onclick="openModal('modal-profil-dosen')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/30 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+                 <div class="w-14 h-14 rounded-full bg-[#E8C5A8]/20 flex items-center justify-center text-[#A05D4A] mb-3 group-hover:bg-[#E8C5A8] group-hover:text-[#5D3425] transition-colors">
+                    <i class="fas fa-user-tie text-2xl"></i>
+                 </div>
+                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Profil &<br>Portofolio Dosen</span>
+            </button>
+        </div>
+
+        <!-- MODAL 1: PERSETUJUAN RENCANA STUDI -->
+        <div id="modal-persetujuan-krs" class="hidden fixed inset-0 z-40 bg-[#FDFBF7] overflow-y-auto">
+            <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+                <div class="flex justify-between items-center mb-6 border-b border-[#E8C5A8]/50 pb-4">
+                    <h3 class="text-xl font-bold text-[#A05D4A]">Persetujuan Rencana Studi</h3>
+                    <button onclick="closeModal('modal-persetujuan-krs')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+                </div>
+                <div class="space-y-4">
+                    {% for krs in krs_perwalian %}
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-[#E8C5A8]/50 relative" id="krs-card-{{ krs['id'] }}">
+                        <p class="font-bold text-gray-800 text-lg mb-1">{{ krs['mata_kuliah'] }}</p>
+                        <p class="text-sm text-gray-500 mb-3">NPM: <span class="font-mono font-bold">{{ krs['npm'] }}</span> • SKS: {{ krs['sks'] }}</p>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold px-3 py-1 rounded-full {{ 'bg-yellow-100 text-yellow-600' if krs['status'] == 'Menunggu Acc Dosen' else ('bg-green-100 text-green-600' if krs['status'] == 'Disetujui Dosen' else 'bg-red-100 text-red-600') }}" id="krs-status-{{ krs['id'] }}">
+                                {{ krs['status'] }}
+                            </span>
+                            <div class="flex gap-2">
+                                <button onclick="actionKrs({{ krs['id'] }}, 'Disetujui Dosen')" class="bg-green-500 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-green-600 transition">Setujui</button>
+                                <button onclick="actionKrs({{ krs['id'] }}, 'Ditolak Dosen')" class="bg-red-500 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-600 transition">Tolak</button>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-gray-500 text-sm italic">Belum ada KRS mahasiswa yang siap di-review.</p>
+                    {% endfor %}
+                </div>
+            </div>
+            <script>
+            async function actionKrs(id, status) {
+                const fd = new FormData();
+                fd.append('id', id);
+                fd.append('status', status);
+                // Assume standard CSRF setup if available in DOM
+                const csrfToken = document.querySelector('input[name="csrf_token"]') ? document.querySelector('input[name="csrf_token"]').value : '';
+                fd.append('csrf_token', csrfToken);
+
+                try {
+                    const res = await fetch('/dosen/krs/action', {
+                        method: 'POST',
+                        body: fd
+                    });
+                    const data = await res.json();
+                    if(data.success) {
+                        const badge = document.getElementById('krs-status-' + id);
+                        badge.innerText = status;
+                        badge.className = "text-xs font-bold px-3 py-1 rounded-full " + (status === 'Disetujui Dosen' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600');
+                    }
+                } catch(e) {
+                    alert('Gagal memproses persetujuan KRS.');
+                }
+            }
+            </script>
+        </div>
+
+        <!-- MODAL 2: MASUKAN NILAI AKHIR -->
+        <div id="modal-masukan-nilai" class="hidden fixed inset-0 z-40 bg-[#FDFBF7] overflow-y-auto">
+            <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+                <div class="flex justify-between items-center mb-6 border-b border-[#E8C5A8]/50 pb-4">
+                    <h3 class="text-xl font-bold text-[#A05D4A]">Masukan Nilai Akhir</h3>
+                    <button onclick="closeModal('modal-masukan-nilai')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+                </div>
+
+                <div class="space-y-6">
+                    {% for kelas in kelas_list %}
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/50">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h4 class="font-bold text-[#A05D4A] text-lg">{{ kelas['jadwal']['mata_kuliah'] }}</h4>
+                                <p class="text-xs text-gray-500">{{ kelas['jadwal']['hari'] }}, {{ kelas['jadwal']['jam'] }} • {{ kelas['jadwal']['ruangan'] }}</p>
+                            </div>
+                            {% if kelas['is_published'] %}
+                            <span class="bg-blue-100 text-blue-600 text-[10px] font-bold px-2 py-1 rounded-full"><i class="fas fa-lock"></i> Telah Dipublikasi</span>
+                            {% endif %}
+                        </div>
+
+                        <form action="/dosen/nilai/submit" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="jadwal_id" value="{{ kelas['jadwal']['id'] }}">
+                            <input type="hidden" name="mata_kuliah" value="{{ kelas['jadwal']['mata_kuliah'] }}">
+
+                            <table class="w-full text-left border-collapse mb-4">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="p-3 text-xs font-bold text-gray-600 rounded-l-lg">Mahasiswa</th>
+                                        <th class="p-3 text-xs font-bold text-gray-600 text-center">Kehadiran</th>
+                                        <th class="p-3 text-xs font-bold text-gray-600 text-center rounded-r-lg">Nilai Huruf</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for s in kelas['students'] %}
+                                    <tr class="border-b border-gray-100">
+                                        <td class="p-3">
+                                            <p class="text-sm font-bold text-gray-800">{{ s['nama'] }}</p>
+                                            <p class="text-[10px] font-mono text-gray-500">{{ s['npm'] }}</p>
+                                        </td>
+                                        <td class="p-3 text-center">
+                                            <span class="text-xs font-bold {{ 'text-red-500' if s['attendance_pct'] < 75 else 'text-green-500' }}">{{ "%.0f"|format(s['attendance_pct']) }}%</span>
+                                        </td>
+                                        <td class="p-3 text-center">
+                                            {% if kelas['is_published'] %}
+                                                <input type="text" value="🔒" disabled class="w-12 text-center bg-gray-100 border border-gray-200 rounded p-1 text-sm font-bold text-gray-500 mx-auto">
+                                            {% elif s['attendance_pct'] < 75 %}
+                                                <input type="text" value="E" readonly title="Kehadiran dibawah 75%" class="w-12 text-center bg-red-50 border border-red-200 rounded p-1 text-sm font-bold text-red-500 mx-auto cursor-not-allowed">
+                                                <input type="hidden" name="nilai_{{ s['npm'] }}" value="E">
+                                            {% else %}
+                                                <select name="nilai_{{ s['npm'] }}" required class="w-16 bg-white border border-[#E8C5A8] rounded p-1 text-sm font-bold text-[#A05D4A] mx-auto focus:outline-none focus:ring-2 focus:ring-[#E8C5A8]">
+                                                    <option value=""></option>
+                                                    <option value="A">A</option>
+                                                    <option value="A-">A-</option>
+                                                    <option value="B+">B+</option>
+                                                    <option value="B">B</option>
+                                                    <option value="B-">B-</option>
+                                                    <option value="C+">C+</option>
+                                                    <option value="C">C</option>
+                                                    <option value="D">D</option>
+                                                    <option value="E">E</option>
+                                                </select>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="3" class="p-3 text-center text-xs text-gray-500">Tidak ada mahasiswa di kelas ini.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+
+                            {% if not kelas['is_published'] and kelas['students'] %}
+                            <button type="submit" onclick="return confirm('Anda yakin ingin mempublikasikan nilai? Setelah publikasi, nilai akan dikunci permanen.');" class="w-full bg-[#A05D4A] text-white font-bold py-3 rounded-xl hover:bg-[#5D3425] transition shadow-md"><i class="fas fa-cloud-upload-alt mr-2"></i>Simpan & Publikasi</button>
+                            {% endif %}
+                        </form>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-gray-500 text-sm italic">Anda tidak memiliki jadwal mengajar.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 3: DAFTAR MAHASISWA PERWALIAN -->
+        <div id="modal-daftar-mahasiswa" class="hidden fixed inset-0 z-40 bg-[#FDFBF7] overflow-y-auto">
+            <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+                <div class="flex justify-between items-center mb-6 border-b border-[#E8C5A8]/50 pb-4">
+                    <h3 class="text-xl font-bold text-[#A05D4A]">Mahasiswa Perwalian</h3>
+                    <button onclick="closeModal('modal-daftar-mahasiswa')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+                </div>
+                <div class="space-y-4">
+                    {% for m in mahasiswa_perwalian %}
+                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-[#E8C5A8]/50">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 bg-[#E8C5A8]/20 rounded-full flex items-center justify-center text-[#A05D4A] text-xl font-bold border border-[#E8C5A8]">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-800">{{ m['nama'] }}</p>
+                                    <p class="text-[10px] font-mono text-[#A05D4A]">{{ m['npm'] }}</p>
+                                    <span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold">{{ m['status'] }}</span>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-1">IPK Saat Ini</p>
+                                <span class="text-2xl font-mono font-bold text-[#5D3425]">{{ "%.2f"|format(m['ipk']) }}</span>
+                            </div>
+                        </div>
+
+                        <details class="bg-gray-50 rounded-xl border border-gray-200 p-3 mb-2">
+                            <summary class="text-xs font-bold text-[#A05D4A] cursor-pointer outline-none">Riwayat Transkrip Nilai</summary>
+                            <div class="mt-3 space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-2">
+                                {% for t in m['transkrip'] %}
+                                <div class="flex justify-between items-center text-xs bg-white p-2 rounded border border-gray-100">
+                                    <span class="font-bold text-gray-700 truncate max-w-[60%]">{{ t['mata_kuliah'] }}</span>
+                                    <span class="text-gray-500">{{ t['semester'] }}</span>
+                                    <span class="font-bold text-[#A05D4A]">{{ t['nilai_huruf'] }}</span>
+                                </div>
+                                {% else %}
+                                <p class="text-[10px] text-gray-500 italic">Belum ada riwayat nilai.</p>
+                                {% endfor %}
+                            </div>
+                        </details>
+
+                        <details class="bg-gray-50 rounded-xl border border-gray-200 p-3">
+                            <summary class="text-xs font-bold text-[#A05D4A] cursor-pointer outline-none">Arsip Digital Mahasiswa</summary>
+                            <div class="mt-3 space-y-2">
+                                {% for a in m['arsip'] %}
+                                <div class="flex justify-between items-center text-xs bg-white p-2 rounded border border-gray-100">
+                                    <span class="font-medium text-gray-700 truncate">{{ a['nama_dokumen'] }}</span>
+                                    <a href="/uploads/{{ a['file_path'] }}" target="_blank" class="text-blue-500 hover:underline"><i class="fas fa-download"></i> Unduh</a>
+                                </div>
+                                {% else %}
+                                <p class="text-[10px] text-gray-500 italic">Tidak ada dokumen di laci arsip.</p>
+                                {% endfor %}
+                            </div>
+                        </details>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-gray-500 text-sm italic">Belum ada mahasiswa perwalian.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 4: JADWAL MENGAJAR & RUANG KELAS -->
+        <div id="modal-jadwal-ruang" class="hidden fixed inset-0 z-40 bg-[#FDFBF7] overflow-y-auto">
+            <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+                <div class="flex justify-between items-center mb-6 border-b border-[#E8C5A8]/50 pb-4">
+                    <h3 class="text-xl font-bold text-[#A05D4A]">Jadwal Mengajar</h3>
+                    <button onclick="closeModal('modal-jadwal-ruang')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-[#E8C5A8]/30 mb-6 flex items-start gap-3 shadow-sm">
+                    <i class="fas fa-info-circle text-[#A05D4A] mt-0.5"></i>
+                    <p class="text-xs text-gray-600 leading-relaxed">Jadwal ini disinkronkan langsung secara mutlak dari pangkalan data pusat Tata Usaha. Setiap perubahan yang dilakukan staf Tata Usaha akan langsung terpantul ke layar ini.</p>
+                </div>
+                <div class="space-y-4">
+                    {% for j in jadwal_dosen %}
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-[#E8C5A8]/50 flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-gray-800 text-base mb-1">{{ j['mata_kuliah'] }}</p>
+                            <div class="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                                <span class="bg-[#E8C5A8]/20 text-[#5D3425] px-2 py-0.5 rounded font-bold">{{ j['hari'] }}</span>
+                                <span class="text-gray-500"><i class="fas fa-clock mr-1 text-[#A05D4A]"></i> {{ j['jam'] }}</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">Ruangan</p>
+                            <span class="font-mono font-bold text-xl text-[#5D3425]">{{ j['ruangan'] }}</span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-gray-500 text-sm italic">Jadwal mengajar belum tersedia atau belum diinput oleh Tata Usaha.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 5: PRESENSI & JURNAL PERKULIAHAN -->
+        <div id="modal-presensi-jurnal" class="hidden fixed inset-0 z-40 bg-[#FDFBF7] overflow-y-auto">
+            <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+                <div class="flex justify-between items-center mb-6 border-b border-[#E8C5A8]/50 pb-4">
+                    <h3 class="text-xl font-bold text-[#A05D4A]">Presensi & Jurnal</h3>
+                    <button onclick="closeModal('modal-presensi-jurnal')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+                </div>
+
+                <div class="space-y-6">
+                    {% for kelas in kelas_list %}
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/50">
+                        <div class="mb-4">
+                            <h4 class="font-bold text-[#A05D4A] text-lg">{{ kelas['jadwal']['mata_kuliah'] }}</h4>
+                            <p class="text-xs text-gray-500">{{ kelas['jadwal']['hari'] }}, {{ kelas['jadwal']['jam'] }} • Ruang: {{ kelas['jadwal']['ruangan'] }}</p>
+                        </div>
+
+                        <form action="/dosen/presensi/submit" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="jadwal_id" value="{{ kelas['jadwal']['id'] }}">
+                            <input type="hidden" name="mata_kuliah" value="{{ kelas['jadwal']['mata_kuliah'] }}">
+
+                            <div class="mb-4">
+                                <label class="block text-xs font-bold text-[#5D3425] mb-2">Jurnal Materi Perkuliahan Hari Ini</label>
+                                <textarea name="materi" required placeholder="Tuliskan materi yang diajarkan hari ini..." class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm h-20 focus:outline-none focus:ring-2 focus:ring-[#E8C5A8]"></textarea>
+                            </div>
+
+                            <label class="block text-xs font-bold text-[#5D3425] mb-2">Presensi Kehadiran Mahasiswa</label>
+                            <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 max-h-48 overflow-y-auto custom-scrollbar">
+                                {% for s in kelas['students'] %}
+                                <label class="flex items-center justify-between p-2 border-b border-gray-100 last:border-0 hover:bg-white transition cursor-pointer rounded">
+                                    <div>
+                                        <p class="text-sm font-bold text-gray-800">{{ s['nama'] }}</p>
+                                        <p class="text-[10px] font-mono text-gray-500">{{ s['npm'] }}</p>
+                                    </div>
+                                    <input type="checkbox" name="kehadiran_{{ s['npm'] }}" value="Hadir" class="accent-[#A05D4A] w-5 h-5">
+                                </label>
+                                {% else %}
+                                <p class="text-xs text-gray-500 italic text-center py-2">Tidak ada mahasiswa.</p>
+                                {% endfor %}
+                            </div>
+
+                            {% if kelas['students'] %}
+                            <button type="submit" class="w-full bg-[#A05D4A] text-white font-bold py-3 rounded-xl hover:bg-[#5D3425] transition shadow-md"><i class="fas fa-save mr-2"></i>Simpan Kehadiran & Jurnal</button>
+                            {% endif %}
+                        </form>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-gray-500 text-sm italic">Tidak ada jadwal mengajar.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 6: PROFIL DOSEN -->
+        <div id="modal-profil-dosen" class="hidden fixed inset-0 z-40 bg-[#FDFBF7] overflow-y-auto">
+            <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+                <div class="flex justify-between items-center mb-6 border-b border-[#E8C5A8]/50 pb-4">
+                    <h3 class="text-xl font-bold text-[#A05D4A]">Profil & Portofolio</h3>
+                    <button onclick="closeModal('modal-profil-dosen')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+                </div>
+
+                <div class="bg-white p-8 rounded-3xl shadow-lg border border-[#E8C5A8]/30 mb-6 text-center relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-[#E8C5A8]/20 rounded-bl-full -z-10"></div>
+                    <div class="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center text-5xl text-gray-400 shadow-inner border-4 border-white overflow-hidden relative mx-auto mb-4">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                    <h4 class="text-2xl font-bold text-[#5D3425] leading-tight mb-1">{{ dosen_name }}</h4>
+                    <p class="text-sm font-bold text-[#A05D4A] font-mono tracking-widest mb-3">NIDN: {{ session.get('username', 'N/A') }}</p>
+                    <span class="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-green-100 text-green-700 shadow-sm">DOSEN AKTIF</span>
+
+                    <div class="mt-8 pt-6 border-t border-gray-100 flex justify-center gap-8">
+                        <div>
+                            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Mata Kuliah</p>
+                            <h2 class="text-3xl font-bold text-[#A05D4A]">{{ jadwal_dosen|length }}</h2>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Mahasiswa Perwalian</p>
+                            <h2 class="text-3xl font-bold text-[#A05D4A]">{{ mahasiswa_perwalian|length }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
     '''
     return render_template_string(BASE_LAYOUT, 
                                   styles=STYLES_HTML + IRMA_STYLES, 
                                   active_page='irma', 
                                   theme=dosen_theme,
-                                  content=dosen_html,
+                                  content=render_template_string(dosen_html,
+                                                                 dosen_name=dosen_name,
+                                                                 jadwal_dosen=jadwal_dosen,
+                                                                 krs_perwalian=krs_perwalian,
+                                                                 kelas_list=kelas_list,
+                                                                 mahasiswa_perwalian=mahasiswa_perwalian),
                                   full_width=True,
                                   is_admin=session.get('is_admin', False),
                                   settings=get_settings())
@@ -7429,9 +7889,6 @@ def donate_update():
     db.session.commit()
     return redirect(request.referrer)
 
-
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
 
 @app.route('/tu/surat/acc', methods=['POST'])
 def tu_surat_acc():
@@ -7560,3 +8017,103 @@ def tu_akun_reset_password():
     except Exception as e:
         print(f"Error reset password: {e}")
     return redirect(url_for('ramadhan_dashboard', open='modal-manajemen-sivitas'))
+
+@app.route('/dosen/krs/action', methods=['POST'])
+@csrf.exempt
+def dosen_krs_action():
+    try:
+        krs_id = request.form.get('id')
+        status = request.form.get('status')
+        krs = db.session.get(KRSMahasiswa, krs_id)
+        if krs and status in ['Disetujui Dosen', 'Ditolak Dosen']:
+            krs.status = status
+            db.session.commit()
+            return jsonify({'success': True})
+    except Exception as e:
+        print(f"Error updating KRS status: {e}")
+    return jsonify({'success': False}), 400
+
+@app.route('/dosen/nilai/submit', methods=['POST'])
+@csrf.exempt
+def dosen_nilai_submit():
+    try:
+        jadwal_id = request.form.get('jadwal_id')
+        mata_kuliah = request.form.get('mata_kuliah')
+        jadwal = db.session.get(JadwalKuliah, jadwal_id)
+
+        if jadwal:
+            # Check if already published
+            status_nilai = StatusNilai.query.filter_by(jadwal_id=jadwal_id).first()
+            if status_nilai and status_nilai.is_published:
+                return redirect(url_for('dosen_dashboard', open='modal-masukan-nilai'))
+
+            # Parse student grades
+            for key, val in request.form.items():
+                if key.startswith('nilai_') and val:
+                    npm = key.replace('nilai_', '')
+
+                    # Prevent duplicate logic or overwrite existing if needed. We assume one grade per semester per class.
+                    # As a simplistic approach: we just add a new record. In a real scenario, we might want to update.
+                    existing_nilai = NilaiMahasiswa.query.filter_by(npm=npm, mata_kuliah=mata_kuliah, semester='Gasal 2024/2025').first()
+
+                    if not existing_nilai:
+                        new_nilai = NilaiMahasiswa(
+                            npm=npm,
+                            mata_kuliah=mata_kuliah,
+                            sks=3, # Assume 3 for simplicity based on KRS logic
+                            nilai_huruf=val,
+                            semester='Gasal 2024/2025' # Hardcoded semester for demonstration
+                        )
+                        db.session.add(new_nilai)
+                    else:
+                        existing_nilai.nilai_huruf = val
+
+            # Freeze grades
+            if not status_nilai:
+                status_nilai = StatusNilai(jadwal_id=jadwal_id, is_published=True)
+                db.session.add(status_nilai)
+            else:
+                status_nilai.is_published = True
+
+            db.session.commit()
+    except Exception as e:
+        print(f"Error submitting nilai: {e}")
+    return redirect(url_for('dosen_dashboard', open='modal-masukan-nilai'))
+
+@app.route('/dosen/presensi/submit', methods=['POST'])
+@csrf.exempt
+def dosen_presensi_submit():
+    try:
+        jadwal_id = request.form.get('jadwal_id')
+        materi = request.form.get('materi')
+        tanggal = str(datetime.date.today())
+
+        # Insert Jurnal
+        new_jurnal = JurnalMengajar(
+            jadwal_id=jadwal_id,
+            tanggal=tanggal,
+            materi=materi
+        )
+        db.session.add(new_jurnal)
+
+        # Insert Kehadiran
+        for key, val in request.form.items():
+            if key.startswith('kehadiran_'):
+                npm = key.replace('kehadiran_', '')
+                new_kehadiran = KehadiranKelas(
+                    jadwal_id=jadwal_id,
+                    npm=npm,
+                    tanggal=tanggal,
+                    status=val
+                )
+                db.session.add(new_kehadiran)
+
+        db.session.commit()
+    except Exception as e:
+        print(f"Error submitting presensi: {e}")
+    return redirect(url_for('dosen_dashboard', open='modal-presensi-jurnal'))
+
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+    app.run(debug=True, port=5000)
