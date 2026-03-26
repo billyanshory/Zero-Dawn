@@ -2711,152 +2711,55 @@ HOME_HTML = """
         </div>
     </div>
 
-    <!-- MAIN GRID MENU -->
-    <h3 class="text-gray-800 font-bold text-lg mb-4 pl-1 border-l-4 border-sky-500 leading-none py-1 ml-1 md:text-2xl md:mb-8">&nbsp;Menu Utama</h3>
-    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8 mb-8">
+    <!-- MAIN GRID MENU: 6 FITUR KAMPUS STIESAM -->
+
+    <!-- Kelompok 1: Etalase Pendaftaran -->
+    <h3 class="text-gray-800 font-bold text-lg mb-4 pl-1 border-l-4 border-sky-500 leading-none py-1 ml-1 md:text-2xl md:mb-6">&nbsp;Layanan Penerimaan</h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 mb-8">
+        <a href="javascript:void(0)" onclick="openModal('modal-profil-kampus')" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+            <div class="bg-indigo-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-indigo-600 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                <i class="fas fa-university text-2xl md:text-3xl"></i>
+            </div>
+            <span class="text-sm md:text-base font-semibold text-center text-gray-700 group-hover:text-indigo-600 leading-tight">Profil & Program Studi</span>
+        </a>
         <a href="javascript:void(0)" onclick="openModal('modal-pmb')" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
             <div class="bg-sky-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-sky-600 group-hover:bg-sky-500 group-hover:text-white transition-colors">
                 <i class="fas fa-user-graduate text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm md:text-base font-semibold text-center text-gray-700 group-hover:text-sky-600 leading-tight">Penerimaan Mahasiswa Baru</span>
+            <span class="text-sm md:text-base font-semibold text-center text-gray-700 group-hover:text-sky-600 leading-tight">Pendaftaran Mahasiswa Baru</span>
         </a>
-        <a href="/agenda" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
-            <div class="bg-blue-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                <i class="fas fa-calendar-alt text-2xl md:text-3xl"></i>
+        <a href="javascript:void(0)" onclick="openModal('modal-cek-status')" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+            <div class="bg-emerald-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                <i class="fas fa-search text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-blue-600">Jadwal Imam</span>
+            <span class="text-sm md:text-base font-semibold text-center text-gray-700 group-hover:text-emerald-600 leading-tight">Cek Status Kelulusan</span>
         </a>
-        <a href="/booking" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+    </div>
+
+    <!-- Kelompok 2: Kredibilitas Akademik -->
+    <h3 class="text-gray-800 font-bold text-lg mb-4 pl-1 border-l-4 border-sky-500 leading-none py-1 ml-1 md:text-2xl md:mb-6">&nbsp;Dinamika Akademik</h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 mb-8">
+        <a href="javascript:void(0)" onclick="openModal('modal-agenda-berita')" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
             <div class="bg-orange-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                <i class="fas fa-building text-2xl md:text-3xl"></i>
+                <i class="fas fa-newspaper text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-orange-600">Peminjaman</span>
+            <span class="text-sm md:text-base font-semibold text-center text-gray-700 group-hover:text-orange-600 leading-tight">Berita & Agenda Kampus</span>
         </a>
-        <a href="/zakat" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
-            <div class="bg-green-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-green-600 group-hover:bg-green-500 group-hover:text-white transition-colors">
-                <i class="fas fa-hand-holding-heart text-2xl md:text-3xl"></i>
-            </div>
-            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-green-600">Zakat</span>
-        </a>
-        <a href="/gallery-dakwah" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+        <a href="javascript:void(0)" onclick="openModal('modal-jurnal-karya')" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
             <div class="bg-purple-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-purple-600 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                <i class="fas fa-images text-2xl md:text-3xl"></i>
+                <i class="fas fa-book-open text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-purple-600">Galeri</span>
+            <span class="text-sm md:text-base font-semibold text-center text-gray-700 group-hover:text-purple-600 leading-tight">Perpustakaan & Karya Ilmiah</span>
         </a>
-        <a href="/suggestion" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
-            <div class="bg-pink-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-pink-600 group-hover:bg-pink-500 group-hover:text-white transition-colors">
-                <i class="fas fa-comment-dots text-2xl md:text-3xl"></i>
+        <a href="javascript:void(0)" onclick="openModal('modal-tracer-study')" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+            <div class="bg-teal-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-teal-600 group-hover:bg-teal-500 group-hover:text-white transition-colors">
+                <i class="fas fa-chart-line text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-pink-600">Kotak Saran</span>
+            <span class="text-sm md:text-base font-semibold text-center text-gray-700 group-hover:text-teal-600 leading-tight">Tracer Study & Jejak Alumni</span>
         </a>
     </div>
 
-    <!-- TERAPI SECTION -->
-    <div class="mb-6">
-        <button onclick="toggleTerapi()" class="w-full bg-white p-6 rounded-3xl shadow-lg border border-blue-50 flex justify-between items-center group hover:bg-blue-50 transition-all duration-500">
-            <div class="flex items-center gap-4">
-                <div class="bg-blue-100 p-3 rounded-xl text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors shadow-sm">
-                    <i class="fas fa-heartbeat text-2xl"></i>
-                </div>
-                <div class="text-left">
-                    <h3 class="text-lg font-bold text-gray-800 group-hover:text-blue-700">Terapi</h3>
-                    <p class="text-xs text-gray-500 font-medium">Bantuan Kesehatan & Epilepsi</p>
-                </div>
-            </div>
-            <div id="terapi-chevron" class="bg-gray-50 w-10 h-10 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-blue-500 transition-all duration-500">
-                 <i class="fas fa-chevron-down transform transition-transform duration-500"></i>
-            </div>
-        </button>
-        
-        <div id="terapi-content" class="hidden mt-6 transition-all duration-1000 ease-in-out opacity-0 -translate-y-4">
-             <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                 <!-- 1. Audio Healing -->
-                 <button onclick="openModal('modal-terapi-audio')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
-                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-music"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Terapi Suara</span>
-                 </button>
-                 <!-- 2. Latihan Napas -->
-                 <button onclick="startBreathing()" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
-                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-lungs"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Latihan Napas</span>
-                 </button>
-                 <!-- 3. Sleep Monitor -->
-                 <button onclick="openModal('modal-terapi-tidur')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
-                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-bed"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Tracker Tidur</span>
-                 </button>
-                 <!-- 4. Seizure Log -->
-                 <button onclick="openModal('modal-terapi-log')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
-                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-file-medical"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Jurnal Kambuh</span>
-                 </button>
-                 <!-- 5. Medication Alarm -->
-                 <button onclick="openModal('modal-terapi-alarm')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
-                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-capsules"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Alarm Obat</span>
-                 </button>
-                 <!-- 6. Diet Keton -->
-                 <button onclick="openModal('modal-terapi-diet')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
-                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-apple-alt"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Diet Keton</span>
-                 </button>
-             </div>
-        </div>
-    </div>
 
-    <!-- KALKULATOR ISLAM SECTION -->
-    <div id="kalkulator-section" class="mb-6">
-        <button onclick="toggleCalc()" class="w-full bg-white p-6 rounded-3xl shadow-lg border border-sky-100 flex justify-between items-center group hover:bg-sky-50 transition-all duration-300">
-            <div class="flex items-center gap-4">
-                <div class="bg-sky-100 p-3 rounded-xl text-sky-600 group-hover:bg-sky-500 group-hover:text-white transition-colors shadow-sm">
-                    <i class="fas fa-calculator text-2xl"></i>
-                </div>
-                <div class="text-left">
-                    <h3 class="text-lg font-bold text-gray-800 group-hover:text-sky-700">Kalkulator Islam</h3>
-                    <p class="text-xs text-gray-500 font-medium">6 Alat Hitung Otomatis (Waris, Zakat, dll)</p>
-                </div>
-            </div>
-            <div id="calc-chevron" class="bg-gray-50 w-10 h-10 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-sky-500 transition-all duration-300">
-                 <i class="fas fa-chevron-down transform transition-transform duration-300"></i>
-            </div>
-        </button>
-        
-        <div id="calc-content" class="hidden mt-6 animate-[slideDown_0.3s_ease-out]">
-             <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                 <!-- WARIS -->
-                 <button onclick="openModal('modal-waris')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-users"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Waris</span>
-                 </button>
-                 <!-- ZAKAT -->
-                 <button onclick="openModal('modal-zakat')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-hand-holding-usd"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Zakat Maal</span>
-                 </button>
-                 <!-- TAHAJJUD -->
-                 <button onclick="openModal('modal-tahajjud')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-moon"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Tahajjud</span>
-                 </button>
-                 <!-- KHATAM -->
-                 <button onclick="openModal('modal-khatam')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-quran"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Target Khatam</span>
-                 </button>
-                 <!-- FIDYAH -->
-                 <button onclick="openModal('modal-fidyah')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-utensils"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Fidyah</span>
-                 </button>
-                 <!-- HIJRI -->
-                 <button onclick="openModal('modal-hijri')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-calendar-check"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Konverter Hijri</span>
-                 </button>
-             </div>
-        </div>
-    </div>
 
     <!-- STATIC PWA INSTALL BUTTON (NEW) -->
     <div id="pwa-static-btn-container" class="pwa-btn-container mb-6 hidden">
@@ -2876,7 +2779,233 @@ HOME_HTML = """
         </button>
     </div>
 
-    <!-- DEVELOPER BUTTON -->
+
+    <!-- 1. MODAL PROFIL KAMPUS & PRODI -->
+    <div id="modal-profil-kampus" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-profil-kampus')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 md:p-8 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-2xl md:mx-auto md:rounded-3xl md:top-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl md:text-2xl font-bold text-gray-800"><i class="fas fa-university text-indigo-500 mr-2"></i>Profil & Program Studi</h3>
+                <button onclick="closeModal('modal-profil-kampus')" class="bg-gray-100 w-10 h-10 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center">&times;</button>
+            </div>
+            <div class="space-y-6 text-gray-600">
+                <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-100">
+                    <h4 class="font-bold text-indigo-800 text-lg mb-2">Sejarah Emas STIESAM</h4>
+                    <p class="text-sm leading-relaxed mb-4">Sekolah Tinggi Ilmu Ekonomi Samarinda (STIESAM) telah menjadi pilar utama mencetak ekonom handal sejak awal pendiriannya. Fasilitas lengkap dan dosen tersertifikasi memastikan kualitas akademik yang bermutu tinggi.</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-white p-4 rounded-xl shadow-sm text-center">
+                            <i class="fas fa-chart-line text-3xl text-teal-500 mb-2"></i>
+                            <p class="font-bold text-gray-800">S1 Manajemen</p>
+                            <p class="text-[10px] text-gray-500">Mencetak Leader & Entrepreneur</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm text-center">
+                            <i class="fas fa-calculator text-3xl text-sky-500 mb-2"></i>
+                            <p class="font-bold text-gray-800">S1 Akuntansi</p>
+                            <p class="text-[10px] text-gray-500">Mencetak Auditor Profesional</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- TOMBOL RAKSASA PENDAFTARAN -->
+                <button onclick="closeModal('modal-profil-kampus'); openModal('modal-pmb')" class="w-full bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-extrabold text-lg py-5 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 animate-pulse flex justify-center items-center gap-3">
+                    Daftar Sekarang <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. MODAL FORM PENDAFTARAN MAHASISWA BARU (PMB) -->
+    <div id="modal-pmb" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-pmb')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 md:p-8 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-2xl md:mx-auto md:rounded-3xl md:top-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                <h3 class="text-xl md:text-2xl font-bold text-gray-800"><i class="fas fa-user-graduate text-sky-500 mr-2"></i>Pendaftaran Mahasiswa Baru</h3>
+                <button onclick="closeModal('modal-pmb')" class="bg-gray-100 w-10 h-10 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center">&times;</button>
+            </div>
+
+            <form action="/pmb/submit" method="POST" enctype="multipart/form-data" class="space-y-5">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div>
+                    <label class="block text-sm font-bold text-gray-600 mb-2">Nama Lengkap</label>
+                    <input type="text" name="nama" required placeholder="Masukkan Nama Sesuai Ijazah" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+
+                <div class="bg-blue-50 p-5 rounded-2xl border border-blue-100">
+                    <p class="text-xs font-bold text-blue-800 uppercase tracking-widest mb-3">Dokumen Persyaratan</p>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Upload Scan Ijazah</label>
+                            <input type="file" name="foto_ijazah" required class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Upload Scan KTP</label>
+                            <input type="file" name="foto_ktp" required class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Upload Bukti Transfer Biaya Pendaftaran</label>
+                            <input type="file" name="bukti_transfer" required class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200">
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-sky-600 text-white font-bold text-lg py-4 rounded-xl shadow-lg hover:bg-sky-700 transition">Kirim Pendaftaran</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. MODAL CEK STATUS PMB -->
+    <div id="modal-cek-status" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-cek-status')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 md:p-8 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                <h3 class="text-xl font-bold text-gray-800"><i class="fas fa-search text-emerald-500 mr-2"></i>Cek Status Pendaftaran</h3>
+                <button onclick="closeModal('modal-cek-status')" class="bg-gray-100 w-10 h-10 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center">&times;</button>
+            </div>
+
+            <div class="flex gap-2 mb-6">
+                <input type="text" id="cek-nama-input" placeholder="Masukkan Nama Anda..." class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <button onclick="cekStatusPMB()" class="bg-emerald-500 text-white px-6 rounded-xl font-bold hover:bg-emerald-600 transition shadow-md"><i class="fas fa-search"></i></button>
+            </div>
+
+            <div id="cek-status-result" class="min-h-[100px] flex items-center justify-center text-gray-500 text-sm">
+                Gunakan pencarian untuk mengecek status.
+            </div>
+        </div>
+    </div>
+
+    <script>
+    async function cekStatusPMB() {
+        const nama = document.getElementById('cek-nama-input').value;
+        const resDiv = document.getElementById('cek-status-result');
+        if(!nama) return;
+
+        resDiv.innerHTML = '<i class="fas fa-spinner fa-spin text-2xl text-emerald-500"></i>';
+
+        try {
+            const response = await fetch('/pmb/status?nama=' + encodeURIComponent(nama));
+            const data = await response.json();
+
+            if(data.error) {
+                resDiv.innerHTML = `<p class="text-red-500 font-bold">${data.error}</p>`;
+                return;
+            }
+
+            if(data.status === 'Diterima') {
+                resDiv.innerHTML = `
+                    <div class="w-full bg-emerald-50 border border-emerald-200 p-6 rounded-2xl text-center">
+                        <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-3"><i class="fas fa-check-circle"></i></div>
+                        <h4 class="text-emerald-700 font-bold text-lg mb-1">Selamat! Anda Diterima</h4>
+                        <p class="text-sm text-gray-600 mb-4">Nomor Pokok Mahasiswa (NPM) Anda:</p>
+                        <div class="font-mono text-2xl font-bold text-gray-800 bg-white border border-gray-200 py-2 px-4 rounded-xl inline-block mb-4 tracking-widest">${data.npm}</div>
+                        <br>
+                        <button onclick="alert('Mengunduh Surat Keterangan Lulus (Mock PDF)...')" class="bg-emerald-600 text-white px-6 py-2 rounded-xl text-sm font-bold shadow hover:bg-emerald-700 transition"><i class="fas fa-download mr-1"></i> Unduh SKL</button>
+                    </div>
+                `;
+            } else {
+                 resDiv.innerHTML = `
+                    <div class="w-full bg-yellow-50 border border-yellow-200 p-6 rounded-2xl text-center">
+                        <div class="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-3"><i class="fas fa-hourglass-half"></i></div>
+                        <h4 class="text-yellow-700 font-bold text-lg mb-1">Status: Sedang Diverifikasi</h4>
+                        <p class="text-sm text-gray-600">Berkas Anda sedang diproses oleh tim Tata Usaha. Mohon periksa kembali nanti.</p>
+                    </div>
+                `;
+            }
+        } catch(e) {
+            resDiv.innerHTML = '<p class="text-red-500">Terjadi kesalahan pada server.</p>';
+        }
+    }
+    </script>
+
+    <!-- 4. MODAL BERITA & AGENDA KAMPUS -->
+    <div id="modal-agenda-berita" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-agenda-berita')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 md:p-8 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-2xl md:mx-auto md:rounded-3xl md:top-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                <h3 class="text-xl md:text-2xl font-bold text-gray-800"><i class="fas fa-newspaper text-orange-500 mr-2"></i>Berita & Agenda Kampus</h3>
+                <button onclick="closeModal('modal-agenda-berita')" class="bg-gray-100 w-10 h-10 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center">&times;</button>
+            </div>
+
+            <div class="space-y-4">
+                {% for item in agendas %}
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-orange-200 transition flex items-start gap-4">
+                    <div class="bg-orange-50 text-orange-600 font-bold text-center rounded-xl p-3 min-w-[70px]">
+                        <span class="text-2xl block leading-none">{{ item.date.split('-')[2] if item.date and '-' in item.date else item.date[:2] }}</span>
+                        <span class="text-[10px] uppercase">{{ item.date.split('-')[1] if item.date and '-' in item.date else item.date[3:6] }}</span>
+                    </div>
+                    <div>
+                        <span class="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded uppercase font-bold">{{ item.type }}</span>
+                        <h4 class="font-bold text-gray-800 text-lg mt-1 leading-tight">{{ item.title }}</h4>
+                        <p class="text-xs text-gray-500 mt-2"><i class="fas fa-clock mr-1"></i> {{ item.time }} &nbsp;&nbsp; <i class="fas fa-user-tie mr-1"></i> {{ item.speaker }}</p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center text-gray-500 py-10">Belum ada agenda bulan ini.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. MODAL JURNAL & KARYA ILMIAH -->
+    <div id="modal-jurnal-karya" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-jurnal-karya')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 md:p-8 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-2xl md:mx-auto md:rounded-3xl md:top-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                <h3 class="text-xl md:text-2xl font-bold text-gray-800"><i class="fas fa-book-open text-purple-500 mr-2"></i>Perpustakaan & Karya Ilmiah</h3>
+                <button onclick="closeModal('modal-jurnal-karya')" class="bg-gray-100 w-10 h-10 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center">&times;</button>
+            </div>
+
+            <p class="text-sm text-gray-600 mb-6 bg-purple-50 p-4 rounded-xl border border-purple-100"><i class="fas fa-info-circle text-purple-500 mr-1"></i>Koleksi abstrak Skripsi Nilai A dan Jurnal Ilmiah yang dipublikasi dan terarsip oleh Tata Usaha.</p>
+
+            <div class="space-y-4">
+                {% for doc in arsip_publik %}
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group hover:border-purple-200 transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-purple-50 rounded-xl text-purple-600 flex items-center justify-center text-xl">
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-800 text-sm md:text-base">{{ doc.nama_dokumen }}</h4>
+                            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Author ID: {{ doc.npm }} • {{ doc.tanggal }}</p>
+                        </div>
+                    </div>
+                    <a href="/uploads/{{ doc.file_path }}" target="_blank" class="text-purple-500 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 w-10 h-10 rounded-full flex items-center justify-center transition">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                </div>
+                {% else %}
+                <div class="text-center text-gray-500 py-10">Karya Ilmiah sedang dalam tahap kurasi.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. MODAL TRACER STUDY ALUMNI -->
+    <div id="modal-tracer-study" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-tracer-study')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 md:p-8 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-2xl md:mx-auto md:rounded-3xl md:top-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                <h3 class="text-xl md:text-2xl font-bold text-gray-800"><i class="fas fa-chart-line text-teal-500 mr-2"></i>Jejak Sukses Alumni</h3>
+                <button onclick="closeModal('modal-tracer-study')" class="bg-gray-100 w-10 h-10 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center">&times;</button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for alumni in alumni_list %}
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition">
+                    <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-gray-400 text-2xl shrink-0 overflow-hidden border-2 border-teal-100">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-gray-800 text-sm md:text-base leading-tight">{{ alumni.nama }}</h4>
+                        <p class="text-[10px] text-teal-600 font-bold uppercase mt-1 mb-1">Angkatan {{ alumni.username[:2] }}</p>
+                        <span class="bg-teal-50 text-teal-700 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fas fa-briefcase mr-1"></i>Telah Bekerja / Sukses</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-span-full text-center text-gray-500 py-10">Data tracer study sedang diperbarui oleh Tata Usaha.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+<!-- DEVELOPER BUTTON -->
     <div class="mb-8">
         <button onclick="openModal('modal-developer'); playDevAudio()" class="w-full bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex justify-between items-center group hover:bg-gray-50 transition-all">
             <div class="flex items-center gap-4">
@@ -4626,7 +4755,34 @@ def index():
     except:
         epilepsi_logs = []
 
-    rendered_home = render_template_string(HOME_HTML, epilepsi_logs=epilepsi_logs, open_modal=request.args.get('open'), is_admin=session.get('is_admin', False))
+
+    # Fetch data for HOME_HTML
+    agendas = []
+    try:
+        agendas = Agenda.query.order_by(Agenda.date.desc()).limit(5).all()
+    except Exception as e:
+        pass
+
+    arsip_publik = []
+    try:
+        arsip_publik = LaciArsip.query.order_by(LaciArsip.id.desc()).limit(5).all()
+    except Exception as e:
+        pass
+
+    alumni_list = []
+    try:
+        alumni_list = User.query.filter_by(status_akademik='Lulus').order_by(User.id.desc()).limit(10).all()
+    except Exception as e:
+        pass
+
+    rendered_home = render_template_string(HOME_HTML,
+        agendas=agendas,
+        arsip_publik=arsip_publik,
+        alumni_list=alumni_list,
+        open_modal=request.args.get('open'),
+        is_admin=session.get('is_admin', False)
+    )
+
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=rendered_home, is_admin=session.get('is_admin', False), settings=get_settings())
 
 @app.route('/login', methods=['POST'])
@@ -7277,89 +7433,97 @@ def dosen_dashboard():
     # Data Retrieval
     dosen_name = session.get('nama', 'Dosen Pengampu')
     
-    # 1. Jadwal Kuliah (Cermin dari TU)
-    jadwal_dosen = JadwalKuliah.query.filter_by(dosen=dosen_name).all()
-    
-    # 2. KRS Perwalian (Filter Lunas)
-    krs_raw = KRSMahasiswa.query.filter_by(dosen=dosen_name).order_by(KRSMahasiswa.id.desc()).all()
+    jadwal_dosen = []
     krs_perwalian = []
-    
-    # Track unique students for "Daftar Mahasiswa Perwalian"
-    unique_npms = set()
+    kelas_list = []
     mahasiswa_perwalian = []
     
-    for krs in krs_raw:
-        tagihan = TagihanKuliah.query.filter_by(npm=krs.npm).all()
-        # Ensure either there are no bills, or all bills are 'Lunas'
-        if not tagihan or all(t.status == 'Lunas' for t in tagihan):
-            krs_perwalian.append(krs)
+    try:
+        # 1. Jadwal Kuliah (Cermin dari TU)
+        jadwal_dosen = JadwalKuliah.query.filter_by(dosen=dosen_name).all()
         
-        unique_npms.add(krs.npm)
-    
-    # 3. Masukan Nilai Akhir (Kelas)
-    kelas_list = []
-    for jadwal in jadwal_dosen:
-        status_nilai = StatusNilai.query.filter_by(jadwal_id=jadwal.id).first()
-        is_published = status_nilai.is_published if status_nilai else False
+        # 2. KRS Perwalian (Filter Lunas)
+        krs_raw = KRSMahasiswa.query.filter_by(dosen=dosen_name).order_by(KRSMahasiswa.id.desc()).all()
         
-        # Determine students taking this class
-        krs_class = KRSMahasiswa.query.filter_by(mata_kuliah=jadwal.mata_kuliah, status='Disetujui Dosen').all()
+        # Track unique students for "Daftar Mahasiswa Perwalian"
+        unique_npms = set()
         
-        student_data = []
-        for student_krs in krs_class:
-            # Calculate presence percentage
-            total_sessions = JurnalMengajar.query.filter_by(jadwal_id=jadwal.id).count()
-            if total_sessions == 0:
-                attendance_pct = 100 # No sessions yet, default ok
-            else:
-                present_count = KehadiranKelas.query.filter_by(jadwal_id=jadwal.id, npm=student_krs.npm, status='Hadir').count()
-                attendance_pct = (present_count / total_sessions) * 100
-                
-            student_data.append({
-                'npm': student_krs.npm,
-                'nama': User.query.filter_by(username=student_krs.npm).first().nama if User.query.filter_by(username=student_krs.npm).first() else 'Unknown',
-                'attendance_pct': attendance_pct
+        for krs in krs_raw:
+            tagihan = TagihanKuliah.query.filter_by(npm=krs.npm).all()
+            # Ensure either there are no bills, or all bills are 'Lunas'
+            if not tagihan or all(t.status == 'Lunas' for t in tagihan):
+                krs_perwalian.append(krs)
+            
+            unique_npms.add(krs.npm)
+        
+        # 3. Masukan Nilai Akhir (Kelas)
+        for jadwal in jadwal_dosen:
+            status_nilai = StatusNilai.query.filter_by(jadwal_id=jadwal.id).first()
+            is_published = status_nilai.is_published if status_nilai else False
+            
+            # Determine students taking this class
+            krs_class = KRSMahasiswa.query.filter_by(mata_kuliah=jadwal.mata_kuliah, status='Disetujui Dosen').all()
+            
+            student_data = []
+            for student_krs in krs_class:
+                # Calculate presence percentage
+                total_sessions = JurnalMengajar.query.filter_by(jadwal_id=jadwal.id).count()
+                if total_sessions == 0:
+                    attendance_pct = 100 # No sessions yet, default ok
+                else:
+                    present_count = KehadiranKelas.query.filter_by(jadwal_id=jadwal.id, npm=student_krs.npm, status='Hadir').count()
+                    attendance_pct = (present_count / total_sessions) * 100
+
+                usr_obj = User.query.filter_by(username=student_krs.npm).first()
+                usr_nama = usr_obj.nama if usr_obj else 'Unknown'
+                student_data.append({
+                    'npm': student_krs.npm,
+                    'nama': usr_nama,
+                    'attendance_pct': attendance_pct
+                })
+
+            kelas_list.append({
+                'jadwal': jadwal,
+                'is_published': is_published,
+                'students': student_data
             })
-            
-        kelas_list.append({
-            'jadwal': jadwal,
-            'is_published': is_published,
-            'students': student_data
-        })
-        
-    # 4. Mahasiswa Perwalian (Details, IPK, Transkrip)
-    for npm in unique_npms:
-        user = User.query.filter_by(username=npm).first()
-        if user:
-            nilai_list = NilaiMahasiswa.query.filter_by(npm=npm).all()
-            total_sks = 0
-            total_bobot = 0
-            for n in nilai_list:
-                nilai_angka = 4.0
-                if n.nilai_huruf == 'A': nilai_angka = 4.0
-                elif n.nilai_huruf == 'A-': nilai_angka = 3.7
-                elif n.nilai_huruf == 'B+': nilai_angka = 3.3
-                elif n.nilai_huruf == 'B': nilai_angka = 3.0
-                elif n.nilai_huruf == 'B-': nilai_angka = 2.7
-                elif n.nilai_huruf == 'C+': nilai_angka = 2.3
-                elif n.nilai_huruf == 'C': nilai_angka = 2.0
-                elif n.nilai_huruf == 'D': nilai_angka = 1.0
-                else: nilai_angka = 0.0
-                total_sks += n.sks
-                total_bobot += (n.sks * nilai_angka)
-            
-            ipk = (total_bobot / total_sks) if total_sks > 0 else 0
-            
-            arsip = LaciArsip.query.filter_by(npm=npm).all()
-            
-            mahasiswa_perwalian.append({
-                'npm': npm,
-                'nama': user.nama,
-                'status': user.status_akademik,
-                'ipk': ipk,
-                'transkrip': nilai_list,
-                'arsip': arsip
-            })
+
+        # 4. Mahasiswa Perwalian (Details, IPK, Transkrip)
+        for npm in unique_npms:
+            user = User.query.filter_by(username=npm).first()
+            if user:
+                nilai_list = NilaiMahasiswa.query.filter_by(npm=npm).all()
+                total_sks = 0
+                total_bobot = 0
+                for n in nilai_list:
+                    nilai_angka = 4.0
+                    if n.nilai_huruf == 'A': nilai_angka = 4.0
+                    elif n.nilai_huruf == 'A-': nilai_angka = 3.7
+                    elif n.nilai_huruf == 'B+': nilai_angka = 3.3
+                    elif n.nilai_huruf == 'B': nilai_angka = 3.0
+                    elif n.nilai_huruf == 'B-': nilai_angka = 2.7
+                    elif n.nilai_huruf == 'C+': nilai_angka = 2.3
+                    elif n.nilai_huruf == 'C': nilai_angka = 2.0
+                    elif n.nilai_huruf == 'D': nilai_angka = 1.0
+                    else: nilai_angka = 0.0
+                    total_sks += n.sks
+                    total_bobot += (n.sks * nilai_angka)
+
+                ipk = (total_bobot / total_sks) if total_sks > 0 else 0
+
+                arsip = LaciArsip.query.filter_by(npm=npm).all()
+
+                mahasiswa_perwalian.append({
+                    'npm': npm,
+                    'nama': user.nama,
+                    'status': user.status_akademik,
+                    'ipk': ipk,
+                    'transkrip': nilai_list,
+                    'arsip': arsip
+                })
+
+    except Exception as e:
+        print(f"Error loading dosen_dashboard: {e}")
 
     # DOSEN THEME
     dosen_theme = {
@@ -8112,6 +8276,63 @@ def dosen_presensi_submit():
     except Exception as e:
         print(f"Error submitting presensi: {e}")
     return redirect(url_for('dosen_dashboard', open='modal-presensi-jurnal'))
+
+
+@app.route('/pmb/submit', methods=['POST'])
+def pmb_submit():
+    try:
+        nama = request.form.get('nama')
+
+        foto_ijazah = ''
+        if 'foto_ijazah' in request.files:
+            file = request.files['foto_ijazah']
+            if file and allowed_file(file.filename):
+                foto_ijazah = compress_image(file, app.config['UPLOAD_FOLDER'])
+
+        foto_ktp = ''
+        if 'foto_ktp' in request.files:
+            file = request.files['foto_ktp']
+            if file and allowed_file(file.filename):
+                foto_ktp = compress_image(file, app.config['UPLOAD_FOLDER'])
+
+        bukti_transfer = ''
+        if 'bukti_transfer' in request.files:
+            file = request.files['bukti_transfer']
+            if file and allowed_file(file.filename):
+                bukti_transfer = compress_image(file, app.config['UPLOAD_FOLDER'])
+
+        pmb = PendaftaranPMB(
+            nama=nama,
+            foto_ijazah=foto_ijazah,
+            foto_ktp=foto_ktp,
+            bukti_transfer=bukti_transfer,
+            status='Pending'
+        )
+        db.session.add(pmb)
+        db.session.commit()
+        return redirect(url_for('index', open='modal-cek-status'))
+    except Exception as e:
+        print(f"Error submitting PMB: {e}")
+        return redirect(url_for('index', open='modal-pmb'))
+
+@app.route('/pmb/status', methods=['GET'])
+def pmb_status():
+    nama = request.args.get('nama')
+    if not nama:
+        return jsonify({'error': 'Nama kosong'})
+    try:
+        # Pengecekan PMB bedasarkan nama (simplified)
+        pmb = PendaftaranPMB.query.filter(PendaftaranPMB.nama.ilike(f"%{nama}%")).order_by(PendaftaranPMB.id.desc()).first()
+        if not pmb:
+            return jsonify({'error': 'Data pendaftaran tidak ditemukan. Pastikan nama yang diketik benar.'})
+
+        return jsonify({
+            'status': pmb.status,
+            'npm': pmb.npm_generated if pmb.npm_generated else '-'
+        })
+    except Exception as e:
+        print(f"Error fetching pmb status: {e}")
+        return jsonify({'error': 'Gagal mengambil data dari server.'})
 
 if __name__ == '__main__':
     with app.app_context():
