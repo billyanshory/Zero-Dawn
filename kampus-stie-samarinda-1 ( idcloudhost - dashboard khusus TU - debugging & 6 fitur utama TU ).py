@@ -274,6 +274,24 @@ class AppSettings(db.Model):
     key = db.Column(db.String(255), primary_key=True)
     value = db.Column(db.Text)
 
+class KRSMahasiswa(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    npm = db.Column(db.String(255), nullable=False)
+    mata_kuliah = db.Column(db.String(255), nullable=False)
+    dosen = db.Column(db.String(255), nullable=False)
+    sks = db.Column(db.Integer, default=3)
+    status = db.Column(db.String(50), default='Menunggu Acc Dosen')
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class NilaiMahasiswa(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    npm = db.Column(db.String(255), nullable=False)
+    mata_kuliah = db.Column(db.String(255), nullable=False)
+    sks = db.Column(db.Integer, nullable=False)
+    nilai_huruf = db.Column(db.String(5), nullable=False)
+    semester = db.Column(db.String(50), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
 def get_settings():
     try:
         settings = {item.key: item.value for item in AppSettings.query.all()}
@@ -837,7 +855,7 @@ def model_getitem(self, key):
 
 for model in [Finance, Agenda, Booking, Zakat, GalleryDakwah, Suggestion, RamadhanKas, 
               TarawihSchedule, IrmaSchedule, IrmaMember, IrmaKas, IrmaGallery, 
-              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings, SuratOtomatis, PendaftaranPMB, TagihanKuliah, JadwalKuliah, User, LaciArsip]:
+              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings, SuratOtomatis, PendaftaranPMB, TagihanKuliah, JadwalKuliah, User, LaciArsip, KRSMahasiswa, NilaiMahasiswa]:
     model.__getitem__ = model_getitem
 
 STYLES_HTML = """
@@ -6373,36 +6391,55 @@ IRMA_DASHBOARD_HTML = """
         
         <!-- LEFT: WELCOME -->
         <div class="hidden md:block pl-2">
-            <p class="text-xl text-gray-500 font-medium mb-2">Assalamualaikum Warahmatullahi Wabarakatuh</p>
-            <h1 class="text-5xl font-bold text-[#2F4F4F] leading-tight mb-6">Selamat Datang di<br>IRMA Masjid Al Hijrah</h1>
+            <p class="text-xl text-gray-500 font-medium mb-2">Salam Mahasiswa STIESAM</p>
+            <h1 class="text-5xl font-bold text-[#2F4F4F] leading-tight mb-6">Dasbor Mahasiswa<br>Terintegrasi</h1>
             <p class="text-gray-600 text-lg leading-relaxed mb-8">
-                Pusat layanan akademik dan keuangan terpadu. Pantau rencana studi, kartu hasil studi, dan tagihan dengan mudah dan efisien.
+                Pusat layanan akademik dan keuangan terpadu. Pantau rencana studi, kartu hasil studi, jadwal, dan tagihan dengan mudah dan efisien.
             </p>
             <div class="flex gap-4">
-                <button onclick="openModal('modal-events')" class="bg-[#A0B391] text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-[#8DA57B] transition transform hover:scale-105">Lihat Proker</button>
-                <button onclick="openModal('modal-join')" class="bg-transparent text-[#A0B391] border-2 border-[#A0B391] px-8 py-3 rounded-full font-bold hover:bg-[#A0B391] hover:text-white transition transform hover:scale-105">Gabung Sekarang</button>
+                <button onclick="openModal('modal-jadwal-kuliah')" class="bg-[#A0B391] text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-[#8DA57B] transition transform hover:scale-105">Lihat Jadwal</button>
+                <button onclick="openModal('modal-profil-arsip')" class="bg-transparent text-[#A0B391] border-2 border-[#A0B391] px-8 py-3 rounded-full font-bold hover:bg-[#A0B391] hover:text-white transition transform hover:scale-105">Profil Saya</button>
             </div>
         </div>
 
-        <!-- RIGHT: PRAYER CARD -->
+        <!-- RIGHT: MAHASISWA STATS -->
         <div>
             <div class="bg-gradient-to-br from-[#A0B391] to-[#8DA57B] rounded-3xl p-6 md:p-10 text-white shadow-xl relative overflow-hidden transform md:hover:scale-[1.02] transition-transform duration-500 border border-white/20">
                 <div class="absolute top-0 right-0 opacity-10 transform translate-x-4 -translate-y-4">
-                    <i class="fas fa-mosque text-9xl"></i>
+                    <i class="fas fa-graduation-cap text-9xl"></i>
                 </div>
                 <div class="relative z-10">
-                    <p class="text-xs font-medium opacity-80 mb-1 tracking-wide uppercase">Waktu Sholat Berikutnya</p>
-                    <h2 class="text-4xl font-bold mb-3" id="next-prayer-name">--:--</h2>
-                    <div class="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 inline-block mb-6 border border-white/10">
-                        <span class="font-mono text-2xl font-bold tracking-wider" id="countdown-timer">--:--:--</span>
-                    </div>
+                    <p class="text-xs font-medium opacity-80 mb-1 tracking-wide uppercase">Informasi Akademik</p>
+                    <h2 class="text-3xl font-bold mb-1">{{ user.nama if user else 'Nama Mahasiswa' }}</h2>
+                    <p class="text-sm font-mono opacity-90 mb-4">{{ user.username if user else 'NPM' }}</p>
                     
-                    <div class="grid grid-cols-5 gap-1 text-center text-xs opacity-90 border-t border-white/20 pt-4">
-                        <div><div class="font-semibold mb-1">Subuh</div><div id="fajr-time" class="font-mono">--:--</div></div>
-                        <div><div class="font-semibold mb-1">Dzuhur</div><div id="dhuhr-time" class="font-mono">--:--</div></div>
-                        <div><div class="font-semibold mb-1">Ashar</div><div id="asr-time" class="font-mono">--:--</div></div>
-                        <div><div class="font-semibold mb-1">Maghrib</div><div id="maghrib-time" class="font-mono">--:--</div></div>
-                        <div><div class="font-semibold mb-1">Isya</div><div id="isha-time" class="font-mono">--:--</div></div>
+                    {% set total_sks_kumulatif = namespace(value=0) %}
+                    {% set total_bobot_kumulatif = namespace(value=0) %}
+                    {% for n in nilai_list %}
+                        {% set nilai_angka = 4.0 %}
+                        {% if n['nilai_huruf'] == 'A' %}{% set nilai_angka = 4.0 %}
+                        {% elif n['nilai_huruf'] == 'A-' %}{% set nilai_angka = 3.7 %}
+                        {% elif n['nilai_huruf'] == 'B+' %}{% set nilai_angka = 3.3 %}
+                        {% elif n['nilai_huruf'] == 'B' %}{% set nilai_angka = 3.0 %}
+                        {% elif n['nilai_huruf'] == 'B-' %}{% set nilai_angka = 2.7 %}
+                        {% elif n['nilai_huruf'] == 'C+' %}{% set nilai_angka = 2.3 %}
+                        {% elif n['nilai_huruf'] == 'C' %}{% set nilai_angka = 2.0 %}
+                        {% elif n['nilai_huruf'] == 'D' %}{% set nilai_angka = 1.0 %}
+                        {% else %}{% set nilai_angka = 0.0 %}{% endif %}
+                        {% set total_sks_kumulatif.value = total_sks_kumulatif.value + n['sks'] %}
+                        {% set total_bobot_kumulatif.value = total_bobot_kumulatif.value + (n['sks'] * nilai_angka) %}
+                    {% endfor %}
+                    {% set ipk = (total_bobot_kumulatif.value / total_sks_kumulatif.value) if total_sks_kumulatif.value > 0 else 0 %}
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-white/20 backdrop-blur-md rounded-xl p-4 border border-white/10">
+                            <p class="text-[10px] uppercase tracking-wider mb-1 opacity-80">IPK Saat Ini</p>
+                            <span class="font-mono text-2xl font-bold">{{ '%.2f' | format(ipk) }}</span>
+                        </div>
+                        <div class="bg-white/20 backdrop-blur-md rounded-xl p-4 border border-white/10">
+                            <p class="text-[10px] uppercase tracking-wider mb-1 opacity-80">SKS Ditempuh</p>
+                            <span class="font-mono text-2xl font-bold">{{ total_sks_kumulatif.value }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -6410,12 +6447,12 @@ IRMA_DASHBOARD_HTML = """
     </div>
 
     <!-- MENU GRID -->
-    <h3 class="text-[#2F4F4F] font-bold text-lg mb-4 pl-3 border-l-4 border-[#FFB6C1]">Menu Utama</h3>
+    <h3 class="text-[#2F4F4F] font-bold text-lg mb-4 pl-3 border-l-4 border-[#FFB6C1]">Layanan Akademik</h3>
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-24">
         
         <!-- 1. RENCANA STUDI -->
         <button onclick="openModal('modal-rencana-studi')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
-             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#FFB6C1] group-hover:text-white transition-colors">
+             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#A0B391] group-hover:text-white transition-colors shadow-inner">
                 <i class="fas fa-file-signature text-2xl"></i>
              </div>
              <span class="font-bold text-sm text-gray-600 group-hover:text-[#A0B391]">Rencana Studi</span>
@@ -6423,47 +6460,98 @@ IRMA_DASHBOARD_HTML = """
 
         <!-- 2. KARTU HASIL STUDI -->
         <button onclick="openModal('modal-kartu-hasil-studi')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
-             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#FFB6C1] group-hover:text-white transition-colors">
+             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#A0B391] group-hover:text-white transition-colors shadow-inner">
                 <i class="fas fa-graduation-cap text-2xl"></i>
              </div>
              <span class="font-bold text-sm text-gray-600 group-hover:text-[#A0B391]">Kartu Hasil Studi</span>
         </button>
 
         <!-- 3. PUSAT TAGIHAN -->
-        <button onclick="openModal('modal-pusat-tagihan')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
-             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#FFB6C1] group-hover:text-white transition-colors">
+        <button onclick="openModal('modal-pusat-tagihan')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all relative">
+             {% if has_unpaid %}
+             <div class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-md animate-pulse">!</div>
+             {% endif %}
+             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#A0B391] group-hover:text-white transition-colors shadow-inner">
                 <i class="fas fa-money-check-alt text-2xl"></i>
              </div>
              <span class="font-bold text-sm text-gray-600 group-hover:text-[#A0B391]">Pusat Tagihan</span>
         </button>
 
-        <!-- 4. MADING KREATIF -->
-        <button onclick="openModal('modal-wall')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
-             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#FFB6C1] group-hover:text-white transition-colors">
-                <i class="fas fa-palette text-2xl"></i>
+        <!-- 4. JADWAL KULIAH -->
+        <button onclick="openModal('modal-jadwal-kuliah')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#A0B391] group-hover:text-white transition-colors shadow-inner">
+                <i class="fas fa-calendar-alt text-2xl"></i>
              </div>
-             <span class="font-bold text-sm text-gray-600 group-hover:text-[#A0B391]">Mading Kreatif</span>
+             <span class="font-bold text-sm text-center text-gray-600 group-hover:text-[#A0B391]">Jadwal Kuliah<br>& Ruangan</span>
         </button>
 
-        <!-- 5. PROKER EVENT -->
-        <button onclick="openModal('modal-events')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
-             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#FFB6C1] group-hover:text-white transition-colors">
-                <i class="fas fa-tasks text-2xl"></i>
+        <!-- 5. PERMOHONAN SURAT -->
+        <button onclick="openModal('modal-permohonan-surat')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#A0B391] group-hover:text-white transition-colors shadow-inner">
+                <i class="fas fa-envelope-open-text text-2xl"></i>
              </div>
-             <span class="font-bold text-sm text-gray-600 group-hover:text-[#A0B391]">Proker Event</span>
+             <span class="font-bold text-sm text-center text-gray-600 group-hover:text-[#A0B391]">Permohonan Surat<br>Akademik</span>
         </button>
 
-        <!-- 6. CURHAT ISLAMI -->
-        <button onclick="openModal('modal-qa')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
-             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#FFB6C1] group-hover:text-white transition-colors">
-                <i class="fas fa-comments text-2xl"></i>
+        <!-- 6. PROFIL DAN ARSIP DIGITAL -->
+        <button onclick="openModal('modal-profil-arsip')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#A0B391] group-hover:text-white transition-colors shadow-inner">
+                <i class="fas fa-id-badge text-2xl"></i>
              </div>
-             <span class="font-bold text-sm text-gray-600 group-hover:text-[#A0B391]">Curhat Islami</span>
+             <span class="font-bold text-sm text-center text-gray-600 group-hover:text-[#A0B391]">Profil & Arsip<br>Digital Saya</span>
         </button>
     </div>
 
     <!-- MODALS SECTION -->
     
+    <!-- 3. MODAL PUSAT TAGIHAN -->
+    <div id="modal-pusat-tagihan" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
+                <h3 class="text-xl font-bold text-[#2F4F4F]">Pusat Tagihan Pendidikan</h3>
+                <button onclick="closeModal('modal-pusat-tagihan')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+            </div>
+
+            <div class="space-y-4">
+                {% for item in tagihan_list %}
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20 relative overflow-hidden">
+                    {% if item['status'] == 'Lunas' %}
+                    <div class="absolute top-4 right-4 text-green-500 font-bold text-sm flex items-center gap-1">
+                        <i class="fas fa-check-circle"></i> Lunas
+                    </div>
+                    {% else %}
+                    <div class="absolute top-4 right-4 text-red-500 font-bold text-sm flex items-center gap-1 animate-pulse">
+                        <i class="fas fa-exclamation-circle"></i> Belum Lunas
+                    </div>
+                    {% endif %}
+
+                    <h4 class="font-bold text-lg text-gray-800 mb-1">{{ item['jenis_tagihan'] }}</h4>
+                    <p class="text-sm text-gray-500 mb-4">Total: <span class="font-bold text-[#2F4F4F]">Rp {{ "{:,.0f}".format(item['jumlah']|int) if item['jumlah']|string|length > 0 else '0' }}</span></p>
+
+                    {% if item['status'] != 'Lunas' %}
+                    <form action="/mahasiswa/tagihan/upload" method="POST" enctype="multipart/form-data" class="bg-gray-50 p-4 rounded-xl border border-gray-100 mt-4">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="tagihan_id" value="{{ item['id'] }}">
+                        <label class="block text-xs font-bold text-gray-500 mb-2">Upload Bukti Transfer Bank:</label>
+                        <div class="flex gap-2">
+                            <input type="file" name="bukti_transfer" required class="flex-1 text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#A0B391]/10 file:text-[#A0B391] hover:file:bg-[#A0B391]/20">
+                            <button type="submit" class="bg-[#A0B391] text-white px-4 py-2 rounded-full font-bold text-xs shadow-sm hover:bg-[#8DA57B] transition">Kirim</button>
+                        </div>
+                    </form>
+                    {% endif %}
+                    {% if item['bukti_transfer'] %}
+                    <a href="/uploads/{{ item['bukti_transfer'] }}" target="_blank" class="text-xs text-blue-500 underline mt-2 block w-max"><i class="fas fa-eye"></i> Lihat Bukti Terkirim</a>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20 text-center">
+                    <p class="text-gray-500">Tidak ada tagihan aktif.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
     <!-- 1. MODAL RENCANA STUDI -->
     <div id="modal-rencana-studi" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
@@ -6471,26 +6559,59 @@ IRMA_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-[#2F4F4F]">Pengisian Rencana Studi (KRS)</h3>
                 <button onclick="closeModal('modal-rencana-studi')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20">
-                <p class="text-sm text-gray-600 mb-4">Pengisian KRS digital tanpa kertas. Silakan pilih mata kuliah yang ditawarkan untuk semester ini.</p>
-                <div class="space-y-3 mb-4">
-                    <label class="flex items-center p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition cursor-pointer">
-                        <input type="checkbox" class="accent-[#A0B391] w-4 h-4 mr-3" checked>
-                        <div class="flex-1">
-                            <p class="font-bold text-sm text-gray-800">Manajemen Keuangan Lanjutan</p>
-                            <p class="text-xs text-gray-500">MKK-301 • 3 SKS • Dosen: Dr. Budi Santoso</p>
-                        </div>
-                    </label>
-                    <label class="flex items-center p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition cursor-pointer">
-                        <input type="checkbox" class="accent-[#A0B391] w-4 h-4 mr-3" checked>
-                        <div class="flex-1">
-                            <p class="font-bold text-sm text-gray-800">Akuntansi Biaya</p>
-                            <p class="text-xs text-gray-500">MKB-302 • 3 SKS • Dosen: Sri Rahayu, S.E., M.Ak.</p>
-                        </div>
-                    </label>
+
+            {% if has_unpaid %}
+            <div class="bg-white p-8 rounded-3xl shadow-lg border border-red-200 text-center relative overflow-hidden">
+                <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-inner">
+                    <i class="fas fa-lock text-3xl"></i>
                 </div>
-                <button onclick="alert('KRS berhasil diajukan ke Dosen Pembimbing Akademik untuk disetujui.'); closeModal('modal-rencana-studi');" class="w-full bg-[#A0B391] text-white font-bold py-3 rounded-xl hover:bg-[#FFB6C1] transition">Ajukan KRS</button>
+                <h4 class="text-xl font-bold text-red-600 mb-2">Akses Terkunci</h4>
+                <p class="text-gray-600 mb-6 leading-relaxed">Mohon maaf, Anda tidak dapat mengisi Kartu Rencana Studi karena masih terdapat tagihan pembayaran yang belum diselesaikan atau sedang menunggu verifikasi Tata Usaha.</p>
+                <button onclick="closeModal('modal-rencana-studi'); openModal('modal-pusat-tagihan')" class="bg-[#A0B391] text-white px-8 py-3 rounded-xl font-bold hover:bg-[#8DA57B] transition shadow-md">Menuju Pusat Tagihan</button>
             </div>
+            {% else %}
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20 mb-6">
+                <p class="text-sm text-gray-600 mb-4">Pilih mata kuliah dari jadwal yang ditawarkan semester ini. Mata kuliah yang dipilih akan diajukan ke Dosen Wali.</p>
+                <form action="/mahasiswa/krs/add" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="space-y-3 mb-4 max-h-[40vh] overflow-y-auto custom-scrollbar">
+                        {% for j in jadwal_list %}
+                        <label class="flex items-start p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition cursor-pointer">
+                            <input type="checkbox" name="jadwal_ids" value="{{ j['id'] }}" class="accent-[#A0B391] w-5 h-5 mr-3 mt-1">
+                            <div class="flex-1">
+                                <p class="font-bold text-sm text-gray-800">{{ j['mata_kuliah'] }}</p>
+                                <p class="text-xs text-gray-500">{{ j['hari'] }}, {{ j['jam'] }} • Ruang: {{ j['ruangan'] }}</p>
+                                <p class="text-xs font-medium text-[#A0B391] mt-1"><i class="fas fa-user-tie"></i> {{ j['dosen'] }}</p>
+                            </div>
+                            <div class="bg-[#F4E7E1] text-[#2F4F4F] px-2 py-1 rounded text-[10px] font-bold">3 SKS</div>
+                        </label>
+                        {% else %}
+                        <p class="text-center text-gray-500 py-4">Belum ada jadwal kuliah yang dibuka oleh Tata Usaha.</p>
+                        {% endfor %}
+                    </div>
+                    {% if jadwal_list %}
+                    <button type="submit" class="w-full bg-[#A0B391] text-white font-bold py-3 rounded-xl hover:bg-[#FFB6C1] transition shadow-md">Ajukan KRS</button>
+                    {% endif %}
+                </form>
+            </div>
+
+            <h4 class="text-[#2F4F4F] font-bold mb-3 border-l-4 border-[#FFB6C1] pl-2">KRS Saya (Semester Ini)</h4>
+            <div class="space-y-3">
+                {% for k in krs_list %}
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-[#A0B391]/20 flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-gray-800 text-sm">{{ k['mata_kuliah'] }}</p>
+                        <p class="text-xs text-gray-500">{{ k['dosen'] }} • {{ k['sks'] }} SKS</p>
+                    </div>
+                    <span class="text-[10px] font-bold px-2 py-1 rounded-full {{ 'bg-yellow-100 text-yellow-600' if k['status'] == 'Menunggu Acc Dosen' else 'bg-green-100 text-green-600' }}">{{ k['status'] }}</span>
+                </div>
+                {% else %}
+                <p class="text-center text-gray-500 text-sm italic">Belum ada KRS yang diajukan.</p>
+                {% endfor %}
+            </div>
+
+            {% endif %}
         </div>
     </div>
 
@@ -6501,234 +6622,234 @@ IRMA_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-[#2F4F4F]">Kartu Hasil Studi (KHS)</h3>
                 <button onclick="closeModal('modal-kartu-hasil-studi')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20">
-                <div class="flex justify-between items-end mb-6 border-b border-gray-100 pb-4">
-                    <div>
-                        <h4 class="text-lg font-bold text-gray-800">Semester Ganjil 2024/2025</h4>
-                        <p class="text-xs text-gray-500">IPK Sementara: 3.85</p>
-                    </div>
-                    <button class="text-xs font-bold text-[#A0B391] bg-[#A0B391]/10 px-3 py-1.5 rounded-lg"><i class="fas fa-download mr-1"></i> PDF</button>
-                </div>
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-50">
-                            <th class="p-3 text-xs font-bold text-gray-600 rounded-l-lg">Mata Kuliah</th>
-                            <th class="p-3 text-xs font-bold text-gray-600 text-center">SKS</th>
-                            <th class="p-3 text-xs font-bold text-gray-600 text-center rounded-r-lg">Nilai</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        <tr>
-                            <td class="p-3 text-sm text-gray-800 font-medium">Manajemen Pemasaran</td>
-                            <td class="p-3 text-sm text-gray-600 text-center">3</td>
-                            <td class="p-3 text-sm font-bold text-[#A0B391] text-center">A</td>
-                        </tr>
-                        <tr>
-                            <td class="p-3 text-sm text-gray-800 font-medium">Statistika Bisnis</td>
-                            <td class="p-3 text-sm text-gray-600 text-center">3</td>
-                            <td class="p-3 text-sm font-bold text-[#A0B391] text-center">A-</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
 
-    <!-- 4. MODAL MADING -->
-    <div id="modal-wall" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
-        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
-            <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
-                <h3 class="text-xl font-bold text-[#2F4F4F]">Mading Kreatif</h3>
-                <button onclick="closeModal('modal-wall')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
-            </div>
-            
-            <div class="p-4 bg-white border border-[#A0B391]/20 rounded-2xl mb-4">
-                 <form action="/irma/gallery" method="POST" enctype="multipart/form-data" class="flex flex-col gap-2">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% set total_sks_kumulatif = namespace(value=0) %}
+            {% set total_bobot_kumulatif = namespace(value=0) %}
 
-                     <input type="text" name="title" placeholder="Judul Karya" required class="w-full bg-[#F4E7E1] border-none rounded-lg p-2 text-xs">
-                     <input type="text" name="creator" placeholder="Nama Pembuat" required class="w-full bg-[#F4E7E1] border-none rounded-lg p-2 text-xs">
-                     <div class="flex gap-2">
-                         <input type="file" name="image" class="w-1/2 text-xs text-gray-500">
-                         <button type="submit" class="w-1/2 bg-[#A0B391] text-white px-4 rounded-xl font-bold text-xs hover:bg-[#FFB6C1] h-8">Posting</button>
-                     </div>
-                     <textarea name="content" placeholder="Cerita / Puisi / Caption..." class="w-full bg-[#F4E7E1] border-none rounded-lg p-2 text-xs h-16"></textarea>
-                 </form>
-            </div>
+            {% set semester_groups = {} %}
+            {% for n in nilai_list %}
+                {% if n['semester'] not in semester_groups %}
+                    {% set _ = semester_groups.update({n['semester']: []}) %}
+                {% endif %}
+                {% set _ = semester_groups[n['semester']].append(n) %}
+            {% endfor %}
 
-            <div class="overflow-y-auto max-h-[50vh] p-1 grid grid-cols-2 gap-3 content-start">
-                {% for item in gallery_list %}
-                <div class="bg-white rounded-2xl shadow-sm overflow-hidden break-inside-avoid border border-[#A0B391]/10 cursor-pointer hover:scale-105 transition-transform"
-                     onclick="openMadingDetail(this)"
-                     data-title="{{ item['title'] }}"
-                     data-creator="{{ item['creator'] }}"
-                     data-type="{{ item['content_type'] }}"
-                     data-content="{{ item['content'] }}"
-                     data-caption="{{ item['caption'] or '' }}">
-                    {% if item['content_type'] == 'Image' %}
-                    <img src="/uploads/{{ item['content'] }}" class="w-full h-32 object-cover">
-                    {% endif %}
-                    <div class="p-3">
-                        <h5 class="font-bold text-[#2F4F4F] text-xs mb-1">{{ item['title'] }}</h5>
-                        <p class="text-[10px] text-[#A0B391] font-bold mb-1">By {{ item['creator'] }}</p>
-                        {% if item['content_type'] == 'Text' %}
-                        <p class="text-xs text-gray-600 line-clamp-4">{{ item['content'] }}</p>
-                        {% endif %}
-                    </div>
-                </div>
-                {% else %}
-                <div class="col-span-2 text-center py-10 text-gray-400">Belum ada karya.</div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
+            {% for smt, items in semester_groups.items() %}
+                {% set smt_sks = namespace(value=0) %}
+                {% set smt_bobot = namespace(value=0) %}
 
-    <!-- MODAL MADING DETAIL -->
-    <div id="modal-mading-detail" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm max-h-[80vh] flex flex-col overflow-hidden animate-[popupFadeIn_0.3s_ease-out] relative">
-            <button onclick="closeModal('modal-mading-detail')" class="absolute top-4 right-4 z-10 bg-white/20 hover:bg-white/40 text-white w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md shadow-sm transition">&times;</button>
-            
-            <div id="mading-detail-img-container" class="bg-gray-100 flex-shrink-0 hidden">
-                <img id="mading-detail-img" src="" class="w-full h-auto object-contain max-h-[50vh]">
-            </div>
-            
-            <div class="p-6 overflow-y-auto">
-                <h3 id="mading-detail-title" class="text-xl font-bold text-[#2F4F4F] mb-1 leading-tight"></h3>
-                <p class="text-xs font-bold text-[#A0B391] mb-4">By <span id="mading-detail-creator"></span></p>
-                <div class="prose prose-sm text-gray-600">
-                    <p id="mading-detail-text" class="whitespace-pre-wrap leading-relaxed text-sm"></p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        function openMadingDetail(el) {
-            const title = el.getAttribute('data-title');
-            const creator = el.getAttribute('data-creator');
-            const type = el.getAttribute('data-type');
-            const content = el.getAttribute('data-content');
-            const caption = el.getAttribute('data-caption');
-            
-            document.getElementById('mading-detail-title').innerText = title;
-            document.getElementById('mading-detail-creator').innerText = creator;
-            
-            const imgContainer = document.getElementById('mading-detail-img-container');
-            const img = document.getElementById('mading-detail-img');
-            const text = document.getElementById('mading-detail-text');
-            
-            if (type === 'Image') {
-                imgContainer.classList.remove('hidden');
-                img.src = "/uploads/" + content;
-                text.innerText = caption;
-            } else {
-                imgContainer.classList.add('hidden');
-                text.innerText = content;
-            }
-            
-            document.getElementById('modal-mading-detail').classList.remove('hidden');
-        }
-    </script>
-    <!-- 5. MODAL PROKER -->
-    <div id="modal-events" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
-        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
-            <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
-                <h3 class="text-xl font-bold text-[#2F4F4F]">Proker & Event</h3>
-                <button onclick="closeModal('modal-events')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
-            </div>
-            
-            {% if is_admin %}
-            <form action="/irma/proker" method="POST" class="mb-6 bg-white p-4 rounded-2xl shadow-sm border border-[#A0B391]/20">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                <input type="text" name="title" placeholder="Nama Kegiatan" required class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm mb-3">
-                <div class="grid grid-cols-2 gap-3 mb-3">
-                    <select name="status" class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm">
-                        <option value="Rencana">Rencana</option>
-                        <option value="Proses">Proses</option>
-                        <option value="Selesai">Selesai</option>
-                    </select>
-                    <input type="date" name="date" class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm">
-                </div>
-                <textarea name="description" placeholder="Deskripsi Singkat" class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm mb-3"></textarea>
-                <button type="submit" class="w-full bg-[#A0B391] text-white font-bold py-3 rounded-xl hover:bg-[#FFB6C1] transition">Tambah Proker</button>
-            </form>
-            {% endif %}
-
-            <div class="space-y-3 max-h-[40vh] overflow-y-auto">
-                {% for item in proker_list %}
-                <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 {{ 'border-gray-300' if item['status'] == 'Rencana' else ('border-yellow-400' if item['status'] == 'Proses' else 'border-green-500') }}">
-                    <div class="flex justify-between items-start">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20 mb-6">
+                    <div class="flex justify-between items-end mb-6 border-b border-gray-100 pb-4">
                         <div>
-                            <h5 class="font-bold text-[#2F4F4F]">{{ item['title'] }}</h5>
-                            <p class="text-xs text-gray-400">{{ item['date'] }}</p>
-                            <p class="text-xs text-gray-500 mt-1">{{ item['description'] }}</p>
+                            <h4 class="text-lg font-bold text-gray-800">{{ smt }}</h4>
+                            <p class="text-xs text-gray-500" id="ips-{{ loop.index }}">IPS: Menghitung...</p>
                         </div>
-                        <span class="text-[10px] font-bold px-2 py-1 rounded {{ 'bg-gray-100 text-gray-600' if item['status'] == 'Rencana' else ('bg-yellow-100 text-yellow-600' if item['status'] == 'Proses' else 'bg-green-100 text-green-600') }}">
-                            {{ item['status'] }}
-                        </span>
                     </div>
-                    
-                    <div class="w-full bg-gray-100 rounded-full h-1.5 mt-3">
-                        <div class="h-1.5 rounded-full {{ 'bg-gray-400 w-1/3' if item['status'] == 'Rencana' else ('bg-yellow-400 w-2/3' if item['status'] == 'Proses' else 'bg-green-500 w-full') }}"></div>
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50">
+                                <th class="p-3 text-xs font-bold text-gray-600 rounded-l-lg">Mata Kuliah</th>
+                                <th class="p-3 text-xs font-bold text-gray-600 text-center">SKS</th>
+                                <th class="p-3 text-xs font-bold text-gray-600 text-center rounded-r-lg">Nilai</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            {% for n in items %}
+                            {% set nilai_angka = 4.0 %}
+                            {% if n['nilai_huruf'] == 'A' %}{% set nilai_angka = 4.0 %}
+                            {% elif n['nilai_huruf'] == 'A-' %}{% set nilai_angka = 3.7 %}
+                            {% elif n['nilai_huruf'] == 'B+' %}{% set nilai_angka = 3.3 %}
+                            {% elif n['nilai_huruf'] == 'B' %}{% set nilai_angka = 3.0 %}
+                            {% elif n['nilai_huruf'] == 'B-' %}{% set nilai_angka = 2.7 %}
+                            {% elif n['nilai_huruf'] == 'C+' %}{% set nilai_angka = 2.3 %}
+                            {% elif n['nilai_huruf'] == 'C' %}{% set nilai_angka = 2.0 %}
+                            {% elif n['nilai_huruf'] == 'D' %}{% set nilai_angka = 1.0 %}
+                            {% else %}{% set nilai_angka = 0.0 %}{% endif %}
+
+                            {% set smt_sks.value = smt_sks.value + n['sks'] %}
+                            {% set smt_bobot.value = smt_bobot.value + (n['sks'] * nilai_angka) %}
+
+                            {% set total_sks_kumulatif.value = total_sks_kumulatif.value + n['sks'] %}
+                            {% set total_bobot_kumulatif.value = total_bobot_kumulatif.value + (n['sks'] * nilai_angka) %}
+
+                            <tr>
+                                <td class="p-3 text-sm text-gray-800 font-medium">{{ n['mata_kuliah'] }}</td>
+                                <td class="p-3 text-sm text-gray-600 text-center">{{ n['sks'] }}</td>
+                                <td class="p-3 text-sm font-bold text-[#A0B391] text-center">{{ n['nilai_huruf'] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    {% set ips = (smt_bobot.value / smt_sks.value) if smt_sks.value > 0 else 0 %}
+                    <script>
+                        document.addEventListener("DOMContentLoaded", function() {
+                            const el = document.getElementById('ips-{{ loop.index }}');
+                            if(el) el.innerText = "IPS: {{ '%.2f' | format(ips) }}";
+                        });
+                    </script>
+                </div>
+            {% else %}
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20 text-center">
+                    <p class="text-gray-500">Belum ada nilai yang diinput oleh Dosen.</p>
+                </div>
+            {% endfor %}
+
+            {% if nilai_list %}
+            <div class="fixed bottom-0 left-0 w-full bg-white border-t border-[#A0B391]/20 p-4 md:p-6 pb-safe z-50 flex justify-between items-center max-w-md mx-auto right-0 rounded-t-3xl shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+                <div>
+                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Indeks Prestasi Kumulatif</p>
+                    <h2 class="text-3xl font-bold text-[#2F4F4F]">{% set ipk = (total_bobot_kumulatif.value / total_sks_kumulatif.value) if total_sks_kumulatif.value > 0 else 0 %}{{ '%.2f' | format(ipk) }}</h2>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Total SKS</p>
+                    <h2 class="text-xl font-bold text-[#A0B391]">{{ total_sks_kumulatif.value }} SKS</h2>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 4. MODAL JADWAL KULIAH -->
+    <div id="modal-jadwal-kuliah" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
+                <h3 class="text-xl font-bold text-[#2F4F4F]">Jadwal Kuliah Waktu Nyata</h3>
+                <button onclick="closeModal('modal-jadwal-kuliah')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+            </div>
+            
+            <p class="text-sm text-gray-600 mb-6 bg-white p-4 rounded-xl border border-[#A0B391]/20 shadow-sm"><i class="fas fa-info-circle text-[#A0B391] mr-2"></i>Jadwal ini disinkronkan langsung dari ruang kendali Tata Usaha secara real-time.</p>
+
+            <div class="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+                {% for item in jadwal_list %}
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-[#A0B391]/20 flex justify-between items-center group hover:border-[#A0B391]/50 transition-colors">
+                    <div>
+                        <p class="font-bold text-gray-800 text-base mb-1">{{ item['mata_kuliah'] }}</p>
+                        <div class="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                            <span class="bg-[#F4E7E1] text-[#2F4F4F] px-2 py-0.5 rounded font-bold">{{ item['hari'] }}</span>
+                            <span class="text-gray-400"><i class="fas fa-clock mr-1"></i> {{ item['jam'] }}</span>
+                            <span class="text-gray-400"><i class="fas fa-map-marker-alt mr-1"></i> {{ item['ruangan'] }}</span>
+                        </div>
+                        <p class="text-xs font-bold text-[#A0B391]"><i class="fas fa-chalkboard-teacher mr-1"></i> {{ item['dosen'] }}</p>
                     </div>
                 </div>
                 {% else %}
-                <p class="text-center text-gray-400 text-sm">Belum ada proker.</p>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20 text-center">
+                    <p class="text-gray-500">Jadwal kuliah belum tersedia dari Tata Usaha.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <!-- 5. MODAL PERMOHONAN SURAT -->
+    <div id="modal-permohonan-surat" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
+                <h3 class="text-xl font-bold text-[#2F4F4F]">Layanan Permohonan Surat</h3>
+                <button onclick="closeModal('modal-permohonan-surat')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+            </div>
+            
+            <form action="/mahasiswa/surat/request" method="POST" class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20 mb-6 relative overflow-hidden">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="absolute top-0 right-0 opacity-5 -mt-4 -mr-4">
+                    <i class="fas fa-paper-plane text-8xl text-[#A0B391]"></i>
+                </div>
+                <div class="relative z-10">
+                    <p class="text-sm text-gray-600 mb-4">Pilih jenis surat yang ingin diajukan. Surat akan diverifikasi oleh Tata Usaha dan dapat diunduh dalam bentuk PDF dengan QR Code Tanda Tangan Elektronik.</p>
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold text-gray-500 mb-2">Jenis Surat / Dokumen</label>
+                        <select name="jenis_surat" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#A0B391]">
+                            <option value="Surat Keterangan Aktif Kuliah">Surat Keterangan Aktif Kuliah (Untuk Beasiswa/Tunjangan)</option>
+                            <option value="Surat Pengantar Magang">Surat Pengantar Magang / PKL</option>
+                            <option value="Surat Pengantar Riset">Surat Pengantar Riset / Penelitian TA</option>
+                            <option value="Surat Cuti Akademik">Surat Permohonan Cuti Akademik</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold text-gray-500 mb-2">Keterangan Tambahan / Tujuan Surat</label>
+                        <textarea name="keterangan" required placeholder="Contoh: Ditujukan kepada HRD PT Pertamina Balikpapan" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm h-20 focus:outline-none focus:ring-2 focus:ring-[#A0B391]"></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-[#A0B391] text-white font-bold py-3 rounded-xl shadow-md hover:bg-[#FFB6C1] transition flex justify-center items-center gap-2"><i class="fas fa-paper-plane"></i> Kirim Permohonan</button>
+                </div>
+            </form>
+
+            <h4 class="text-[#2F4F4F] font-bold mb-3 border-l-4 border-[#FFB6C1] pl-2">Ruang Tunggu Permohonan</h4>
+            <div class="space-y-3">
+                {% for s in surat_list %}
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-[#A0B391]/20 relative">
+                    <div class="flex justify-between items-start mb-2">
+                        <h5 class="font-bold text-gray-800">{{ s['jenis_surat'] }}</h5>
+                        <span class="text-[10px] font-bold px-2 py-1 rounded-full {{ 'bg-yellow-100 text-yellow-600' if s['status'] == 'Menunggu Acc' else 'bg-green-100 text-green-600' }}">{{ s['status'] }}</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-3"><i class="fas fa-calendar-alt mr-1"></i> {{ s['tanggal'] }}</p>
+                    <p class="text-xs text-gray-600 italic border-l-2 border-gray-200 pl-2">"{{ s['keterangan'] }}"</p>
+                    
+                    {% if s['status'] == 'Disetujui' %}
+                    <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+                        <p class="text-[10px] text-green-600 font-bold flex items-center gap-1"><i class="fas fa-shield-alt"></i> Ditandatangani Elektronik</p>
+                        <!-- We use a mock URL for downloading the signed PDF for demonstration -->
+                        <button onclick="alert('Mengunduh Surat Digital Resmi (PDF)...')" class="bg-[#A0B391]/10 text-[#A0B391] px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-[#A0B391]/20 transition"><i class="fas fa-download mr-1"></i> Unduh PDF</button>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="text-center bg-white p-6 rounded-2xl border border-[#A0B391]/20">
+                    <p class="text-gray-400 text-sm italic">Belum ada surat yang diajukan.</p>
+                </div>
                 {% endfor %}
             </div>
         </div>
     </div>
 
-    <!-- 6. MODAL CURHAT -->
-    <div id="modal-qa" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+    <!-- 6. MODAL PROFIL DAN ARSIP DIGITAL -->
+    <div id="modal-profil-arsip" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
             <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
-                <h3 class="text-xl font-bold text-[#2F4F4F]">Curhat Islami (Anonim)</h3>
-                <button onclick="closeModal('modal-qa')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+                <h3 class="text-xl font-bold text-[#2F4F4F]">Profil & Arsip Digital Saya</h3>
+                <button onclick="closeModal('modal-profil-arsip')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
             
-            <div class="p-4 bg-white border-b border-[#A0B391]/20">
-                    <form action="/irma/curhat" method="POST" class="space-y-3">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="bg-white p-6 rounded-3xl shadow-lg border border-[#A0B391]/20 mb-6 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-[#A0B391]/10 rounded-bl-full -z-10"></div>
 
-                        <textarea name="question" placeholder="Tanya apa saja, identitasmu dirahasiakan..." required class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm h-24 focus:ring-2 focus:ring-[#FFB6C1]"></textarea>
-                        <button type="submit" class="w-full bg-[#A0B391] text-white font-bold py-3 rounded-xl hover:bg-[#FFB6C1] transition">Kirim Pertanyaan</button>
-                    </form>
+                <div class="flex items-center gap-6 mb-6">
+                    <div class="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 shadow-inner border-4 border-white overflow-hidden relative">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xl font-bold text-[#2F4F4F] leading-tight">{{ user.nama if user else 'Nama Mahasiswa' }}</h4>
+                        <p class="text-sm font-bold text-[#A0B391] font-mono tracking-widest mt-1">{{ user.username if user else 'NPM' }}</p>
+                        <span class="inline-block mt-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider {{ 'bg-green-100 text-green-700' if user and user.status_akademik == 'Aktif' else 'bg-red-100 text-red-700' }}">{{ user.status_akademik if user else 'Status' }}</span>
+                    </div>
+                </div>
+
+                <div class="flex justify-center border-t border-gray-100 pt-4">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ user.username if user else 'KTM' }}" class="w-24 h-24 object-contain rounded-lg shadow-sm border border-gray-100 p-1">
+                </div>
+                <p class="text-[10px] text-center text-gray-400 mt-2 tracking-widest uppercase">Pindai KTM Digital</p>
             </div>
 
-            <div class="overflow-y-auto flex-1 p-4 space-y-4">
-                {% for item in curhat_list %}
-                <div class="bg-white rounded-2xl shadow-sm p-4">
-                    <div class="flex gap-3 mb-2">
-                        <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400"><i class="fas fa-user-secret"></i></div>
-                        <div class="bg-gray-50 p-3 rounded-r-2xl rounded-bl-2xl text-sm text-gray-700 flex-1">
-                            {{ item['question'] }}
+            <h4 class="text-[#2F4F4F] font-bold mb-3 border-l-4 border-[#FFB6C1] pl-2">Laci Arsip Pribadi (Sinkron TU)</h4>
+            <div class="space-y-3">
+                {% for a in arsip_list %}
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-[#A0B391]/20 flex justify-between items-center group hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-[#A0B391]/10 text-[#A0B391] flex items-center justify-center text-lg">
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-gray-800 text-sm">{{ a['nama_dokumen'] }}</p>
+                            <p class="text-xs text-gray-500">{{ a['ukuran'] }} • Diunggah: {{ a['tanggal'] }}</p>
                         </div>
                     </div>
-                    
-                    {% if item['answer'] %}
-                    <div class="flex gap-3 flex-row-reverse">
-                        <div class="w-8 h-8 rounded-full bg-[#A0B391] flex items-center justify-center text-white"><i class="fas fa-check"></i></div>
-                        <div class="bg-[#A0B391]/10 p-3 rounded-l-2xl rounded-br-2xl text-sm text-[#2F4F4F] flex-1 border border-[#A0B391]/20">
-                            <p class="font-bold text-[#A0B391] text-xs mb-1">Mentor Menjawab:</p>
-                            {{ item['answer'] }}
-                        </div>
-                    </div>
-                    {% else %}
-                    <p class="text-[10px] text-gray-400 text-center italic mt-1">Menunggu jawaban mentor...</p>
-                    {% if is_admin %}
-                    <form action="/irma/curhat" method="POST" class="mt-2 pt-2 border-t border-gray-50">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                        <input type="hidden" name="answer_id" value="{{ item['id'] }}">
-                        <input type="text" name="answer" placeholder="Jawab (Admin)..." class="w-full bg-gray-50 text-xs p-2 rounded-lg">
-                    </form>
-                    {% endif %}
-                    {% endif %}
+                    <a href="/uploads/{{ a['file_path'] }}" target="_blank" class="w-10 h-10 flex items-center justify-center text-[#A0B391] hover:text-[#FFB6C1] hover:bg-[#FFB6C1]/10 rounded-full transition-colors">
+                        <i class="fas fa-download"></i>
+                    </a>
                 </div>
                 {% else %}
-                <p class="text-center text-gray-400 text-sm">Belum ada pertanyaan.</p>
+                <div class="bg-white p-6 rounded-2xl text-center border border-[#A0B391]/20">
+                    <p class="text-gray-400 text-sm">Tidak ada dokumen di arsip Anda.</p>
+                </div>
                 {% endfor %}
             </div>
         </div>
@@ -6844,17 +6965,44 @@ def irma_dashboard():
     check_status = None
     settings_data = {}
     
+    # NEW MAHASISWA LOGIC
+    user = None
+    tagihan_list = []
+    krs_list = []
+    nilai_list = []
+    jadwal_list = []
+    surat_list = []
+    arsip_list = []
+    has_unpaid = False
+
+    npm = session.get('npm') or session.get('username') or '2401234' # Fallback for mock view
+
     try:
         is_admin = session.get('is_admin', False)
         settings_data = get_settings()
 
-        # 1. Schedule List
+        # Fetch User Session Data
+        user = User.query.filter_by(username=npm).first()
+
+        if npm:
+            tagihan_list = TagihanKuliah.query.filter_by(npm=npm).order_by(TagihanKuliah.id.desc()).all()
+            has_unpaid = any(t.status != 'Lunas' for t in tagihan_list)
+
+            krs_list = KRSMahasiswa.query.filter_by(npm=npm).order_by(KRSMahasiswa.id.desc()).all()
+            nilai_list = NilaiMahasiswa.query.filter_by(npm=npm).order_by(NilaiMahasiswa.semester.desc(), NilaiMahasiswa.id.desc()).all()
+
+            jadwal_list = JadwalKuliah.query.order_by(JadwalKuliah.id.desc()).all()
+
+            surat_list = SuratOtomatis.query.filter_by(npm=npm).order_by(SuratOtomatis.id.desc()).all()
+            arsip_list = LaciArsip.query.filter_by(npm=npm).order_by(LaciArsip.id.desc()).all()
+
+        # 1. Schedule List (Legacy)
         try:
             schedule_list = IrmaSchedule.query.order_by(IrmaSchedule.date.desc(), IrmaSchedule.id.desc()).all()
         except Exception as e:
             print(f"Error fetching Schedule: {e}")
         
-        # 2. Kas (Finance)
+        # 2. Kas (Finance - Legacy)
         try:
             kas_list = IrmaKas.query.order_by(IrmaKas.date.desc()).all()
             fin_in = db.session.query(func.sum(IrmaKas.amount)).filter_by(type='Pemasukan').scalar() or 0
@@ -6863,25 +7011,25 @@ def irma_dashboard():
         except Exception as e:
             print(f"Error fetching Kas: {e}")
         
-        # 3. Gallery (Mading)
+        # 3. Gallery (Mading - Legacy)
         try:
             gallery_list = IrmaGallery.query.order_by(IrmaGallery.created_at.desc()).all()
         except Exception as e:
             print(f"Error fetching Gallery: {e}")
         
-        # 4. Proker (Events)
+        # 4. Proker (Events - Legacy)
         try:
             proker_list = IrmaProker.query.order_by(IrmaProker.date.asc()).all()
         except Exception as e:
             print(f"Error fetching Proker: {e}")
         
-        # 5. Curhat (Q&A)
+        # 5. Curhat (Q&A - Legacy)
         try:
             curhat_list = IrmaCurhat.query.order_by(IrmaCurhat.created_at.desc()).all()
         except Exception as e:
             print(f"Error fetching Curhat: {e}")
         
-        # 6. Members
+        # 6. Members (Legacy)
         try:
             if is_admin:
                 members_list = IrmaMember.query.order_by(IrmaMember.joined_at.desc()).all()
@@ -6893,7 +7041,7 @@ def irma_dashboard():
             print(f"Error fetching Members: {e}")
 
     except Exception as e:
-        print(f"Critical Error in IRMA Dashboard: {e}")
+        print(f"Critical Error in Dashboard: {e}")
     
     # IRMA THEME
     irma_theme = {
@@ -6918,6 +7066,14 @@ def irma_dashboard():
                                   active_page='irma', 
                                   theme=irma_theme,
                                   content=render_template_string(IRMA_DASHBOARD_HTML,
+                                                                 user=user,
+                                                                 tagihan_list=tagihan_list,
+                                                                 krs_list=krs_list,
+                                                                 nilai_list=nilai_list,
+                                                                 jadwal_list=jadwal_list,
+                                                                 surat_list=surat_list,
+                                                                 arsip_list=arsip_list,
+                                                                 has_unpaid=has_unpaid,
                                                                  schedule_list=schedule_list,
                                                                  kas_list=kas_list,
                                                                  kas_summary=kas_summary,
@@ -7033,6 +7189,66 @@ def irma_curhat():
         db.session.add(item)
     db.session.commit()
     return redirect(url_for('irma_dashboard', open='modal-qa'))
+
+@app.route('/mahasiswa/tagihan/upload', methods=['POST'])
+def mahasiswa_tagihan_upload():
+    try:
+        t_id = request.form.get('tagihan_id')
+        tagihan = TagihanKuliah.query.get(t_id)
+        if tagihan and 'bukti_transfer' in request.files:
+            file = request.files['bukti_transfer']
+            if file and allowed_file(file.filename):
+                saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
+                tagihan.bukti_transfer = saved_filename
+                tagihan.status = 'Menunggu Konfirmasi'
+                db.session.commit()
+    except Exception as e:
+        print(f"Error uploading bukti transfer: {e}")
+    return redirect(url_for('irma_dashboard', open='modal-pusat-tagihan'))
+
+@app.route('/mahasiswa/krs/add', methods=['POST'])
+def mahasiswa_krs_add():
+    npm = session.get('npm') or session.get('username') or '2401234'
+    try:
+        tagihan_list = TagihanKuliah.query.filter_by(npm=npm).all()
+        has_unpaid = any(t.status != 'Lunas' for t in tagihan_list)
+        if has_unpaid:
+            return redirect(url_for('irma_dashboard', open='modal-rencana-studi'))
+
+        jadwal_ids = request.form.getlist('jadwal_ids')
+        for j_id in jadwal_ids:
+            jadwal = JadwalKuliah.query.get(j_id)
+            if jadwal:
+                # Prevent duplicate entries for same matkul
+                existing = KRSMahasiswa.query.filter_by(npm=npm, mata_kuliah=jadwal.mata_kuliah).first()
+                if not existing:
+                    new_krs = KRSMahasiswa(
+                        npm=npm,
+                        mata_kuliah=jadwal.mata_kuliah,
+                        dosen=jadwal.dosen,
+                        sks=3,
+                        status='Menunggu Acc Dosen'
+                    )
+                    db.session.add(new_krs)
+        db.session.commit()
+    except Exception as e:
+        print(f"Error submitting KRS: {e}")
+    return redirect(url_for('irma_dashboard', open='modal-rencana-studi'))
+
+@app.route('/mahasiswa/surat/request', methods=['POST'])
+def mahasiswa_surat_request():
+    npm = session.get('npm') or session.get('username') or '2401234'
+    try:
+        item = SuratOtomatis(
+            npm=npm,
+            jenis_surat=request.form['jenis_surat'],
+            keterangan=request.form['keterangan']
+        )
+        db.session.add(item)
+        db.session.commit()
+    except Exception as e:
+        print(f"Error requesting surat: {e}")
+    return redirect(url_for('irma_dashboard', open='modal-permohonan-surat'))
 
 
 @app.route('/dosen')
