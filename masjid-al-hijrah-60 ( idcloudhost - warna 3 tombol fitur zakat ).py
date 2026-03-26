@@ -37,7 +37,7 @@ app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB Limit
 app.secret_key = os.environ.get("SECRET_KEY", "fallback_dev_key")
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.permanent_session_lifetime = datetime.timedelta(days=30)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://alhijrahdelima_user:4lh1jr4hd3l1m5A!@localhost/alhijrahdelima'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///masjid.db'
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_size': 100, 'max_overflow': 200, 'pool_recycle': 280}
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -791,7 +791,7 @@ STYLES_HTML = """
           theme: {
             extend: {
               colors: {
-                emerald: {
+                sky: {
                   50: '#ecfdf5',
                   100: '#d1fae5',
                   400: '#34d399',
@@ -913,22 +913,22 @@ BASE_LAYOUT = """
             window.location.href = "https://wa.me/6282330890500?text=" + encodeURIComponent(msg);
         }
     </script>
-    <title>Masjid Al Hijrah</title>
+    <title>Sekolah Tinggi Ilmu Ekonomi STIESAM</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     {{ styles|safe }}
 </head>
 <body class="text-gray-800 antialiased {{ 'ramadhan-mode' if hide_nav else '' }}">
     {% set t_nav_bg = theme.nav_bg if theme and theme.nav_bg else 'glass-nav' %}
-    {% set t_icon_bg = theme.icon_bg if theme and theme.icon_bg else 'bg-emerald-100' %}
-    {% set t_icon_text = theme.icon_text if theme and theme.icon_text else 'text-emerald-600' %}
-    {% set t_title_text = theme.title_text if theme and theme.title_text else 'text-emerald-600' %}
-    {% set t_link_hover = theme.link_hover if theme and theme.link_hover else 'hover:text-emerald-600' %}
-    {% set t_link_active = theme.link_active if theme and theme.link_active else 'text-emerald-600 font-bold' %}
-    {% set t_btn_primary = theme.btn_primary if theme and theme.btn_primary else 'bg-emerald-500 text-white hover:bg-emerald-600' %}
+    {% set t_icon_bg = theme.icon_bg if theme and theme.icon_bg else 'bg-sky-100' %}
+    {% set t_icon_text = theme.icon_text if theme and theme.icon_text else 'text-sky-600' %}
+    {% set t_title_text = theme.title_text if theme and theme.title_text else 'text-sky-600' %}
+    {% set t_link_hover = theme.link_hover if theme and theme.link_hover else 'hover:text-sky-600' %}
+    {% set t_link_active = theme.link_active if theme and theme.link_active else 'text-sky-600 font-bold' %}
+    {% set t_btn_primary = theme.btn_primary if theme and theme.btn_primary else 'bg-sky-500 text-white hover:bg-sky-600' %}
     {% set t_bottom_bg = theme.bottom_nav_bg if theme and theme.bottom_nav_bg else 'glass-bottom' %}
-    {% set t_bottom_active = theme.bottom_active if theme and theme.bottom_active else 'text-emerald-600' %}
-    {% set t_bottom_btn_bg = theme.bottom_btn_bg if theme and theme.bottom_btn_bg else 'bg-emerald-500' %}
-    {% set t_bottom_btn_text = theme.bottom_btn_text if theme and theme.bottom_btn_text else 'text-emerald-600' %}
+    {% set t_bottom_active = theme.bottom_active if theme and theme.bottom_active else 'text-sky-600' %}
+    {% set t_bottom_btn_bg = theme.bottom_btn_bg if theme and theme.bottom_btn_bg else 'bg-sky-500' %}
+    {% set t_bottom_btn_text = theme.bottom_btn_text if theme and theme.bottom_btn_text else 'text-sky-600' %}
     {% set t_bottom_text_inactive = theme.bottom_text_inactive if theme and theme.bottom_text_inactive else 'text-gray-400' %}
 
     <!-- DESKTOP NAVBAR -->
@@ -937,10 +937,10 @@ BASE_LAYOUT = """
         <div class="max-w-7xl mx-auto w-full flex justify-between items-center">
              <div class="flex items-center gap-4">
                  <div class="{{ t_icon_bg }} p-2 rounded-xl">
-                    <i class="fas fa-mosque {{ t_icon_text }} text-2xl"></i>
+                    <i class="fas fa-university {{ t_icon_text }} text-2xl"></i>
                  </div>
                  <div>
-                    <h1 class="text-xl font-bold {{ t_title_text }} leading-tight">Masjid Al Hijrah</h1>
+                    <h1 class="text-xl font-bold {{ t_title_text }} leading-tight">Sekolah Tinggi Ilmu Ekonomi STIESAM</h1>
                     <p class="text-xs text-gray-500 font-medium">Samarinda, Kalimantan Timur</p>
                  </div>
              </div>
@@ -958,10 +958,10 @@ BASE_LAYOUT = """
     <header class="md:hidden fixed top-0 left-0 w-full z-50 {{ t_nav_bg }} shadow-sm px-4 py-3 flex justify-between items-center max-w-md mx-auto right-0">
         <div>
             <p class="text-xs text-gray-500 font-medium">Assalamualaikum</p>
-            <h1 class="text-lg font-bold {{ t_title_text }} leading-tight">Masjid Al Hijrah</h1>
+            <h1 class="text-lg font-bold {{ t_title_text }} leading-tight">Sekolah Tinggi Ilmu Ekonomi STIESAM</h1>
         </div>
         <div class="text-right">
-            <p class="text-[10px] font-bold {{ t_icon_text }} {{ t_icon_bg }} px-2 py-1 rounded-full border border-emerald-200" id="hijri-date">Loading...</p>
+            <p class="text-[10px] font-bold {{ t_icon_text }} {{ t_icon_bg }} px-2 py-1 rounded-full border border-sky-200" id="hijri-date">Loading...</p>
         </div>
     </header>
     {% endif %}
@@ -1003,7 +1003,7 @@ BASE_LAYOUT = """
             
             <!-- Tabs -->
             <div id="infaq-tabs" class="flex p-1 bg-gray-100 rounded-xl mb-6">
-                <button onclick="switchInfaqTab('masjid')" id="tab-btn-masjid" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-emerald-600 transition">Masjid</button>
+                <button onclick="switchInfaqTab('masjid')" id="tab-btn-masjid" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-sky-600 transition">Masjid</button>
                 <button onclick="switchInfaqTab('qurban')" id="tab-btn-qurban" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition">Qurban</button>
                 <button onclick="switchInfaqTab('zakat')" id="tab-btn-zakat" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition">Zakat</button>
             </div>
@@ -1014,12 +1014,12 @@ BASE_LAYOUT = """
                     <img src="/uploads/{{ settings.get('infaq_qris_image', '') if settings else '' }}" onerror="this.src='https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=MasjidAlHijrahInfaq'" class="w-48 h-48 mx-auto object-contain bg-white p-2 rounded-xl border border-gray-200">
                     <p class="text-xs text-gray-400 mt-2">Scan QRIS (Masjid)</p>
                 </div>
-                <div id="infaq-box-masjid" class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex justify-between items-center">
+                <div id="infaq-box-masjid" class="bg-sky-50 p-4 rounded-2xl border border-sky-100 flex justify-between items-center">
                     <div>
-                        <p class="text-[10px] text-emerald-600 font-bold uppercase infaq-label">Rekening Masjid</p>
+                        <p class="text-[10px] text-sky-600 font-bold uppercase infaq-label">Rekening Masjid</p>
                         <p class="font-mono font-bold text-gray-800 text-sm infaq-text" id="rek-masjid-text">{{ settings.get('infaq_rekening_masjid', '7123456789 (BSI)') if settings else 'Loading...' }}</p>
                     </div>
-                    <button onclick="copyText('rek-masjid-text')" class="text-emerald-500 hover:text-emerald-700 infaq-icon"><i class="fas fa-copy"></i></button>
+                    <button onclick="copyText('rek-masjid-text')" class="text-sky-500 hover:text-sky-700 infaq-icon"><i class="fas fa-copy"></i></button>
                 </div>
             </div>
 
@@ -1061,7 +1061,7 @@ BASE_LAYOUT = """
             <div class="mt-6 pt-4 border-t border-gray-100">
                 <div class="mb-3">
                     <label class="block text-[10px] font-bold text-gray-400 mb-1">Keperluan (untuk Konfirmasi WA)</label>
-                    <select id="infaq-type-select" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <select id="infaq-type-select" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
                         <option value="Masjid">Masjid</option>
                         <option value="Qurban">Qurban</option>
                         <option value="Zakat">Zakat</option>
@@ -1134,7 +1134,7 @@ BASE_LAYOUT = """
                 ['masjid', 'qurban', 'zakat'].forEach(t => {
                     const btn = document.getElementById('tab-btn-'+t);
                     if(t === tab) {
-                        btn.className = "flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-emerald-600 transition";
+                        btn.className = "flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-sky-600 transition";
                     } else {
                         btn.className = "flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition";
                     }
@@ -1174,7 +1174,7 @@ BASE_LAYOUT = """
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-login-admin')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-user-shield text-emerald-500 mr-2"></i>Login Admin</h3>
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-user-shield text-sky-500 mr-2"></i>Login Admin</h3>
                 <button onclick="closeModal('modal-login-admin')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
             <form action="/login" method="POST" class="space-y-4">
@@ -1182,13 +1182,13 @@ BASE_LAYOUT = """
 
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">Username</label>
-                    <input type="text" name="username" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                    <input type="text" name="username" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
-                    <input type="password" name="password" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                    <input type="password" name="password" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
                 </div>
-                <button type="submit" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Masuk</button>
+                <button type="submit" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-sky-600 transition">Masuk</button>
             </form>
         </div>
     </div>
@@ -1371,11 +1371,11 @@ BASE_LAYOUT = """
             } else {
                 // DEFAULT HOME (Emerald)
                 container.classList.add('bg-white', 'text-gray-800');
-                title.classList.add('text-emerald-600');
+                title.classList.add('text-sky-600');
                 tabs.classList.add('bg-gray-100');
                 
                 // Reset boxes to distinct colors for Home
-                document.getElementById('infaq-box-masjid').className = "bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex justify-between items-center";
+                document.getElementById('infaq-box-masjid').className = "bg-sky-50 p-4 rounded-2xl border border-sky-100 flex justify-between items-center";
                 document.getElementById('infaq-box-qurban').className = "bg-orange-50 p-4 rounded-2xl border border-orange-100 flex justify-between items-center";
                 document.getElementById('infaq-box-zakat').className = "bg-blue-50 p-4 rounded-2xl border border-blue-100 flex justify-between items-center";
                 
@@ -1389,10 +1389,10 @@ BASE_LAYOUT = """
                     }
                 };
                 
-                resetInner('infaq-box-masjid', 'emerald');
+                resetInner('infaq-box-masjid', 'sky');
                 resetInner('infaq-box-qurban', 'orange');
                 resetInner('infaq-box-zakat', 'blue');
-                inputs.forEach(i => i.className = "w-full text-xs p-2 border rounded infaq-input-text text-emerald-800 bg-white");
+                inputs.forEach(i => i.className = "w-full text-xs p-2 border rounded infaq-input-text text-sky-800 bg-white");
             }
         }
 
@@ -1548,7 +1548,7 @@ FITUR_MASJID_HTML = """
 </style>
 <div class="pt-20 md:pt-32 pb-32 px-5 md:px-8">
     <div class="text-center mb-10">
-        <h2 class="text-3xl md:text-4xl font-bold text-emerald-800 mb-4">Fitur Ekosistem Digital Masjid</h2>
+        <h2 class="text-3xl md:text-4xl font-bold text-sky-800 mb-4">Fitur Ekosistem Digital Masjid</h2>
         <p class="text-gray-600">Jelajahi berbagai layanan spiritual dan fungsional kami.</p>
     </div>
 
@@ -1774,12 +1774,12 @@ FITUR_MASJID_HTML = """
         <div class="relative bg-white w-full max-w-md mx-4 p-6 rounded-3xl shadow-2xl animate-[slideUp_0.3s_ease-out] flex flex-col max-h-[90vh]">
             <button onclick="closeModal('modal-fitur-puasa')" class="absolute top-4 right-4 bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center z-10">&times;</button>
             
-            <h3 class="text-xl font-bold text-emerald-700 mb-2"><i class="fas fa-calendar-alt mr-2"></i>Kalender Puasa Sunnah</h3>
+            <h3 class="text-xl font-bold text-sky-700 mb-2"><i class="fas fa-calendar-alt mr-2"></i>Kalender Puasa Sunnah</h3>
             
             <!-- Tanggal Hari Ini & Peringatan -->
-            <div class="bg-emerald-50 rounded-2xl p-3 text-center mb-4 flex-shrink-0">
-                <p class="text-[10px] text-emerald-600 font-bold uppercase mb-1">Tanggal Hari Ini</p>
-                <h4 id="fitur-hijri-date" class="text-lg font-bold text-emerald-800">Loading...</h4>
+            <div class="bg-sky-50 rounded-2xl p-3 text-center mb-4 flex-shrink-0">
+                <p class="text-[10px] text-sky-600 font-bold uppercase mb-1">Tanggal Hari Ini</p>
+                <h4 id="fitur-hijri-date" class="text-lg font-bold text-sky-800">Loading...</h4>
             </div>
             <div id="puasa-alarm" class="hidden bg-yellow-50 text-yellow-700 p-2 rounded-xl border border-yellow-200 text-xs font-bold text-center animate-pulse mb-4 flex-shrink-0">
                 Peringatan Puasa Sunnah!
@@ -1817,12 +1817,12 @@ FITUR_MASJID_HTML = """
     <!-- Sub-Modal: Penjelasan Puasa Sunnah -->
     <div id="modal-puasa-detail" class="fixed inset-0 z-[250] hidden flex items-center justify-center bg-black/60 backdrop-blur-sm">
         <div class="bg-white rounded-3xl w-full max-w-xs mx-4 p-6 shadow-2xl animate-[popupFadeIn_0.3s_ease-out] relative">
-            <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-lg -mt-12">
+            <div class="w-16 h-16 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-lg -mt-12">
                 <i class="fas fa-star-and-crescent text-2xl"></i>
             </div>
-            <p id="puasa-detail-date" class="text-[10px] font-bold text-emerald-500 text-center uppercase tracking-widest mb-1"></p>
+            <p id="puasa-detail-date" class="text-[10px] font-bold text-sky-500 text-center uppercase tracking-widest mb-1"></p>
             <h3 id="puasa-detail-title" class="text-xl font-bold text-gray-800 text-center mb-3 leading-tight"></h3>
-            <div class="w-12 h-1 bg-emerald-200 mx-auto rounded-full mb-4"></div>
+            <div class="w-12 h-1 bg-sky-200 mx-auto rounded-full mb-4"></div>
             <p id="puasa-detail-desc" class="text-sm text-gray-600 text-center leading-relaxed mb-6"></p>
             <button onclick="closeModal('modal-puasa-detail')" class="w-full bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold py-3 rounded-xl transition">Tutup</button>
         </div>
@@ -2183,7 +2183,7 @@ FITUR_MASJID_HTML = """
     async function loadCalendar(month, year) {
         const grid = document.getElementById('calendar-grid');
         const header = document.getElementById('calendar-month-year');
-        grid.innerHTML = '<div class="col-span-7 py-10 text-center"><i class="fas fa-spinner fa-spin text-emerald-500 text-2xl"></i></div>';
+        grid.innerHTML = '<div class="col-span-7 py-10 text-center"><i class="fas fa-spinner fa-spin text-sky-500 text-2xl"></i></div>';
         
         const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
         header.innerText = `${monthNames[month - 1]} ${year}`;
@@ -2223,7 +2223,7 @@ FITUR_MASJID_HTML = """
                 let onclickEvent = ``;
 
                 if (fastingData) {
-                    bgClass = "bg-[#d1fae5] hover:bg-[#bbf7d0] border-transparent"; // emerald-100 / green-200
+                    bgClass = "bg-[#d1fae5] hover:bg-[#bbf7d0] border-transparent"; // sky-100 / green-200
                     
                     // Escape single quotes for inline JS injection
                     const safeTitle = fastingData.title.replace(/'/g, "\\'");
@@ -2237,8 +2237,8 @@ FITUR_MASJID_HTML = """
                 // Add current day highlight if it's today
                 const today = new Date();
                 if (gDay === today.getDate() && month === today.getMonth() + 1 && year === today.getFullYear()) {
-                     textClass = "text-emerald-700 font-bold underline";
-                     if(!fastingData) bgClass = "bg-emerald-50 border-emerald-200";
+                     textClass = "text-sky-700 font-bold underline";
+                     if(!fastingData) bgClass = "bg-sky-50 border-sky-200";
                 }
 
                 html += `
@@ -2504,13 +2504,13 @@ HOME_HTML = """
         <!-- LEFT COLUMN: WELCOME (Desktop Only) -->
         <div class="hidden md:block pl-2">
             <p class="text-xl text-gray-500 font-medium mb-2">Assalamualaikum Warahmatullahi Wabarakatuh</p>
-            <h1 class="text-5xl font-bold text-emerald-800 leading-tight mb-6">Selamat Datang di<br>Masjid Al Hijrah</h1>
+            <h1 class="text-5xl font-bold text-sky-800 leading-tight mb-6">Selamat Datang di<br>Sekolah Tinggi Ilmu Ekonomi STIESAM</h1>
             <p class="text-gray-600 text-lg leading-relaxed mb-8">
-                Pusat peribadatan dan kegiatan umat Islam di Samarinda. Mari makmurkan masjid dengan sholat berjamaah, infaq, dan kegiatan sosial untuk kemaslahatan umat.
+                Mencetak generasi akademisi unggul, profesional, dan berintegritas. Bergabunglah bersama kami mengukir prestasi demi masa depan ekonomi yang gemilang.
             </p>
             <div class="flex gap-4">
-                <a href="/agenda" class="bg-emerald-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-emerald-700 transition transform hover:scale-105">Lihat Agenda</a>
-                <a href="/donate" class="bg-white text-emerald-600 border-2 border-emerald-100 px-8 py-3 rounded-full font-bold hover:border-emerald-600 hover:text-emerald-700 transition transform hover:scale-105">Infaq Sekarang</a>
+                <a href="/agenda" class="bg-sky-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-sky-700 transition transform hover:scale-105">Lihat Agenda</a>
+                <a href="/donate" class="bg-white text-sky-600 border-2 border-sky-100 px-8 py-3 rounded-full font-bold hover:border-sky-600 hover:text-sky-700 transition transform hover:scale-105">Infaq Sekarang</a>
             </div>
         </div>
 
@@ -2518,8 +2518,8 @@ HOME_HTML = """
         <div class="flex flex-col gap-6">
             
             <!-- PRAYER CARD -->
-            <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-3xl p-6 md:p-10 text-white shadow-xl relative overflow-hidden transform md:hover:scale-[1.02] transition-transform duration-500">
-                <a href="{{ url_for('fitur_masjid') }}" class="absolute top-4 right-4 bg-white/20 hover:bg-white text-white hover:text-emerald-700 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-[0_0_15px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_rgba(255,255,255,0.6)] z-20 flex items-center gap-1 backdrop-blur-sm">
+            <div class="bg-gradient-to-br from-sky-500 to-sky-600 rounded-3xl p-6 md:p-10 text-white shadow-xl relative overflow-hidden transform md:hover:scale-[1.02] transition-transform duration-500">
+                <a href="{{ url_for('fitur_masjid') }}" class="absolute top-4 right-4 bg-white/20 hover:bg-white text-white hover:text-sky-700 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-[0_0_15px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_rgba(255,255,255,0.6)] z-20 flex items-center gap-1 backdrop-blur-sm">
                     <i class="fas fa-mosque"></i> Fitur Lainnya
                 </a>
                 <div class="absolute top-0 right-0 opacity-10 transform translate-x-4 -translate-y-4">
@@ -2557,7 +2557,7 @@ HOME_HTML = """
                 </div>
             </div>
 
-            <!-- RAMADHAN BANNER (MOVED HERE) -->
+            <!-- PORTAL TATA USAHA BANNER -->
             <a href="/ramadhan" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-[#0b162c]">
                 <!-- Background & Texture -->
                 <div class="absolute inset-0 bg-[#0b162c]"></div>
@@ -2565,13 +2565,13 @@ HOME_HTML = """
                 
                 <!-- Crescent Moon Background -->
                 <div class="absolute right-12 top-1/2 transform -translate-y-1/2 opacity-10 text-[#FFD700] pointer-events-none">
-                    <i class="fas fa-moon text-9xl"></i>
+                    <i class="fas fa-desktop text-9xl"></i>
                 </div>
                 
                 <div class="relative px-6 py-6 md:px-8 md:py-8 flex items-center justify-between">
                     <div>
-                        <h2 class="text-2xl md:text-3xl font-bold text-[#FFD700] mb-1 font-sans tracking-wide leading-none">Ramadhan Mode</h2>
-                        <p class="text-white/60 text-xs md:text-sm font-medium">Akses Dashboard Khusus Ramadhan</p>
+                        <h2 class="text-2xl md:text-3xl font-bold text-[#FFD700] mb-1 font-sans tracking-wide leading-none">Portal Tata Usaha</h2>
+                        <p class="text-white/60 text-xs md:text-sm font-medium">Pusat Layanan Administrasi</p>
                     </div>
                     
                     <!-- Gold Circle Button -->
@@ -2581,38 +2581,49 @@ HOME_HTML = """
                 </div>
             </a>
 
-            <!-- IRMA BANNER -->
-            <a href="/irma" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-[#A0B391] mt-4">
-                <div class="absolute inset-0 bg-gradient-to-r from-[#A0B391] to-[#FFB6C1]"></div>
-                <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
-                
-                <div class="absolute right-12 top-1/2 transform -translate-y-1/2 opacity-20 text-white pointer-events-none">
-                    <i class="fas fa-user-friends text-9xl"></i>
-                </div>
-                
-                <div class="relative px-6 py-6 md:px-8 md:py-8 flex items-center justify-between">
-                    <div>
-                        <h2 class="text-2xl md:text-3xl font-bold text-white mb-1 font-sans tracking-wide leading-none">IRMA Dashboard</h2>
-                        <p class="text-white/80 text-xs md:text-sm font-medium">Ruang Kreatif & Kegiatan Remaja</p>
+            <!-- PORTAL MAHASISWA & DOSEN -->
+            <div class="relative floating-card overflow-hidden rounded-3xl shadow-xl border border-gray-200 mt-4 flex h-32 md:h-40">
+                <!-- Zona Kiri: Mahasiswa -->
+                <a href="/mahasiswa" class="w-1/2 relative group hover:z-10 transition-all duration-300">
+                    <div class="absolute inset-0 bg-gradient-to-r from-blue-500 to-blue-400 group-hover:scale-105 transition-transform duration-300"></div>
+                    <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+                    <div class="absolute -right-8 top-1/2 transform -translate-y-1/2 opacity-20 text-white pointer-events-none group-hover:scale-110 transition-transform duration-300">
+                        <i class="fas fa-user-graduate text-7xl md:text-8xl"></i>
                     </div>
-                    
-                    <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#A0B391] shadow-[0_0_15px_rgba(255,255,255,0.4)] group-hover:scale-110 transition-transform duration-300 relative z-10">
-                        <i class="fas fa-arrow-right text-lg"></i>
+                    <div class="relative h-full flex flex-col justify-center px-4 md:px-6 z-10">
+                        <h2 class="text-xl md:text-2xl font-bold text-white mb-1 font-sans tracking-wide leading-none">Portal Mahasiswa</h2>
+                        <p class="text-white/80 text-[10px] md:text-xs font-medium">Akademik & Keuangan</p>
                     </div>
-                </div>
-            </a>
+                </a>
+                
+                <!-- Garis Pembatas Diagonal -->
+                <div class="absolute inset-y-0 left-1/2 transform -translate-x-1/2 w-4 z-20 pointer-events-none" style="background: linear-gradient(135deg, transparent 45%, white 45%, white 55%, transparent 55%);"></div>
+
+                <!-- Zona Kanan: Dosen -->
+                <a href="/dosen" class="w-1/2 relative group hover:z-10 transition-all duration-300">
+                    <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-orange-500 group-hover:scale-105 transition-transform duration-300"></div>
+                    <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+                    <div class="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 opacity-20 text-white pointer-events-none group-hover:scale-110 transition-transform duration-300">
+                        <i class="fas fa-chalkboard-teacher text-7xl md:text-8xl"></i>
+                    </div>
+                    <div class="relative h-full flex flex-col justify-center px-4 md:px-6 items-end text-right z-10 pl-8">
+                        <h2 class="text-xl md:text-2xl font-bold text-white mb-1 font-sans tracking-wide leading-none">Portal Dosen</h2>
+                        <p class="text-white/80 text-[10px] md:text-xs font-medium">Persetujuan & Nilai</p>
+                    </div>
+                </a>
+            </div>
 
         </div>
     </div>
 
     <!-- MAIN GRID MENU -->
-    <h3 class="text-gray-800 font-bold text-lg mb-4 pl-1 border-l-4 border-emerald-500 leading-none py-1 ml-1 md:text-2xl md:mb-8">&nbsp;Menu Utama</h3>
+    <h3 class="text-gray-800 font-bold text-lg mb-4 pl-1 border-l-4 border-sky-500 leading-none py-1 ml-1 md:text-2xl md:mb-8">&nbsp;Menu Utama</h3>
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8 mb-8">
-        <a href="/finance" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
-            <div class="bg-emerald-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                <i class="fas fa-wallet text-2xl md:text-3xl"></i>
+        <a href="javascript:void(0)" onclick="openModal('modal-pmb')" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+            <div class="bg-sky-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-sky-600 group-hover:bg-sky-500 group-hover:text-white transition-colors">
+                <i class="fas fa-user-graduate text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-emerald-600">Laporan Kas</span>
+            <span class="text-sm md:text-base font-semibold text-center text-gray-700 group-hover:text-sky-600 leading-tight">Penerimaan Mahasiswa Baru</span>
         </a>
         <a href="/agenda" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
             <div class="bg-blue-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
@@ -2701,17 +2712,17 @@ HOME_HTML = """
 
     <!-- KALKULATOR ISLAM SECTION -->
     <div id="kalkulator-section" class="mb-6">
-        <button onclick="toggleCalc()" class="w-full bg-white p-6 rounded-3xl shadow-lg border border-emerald-100 flex justify-between items-center group hover:bg-emerald-50 transition-all duration-300">
+        <button onclick="toggleCalc()" class="w-full bg-white p-6 rounded-3xl shadow-lg border border-sky-100 flex justify-between items-center group hover:bg-sky-50 transition-all duration-300">
             <div class="flex items-center gap-4">
-                <div class="bg-emerald-100 p-3 rounded-xl text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors shadow-sm">
+                <div class="bg-sky-100 p-3 rounded-xl text-sky-600 group-hover:bg-sky-500 group-hover:text-white transition-colors shadow-sm">
                     <i class="fas fa-calculator text-2xl"></i>
                 </div>
                 <div class="text-left">
-                    <h3 class="text-lg font-bold text-gray-800 group-hover:text-emerald-700">Kalkulator Islam</h3>
+                    <h3 class="text-lg font-bold text-gray-800 group-hover:text-sky-700">Kalkulator Islam</h3>
                     <p class="text-xs text-gray-500 font-medium">6 Alat Hitung Otomatis (Waris, Zakat, dll)</p>
                 </div>
             </div>
-            <div id="calc-chevron" class="bg-gray-50 w-10 h-10 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-emerald-500 transition-all duration-300">
+            <div id="calc-chevron" class="bg-gray-50 w-10 h-10 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-sky-500 transition-all duration-300">
                  <i class="fas fa-chevron-down transform transition-transform duration-300"></i>
             </div>
         </button>
@@ -2719,34 +2730,34 @@ HOME_HTML = """
         <div id="calc-content" class="hidden mt-6 animate-[slideDown_0.3s_ease-out]">
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                  <!-- WARIS -->
-                 <button onclick="openModal('modal-waris')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-users"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Waris</span>
+                 <button onclick="openModal('modal-waris')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-users"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Waris</span>
                  </button>
                  <!-- ZAKAT -->
-                 <button onclick="openModal('modal-zakat')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-hand-holding-usd"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Zakat Maal</span>
+                 <button onclick="openModal('modal-zakat')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-hand-holding-usd"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Zakat Maal</span>
                  </button>
                  <!-- TAHAJJUD -->
-                 <button onclick="openModal('modal-tahajjud')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-moon"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Tahajjud</span>
+                 <button onclick="openModal('modal-tahajjud')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-moon"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Tahajjud</span>
                  </button>
                  <!-- KHATAM -->
-                 <button onclick="openModal('modal-khatam')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-quran"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Target Khatam</span>
+                 <button onclick="openModal('modal-khatam')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-quran"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Target Khatam</span>
                  </button>
                  <!-- FIDYAH -->
-                 <button onclick="openModal('modal-fidyah')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-utensils"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Fidyah</span>
+                 <button onclick="openModal('modal-fidyah')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-utensils"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Fidyah</span>
                  </button>
                  <!-- HIJRI -->
-                 <button onclick="openModal('modal-hijri')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-calendar-check"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Konverter Hijri</span>
+                 <button onclick="openModal('modal-hijri')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-calendar-check"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Konverter Hijri</span>
                  </button>
              </div>
         </div>
@@ -2754,17 +2765,17 @@ HOME_HTML = """
 
     <!-- STATIC PWA INSTALL BUTTON (NEW) -->
     <div id="pwa-static-btn-container" class="pwa-btn-container mb-6 hidden">
-        <button onclick="triggerInstall()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-4 rounded-3xl shadow-lg border border-emerald-400 flex justify-between items-center group hover:scale-[1.02] transition-all duration-300">
+        <button onclick="triggerInstall()" class="w-full bg-gradient-to-r from-sky-500 to-teal-600 text-white p-4 rounded-3xl shadow-lg border border-sky-400 flex justify-between items-center group hover:scale-[1.02] transition-all duration-300">
             <div class="flex items-center gap-4">
                 <div class="bg-white/20 p-3 rounded-xl text-white shadow-inner">
                     <i class="fas fa-download text-2xl"></i>
                 </div>
                 <div class="text-left">
                     <h3 class="text-lg font-bold text-white">Install Aplikasi</h3>
-                    <p class="text-xs text-emerald-100 font-medium">Akses Cepat Tanpa Buka Browser</p>
+                    <p class="text-xs text-sky-100 font-medium">Akses Cepat Tanpa Buka Browser</p>
                 </div>
             </div>
-            <div class="bg-white/20 w-10 h-10 rounded-full flex items-center justify-center text-white group-hover:bg-white group-hover:text-emerald-600 transition-all duration-300">
+            <div class="bg-white/20 w-10 h-10 rounded-full flex items-center justify-center text-white group-hover:bg-white group-hover:text-sky-600 transition-all duration-300">
                  <i class="fas fa-arrow-right"></i>
             </div>
         </button>
@@ -2797,7 +2808,7 @@ HOME_HTML = """
                 <button onclick="closeModal('modal-developer'); stopDevAudio()" class="absolute top-0 right-0 md:-right-4 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center z-10">&times;</button>
                 
                 <h2 class="text-xs font-bold text-gray-400 tracking-[0.3em] mb-2 uppercase">DEVELOPER</h2>
-                <h1 class="text-3xl font-extrabold text-emerald-800 mb-8" style="white-space: nowrap; font-size: clamp(1.5rem, 5vw, 2.5rem);">SAMARINDA WEB CREATIVE</h1>
+                <h1 class="text-3xl font-extrabold text-sky-800 mb-8" style="white-space: nowrap; font-size: clamp(1.5rem, 5vw, 2.5rem);">SAMARINDA WEB CREATIVE</h1>
                 
                 <div class="mb-8">
                     <img src="/static/Samarinda_Web_Creative_Logo-removebg-preview.png" alt="Logo Developer" class="h-32 object-contain mx-auto drop-shadow-2xl">
@@ -2889,7 +2900,7 @@ HOME_HTML = """
                         <span class="font-bold text-gray-700 text-sm">Suara Alam</span>
                         <div class="flex items-center gap-2">
                             <button onclick="playAudio('alam')" class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors"><i class="fas fa-play"></i></button>
-                            <button onclick="switchNatureAudio()" class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-colors"><i class="fas fa-step-forward text-xs"></i></button>
+                            <button onclick="switchNatureAudio()" class="w-8 h-8 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center hover:bg-sky-500 hover:text-white transition-colors"><i class="fas fa-step-forward text-xs"></i></button>
                         </div>
                     </div>
                     <div class="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-gray-100">
@@ -3118,27 +3129,27 @@ HOME_HTML = """
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-waris')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-users text-emerald-500 mr-2"></i>Kalkulator Waris</h3>
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-users text-sky-500 mr-2"></i>Kalkulator Waris</h3>
                 <button onclick="closeModal('modal-waris')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
             <div class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">Total Harta (Rp)</label>
-                    <input type="number" id="waris-harta" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    <input type="number" id="waris-harta" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">Anak Laki-laki</label>
-                        <input type="number" id="waris-sons" value="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        <input type="number" id="waris-sons" value="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">Anak Perempuan</label>
-                        <input type="number" id="waris-daughters" value="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        <input type="number" id="waris-daughters" value="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
                     </div>
                 </div>
-                <button onclick="calcWaris()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Waris</button>
+                <button onclick="calcWaris()" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-sky-600 transition">Hitung Waris</button>
                 
-                <div id="result-waris" class="hidden mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-sm"></div>
+                <div id="result-waris" class="hidden mt-4 bg-sky-50 p-4 rounded-xl border border-sky-100 text-sm"></div>
             </div>
         </div>
     </div>
@@ -3148,7 +3159,7 @@ HOME_HTML = """
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-zakat')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-hand-holding-usd text-emerald-500 mr-2"></i>Zakat Maal</h3>
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-hand-holding-usd text-sky-500 mr-2"></i>Zakat Maal</h3>
                 <button onclick="closeModal('modal-zakat')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
             </div>
             <div class="space-y-4">
@@ -3164,7 +3175,7 @@ HOME_HTML = """
                     <label class="block text-xs font-bold text-gray-500 mb-1">Simpanan Emas (gram)</label>
                     <input type="number" id="zakat-gold-grams" value="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
-                <button onclick="calcZakat()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Cek Kewajiban</button>
+                <button onclick="calcZakat()" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-sky-600 transition">Cek Kewajiban</button>
                 <div id="result-zakat" class="hidden mt-4 p-4 rounded-xl border text-sm"></div>
             </div>
         </div>
@@ -3175,7 +3186,7 @@ HOME_HTML = """
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-tahajjud')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-moon text-emerald-500 mr-2"></i>Sepertiga Malam</h3>
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-moon text-sky-500 mr-2"></i>Sepertiga Malam</h3>
                 <button onclick="closeModal('modal-tahajjud')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
             </div>
             <div class="space-y-4">
@@ -3189,7 +3200,7 @@ HOME_HTML = """
                         <input type="time" id="tahajjud-subuh" value="04:45" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                     </div>
                 </div>
-                <button onclick="calcTahajjud()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Waktu</button>
+                <button onclick="calcTahajjud()" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-sky-600 transition">Hitung Waktu</button>
                 <div id="result-tahajjud" class="hidden mt-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-center">
                     <p class="text-xs text-indigo-400 font-bold uppercase tracking-wider mb-1">Waktu Terbaik</p>
                     <h2 class="text-3xl font-bold text-indigo-700" id="tahajjud-time">--:--</h2>
@@ -3204,7 +3215,7 @@ HOME_HTML = """
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-khatam')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-quran text-emerald-500 mr-2"></i>Target Khatam</h3>
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-quran text-sky-500 mr-2"></i>Target Khatam</h3>
                 <button onclick="closeModal('modal-khatam')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
             </div>
             <div class="space-y-4">
@@ -3222,10 +3233,10 @@ HOME_HTML = """
                         <input type="number" id="khatam-freq" value="5" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                     </div>
                 </div>
-                <button onclick="calcKhatam()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Target</button>
-                <div id="result-khatam" class="hidden mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-center">
+                <button onclick="calcKhatam()" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-sky-600 transition">Hitung Target</button>
+                <div id="result-khatam" class="hidden mt-4 bg-sky-50 p-4 rounded-xl border border-sky-100 text-center">
                     <p class="text-gray-600 text-sm">Anda harus membaca:</p>
-                    <h2 class="text-3xl font-bold text-emerald-600 my-2"><span id="khatam-pages">0</span> Halaman</h2>
+                    <h2 class="text-3xl font-bold text-sky-600 my-2"><span id="khatam-pages">0</span> Halaman</h2>
                     <p class="text-xs text-gray-500">Setiap kali duduk membaca</p>
                 </div>
             </div>
@@ -3237,7 +3248,7 @@ HOME_HTML = """
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-fidyah')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-utensils text-emerald-500 mr-2"></i>Fidyah & Qadha</h3>
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-utensils text-sky-500 mr-2"></i>Fidyah & Qadha</h3>
                 <button onclick="closeModal('modal-fidyah')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
             </div>
             <div class="space-y-4">
@@ -3253,18 +3264,18 @@ HOME_HTML = """
                         <option value="Musafir">Musafir / Sakit Biasa</option>
                     </select>
                 </div>
-                <button onclick="calcFidyah()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Kewajiban</button>
+                <button onclick="calcFidyah()" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-sky-600 transition">Hitung Kewajiban</button>
                 <div id="result-fidyah" class="hidden mt-4 space-y-2">
                     <div class="bg-orange-50 p-3 rounded-xl border border-orange-100 flex justify-between items-center">
                         <span class="text-sm text-orange-800 font-bold">Qadha (Ganti Puasa)</span>
                         <span class="text-lg font-bold text-orange-600" id="fidyah-qadha">0 Hari</span>
                     </div>
-                    <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                        <p class="text-xs text-emerald-800 font-bold mb-1">Fidyah (Bayar)</p>
+                    <div class="bg-sky-50 p-3 rounded-xl border border-sky-100">
+                        <p class="text-xs text-sky-800 font-bold mb-1">Fidyah (Bayar)</p>
                         <div class="flex justify-between items-center">
-                            <span class="text-sm text-emerald-600" id="fidyah-rice">0 Kg Beras</span>
+                            <span class="text-sm text-sky-600" id="fidyah-rice">0 Kg Beras</span>
                             <span class="text-xs text-gray-400">atau</span>
-                            <span class="text-sm text-emerald-600" id="fidyah-money">Rp 0</span>
+                            <span class="text-sm text-sky-600" id="fidyah-money">Rp 0</span>
                         </div>
                     </div>
                 </div>
@@ -3277,7 +3288,7 @@ HOME_HTML = """
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-hijri')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-calendar-check text-emerald-500 mr-2"></i>Konverter Hijriyah</h3>
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-calendar-check text-sky-500 mr-2"></i>Konverter Hijriyah</h3>
                 <button onclick="closeModal('modal-hijri')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
             </div>
             <div class="space-y-4">
@@ -3285,10 +3296,10 @@ HOME_HTML = """
                     <label class="block text-xs font-bold text-gray-500 mb-1">Tanggal Masehi</label>
                     <input type="date" id="hijri-date-input" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
-                <button onclick="calcHijri()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Konversi</button>
-                <div id="result-hijri" class="hidden mt-4 bg-emerald-50 p-6 rounded-xl border border-emerald-100 text-center">
-                    <p class="text-xs text-emerald-500 font-bold uppercase tracking-wider mb-2">Tanggal Hijriyah</p>
-                    <h2 class="text-2xl font-bold text-emerald-800" id="hijri-output">...</h2>
+                <button onclick="calcHijri()" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-sky-600 transition">Konversi</button>
+                <div id="result-hijri" class="hidden mt-4 bg-sky-50 p-6 rounded-xl border border-sky-100 text-center">
+                    <p class="text-xs text-sky-500 font-bold uppercase tracking-wider mb-2">Tanggal Hijriyah</p>
+                    <h2 class="text-2xl font-bold text-sky-800" id="hijri-output">...</h2>
                 </div>
             </div>
         </div>
@@ -3780,10 +3791,10 @@ HOME_HTML = """
             ul.innerHTML = '';
             currentExplanation.sources.forEach(s => {
                 const li = document.createElement('li');
-                li.className = 'text-xs text-gray-600 mb-2 border-l-2 border-emerald-500 pl-2';
+                li.className = 'text-xs text-gray-600 mb-2 border-l-2 border-sky-500 pl-2';
                 const parts = s.split(' - ');
                 if(parts.length > 1) {
-                    li.innerHTML = `<span class="font-bold text-emerald-700">${parts[0]}</span> - ${parts[1]}`;
+                    li.innerHTML = `<span class="font-bold text-sky-700">${parts[0]}</span> - ${parts[1]}`;
                 } else {
                     li.innerText = s;
                 }
@@ -3807,7 +3818,7 @@ HOME_HTML = """
                 } else {
                     currentExplanation = res.explanation;
                     div.innerHTML = `
-                        <p class="font-bold text-emerald-800 mb-2">Hasil Pembagian:</p>
+                        <p class="font-bold text-sky-800 mb-2">Hasil Pembagian:</p>
                         <ul class="space-y-1 mb-4">
                             <li class="flex justify-between"><span>Anak Laki-laki (@):</span> <span class="font-bold">Rp ${Number(res.result.son_share).toLocaleString('id-ID')}</span></li>
                             <li class="flex justify-between"><span>Anak Perempuan (@):</span> <span class="font-bold">Rp ${Number(res.result.daughter_share).toLocaleString('id-ID')}</span></li>
@@ -3896,7 +3907,7 @@ HOME_HTML = """
                 const parent = document.getElementById('result-khatam');
                 if(!parent.querySelector('button')) {
                      const btn = document.createElement('button');
-                     btn.className = "w-full bg-emerald-100 text-emerald-600 text-xs font-bold py-2 rounded-lg hover:bg-emerald-200 transition flex items-center justify-center gap-2 mt-3";
+                     btn.className = "w-full bg-sky-100 text-sky-600 text-xs font-bold py-2 rounded-lg hover:bg-sky-200 transition flex items-center justify-center gap-2 mt-3";
                      btn.innerHTML = '<i class="fas fa-info-circle"></i> PENJELASAN PERHITUNGAN';
                      btn.onclick = showExplanation;
                      parent.appendChild(btn);
@@ -3944,7 +3955,7 @@ HOME_HTML = """
                 const parent = document.getElementById('result-hijri');
                 if(!parent.querySelector('button')) {
                      const btn = document.createElement('button');
-                     btn.className = "w-full bg-emerald-100 text-emerald-600 text-xs font-bold py-2 rounded-lg hover:bg-emerald-200 transition flex items-center justify-center gap-2 mt-3";
+                     btn.className = "w-full bg-sky-100 text-sky-600 text-xs font-bold py-2 rounded-lg hover:bg-sky-200 transition flex items-center justify-center gap-2 mt-3";
                      btn.innerHTML = '<i class="fas fa-info-circle"></i> PENJELASAN PERHITUNGAN';
                      btn.onclick = showExplanation;
                      parent.appendChild(btn);
@@ -3963,7 +3974,7 @@ HOME_HTML = """
        <i class="fas fa-sign-out-alt text-lg"></i>
     </a>
     {% else %}
-    <button onclick="openModal('modal-login-admin')" class="w-12 h-12 rounded-md bg-emerald-600 text-white shadow-xl flex items-center justify-center hover:bg-emerald-500 transition-all border-2 border-white">
+    <button onclick="openModal('modal-login-admin')" class="w-12 h-12 rounded-md bg-sky-600 text-white shadow-xl flex items-center justify-center hover:bg-sky-500 transition-all border-2 border-white">
        <i class="fas fa-user-shield text-lg"></i>
     </button>
     {% endif %}
@@ -3971,14 +3982,14 @@ HOME_HTML = """
     <!-- Quran & Yasin Stack -->
     <div class="flex flex-col items-center gap-4">
         <!-- Al-Qur'an Button (New) -->
-        <button onclick="openQuranModal()" class="w-14 h-14 rounded-full bg-emerald-600 text-white shadow-xl flex items-center justify-center hover:bg-emerald-500 hover:scale-110 transition-all duration-300 border-2 border-white relative group">
+        <button onclick="openQuranModal()" class="w-14 h-14 rounded-full bg-sky-600 text-white shadow-xl flex items-center justify-center hover:bg-sky-500 hover:scale-110 transition-all duration-300 border-2 border-white relative group">
             <i class="fas fa-book-quran text-xl"></i>
-            <span class="absolute right-full mr-2 bg-emerald-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Al-Qur'an</span>
+            <span class="absolute right-full mr-2 bg-sky-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Al-Qur'an</span>
         </button>
 
         <!-- Yasin Button -->
         <div class="animate-bounce-slow">
-            <button onclick="openYasinModal()" class="w-16 h-16 rounded-full bg-emerald-600 text-white shadow-2xl flex items-center justify-center hover:bg-emerald-500 hover:scale-110 transition-all duration-300 border-4 border-white">
+            <button onclick="openYasinModal()" class="w-16 h-16 rounded-full bg-sky-600 text-white shadow-2xl flex items-center justify-center hover:bg-sky-500 hover:scale-110 transition-all duration-300 border-4 border-white">
                 <i class="fas fa-book-open text-2xl"></i>
             </button>
         </div>
@@ -3990,7 +4001,7 @@ HOME_HTML = """
     <!-- Header -->
     <div class="fixed top-0 left-0 w-full bg-white z-10 shadow-sm border-b border-gray-100 px-5 py-4 flex justify-between items-center">
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+            <div class="w-10 h-10 rounded-full bg-sky-50 flex items-center justify-center text-sky-600">
                 <i class="fas fa-book-open"></i>
             </div>
             <div>
@@ -4007,14 +4018,14 @@ HOME_HTML = """
     <div class="pt-24 pb-10 px-5 md:px-8 max-w-3xl mx-auto h-full overflow-y-auto" id="yasin-content">
         <!-- Loading State -->
         <div id="yasin-loading" class="flex flex-col items-center justify-center py-20">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mb-4"></div>
             <p class="text-gray-500 text-sm">Mengambil Data Surat Yasin...</p>
         </div>
         
         <!-- Error State -->
         <div id="yasin-error" class="hidden text-center py-20">
             <p class="text-red-500 mb-2">Gagal memuat data.</p>
-            <button onclick="fetchYasin()" class="text-emerald-600 underline text-sm">Coba Lagi</button>
+            <button onclick="fetchYasin()" class="text-sky-600 underline text-sm">Coba Lagi</button>
         </div>
 
         <!-- Verses Container -->
@@ -4031,7 +4042,7 @@ HOME_HTML = """
     <!-- Header -->
     <div class="fixed top-0 left-0 w-full bg-white z-10 shadow-sm border-b border-gray-100 px-5 py-4 flex justify-between items-center">
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+            <div class="w-10 h-10 rounded-full bg-sky-50 flex items-center justify-center text-sky-600">
                 <i class="fas fa-book-quran"></i>
             </div>
             <div>
@@ -4048,14 +4059,14 @@ HOME_HTML = """
     <div class="pt-24 pb-10 px-5 md:px-8 max-w-3xl mx-auto h-full overflow-y-auto" id="quran-list-content">
         <!-- Loading State -->
         <div id="quran-list-loading" class="flex flex-col items-center justify-center py-20">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mb-4"></div>
             <p class="text-gray-500 text-sm">Mengambil Daftar Surat...</p>
         </div>
         
         <!-- Error State -->
         <div id="quran-list-error" class="hidden text-center py-20">
             <p class="text-red-500 mb-2">Gagal memuat daftar surat.</p>
-            <button onclick="fetchSurahList()" class="text-emerald-600 underline text-sm">Coba Lagi</button>
+            <button onclick="fetchSurahList()" class="text-sky-600 underline text-sm">Coba Lagi</button>
         </div>
 
         <!-- List Container -->
@@ -4079,7 +4090,7 @@ HOME_HTML = """
             </div>
         </div>
         <div class="flex items-center gap-2">
-            <button id="btn-quran-tajwid" onclick="toggleQuranTajwid()" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 hover:bg-emerald-100 transition shadow-sm flex items-center gap-1">
+            <button id="btn-quran-tajwid" onclick="toggleQuranTajwid()" class="text-xs font-bold text-sky-600 bg-sky-50 px-3 py-1.5 rounded-full border border-sky-200 hover:bg-sky-100 transition shadow-sm flex items-center gap-1">
                 <i class="fas fa-palette"></i> Tajwid
             </button>
             <button onclick="closeQuranModal()" class="w-10 h-10 rounded-full bg-gray-50 text-gray-500 hover:bg-gray-100 flex items-center justify-center transition-colors">
@@ -4089,19 +4100,19 @@ HOME_HTML = """
     </div>
 
     <!-- Audio Player (Sticky under header) -->
-    <div class="fixed top-[72px] left-0 w-full bg-emerald-50 z-10 border-b border-emerald-100 px-5 py-3 flex flex-col gap-2">
+    <div class="fixed top-[72px] left-0 w-full bg-sky-50 z-10 border-b border-sky-100 px-5 py-3 flex flex-col gap-2">
         <div class="flex items-center justify-between w-full">
-            <p class="text-xs text-emerald-800 font-bold"><i class="fas fa-volume-up mr-1"></i> Murottal (Misyari Rasyid)</p>
+            <p class="text-xs text-sky-800 font-bold"><i class="fas fa-volume-up mr-1"></i> Murottal (Misyari Rasyid)</p>
             <audio id="quran-audio-player" controls class="h-8 w-48 md:w-64"></audio>
         </div>
-        <input type="range" id="quran-seeker" value="0" class="w-full h-1 bg-emerald-200 rounded-lg appearance-none cursor-pointer">
+        <input type="range" id="quran-seeker" value="0" class="w-full h-1 bg-sky-200 rounded-lg appearance-none cursor-pointer">
     </div>
 
     <!-- Content -->
     <div class="pt-48 pb-10 px-5 md:px-8 max-w-3xl mx-auto h-full overflow-y-auto" id="quran-detail-content">
         <!-- Loading -->
         <div id="quran-detail-loading" class="flex flex-col items-center justify-center py-20">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mb-4"></div>
             <p class="text-gray-500 text-sm">Membuka Ayat...</p>
         </div>
         
@@ -4110,7 +4121,7 @@ HOME_HTML = """
              <!-- Verses injected here -->
         </div>
 
-        <div id="quran-detail-tajwid-legend" class="hidden sticky bottom-4 mx-auto max-w-sm bg-white/90 backdrop-blur-md border border-emerald-100 p-3 rounded-2xl shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] z-20 mt-4">
+        <div id="quran-detail-tajwid-legend" class="hidden sticky bottom-4 mx-auto max-w-sm bg-white/90 backdrop-blur-md border border-sky-100 p-3 rounded-2xl shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] z-20 mt-4">
             <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 border-b border-gray-200 pb-1">Panduan Tajwid</p>
             <div class="grid grid-cols-3 gap-y-2 gap-x-1 text-[10px] font-bold text-gray-700">
                 <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span> Idgham</div>
@@ -4126,14 +4137,14 @@ HOME_HTML = """
 
 <!-- 3. TAJWID RULE MODAL -->
 <div id="modal-tajwid-rule" class="fixed inset-0 z-[300] hidden flex items-center justify-center bg-black/60 backdrop-blur-sm">
-    <div class="bg-white rounded-3xl w-full max-w-xs mx-4 p-6 shadow-2xl animate-[popupFadeIn_0.3s_ease-out] relative border border-emerald-100">
-        <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-sm -mt-12">
+    <div class="bg-white rounded-3xl w-full max-w-xs mx-4 p-6 shadow-2xl animate-[popupFadeIn_0.3s_ease-out] relative border border-sky-100">
+        <div class="w-16 h-16 bg-sky-50 text-sky-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-sm -mt-12">
             <i class="fas fa-book-open text-2xl"></i>
         </div>
         <h3 id="tajwid-rule-title" class="text-xl font-bold text-gray-800 text-center mb-2 leading-tight uppercase tracking-wider"></h3>
-        <div class="w-12 h-1 bg-emerald-200 mx-auto rounded-full mb-4"></div>
+        <div class="w-12 h-1 bg-sky-200 mx-auto rounded-full mb-4"></div>
         <p id="tajwid-rule-desc" class="text-sm text-gray-600 text-center leading-relaxed mb-6 font-medium"></p>
-        <button onclick="closeTajwidRule()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-emerald-600 transition transform hover:scale-105">Paham</button>
+        <button onclick="closeTajwidRule()" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-sky-600 transition transform hover:scale-105">Paham</button>
     </div>
 </div>
 
@@ -4177,11 +4188,11 @@ HOME_HTML = """
         isQuranTajwidMode = !isQuranTajwidMode;
         const btn = document.getElementById('btn-quran-tajwid');
         if (isQuranTajwidMode) {
-            btn.classList.remove('bg-emerald-50', 'text-emerald-600', 'border-emerald-200');
-            btn.classList.add('bg-emerald-500', 'text-white', 'border-emerald-500', 'shadow-md');
+            btn.classList.remove('bg-sky-50', 'text-sky-600', 'border-sky-200');
+            btn.classList.add('bg-sky-500', 'text-white', 'border-sky-500', 'shadow-md');
         } else {
-            btn.classList.add('bg-emerald-50', 'text-emerald-600', 'border-emerald-200');
-            btn.classList.remove('bg-emerald-500', 'text-white', 'border-emerald-500', 'shadow-md');
+            btn.classList.add('bg-sky-50', 'text-sky-600', 'border-sky-200');
+            btn.classList.remove('bg-sky-500', 'text-white', 'border-sky-500', 'shadow-md');
         }
         if (currentQuranSurahNomor) {
             openSurahDetail(currentQuranSurahNomor);
@@ -4256,21 +4267,21 @@ HOME_HTML = """
         
         surahs.forEach(surah => {
             const el = document.createElement('div');
-            el.className = "bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between cursor-pointer hover:bg-emerald-50 hover:border-emerald-200 transition-all group";
+            el.className = "bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between cursor-pointer hover:bg-sky-50 hover:border-sky-200 transition-all group";
             el.onclick = () => openSurahDetail(surah.nomor);
             
             el.innerHTML = `
                 <div class="flex items-center gap-4">
-                    <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 font-bold flex items-center justify-center text-sm group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                    <div class="w-10 h-10 rounded-full bg-sky-100 text-sky-600 font-bold flex items-center justify-center text-sm group-hover:bg-sky-500 group-hover:text-white transition-colors">
                         ${surah.nomor}
                     </div>
                     <div>
-                        <h4 class="font-bold text-gray-800 group-hover:text-emerald-700">${surah.namaLatin}</h4>
+                        <h4 class="font-bold text-gray-800 group-hover:text-sky-700">${surah.namaLatin}</h4>
                         <p class="text-xs text-gray-500">${surah.arti} • ${surah.jumlahAyat} Ayat</p>
                     </div>
                 </div>
                 <div class="text-right">
-                    <p class="font-amiri text-xl text-emerald-800 font-bold">${surah.nama}</p>
+                    <p class="font-amiri text-xl text-sky-800 font-bold">${surah.nama}</p>
                 </div>
             `;
             container.appendChild(el);
@@ -4373,7 +4384,7 @@ HOME_HTML = """
                             </div>
                         </div>
                         <div class="pl-12">
-                            <p class="text-sm text-gray-500 italic mb-2 leading-relaxed font-serif tracking-wide text-emerald-700">${verse.teksLatin}</p>
+                            <p class="text-sm text-gray-500 italic mb-2 leading-relaxed font-serif tracking-wide text-sky-700">${verse.teksLatin}</p>
                             <p class="text-base text-gray-700 leading-relaxed">${verse.teksIndonesia}</p>
                         </div>
                     </div>
@@ -4388,7 +4399,7 @@ HOME_HTML = """
 
                 let parsedText = rawText
                     .replace(/<tajweed class="idgham[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'idgham\\\')" class="text-red-500 font-bold cursor-pointer hover:underline decoration-red-300 decoration-2">$1</span>')
-                    .replace(/<tajweed class="ikhfa[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'ikhfa\\\')" class="text-emerald-500 font-bold cursor-pointer hover:underline decoration-emerald-300 decoration-2">$1</span>')
+                    .replace(/<tajweed class="ikhfa[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'ikhfa\\\')" class="text-sky-500 font-bold cursor-pointer hover:underline decoration-sky-300 decoration-2">$1</span>')
                     .replace(/<tajweed class="iqlab[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'iqlab\\\')" class="text-blue-500 font-bold cursor-pointer hover:underline decoration-blue-300 decoration-2">$1</span>')
                     .replace(/<tajweed class="qalqalah[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'qalqalah\\\')" class="text-sky-500 font-bold cursor-pointer hover:underline decoration-sky-300 decoration-2">$1</span>')
                     .replace(/<tajweed class="ghunnah[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'ghunnah\\\')" class="text-orange-500 font-bold cursor-pointer hover:underline decoration-orange-300 decoration-2">$1</span>')
@@ -4401,7 +4412,7 @@ HOME_HTML = """
                 el.innerHTML = `
                     <div class="flex flex-col gap-4">
                         <div class="flex justify-between items-start">
-                            <div class="w-8 h-8 flex-shrink-0 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 font-bold text-xs mt-1">
+                            <div class="w-8 h-8 flex-shrink-0 rounded-full bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600 font-bold text-xs mt-1">
                                 ${ayahTajwid.numberInSurah}
                             </div>
                             <div class="flex-1 text-right pl-4">
@@ -4411,7 +4422,7 @@ HOME_HTML = """
                             </div>
                         </div>
                         <div class="pl-12 text-left">
-                            <p class="text-sm text-gray-500 italic mb-2 leading-relaxed font-serif tracking-wide text-emerald-700">${equranVerse ? equranVerse.teksLatin : ''}</p>
+                            <p class="text-sm text-gray-500 italic mb-2 leading-relaxed font-serif tracking-wide text-sky-700">${equranVerse ? equranVerse.teksLatin : ''}</p>
                             <p class="text-base text-gray-700 leading-relaxed">${equranVerse ? equranVerse.teksIndonesia : ''}</p>
                         </div>
                     </div>
@@ -4473,7 +4484,7 @@ HOME_HTML = """
             el.className = "border-b border-gray-100 pb-6 last:border-0";
             el.innerHTML = `
                 <div class="flex justify-between items-start mb-4">
-                    <div class="w-10 h-10 flex-shrink-0 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-sm">
+                    <div class="w-10 h-10 flex-shrink-0 rounded-full bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 font-bold text-sm">
                         ${verse.nomorAyat}
                     </div>
                     <div class="flex-1 text-right pl-4">
@@ -4573,15 +4584,15 @@ def finance():
         <div class="flex justify-between items-center mb-6">
             <h3 class="text-xl font-bold text-gray-800">Laporan Kas</h3>
             {% if is_admin %}
-            <button onclick="document.getElementById('modal-add').classList.remove('hidden')" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-emerald-600 transition">+ Input</button>
+            <button onclick="document.getElementById('modal-add').classList.remove('hidden')" class="bg-sky-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-sky-600 transition">+ Input</button>
             {% endif %}
         </div>
 
         <div class="grid grid-cols-1 gap-4 mb-6">
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-emerald-100 relative overflow-hidden">
-                <div class="absolute right-0 top-0 p-4 opacity-10"><i class="fas fa-wallet text-6xl text-emerald-500"></i></div>
+            <div class="bg-white p-5 rounded-3xl shadow-sm border border-sky-100 relative overflow-hidden">
+                <div class="absolute right-0 top-0 p-4 opacity-10"><i class="fas fa-wallet text-6xl text-sky-500"></i></div>
                 <p class="text-sm text-gray-500 font-medium mb-1">Saldo Akhir</p>
-                <h2 class="text-3xl font-bold text-emerald-600">Rp {{ "{:,.0f}".format(balance) }}</h2>
+                <h2 class="text-3xl font-bold text-sky-600">Rp {{ "{:,.0f}".format(balance) }}</h2>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div class="bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
@@ -4645,19 +4656,19 @@ def finance():
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">Tanggal</label>
-                        <input type="date" name="date" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                        <input type="date" name="date" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">Jenis</label>
-                            <select name="type" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                            <select name="type" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
                                 <option value="Pemasukan">Pemasukan</option>
                                 <option value="Pengeluaran">Pengeluaran</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">Kategori</label>
-                            <select name="category" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                            <select name="category" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
                                 <option value="Infaq Jumat">Infaq Jumat</option>
                                 <option value="Operasional">Operasional</option>
                                 <option value="Pembangunan">Pembangunan</option>
@@ -4667,13 +4678,13 @@ def finance():
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">Keterangan</label>
-                        <input type="text" name="description" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Contoh: Bayar Listrik" required>
+                        <input type="text" name="description" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Contoh: Bayar Listrik" required>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">Nominal (Rp)</label>
-                        <input type="number" name="amount" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                        <input type="number" name="amount" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
                     </div>
-                    <button type="submit" class="w-full bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-emerald-600 transition mt-4">Simpan Data</button>
+                    <button type="submit" class="w-full bg-sky-500 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-sky-600 transition mt-4">Simpan Data</button>
                 </div>
             </form>
         </div>
@@ -5310,9 +5321,9 @@ def donate():
     else:
         # Default Home
         bg_class = "bg-[#F8FAFC] text-gray-800"
-        card_class = "bg-white border-emerald-50"
-        text_highlight = "text-emerald-600"
-        btn_action = "bg-emerald-500 text-white"
+        card_class = "bg-white border-sky-50"
+        text_highlight = "text-sky-600"
+        btn_action = "bg-sky-500 text-white"
 
     content = f"""
     <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8 text-center min-h-screen flex flex-col items-center justify-center {bg_class}">
@@ -5335,7 +5346,7 @@ def donate():
              
              <div class="mb-4 max-w-xs mx-auto">
                  <label class="block text-[10px] font-bold text-gray-400 mb-1 text-left">Keperluan (untuk Konfirmasi WA)</label>
-                 <select id="infaq-type-select" class="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                 <select id="infaq-type-select" class="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
                      <option value="Masjid">Masjid</option>
                      <option value="Qurban">Qurban</option>
                      <option value="Zakat">Zakat</option>
@@ -5622,9 +5633,9 @@ RAMADHAN_DASHBOARD_HTML = """
              <!-- LEFT: WELCOME -->
              <div class="hidden md:block pl-2">
                 <p class="text-xl text-gray-400 font-medium mb-2">Assalamualaikum Warahmatullahi Wabarakatuh</p>
-                <h1 class="text-5xl font-bold text-white leading-tight mb-6">Selamat Datang di<br>Masjid Al Hijrah</h1>
+                <h1 class="text-5xl font-bold text-white leading-tight mb-6">Portal Tata Usaha<br>STIESAM</h1>
                 <p class="text-gray-300 text-lg leading-relaxed mb-8">
-                    Sambut Ramadhan dengan Hati yang Suci. Mari hidupkan malam dengan Tarawih, tadarus Al-Quran, dan berbagi kebahagiaan melalui Infaq dan Takjil.
+                    Pusat layanan administrasi akademik yang presisi, cepat, dan efisien untuk melayani kebutuhan mahasiswa dan dosen secara digital.
                 </p>
                 <div class="flex gap-4">
                     <button onclick="openModal('modal-tarawih')" class="bg-gold text-midnight px-8 py-3 rounded-full font-bold shadow-lg hover:bg-white transition transform hover:scale-105">Lihat Agenda</button>
@@ -5677,34 +5688,27 @@ RAMADHAN_DASHBOARD_HTML = """
         
         <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-24">
             
-            <!-- 1. JADWAL TAKJIL -->
-            <button onclick="openModal('modal-takjil')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
+            <!-- 1. PABRIK SURAT OTOMATIS -->
+            <button onclick="openModal('modal-pabrik-surat')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
                 <div class="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-gold mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
-                    <i class="fas fa-utensils text-2xl"></i>
+                    <i class="fas fa-file-signature text-2xl"></i>
                 </div>
-                <span class="font-bold text-sm text-gray-200 group-hover:text-gold transition-colors">Jadwal Takjil</span>
+                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Pabrik Surat Otomatis</span>
             </button>
 
-            <!-- 2. IMSAKIYAH -->
-            <button onclick="openModal('modal-imsakiyah')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
+            <!-- 2. LACI ARSIP DIGITAL -->
+            <button onclick="openModal('modal-arsip-digital')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
                 <div class="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-blue-400 mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
-                    <i class="fas fa-calendar-alt text-2xl"></i>
+                    <i class="fas fa-archive text-2xl"></i>
                 </div>
-                <span class="font-bold text-sm text-gray-200 group-hover:text-blue-400 transition-colors">Imsakiyah</span>
+                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-blue-400 transition-colors">Laci Arsip Digital</span>
             </button>
 
-            <!-- 3. KAS RAMADHAN -->
-            <button onclick="openModal('modal-kas-ramadhan')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
-                <div class="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-green-400 mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
-                    <i class="fas fa-wallet text-2xl"></i>
-                </div>
-                <span class="font-bold text-sm text-gray-200 group-hover:text-green-400 transition-colors">Kas Ramadhan</span>
-            </button>
 
-            <!-- 4. JADWAL TARAWIH -->
+
+            <!-- 4. JADWAL TARAWIH (Disembunyikan) -->
             <button onclick="openModal('modal-tarawih')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
                 <div class="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-purple-400 mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
@@ -5713,7 +5717,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <span class="font-bold text-sm text-center text-gray-200 group-hover:text-purple-400 transition-colors">Imam & Penceramah</span>
             </button>
 
-            <!-- 5. ZAKAT CALCULATOR -->
+            <!-- 5. ZAKAT CALCULATOR (Disembunyikan) -->
             <button onclick="openModal('modal-zakat-menu')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
                 <div class="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-orange-400 mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
@@ -5722,7 +5726,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <span class="font-bold text-sm text-gray-200 group-hover:text-orange-400 transition-colors">Zakat Fitrah</span>
             </button>
 
-            <!-- 6. AMALAN CHECKLIST -->
+            <!-- 6. AMALAN CHECKLIST (Disembunyikan) -->
             <button onclick="openModal('modal-amalan')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
                 <div class="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-pink-400 mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
@@ -5755,157 +5759,99 @@ RAMADHAN_DASHBOARD_HTML = """
 
     <!-- MODALS SECTION -->
     
-    <!-- 1. MODAL TAKJIL -->
-    <div id="modal-takjil" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
+    <!-- 1. MODAL PABRIK SURAT OTOMATIS -->
+    <div id="modal-pabrik-surat" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
             <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-                <h3 class="text-xl font-bold text-gold font-sans">Jadwal Pembagian Takjil</h3>
-                <button onclick="closeModal('modal-takjil')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+                <h3 class="text-xl font-bold text-gold font-sans">Pabrik Surat Otomatis</h3>
+                <button onclick="closeModal('modal-pabrik-surat')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
             
-            <div class="p-4 bg-white/5 border-b border-white/10 rounded-xl mb-4">
-                <input type="text" id="search-takjil" onkeyup="filterTakjil()" placeholder="Cari Nama Warga..." class="w-full bg-[#0b1026] border border-gold/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold">
+            <div class="p-4 bg-white/5 border border-gold/30 rounded-xl mb-4">
+                <p class="text-gray-300 text-sm mb-4">Silakan buat draf dokumen elektronik. Staf TU akan menyetujui dan membubuhkan tanda tangan elektronik (QR Code pelacak keaslian).</p>
+                <form onsubmit="event.preventDefault(); alert('Draf surat berhasil dibuat dan dikirim ke Tata Usaha untuk persetujuan.'); closeModal('modal-pabrik-surat');" class="space-y-4">
+                    <select class="w-full bg-[#0b1026] border border-gold/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold" required>
+                        <option value="">Pilih Jenis Surat...</option>
+                        <option value="aktif_kuliah">Surat Keterangan Aktif Kuliah</option>
+                        <option value="pengantar_magang">Surat Pengantar Magang</option>
+                        <option value="bebas_pustaka">Surat Keterangan Bebas Pustaka</option>
+                    </select>
+                    <input type="text" placeholder="NPM Mahasiswa" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold" required>
+                    <textarea placeholder="Keterangan / Tujuan Surat" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold" required></textarea>
+                    <button type="submit" class="w-full bg-gold text-[#0b1026] font-bold py-3 rounded-xl hover:bg-white transition">Buat Draf Surat</button>
+                </form>
             </div>
             
+            <h4 class="text-sm font-bold text-gray-400 mb-3 mt-8">Riwayat Pengajuan Surat</h4>
             <div class="overflow-hidden rounded-xl border border-white/10">
                 <table class="w-full text-left border-collapse">
                     <thead class="bg-gold/10 text-gold backdrop-blur-md">
                         <tr>
                             <th class="p-4 text-xs font-bold uppercase">Tanggal</th>
-                            <th class="p-4 text-xs font-bold uppercase">Nama Warga</th>
-                            <th class="p-4 text-xs font-bold uppercase text-right">RT / Ket</th>
+                            <th class="p-4 text-xs font-bold uppercase">Jenis Surat</th>
+                            <th class="p-4 text-xs font-bold uppercase text-right">Status</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-white/5" id="takjil-list">
-                        {% for row in takjil_data %}
+                    <tbody class="divide-y divide-white/5">
                         <tr class="hover:bg-white/5 transition">
-                            <td class="p-4 text-sm text-gray-300">{{ row['Tanggal'] }}</td>
-                            <td class="p-4 font-bold text-white name-cell">{{ row['Nama'] }}</td>
-                            <td class="p-4 text-sm text-gray-400 text-right">{{ row['Ket.'] }}</td>
+                            <td class="p-4 text-sm text-gray-300">Hari ini</td>
+                            <td class="p-4 font-bold text-white">Surat Pengantar Magang</td>
+                            <td class="p-4 text-sm text-yellow-400 text-right">Menunggu Acc</td>
                         </tr>
-                        {% else %}
-                        <tr><td colspan="3" class="p-6 text-center text-gray-500">Data tidak tersedia atau file CSV belum diupload.</td></tr>
-                        {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    <!-- 2. MODAL IMSAKIYAH -->
-    <div id="modal-imsakiyah" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
+    <!-- 2. MODAL LACI ARSIP DIGITAL -->
+    <div id="modal-arsip-digital" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
             <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-                <div>
-                     <h3 class="text-xl font-bold text-gold font-sans">Jadwal Imsakiyah</h3>
-                     <p class="text-[10px] text-gray-400">Samarinda & Sekitarnya • Ramadhan 1447 H / 2026 M</p>
-                </div>
-                <button onclick="closeModal('modal-imsakiyah')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+                <h3 class="text-xl font-bold text-gold font-sans">Laci Arsip Digital</h3>
+                <button onclick="closeModal('modal-arsip-digital')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
             
-            <div class="overflow-hidden rounded-xl border border-white/10">
-                <table class="w-full text-center border-collapse">
-                    <thead class="bg-blue-900/50 text-blue-200 backdrop-blur-md">
-                        <tr>
-                            <th class="p-3 text-xs font-bold border-b border-white/10">Tgl</th>
-                            <th class="p-3 text-xs font-bold border-b border-white/10 text-gold">Imsak</th>
-                            <th class="p-3 text-xs font-bold border-b border-white/10">Subuh</th>
-                            <th class="p-3 text-xs font-bold border-b border-white/10 hidden md:table-cell">Dzuhur</th>
-                            <th class="p-3 text-xs font-bold border-b border-white/10 hidden md:table-cell">Ashar</th>
-                            <th class="p-3 text-xs font-bold border-b border-white/10 text-gold">Maghrib</th>
-                            <th class="p-3 text-xs font-bold border-b border-white/10 hidden md:table-cell">Isya</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-white/5">
-                        {% for day in imsakiyah_data %}
-                        <tr class="hover:bg-white/5 transition {{ 'bg-gold/10 border-l-4 border-gold' if day.is_today else '' }}">
-                            <td class="p-3 text-xs text-gray-300">{{ day.date_str }}</td>
-                            <td class="p-3 text-sm font-bold text-gold font-mono">{{ day.imsak }}</td>
-                            <td class="p-3 text-sm text-gray-300 font-mono">{{ day.fajr }}</td>
-                            <td class="p-3 text-sm text-gray-400 font-mono hidden md:table-cell">{{ day.dhuhr }}</td>
-                            <td class="p-3 text-sm text-gray-400 font-mono hidden md:table-cell">{{ day.asr }}</td>
-                            <td class="p-3 text-sm font-bold text-gold font-mono bg-gold/5">{{ day.maghrib }}</td>
-                            <td class="p-3 text-sm text-gray-400 font-mono hidden md:table-cell">{{ day.isha }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="p-4 bg-white/5 border border-white/10 rounded-xl mb-6">
+                <p class="text-gray-400 text-sm mb-3">Pangkalan Data Awan STIESAM. Cari riwayat hidup, nilai, ijazah, dan pembayaran.</p>
+                <div class="flex gap-2">
+                    <input type="text" placeholder="Ketik NPM / Nama Mahasiswa..." class="flex-1 bg-[#0b1026] border border-gold/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold">
+                    <button onclick="alert('Mencari arsip dari pangkalan data awan...');" class="bg-blue-500 text-white px-6 rounded-xl font-bold hover:bg-blue-600 transition"><i class="fas fa-search"></i></button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4">
+                <div class="bg-white/5 p-4 rounded-xl border border-white/10 flex justify-between items-center hover:border-blue-400 transition cursor-pointer" onclick="alert('Mengunduh dokumen Ijazah...')">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 bg-blue-500/20 text-blue-400 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-white">Ijazah_SMA_192831.pdf</p>
+                            <p class="text-[10px] text-gray-500">1.2 MB • Diunggah 12 Jan 2024</p>
+                        </div>
+                    </div>
+                    <i class="fas fa-download text-gray-400 hover:text-gold"></i>
+                </div>
+                <div class="bg-white/5 p-4 rounded-xl border border-white/10 flex justify-between items-center hover:border-blue-400 transition cursor-pointer" onclick="alert('Mengunduh KHS...')">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 bg-green-500/20 text-green-400 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-file-excel"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-white">KHS_Semester_3_192831.pdf</p>
+                            <p class="text-[10px] text-gray-500">800 KB • Diunggah 05 Feb 2025</p>
+                        </div>
+                    </div>
+                    <i class="fas fa-download text-gray-400 hover:text-gold"></i>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- 3. MODAL KAS RAMADHAN -->
-    <div id="modal-kas-ramadhan" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
-        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
-            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-                <h3 class="text-xl font-bold text-gold font-sans">Laporan Kas Ramadhan</h3>
-                <button onclick="closeModal('modal-kas-ramadhan')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
-            </div>
-            
-            <!-- Summary -->
-            <div class="grid grid-cols-2 gap-4 border-b border-white/10 pb-6 mb-6">
-                <div class="bg-green-500/10 p-4 rounded-2xl border border-green-500/20 text-center">
-                    <p class="text-xs text-green-400 uppercase font-bold">Pemasukan</p>
-                    <p class="text-lg font-bold text-green-400">Rp {{ "{:,.0f}".format(ramadhan_kas_summary.income) }}</p>
-                </div>
-                <div class="bg-red-500/10 p-4 rounded-2xl border border-red-500/20 text-center">
-                    <p class="text-xs text-red-400 uppercase font-bold">Pengeluaran</p>
-                    <p class="text-lg font-bold text-red-400">Rp {{ "{:,.0f}".format(ramadhan_kas_summary.out) }}</p>
-                </div>
-                <div class="col-span-2 bg-gold/10 p-4 rounded-2xl border border-gold/30 text-center">
-                    <p class="text-xs text-gold uppercase font-bold">Saldo Akhir</p>
-                    <p class="text-2xl font-bold text-white">Rp {{ "{:,.0f}".format(ramadhan_kas_summary.balance) }}</p>
-                </div>
-            </div>
 
-            <!-- Input Form -->
-            {% if is_admin %}
-            <div class="bg-white/5 border border-white/10 p-6 rounded-2xl mb-6">
-                <h4 class="text-sm font-bold text-gray-300 mb-3">Input Transaksi (Admin)</h4>
-                <form action="/ramadhan/kas" method="POST" class="space-y-3">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                    <div class="grid grid-cols-2 gap-3">
-                        <input type="date" name="date" required class="w-full bg-[#0b1026] border border-gray-600 rounded-lg p-3 text-sm text-white focus:border-gold">
-                        <select name="type" class="w-full bg-[#0b1026] border border-gray-600 rounded-lg p-3 text-sm text-white focus:border-gold">
-                            <option value="Pemasukan">Pemasukan</option>
-                            <option value="Pengeluaran">Pengeluaran</option>
-                        </select>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                         <input type="text" name="description" placeholder="Keterangan (ex: Infaq Tarawih Malam 1)" required class="w-full bg-[#0b1026] border border-gray-600 rounded-lg p-3 text-sm text-white focus:border-gold">
-                         <input type="number" name="amount" placeholder="Nominal (Rp)" required class="w-full bg-[#0b1026] border border-gray-600 rounded-lg p-3 text-sm text-white focus:border-gold">
-                    </div>
-                    <input type="hidden" name="category" value="Ramadhan">
-                    <button type="submit" class="w-full bg-white/80 text-[#0b1026] font-bold py-3 rounded-lg hover:bg-white active:bg-white transition shadow-lg">Simpan Data</button>
-                </form>
-            </div>
-            {% endif %}
 
-            <!-- List -->
-            <div class="overflow-hidden rounded-xl border border-white/10">
-                <table class="w-full text-left">
-                    <tbody class="divide-y divide-white/5">
-                        {% for item in ramadhan_kas_items %}
-                        <tr class="hover:bg-white/5">
-                            <td class="p-4">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <p class="text-sm font-bold text-white">{{ item['description'] }}</p>
-                                        <p class="text-[10px] text-gray-400">{{ item['date'] }}</p>
-                                    </div>
-                                    <span class="font-mono font-bold {{ 'text-green-400' if item['type'] == 'Pemasukan' else 'text-red-400' }}">
-                                        {{ "+" if item['type'] == 'Pemasukan' else "-" }} {{ "{:,.0f}".format(item['amount']) }}
-                                    </span>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
 
     <!-- 4. MODAL JADWAL TARAWIH -->
     <div id="modal-tarawih" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
@@ -6035,7 +5981,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <div class="bg-white rounded-3xl p-6 md:p-8 shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-gray-100 relative overflow-hidden transform transition hover:-translate-y-1">
                     <h4 class="font-bold text-gray-900 mb-6 text-sm md:text-base border-l-4 border-[#FFD700] pl-3">NIAT ZAKAT FITRAH UNTUK DIRI SENDIRI</h4>
                     <p class="text-2xl md:text-4xl text-right font-arabic leading-[2.5] mb-6 text-gray-800" style="font-family: 'Amiri', serif;">نَوَيْتُ أَنْ أُخْرِجَ زَكَاةَ الْفِطْرِ عَنْ نَفْسِيْ فَرْضًا لِلَّهِ تَعَالَى</p>
-                    <p class="text-emerald-700 italic text-sm md:text-base mb-4 leading-relaxed font-medium">Nawaitu an ukhrija zakaatal fitri 'an nafsi fardhallillahi ta'ala</p>
+                    <p class="text-sky-700 italic text-sm md:text-base mb-4 leading-relaxed font-medium">Nawaitu an ukhrija zakaatal fitri 'an nafsi fardhallillahi ta'ala</p>
                     <p class="text-gray-700 text-sm md:text-base leading-relaxed border-t border-gray-100 pt-4">Aku niat mengeluarkan zakat fitrah untuk diriku sendiri, fardu karena Allah Ta'âlâ.</p>
                 </div>
 
@@ -6043,7 +5989,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <div class="bg-white rounded-3xl p-6 md:p-8 shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-gray-100 relative overflow-hidden transform transition hover:-translate-y-1">
                     <h4 class="font-bold text-gray-900 mb-6 text-sm md:text-base border-l-4 border-[#FFD700] pl-3">NIAT ZAKAT FITRAH UNTUK DIRI SENDIRI DAN KELUARGA</h4>
                     <p class="text-2xl md:text-4xl text-right font-arabic leading-[2.5] mb-6 text-gray-800" style="font-family: 'Amiri', serif;">نَوَيْتُ أَنْ أُخْرِجَ زَكَاةَ الْفِطْرِ عَنِّيْ وَعَنْ جَمِيْعِ مَا يَلْزَمُنِيْ نَفَقَاتُهُمْ شَرْعًا فَرْضًا لِلَّهِ تَعَالَى</p>
-                    <p class="text-emerald-700 italic text-sm md:text-base mb-4 leading-relaxed font-medium">Nawaitu an ukhrija zakaatal fitri 'annii wa 'an jamii'i maa yal zamunii nafaqaa tuhum syar'an fardhallillahi ta'ala</p>
+                    <p class="text-sky-700 italic text-sm md:text-base mb-4 leading-relaxed font-medium">Nawaitu an ukhrija zakaatal fitri 'annii wa 'an jamii'i maa yal zamunii nafaqaa tuhum syar'an fardhallillahi ta'ala</p>
                     <p class="text-gray-700 text-sm md:text-base leading-relaxed border-t border-gray-100 pt-4">Aku niat mengeluarkan zakat fitrah untuk diriku dan seluruh orang yang nafkahnya menjadi tanggunganku, fardu karena Allah Ta'âlâ.</p>
                 </div>
 
@@ -6051,7 +5997,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <div class="bg-white rounded-3xl p-6 md:p-8 shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-gray-100 relative overflow-hidden transform transition hover:-translate-y-1">
                     <h4 class="font-bold text-gray-900 mb-6 text-sm md:text-base border-l-4 border-[#FFD700] pl-3">NIAT ZAKAT FITRAH UNTUK ORANG YANG DIWAKILKAN</h4>
                     <p class="text-2xl md:text-4xl text-right font-arabic leading-[2.5] mb-6 text-gray-800" style="font-family: 'Amiri', serif;">نَوَيْتُ أَنْ أُخْرِجَ زَكَاةَ الْفِطْرِ عَنْ (...) فَرْضًا لِلَّهِ تَعَالَى</p>
-                    <p class="text-emerald-700 italic text-sm md:text-base mb-4 leading-relaxed font-medium">Nawaitu an ukhrija zakaatal fitri 'an ...(nama)... fardhallillahi ta'ala</p>
+                    <p class="text-sky-700 italic text-sm md:text-base mb-4 leading-relaxed font-medium">Nawaitu an ukhrija zakaatal fitri 'an ...(nama)... fardhallillahi ta'ala</p>
                     <p class="text-gray-700 text-sm md:text-base leading-relaxed border-t border-gray-100 pt-4">Aku niat mengeluarkan zakat fitrah untuk... (sebutkan nama spesifik), fardu karena Allah Ta'âlâ.</p>
                 </div>
 
@@ -6059,7 +6005,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <div class="bg-white rounded-3xl p-6 md:p-8 shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-gray-100 relative overflow-hidden transform transition hover:-translate-y-1">
                     <h4 class="font-bold text-gray-900 mb-6 text-sm md:text-base border-l-4 border-[#FFD700] pl-3">NIAT ZAKAT MAAL</h4>
                     <p class="text-2xl md:text-4xl text-right font-arabic leading-[2.5] mb-6 text-gray-800" style="font-family: 'Amiri', serif;">نَوَيْتُ أَنْ أُخْرِجَ زَكَاةَ الْمَالِ عَنْ نَفْسِيْ فَرْضًا لِلَّهِ تَعَالَى</p>
-                    <p class="text-emerald-700 italic text-sm md:text-base mb-4 leading-relaxed font-medium">Nawaitu an ukhrija zakaatal maal 'an nafsi fardhallillahi ta'ala</p>
+                    <p class="text-sky-700 italic text-sm md:text-base mb-4 leading-relaxed font-medium">Nawaitu an ukhrija zakaatal maal 'an nafsi fardhallillahi ta'ala</p>
                     <p class="text-gray-700 text-sm md:text-base leading-relaxed border-t border-gray-100 pt-4">Saya niat mengeluarkan zakat berupa emas/perak/harta dari diriku sendiri karena Allah Ta'ala.</p>
                 </div>
 
@@ -6067,7 +6013,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <div class="bg-white rounded-3xl p-6 md:p-8 shadow-[0_10px_30px_rgba(0,0,0,0.5)] border border-gray-100 relative overflow-hidden transform transition hover:-translate-y-1">
                     <h4 class="font-bold text-gray-900 mb-6 text-sm md:text-base border-l-4 border-[#FFD700] pl-3">DO'A MENERIMA ZAKAT</h4>
                     <p class="text-2xl md:text-4xl text-right font-arabic leading-[2.5] mb-6 text-gray-800" style="font-family: 'Amiri', serif;">أَجَرَكَ اللهُ فِيْمَا أَعْطَيْتَ, وَبَارَكَ لَكَ فِيْمَا أَبْقَيْتَ, وَاجْعَلْهُ لَكَ طَهُوْرًا</p>
-                    <p class="text-emerald-700 italic text-sm md:text-base mb-4 leading-relaxed font-medium">Ajarakallahu fiimaa a'thoita wa baaraka laka fiimaa abqoita waj'alhu laka thohuuron.</p>
+                    <p class="text-sky-700 italic text-sm md:text-base mb-4 leading-relaxed font-medium">Ajarakallahu fiimaa a'thoita wa baaraka laka fiimaa abqoita waj'alhu laka thohuuron.</p>
                     <p class="text-gray-700 text-sm md:text-base leading-relaxed border-t border-gray-100 pt-4">Semoga Allah memberikan pahala kepadamu pada barang yang engkau berikan (zakatkan) dan semoga Allah memberkahimu dalam harta-harta yang masih engkau sisakan dan semoga pula menjadikannya sebagai pembersih (dosa) bagimu.</p>
                 </div>
             </div>
@@ -6213,7 +6159,7 @@ RAMADHAN_DASHBOARD_HTML = """
 
     <!-- DEV TOAST NOTIFICATION -->
     <div id="dev-toast" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-white text-gray-900 px-6 py-3 rounded-full shadow-2xl z-50 opacity-0 pointer-events-none transition-all duration-300 flex items-center gap-3">
-        <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+        <div class="w-8 h-8 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center">
             <i class="fas fa-hammer"></i>
         </div>
         <span class="font-bold text-sm tracking-wide">Sedang dalam tahap pengembangan</span>
@@ -6555,7 +6501,7 @@ IRMA_DASHBOARD_HTML = """
             <p class="text-xl text-gray-500 font-medium mb-2">Assalamualaikum Warahmatullahi Wabarakatuh</p>
             <h1 class="text-5xl font-bold text-[#2F4F4F] leading-tight mb-6">Selamat Datang di<br>IRMA Masjid Al Hijrah</h1>
             <p class="text-gray-600 text-lg leading-relaxed mb-8">
-                Wadah Pemuda Pemudi Kreatif dan Islami. Mari bersama membangun generasi Rabbani yang produktif, berakhlak mulia, dan bermanfaat bagi umat.
+                Pusat layanan akademik dan keuangan terpadu. Pantau rencana studi, kartu hasil studi, dan tagihan dengan mudah dan efisien.
             </p>
             <div class="flex gap-4">
                 <button onclick="openModal('modal-events')" class="bg-[#A0B391] text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-[#8DA57B] transition transform hover:scale-105">Lihat Proker</button>
@@ -6592,28 +6538,28 @@ IRMA_DASHBOARD_HTML = """
     <h3 class="text-[#2F4F4F] font-bold text-lg mb-4 pl-3 border-l-4 border-[#FFB6C1]">Menu Utama</h3>
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-24">
         
-        <!-- 1. JADWAL PIKET -->
-        <button onclick="openModal('modal-duty')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+        <!-- 1. RENCANA STUDI -->
+        <button onclick="openModal('modal-rencana-studi')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
              <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#FFB6C1] group-hover:text-white transition-colors">
-                <i class="fas fa-clipboard-list text-2xl"></i>
+                <i class="fas fa-file-signature text-2xl"></i>
              </div>
-             <span class="font-bold text-sm text-gray-600 group-hover:text-[#A0B391]">Jadwal Piket</span>
+             <span class="font-bold text-sm text-gray-600 group-hover:text-[#A0B391]">Rencana Studi</span>
         </button>
 
-        <!-- 2. JOIN IRMA -->
-        <button onclick="openModal('modal-join')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+        <!-- 2. KARTU HASIL STUDI -->
+        <button onclick="openModal('modal-kartu-hasil-studi')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
              <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#FFB6C1] group-hover:text-white transition-colors">
-                <i class="fas fa-user-plus text-2xl"></i>
+                <i class="fas fa-graduation-cap text-2xl"></i>
              </div>
-             <span class="font-bold text-sm text-gray-600 group-hover:text-[#A0B391]">Join IRMA</span>
+             <span class="font-bold text-sm text-gray-600 group-hover:text-[#A0B391]">Kartu Hasil Studi</span>
         </button>
 
-        <!-- 3. KAS REMAJA -->
-        <button onclick="openModal('modal-finance')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+        <!-- 3. PUSAT TAGIHAN -->
+        <button onclick="openModal('modal-pusat-tagihan')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
              <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#FFB6C1] group-hover:text-white transition-colors">
-                <i class="fas fa-piggy-bank text-2xl"></i>
+                <i class="fas fa-money-check-alt text-2xl"></i>
              </div>
-             <span class="font-bold text-sm text-gray-600 group-hover:text-[#A0B391]">Kas Remaja</span>
+             <span class="font-bold text-sm text-gray-600 group-hover:text-[#A0B391]">Pusat Tagihan</span>
         </button>
 
         <!-- 4. MADING KREATIF -->
@@ -6643,214 +6589,72 @@ IRMA_DASHBOARD_HTML = """
 
     <!-- MODALS SECTION -->
     
-    <!-- 1. MODAL DUTY -->
-    <div id="modal-duty" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+    <!-- 1. MODAL RENCANA STUDI -->
+    <div id="modal-rencana-studi" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
             <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
-                <h3 class="text-xl font-bold text-[#2F4F4F]">Jadwal Piket</h3>
-                <button onclick="closeModal('modal-duty')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+                <h3 class="text-xl font-bold text-[#2F4F4F]">Pengisian Rencana Studi (KRS)</h3>
+                <button onclick="closeModal('modal-rencana-studi')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
-            
-            {% if is_admin %}
-            <form action="/irma/schedule" method="POST" class="mb-6 bg-white p-4 rounded-2xl shadow-sm border border-[#A0B391]/20">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                <h4 class="text-xs font-bold text-[#A0B391] uppercase mb-3">Input Petugas</h4>
-                <div class="grid grid-cols-2 gap-3 mb-3">
-                    <input type="text" name="name" placeholder="Nama" required class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm">
-                    <select name="role" class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm">
-                        <option value="MC">MC</option>
-                        <option value="Adzan">Muadzin</option>
-                        <option value="Bersih-bersih">Bersih-bersih</option>
-                        <option value="Konsumsi">Konsumsi</option>
-                    </select>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20">
+                <p class="text-sm text-gray-600 mb-4">Pengisian KRS digital tanpa kertas. Silakan pilih mata kuliah yang ditawarkan untuk semester ini.</p>
+                <div class="space-y-3 mb-4">
+                    <label class="flex items-center p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition cursor-pointer">
+                        <input type="checkbox" class="accent-[#A0B391] w-4 h-4 mr-3" checked>
+                        <div class="flex-1">
+                            <p class="font-bold text-sm text-gray-800">Manajemen Keuangan Lanjutan</p>
+                            <p class="text-xs text-gray-500">MKK-301 • 3 SKS • Dosen: Dr. Budi Santoso</p>
+                        </div>
+                    </label>
+                    <label class="flex items-center p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition cursor-pointer">
+                        <input type="checkbox" class="accent-[#A0B391] w-4 h-4 mr-3" checked>
+                        <div class="flex-1">
+                            <p class="font-bold text-sm text-gray-800">Akuntansi Biaya</p>
+                            <p class="text-xs text-gray-500">MKB-302 • 3 SKS • Dosen: Sri Rahayu, S.E., M.Ak.</p>
+                        </div>
+                    </label>
                 </div>
-                <input type="date" name="date" required class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm mb-3">
-                <button type="submit" class="w-full bg-[#A0B391] text-white font-bold py-3 rounded-xl hover:bg-[#FFB6C1] transition">Simpan</button>
-            </form>
-            {% endif %}
+                <button onclick="alert('KRS berhasil diajukan ke Dosen Pembimbing Akademik untuk disetujui.'); closeModal('modal-rencana-studi');" class="w-full bg-[#A0B391] text-white font-bold py-3 rounded-xl hover:bg-[#FFB6C1] transition">Ajukan KRS</button>
+            </div>
+        </div>
+    </div>
 
-            <div class="overflow-y-auto max-h-[40vh] space-y-3">
-                {% for item in schedule_list %}
-                <div class="bg-white p-4 rounded-2xl shadow-sm flex items-center justify-between">
+    <!-- 2. MODAL KARTU HASIL STUDI -->
+    <div id="modal-kartu-hasil-studi" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
+                <h3 class="text-xl font-bold text-[#2F4F4F]">Kartu Hasil Studi (KHS)</h3>
+                <button onclick="closeModal('modal-kartu-hasil-studi')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20">
+                <div class="flex justify-between items-end mb-6 border-b border-gray-100 pb-4">
                     <div>
-                        <span class="text-[10px] font-bold bg-[#A0B391]/20 text-[#A0B391] px-2 py-1 rounded-md mb-1 inline-block">{{ item['role'] }}</span>
-                        <h5 class="font-bold text-[#2F4F4F]">{{ item['name'] }}</h5>
-                        <p class="text-xs text-gray-400">{{ item['date'] }}</p>
+                        <h4 class="text-lg font-bold text-gray-800">Semester Ganjil 2024/2025</h4>
+                        <p class="text-xs text-gray-500">IPK Sementara: 3.85</p>
                     </div>
-                    {% if is_admin %}
-                    <form action="/irma/schedule" method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                        <input type="hidden" name="delete_id" value="{{ item['id'] }}">
-                        <button class="text-gray-300 hover:text-red-400"><i class="fas fa-trash"></i></button>
-                    </form>
-                    {% endif %}
+                    <button class="text-xs font-bold text-[#A0B391] bg-[#A0B391]/10 px-3 py-1.5 rounded-lg"><i class="fas fa-download mr-1"></i> PDF</button>
                 </div>
-                {% else %}
-                <p class="text-center text-gray-400 text-sm">Belum ada jadwal.</p>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-
-    <!-- 2. MODAL JOIN -->
-    <div id="modal-join" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
-        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
-            <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
-                <h3 class="text-xl font-bold text-[#2F4F4F]">Join IRMA</h3>
-                <button onclick="closeModal('modal-join')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
-            </div>
-            
-            {% if is_admin %}
-            <!-- ADMIN VIEW -->
-            <div class="bg-white rounded-3xl shadow-sm border border-[#A0B391]/20 overflow-hidden">
-                <div class="p-4 border-b border-gray-100">
-                    <h4 class="font-bold text-gray-700">Daftar Pendaftar</h4>
-                </div>
-                <div class="divide-y divide-gray-100">
-                    {% for member in members_list %}
-                    <div class="p-4">
-                        <div class="flex justify-between items-start mb-2">
-                            <div>
-                                <h5 class="font-bold text-[#2F4F4F]">{{ member['name'] }} <span class="text-xs font-normal text-gray-500">({{ member['age'] }} th)</span></h5>
-                                <p class="text-xs text-gray-400">{{ member['wa_number'] }} • {{ member['instagram'] }}</p>
-                            </div>
-                            <span class="text-[10px] font-bold px-2 py-1 rounded-full {{ 'bg-yellow-100 text-yellow-600' if member['status'] == 'Pending' else ('bg-green-100 text-green-600' if member['status'] == 'Approved' else 'bg-red-100 text-red-600') }}">
-                                {{ member['status'] }}
-                            </span>
-                        </div>
-                        <p class="text-xs text-gray-600 italic mb-3">"{{ member['hobbies'] }}"</p>
-                        
-                        {% if member['status'] == 'Pending' %}
-                        <div class="flex gap-2">
-                            <form action="/irma/join" method="POST" class="flex-1">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                                <input type="hidden" name="action" value="approve">
-                                <input type="hidden" name="member_id" value="{{ member['id'] }}">
-                                <button class="w-full bg-green-500 text-white text-xs font-bold py-2 rounded-lg hover:bg-green-600">Approve</button>
-                            </form>
-                            <form action="/irma/join" method="POST" class="flex-1">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                                <input type="hidden" name="action" value="reject">
-                                <input type="hidden" name="member_id" value="{{ member['id'] }}">
-                                <button class="w-full bg-red-500 text-white text-xs font-bold py-2 rounded-lg hover:bg-red-600">Tolak</button>
-                            </form>
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% else %}
-                    <div class="p-8 text-center text-gray-400">Belum ada pendaftar.</div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% else %}
-            <!-- CITIZEN VIEW -->
-            
-            <!-- Check Status Form -->
-            <div class="bg-white p-4 rounded-2xl shadow-sm border border-[#A0B391]/20 mb-6">
-                <h4 class="text-xs font-bold text-[#A0B391] uppercase mb-2">Cek Status Pendaftaran</h4>
-                <form action="/irma/join" method="GET" class="flex gap-2">
-                    <input type="text" name="check_wa" placeholder="Masukkan No. WA" class="w-full bg-[#F4E7E1] border-none rounded-xl p-2 text-sm" required>
-                    <button type="submit" class="bg-[#A0B391] text-white px-4 rounded-xl font-bold text-xs">Cek</button>
-                </form>
-                
-                {% if check_status %}
-                <div class="mt-3 p-3 rounded-xl {{ 'bg-green-50 border border-green-200' if check_status['status'] == 'Approved' else ('bg-red-50 border border-red-200' if check_status['status'] == 'Rejected' else 'bg-yellow-50 border border-yellow-200') }}">
-                    <p class="font-bold text-sm {{ 'text-green-700' if check_status['status'] == 'Approved' else ('text-red-700' if check_status['status'] == 'Rejected' else 'text-yellow-700') }}">
-                        Status: {{ check_status['status'] }}
-                    </p>
-                    <p class="text-xs text-gray-600 mt-1">
-                        {% if check_status['status'] == 'Pending' %}
-                        "Berhasil mendaftar! Silakan tunggu jadwal wawancara dari pengurus IRMA."
-                        {% elif check_status['status'] == 'Rejected' %}
-                        "Tetap semangat bertumbuh! Meskipun saat ini belum bisa bergabung dengan pengurus IRMA, kamu tetap bagian dari keluarga besar Masjid Al-Hijrah."
-                        {% else %}
-                        "Hubungi WhatsApp Jumali (Ketua IRMA Masjid Al-Hijrah) untuk panggilan wawancara atau informasi lebih lanjut."
-                        <br><br>
-                        <a href="https://wa.me/6285321395053?text=Assalamualaikum%20ka%20Jumali,%20perkenalkan%20saya%20{{ check_status['name'] }},%20telah%20mendaftar%20di%20IRMA%20Masjid%20Al-Hijrah%20melalui%20aplikasi%20website%20masjid%20ka,%20untuk%20kelanjutannya%20seperti%20apa%20ya%20ini%20Ka?%20Terima%20kasih%20ka." class="inline-block bg-[#25D366] text-white px-4 py-2 rounded-full font-bold text-xs shadow-md hover:bg-green-600 transition"><i class="fab fa-whatsapp mr-1"></i> Hubungi Ketua</a>
-                        {% endif %}
-                    </p>
-                </div>
-                {% endif %}
-            </div>
-
-            <form action="/irma/join" method="POST" class="space-y-4">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20">
-                    <div class="mb-4 text-center">
-                        <div class="w-16 h-16 bg-[#FFB6C1]/20 rounded-full flex items-center justify-center mx-auto mb-2 text-[#FFB6C1]">
-                            <i class="fas fa-user-plus text-3xl"></i>
-                        </div>
-                        <p class="text-xs text-gray-500">Gabung Komunitas Remaja Positif</p>
-                    </div>
-                    
-                    <div class="space-y-3">
-                        <input type="text" name="name" placeholder="Nama Lengkap" required class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm">
-                        <div class="grid grid-cols-2 gap-3">
-                            <input type="number" name="age" placeholder="Umur" required class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm">
-                            <input type="text" name="wa_number" placeholder="No WA (08xx)" required class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm">
-                        </div>
-                        <input type="text" name="instagram" placeholder="@Instagram" class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm">
-                        <textarea name="hobbies" placeholder="Skill / Hobi (ex: Desain, Futsal)" class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm h-20"></textarea>
-                    </div>
-                    
-                    <button type="submit" class="w-full bg-[#A0B391] text-white font-bold py-3 mt-4 rounded-xl hover:bg-[#FFB6C1] transition shadow-lg">Daftar Sekarang</button>
-                </div>
-            </form>
-            {% endif %}
-        </div>
-    </div>
-    <!-- 3. MODAL FINANCE -->
-    <div id="modal-finance" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
-        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
-            <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
-                <h3 class="text-xl font-bold text-[#2F4F4F]">Kas Remaja</h3>
-                <button onclick="closeModal('modal-finance')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
-            </div>
-
-            <div class="bg-gradient-to-r from-[#A0B391] to-[#8DA57B] text-white p-6 rounded-3xl shadow-lg mb-6 relative overflow-hidden">
-                <div class="absolute right-0 top-0 p-4 opacity-20"><i class="fas fa-wallet text-6xl"></i></div>
-                <p class="text-xs opacity-80 mb-1">Saldo Kas Saat Ini</p>
-                <h2 class="text-3xl font-bold">Rp {{ "{:,.0f}".format(kas_summary.balance) }}</h2>
-                <div class="flex gap-4 mt-4 text-xs font-bold">
-                    <span class="bg-white/20 px-2 py-1 rounded">+ {{ "{:,.0f}".format(kas_summary.income) }}</span>
-                    <span class="bg-white/20 px-2 py-1 rounded">- {{ "{:,.0f}".format(kas_summary.out) }}</span>
-                </div>
-            </div>
-            
-            {% if is_admin %}
-            <form action="/irma/kas" method="POST" class="mb-6 bg-white p-4 rounded-2xl shadow-sm border border-[#A0B391]/20">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                <div class="grid grid-cols-2 gap-3 mb-3">
-                    <select name="type" class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm">
-                        <option value="Pemasukan">Pemasukan</option>
-                        <option value="Pengeluaran">Pengeluaran</option>
-                    </select>
-                    <input type="number" name="amount" placeholder="Nominal" required class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm">
-                </div>
-                <input type="text" name="description" placeholder="Keterangan (ex: Iuran)" required class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm mb-3">
-                <input type="date" name="date" required class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm mb-3">
-                <button type="submit" class="w-full bg-[#A0B391] text-white font-bold py-3 rounded-xl hover:bg-[#FFB6C1] transition">Catat Transaksi</button>
-            </form>
-            {% endif %}
-
-            <div class="overflow-y-auto max-h-[30vh] space-y-2">
-                 {% for item in kas_list %}
-                 <div class="flex justify-between items-center p-3 bg-white rounded-xl shadow-sm">
-                     <div>
-                         <p class="text-xs text-gray-500">{{ item['date'] }}</p>
-                         <p class="text-sm font-bold text-[#2F4F4F]">{{ item['description'] }}</p>
-                     </div>
-                     <span class="font-bold text-sm {{ 'text-[#A0B391]' if item['type'] == 'Pemasukan' else 'text-[#FFB6C1]' }}">
-                         {{ "+" if item['type'] == 'Pemasukan' else "-" }} {{ "{:,.0f}".format(item['amount']) }}
-                     </span>
-                 </div>
-                 {% endfor %}
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th class="p-3 text-xs font-bold text-gray-600 rounded-l-lg">Mata Kuliah</th>
+                            <th class="p-3 text-xs font-bold text-gray-600 text-center">SKS</th>
+                            <th class="p-3 text-xs font-bold text-gray-600 text-center rounded-r-lg">Nilai</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr>
+                            <td class="p-3 text-sm text-gray-800 font-medium">Manajemen Pemasaran</td>
+                            <td class="p-3 text-sm text-gray-600 text-center">3</td>
+                            <td class="p-3 text-sm font-bold text-[#A0B391] text-center">A</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3 text-sm text-gray-800 font-medium">Statistika Bisnis</td>
+                            <td class="p-3 text-sm text-gray-600 text-center">3</td>
+                            <td class="p-3 text-sm font-bold text-[#A0B391] text-center">A-</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -7148,6 +6952,7 @@ def ramadhan_tarawih_action():
 # --- IRMA ROUTES ---
 
 @app.route('/irma')
+@app.route('/mahasiswa')
 def irma_dashboard():
     # Initialize Defaults
     is_admin = False
@@ -7351,11 +7156,82 @@ def irma_curhat():
     db.session.commit()
     return redirect(url_for('irma_dashboard', open='modal-qa'))
 
+
+@app.route('/dosen')
+def dosen_dashboard():
+    # DOSEN THEME
+    dosen_theme = {
+        'nav_bg': 'bg-[#FDFBF7]/90 backdrop-blur-md border-b border-[#E8C5A8]/20',
+        'icon_bg': 'bg-[#E8C5A8]/20',
+        'icon_text': 'text-[#A05D4A]',
+        'title_text': 'text-[#A05D4A]',
+        'link_hover': 'hover:text-[#A05D4A]',
+        'link_active': 'text-[#A05D4A] font-bold',
+        'btn_primary': 'bg-[#E8C5A8] text-[#A05D4A] font-bold hover:bg-[#A05D4A] hover:text-white',
+        'bottom_nav_bg': 'bg-[#FDFBF7]',
+        'bottom_active': 'text-[#A05D4A]',
+        'bottom_btn_bg': 'bg-[#E8C5A8]',
+        'bottom_btn_text': 'text-[#A05D4A]',
+        'bottom_text_inactive': 'text-gray-400'
+    }
+
+    dosen_html = '''
+    <div class="pt-24 pb-32 px-5 md:px-8 bg-[#FDFBF7] min-h-screen">
+        <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-10">
+            <div class="hidden md:block pl-2">
+                <p class="text-xl text-[#A05D4A]/70 font-medium mb-2">Salam Sejahtera Bapak/Ibu Dosen</p>
+                <h1 class="text-5xl font-bold text-[#A05D4A] leading-tight mb-6">Portal Dosen<br>STIESAM</h1>
+                <p class="text-[#A05D4A]/80 text-lg leading-relaxed mb-8">
+                    Terima kasih atas dedikasi luar biasa Anda dalam mendidik dan membimbing para mahasiswa STIESAM. Mari wujudkan akademik yang tertata rapi.
+                </p>
+            </div>
+            <div>
+                <div class="bg-gradient-to-br from-[#E8C5A8] to-[#D5A78B] rounded-3xl p-6 md:p-10 text-white shadow-xl relative overflow-hidden transform md:hover:scale-[1.02] transition-transform duration-500 border border-white/20">
+                    <div class="absolute top-0 right-0 opacity-10 transform translate-x-4 -translate-y-4">
+                        <i class="fas fa-chalkboard-teacher text-9xl"></i>
+                    </div>
+                    <div class="relative z-10">
+                        <p class="text-xs font-medium opacity-80 mb-1 tracking-wide uppercase text-[#5D3425]">Pengingat Akademik</p>
+                        <h2 class="text-2xl font-bold mb-3 text-[#5D3425]">Batas Input Nilai UAS</h2>
+                        <div class="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 inline-block mb-6 border border-white/10 text-[#5D3425]">
+                            <span class="font-mono text-2xl font-bold tracking-wider" id="countdown-timer">Tinggal 3 Hari</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3 class="text-[#A05D4A] font-bold text-lg mb-4 pl-3 border-l-4 border-[#E8C5A8]">Menu Utama (Dosen)</h3>
+        <div class="grid grid-cols-2 gap-4 mb-24 max-w-2xl">
+            <button onclick="alert('Memuat daftar KRS Mahasiswa Perwalian...')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/30 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+                 <div class="w-14 h-14 rounded-full bg-[#E8C5A8]/20 flex items-center justify-center text-[#A05D4A] mb-3 group-hover:bg-[#E8C5A8] group-hover:text-[#5D3425] transition-colors">
+                    <i class="fas fa-file-signature text-2xl"></i>
+                 </div>
+                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Persetujuan<br>Rencana Studi</span>
+            </button>
+            <button onclick="alert('Membuka form Input Nilai Akhir yang langsung tembus ke akun mahasiswa...')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/30 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+                 <div class="w-14 h-14 rounded-full bg-[#E8C5A8]/20 flex items-center justify-center text-[#A05D4A] mb-3 group-hover:bg-[#E8C5A8] group-hover:text-[#5D3425] transition-colors">
+                    <i class="fas fa-marker text-2xl"></i>
+                 </div>
+                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Input<br>Nilai Akhir</span>
+            </button>
+        </div>
+    </div>
+    '''
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML + IRMA_STYLES,
+                                  active_page='irma',
+                                  theme=dosen_theme,
+                                  content=dosen_html,
+                                  full_width=True,
+                                  is_admin=session.get('is_admin', False),
+                                  settings=get_settings())
+
 def manifest():
     return jsonify({
-        "name": "Masjid Al Hijrah",
+        "name": "Sekolah Tinggi Ilmu Ekonomi STIESAM",
         "short_name": "Al Hijrah",
-        "description": "Aplikasi Masjid Al Hijrah Samarinda",
+        "description": "Aplikasi Sekolah Tinggi Ilmu Ekonomi STIESAM Samarinda",
         "start_url": "/",
         "id": "/",
         "scope": "/",
