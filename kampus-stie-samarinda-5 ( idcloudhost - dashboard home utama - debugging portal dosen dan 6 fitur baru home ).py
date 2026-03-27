@@ -1264,29 +1264,6 @@ BASE_LAYOUT = """
             }
         </script>
     </div>
-    <!-- ADMIN LOGIN MODAL -->
-    <div id="modal-login-admin" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-login-admin')"></div>
-        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-user-shield text-sky-500 mr-2"></i>Login Admin</h3>
-                <button onclick="closeModal('modal-login-admin')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
-            </div>
-            <form action="/login" method="POST" class="space-y-4">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Username</label>
-                    <input type="text" name="username" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
-                    <input type="password" name="password" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
-                </div>
-                <button type="submit" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-sky-600 transition">Masuk</button>
-            </form>
-        </div>
-    </div>
 
     <script>
         // PWA SERVICE WORKER
@@ -4380,18 +4357,12 @@ HOME_HTML = """
 
 </div>
 
-<!-- YASIN & ADMIN FLOATING ACTIONS -->
+<!-- YASIN & FITUR LAINNYA FLOATING ACTIONS -->
 <div id="floating-actions" class="fixed bottom-24 right-5 z-40 md:right-8 flex items-end gap-3">
-    <!-- Admin Button -->
-    {% if is_admin %}
-    <a href="/logout" onclick="return confirm('Apakah Anda yakin ingin keluar dari Mode Admin?')" class="w-12 h-12 rounded-md bg-red-600 text-white shadow-xl flex items-center justify-center hover:bg-red-700 transition-all border-2 border-white">
-       <i class="fas fa-sign-out-alt text-lg"></i>
-    </a>
-    {% else %}
-    <button onclick="openModal('modal-login-admin')" class="w-12 h-12 rounded-md bg-sky-600 text-white shadow-xl flex items-center justify-center hover:bg-sky-500 transition-all border-2 border-white">
-       <i class="fas fa-user-shield text-lg"></i>
+    <!-- Fitur Lainnya Button -->
+    <button onclick="openModal('modal-fitur-lainnya')" class="w-12 h-12 rounded-md bg-sky-600 text-white shadow-xl flex items-center justify-center hover:bg-sky-500 transition-all border-2 border-white">
+       <i class="fas fa-layer-group text-lg"></i>
     </button>
-    {% endif %}
 
     <!-- Quran & Yasin Stack -->
     <div class="flex flex-col items-center gap-4">
@@ -4406,6 +4377,388 @@ HOME_HTML = """
             <button onclick="openYasinModal()" class="w-16 h-16 rounded-full bg-sky-600 text-white shadow-2xl flex items-center justify-center hover:bg-sky-500 hover:scale-110 transition-all duration-300 border-4 border-white">
                 <i class="fas fa-book-open text-2xl"></i>
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- FITUR LAINNYA MODAL -->
+<div id="modal-fitur-lainnya" class="fixed inset-0 z-[150] hidden flex items-center justify-center bg-black/40 backdrop-blur-xl transition-all duration-300">
+    <div class="absolute inset-0" onclick="closeModal('modal-fitur-lainnya')"></div>
+    <div class="relative w-full max-w-md mx-4 p-6 bg-white/90 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/40 animate-[slideUp_0.4s_ease-out]">
+        <div class="flex justify-between items-center mb-8">
+            <h3 class="text-2xl font-bold text-gray-800 tracking-tight">Fitur Kampus</h3>
+            <button onclick="closeModal('modal-fitur-lainnya')" class="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center text-gray-600 hover:bg-black/10 transition-colors shadow-inner">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-y-8 gap-x-4">
+            <!-- Feature 1 -->
+            <button onclick="openModal('modal-chatbot'); closeModal('modal-fitur-lainnya')" class="flex flex-col items-center group cursor-pointer">
+                <div class="w-16 h-16 rounded-[1.2rem] bg-gradient-to-tr from-sky-400 to-blue-500 text-white flex items-center justify-center text-2xl shadow-lg group-hover:scale-95 group-active:scale-90 transition-transform duration-200 mb-3 border-2 border-white/50">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <span class="text-[10px] font-bold text-gray-700 text-center leading-tight">Chatbot<br>Pintar</span>
+            </button>
+
+            <!-- Feature 2 -->
+            <button onclick="openModal('modal-kalender'); closeModal('modal-fitur-lainnya')" class="flex flex-col items-center group cursor-pointer">
+                <div class="w-16 h-16 rounded-[1.2rem] bg-gradient-to-tr from-rose-400 to-red-500 text-white flex items-center justify-center text-2xl shadow-lg group-hover:scale-95 group-active:scale-90 transition-transform duration-200 mb-3 border-2 border-white/50">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <span class="text-[10px] font-bold text-gray-700 text-center leading-tight">Kalender<br>Akademik</span>
+            </button>
+
+            <!-- Feature 3 -->
+            <button onclick="openModal('modal-validasi'); closeModal('modal-fitur-lainnya')" class="flex flex-col items-center group cursor-pointer">
+                <div class="w-16 h-16 rounded-[1.2rem] bg-gradient-to-tr from-emerald-400 to-green-500 text-white flex items-center justify-center text-2xl shadow-lg group-hover:scale-95 group-active:scale-90 transition-transform duration-200 mb-3 border-2 border-white/50">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <span class="text-[10px] font-bold text-gray-700 text-center leading-tight">Validasi<br>Surat</span>
+            </button>
+
+            <!-- Feature 4 -->
+            <button onclick="openModal('modal-kalkulator'); closeModal('modal-fitur-lainnya')" class="flex flex-col items-center group cursor-pointer">
+                <div class="w-16 h-16 rounded-[1.2rem] bg-gradient-to-tr from-amber-400 to-orange-500 text-white flex items-center justify-center text-2xl shadow-lg group-hover:scale-95 group-active:scale-90 transition-transform duration-200 mb-3 border-2 border-white/50">
+                    <i class="fas fa-calculator"></i>
+                </div>
+                <span class="text-[10px] font-bold text-gray-700 text-center leading-tight">Simulasi<br>Biaya</span>
+            </button>
+
+            <!-- Feature 5 -->
+            <button onclick="openModal('modal-perpustakaan'); closeModal('modal-fitur-lainnya')" class="flex flex-col items-center group cursor-pointer">
+                <div class="w-16 h-16 rounded-[1.2rem] bg-gradient-to-tr from-indigo-400 to-purple-500 text-white flex items-center justify-center text-2xl shadow-lg group-hover:scale-95 group-active:scale-90 transition-transform duration-200 mb-3 border-2 border-white/50">
+                    <i class="fas fa-book-reader"></i>
+                </div>
+                <span class="text-[10px] font-bold text-gray-700 text-center leading-tight">E-Library<br>& Jurnal</span>
+            </button>
+
+            <!-- Feature 6 -->
+            <button onclick="openModal('modal-kontak'); closeModal('modal-fitur-lainnya')" class="flex flex-col items-center group cursor-pointer">
+                <div class="w-16 h-16 rounded-[1.2rem] bg-gradient-to-tr from-teal-400 to-cyan-500 text-white flex items-center justify-center text-2xl shadow-lg group-hover:scale-95 group-active:scale-90 transition-transform duration-200 mb-3 border-2 border-white/50">
+                    <i class="fas fa-address-book"></i>
+                </div>
+                <span class="text-[10px] font-bold text-gray-700 text-center leading-tight">Direktori<br>Darurat</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- FEATURE 1: CHATBOT & HELPDESK -->
+<div id="modal-chatbot" class="fixed inset-0 z-[160] hidden bg-gray-50 flex flex-col transition-all duration-300">
+    <div class="bg-gradient-to-r from-sky-600 to-blue-600 px-5 py-4 text-white flex justify-between items-center shadow-md">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center"><i class="fas fa-robot text-xl"></i></div>
+            <div>
+                <h3 class="font-bold leading-tight">Helpdesk Pintar</h3>
+                <p class="text-[10px] text-sky-100">Online - STIESAM Support</p>
+            </div>
+        </div>
+        <button onclick="closeModal('modal-chatbot')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-5 space-y-4" id="chat-messages">
+        <div class="flex justify-start">
+            <div class="bg-white p-3 rounded-2xl rounded-tl-sm shadow-sm max-w-[80%] border border-gray-100">
+                <p class="text-sm text-gray-700">Halo! Saya asisten virtual STIESAM. Ada yang bisa saya bantu terkait kampus hari ini?</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="p-4 bg-white border-t border-gray-100 shadow-[0_-5px_15px_rgba(0,0,0,0.02)]">
+        <div class="flex gap-2 overflow-x-auto pb-3 custom-scrollbar">
+            <button onclick="sendChat('Berapa biaya pendaftaran?')" class="whitespace-nowrap px-4 py-2 bg-sky-50 text-sky-600 rounded-full text-xs font-bold border border-sky-100 hover:bg-sky-100 transition-colors">Biaya Pendaftaran</button>
+            <button onclick="sendChat('Apa syarat beasiswa?')" class="whitespace-nowrap px-4 py-2 bg-sky-50 text-sky-600 rounded-full text-xs font-bold border border-sky-100 hover:bg-sky-100 transition-colors">Syarat Beasiswa</button>
+            <button onclick="sendChat('Jalur masuk apa saja?')" class="whitespace-nowrap px-4 py-2 bg-sky-50 text-sky-600 rounded-full text-xs font-bold border border-sky-100 hover:bg-sky-100 transition-colors">Jalur Masuk</button>
+        </div>
+        <div class="flex gap-2 mt-2">
+            <a href="https://wa.me/6282330890500?text=Halo%20Admin%20STIESAM,%20saya%20butuh%20bantuan." target="_blank" class="w-12 h-12 flex-shrink-0 bg-green-500 text-white rounded-xl flex items-center justify-center shadow-md hover:bg-green-600 transition-colors">
+                <i class="fab fa-whatsapp text-2xl"></i>
+            </a>
+            <input type="text" id="chat-input" placeholder="Ketik pertanyaan Anda..." class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+            <button onclick="sendCustomChat()" class="w-12 h-12 flex-shrink-0 bg-sky-600 text-white rounded-xl flex items-center justify-center shadow-md hover:bg-sky-700 transition-colors">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</div>
+<script>
+    function sendChat(msg) {
+        const chatBox = document.getElementById('chat-messages');
+        chatBox.innerHTML += `<div class="flex justify-end"><div class="bg-sky-600 text-white p-3 rounded-2xl rounded-tr-sm shadow-sm max-w-[80%]"><p class="text-sm">${msg}</p></div></div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        setTimeout(() => {
+            let reply = "Maaf, saya tidak mengerti. Silakan hubungi admin via WhatsApp.";
+            if(msg.includes('biaya')) reply = "Estimasi biaya pendaftaran adalah Rp 300.000. Untuk rincian uang kuliah tunggal (UKT), Anda bisa menggunakan fitur Kalkulator Simulasi Biaya.";
+            else if(msg.includes('beasiswa')) reply = "STIESAM menyediakan beasiswa KIP-K, prestasi, dan tahfidz. Syarat umum meliputi fotokopi rapor, KTP, dan surat keterangan tidak mampu (jika ada).";
+            else if(msg.includes('masuk')) reply = "Jalur masuk STIESAM terbagi menjadi Reguler, Prestasi, dan Karyawan (Kelas Sore/Malam).";
+
+            chatBox.innerHTML += `<div class="flex justify-start"><div class="bg-white p-3 rounded-2xl rounded-tl-sm shadow-sm max-w-[80%] border border-gray-100"><p class="text-sm text-gray-700">${reply}</p></div></div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }, 800);
+    }
+    function sendCustomChat() {
+        const inp = document.getElementById('chat-input');
+        if(inp.value.trim()) {
+            sendChat(inp.value.trim());
+            inp.value = '';
+        }
+    }
+</script>
+
+<!-- FEATURE 2: KALENDER AKADEMIK -->
+<div id="modal-kalender" class="fixed inset-0 z-[160] hidden bg-gray-50 flex flex-col transition-all duration-300">
+    <div class="bg-gradient-to-r from-rose-500 to-red-600 px-5 py-4 text-white flex justify-between items-center shadow-md">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center"><i class="fas fa-calendar-alt text-xl"></i></div>
+            <h3 class="font-bold leading-tight">Kalender Akademik</h3>
+        </div>
+        <button onclick="closeModal('modal-kalender')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <div class="p-5 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <button class="text-gray-400 hover:text-rose-500"><i class="fas fa-chevron-left"></i></button>
+                <h4 class="font-bold text-gray-800">September 2024</h4>
+                <button class="text-gray-400 hover:text-rose-500"><i class="fas fa-chevron-right"></i></button>
+            </div>
+            <div class="grid grid-cols-7 gap-2 text-center text-xs font-bold text-gray-400 mb-2">
+                <div class="text-red-400">Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
+            </div>
+            <div class="grid grid-cols-7 gap-2 text-center text-sm font-medium text-gray-700">
+                <div class="p-2 text-gray-300">26</div><div class="p-2 text-gray-300">27</div><div class="p-2 text-gray-300">28</div><div class="p-2 text-gray-300">29</div><div class="p-2 text-gray-300">30</div><div class="p-2 text-gray-300">31</div>
+                <div class="p-2">1</div><div class="p-2">2</div><div class="p-2 bg-green-100 text-green-700 rounded-lg shadow-sm cursor-pointer" onclick="alert('Pengisian KRS')">3</div><div class="p-2 bg-green-100 text-green-700 rounded-lg shadow-sm cursor-pointer" onclick="alert('Pengisian KRS')">4</div><div class="p-2 bg-green-100 text-green-700 rounded-lg shadow-sm cursor-pointer" onclick="alert('Pengisian KRS')">5</div><div class="p-2">6</div><div class="p-2 text-red-500">7</div>
+                <div class="p-2 text-red-500">8</div><div class="p-2 bg-yellow-100 text-yellow-700 rounded-lg shadow-sm cursor-pointer" onclick="alert('Ujian Tengah Semester (UTS)')">9</div><div class="p-2 bg-yellow-100 text-yellow-700 rounded-lg shadow-sm cursor-pointer" onclick="alert('Ujian Tengah Semester (UTS)')">10</div><div class="p-2 bg-yellow-100 text-yellow-700 rounded-lg shadow-sm cursor-pointer" onclick="alert('Ujian Tengah Semester (UTS)')">11</div><div class="p-2 bg-yellow-100 text-yellow-700 rounded-lg shadow-sm cursor-pointer" onclick="alert('Ujian Tengah Semester (UTS)')">12</div><div class="p-2 bg-yellow-100 text-yellow-700 rounded-lg shadow-sm cursor-pointer" onclick="alert('Ujian Tengah Semester (UTS)')">13</div><div class="p-2 text-red-500">14</div>
+                <div class="p-2 text-red-500">15</div><div class="p-2 bg-red-100 text-red-700 rounded-lg shadow-sm cursor-pointer" onclick="alert('Libur Nasional: Maulid Nabi')">16</div><div class="p-2">17</div><div class="p-2">18</div><div class="p-2">19</div><div class="p-2">20</div><div class="p-2 text-red-500">21</div>
+                <div class="p-2 text-red-500">22</div><div class="p-2">23</div><div class="p-2 border-2 border-rose-500 rounded-lg text-rose-600 font-bold">24</div><div class="p-2">25</div><div class="p-2">26</div><div class="p-2">27</div><div class="p-2 text-red-500">28</div>
+                <div class="p-2 text-red-500">29</div><div class="p-2">30</div><div class="p-2 text-gray-300">1</div><div class="p-2 text-gray-300">2</div><div class="p-2 text-gray-300">3</div><div class="p-2 text-gray-300">4</div><div class="p-2 text-gray-300">5</div>
+            </div>
+        </div>
+
+        <h4 class="font-bold text-gray-800 mb-3 text-sm">Keterangan</h4>
+        <div class="space-y-2">
+            <div class="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100">
+                <div class="w-4 h-4 rounded bg-green-100 border border-green-200 flex-shrink-0"></div>
+                <span class="text-sm text-gray-600">Masa Pengisian KRS (3-5 Sep)</span>
+            </div>
+            <div class="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100">
+                <div class="w-4 h-4 rounded bg-yellow-100 border border-yellow-200 flex-shrink-0"></div>
+                <span class="text-sm text-gray-600">Pekan Ujian (UTS) (9-13 Sep)</span>
+            </div>
+            <div class="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100">
+                <div class="w-4 h-4 rounded bg-red-100 border border-red-200 flex-shrink-0"></div>
+                <span class="text-sm text-gray-600">Libur Akademik (16 Sep)</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FEATURE 3: VALIDASI SURAT -->
+<div id="modal-validasi" class="fixed inset-0 z-[160] hidden bg-gray-50 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-xl overflow-hidden animate-[slideUp_0.3s_ease-out]">
+        <div class="bg-gradient-to-r from-emerald-500 to-green-600 px-6 py-8 text-white text-center relative">
+            <button onclick="closeModal('modal-validasi')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                <i class="fas fa-times"></i>
+            </button>
+            <i class="fas fa-shield-alt text-5xl mb-4 drop-shadow-md"></i>
+            <h3 class="text-2xl font-bold tracking-tight">Validasi Surat</h3>
+            <p class="text-emerald-100 text-sm mt-1">Sistem Keaslian Dokumen STIESAM</p>
+        </div>
+        <div class="p-6">
+            <p class="text-sm text-gray-600 text-center mb-6">Masukkan kode unik atau ID Dokumen yang tertera pada bagian bawah surat pengantar.</p>
+            <div class="flex gap-2 mb-4">
+                <input type="text" id="validasi-input" placeholder="Cth: STS-2401-8A9F" class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-center font-mono text-gray-800 uppercase focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200">
+            </div>
+            <button onclick="validateSurat()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-emerald-600 transition-colors mb-6">Cek Keaslian</button>
+
+            <div id="validasi-result" class="hidden border border-emerald-200 bg-emerald-50 p-4 rounded-xl flex items-start gap-3">
+                <i class="fas fa-check-circle text-emerald-500 text-2xl mt-0.5"></i>
+                <div>
+                    <h4 class="font-bold text-emerald-800">DOKUMEN RESMI</h4>
+                    <p class="text-xs text-emerald-700 mt-1">Surat Pengantar Magang (No: 045/AKD/STS/2024)<br>Diterbitkan: 24 Sep 2024<br>Oleh: Tata Usaha STIESAM</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    function validateSurat() {
+        const inp = document.getElementById('validasi-input').value;
+        if(inp.length > 3) {
+            document.getElementById('validasi-result').classList.remove('hidden');
+        } else {
+            alert('Masukkan kode surat yang valid.');
+        }
+    }
+</script>
+
+<!-- FEATURE 4: KALKULATOR BIAYA -->
+<div id="modal-kalkulator" class="fixed inset-0 z-[160] hidden bg-gray-50 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-xl overflow-hidden animate-[slideUp_0.3s_ease-out]">
+        <div class="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-6 text-white flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-calculator text-2xl drop-shadow-md"></i>
+                <h3 class="text-xl font-bold tracking-tight">Kalkulator UKT</h3>
+            </div>
+            <button onclick="closeModal('modal-kalkulator')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-2">Program Studi</label>
+                    <select id="calc-prodi" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-bold text-gray-700">
+                        <option value="4000000">S1 Manajemen (S.E)</option>
+                        <option value="4500000">S1 Akuntansi (S.Ak)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-2">Jalur Pendaftaran</label>
+                    <select id="calc-jalur" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-bold text-gray-700">
+                        <option value="0">Reguler (Pagi/Siang)</option>
+                        <option value="1000000">Karyawan (Sore/Malam) + Rp 1.000.000</option>
+                        <option value="-2000000">Prestasi/Tahfidz - Rp 2.000.000</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="calculateUKT()" class="w-full bg-amber-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-amber-600 transition-colors mb-6">Hitung Simulasi</button>
+
+            <div class="bg-gray-800 text-white p-5 rounded-2xl text-center shadow-inner relative overflow-hidden">
+                <div class="absolute -right-4 -top-4 opacity-10 text-7xl"><i class="fas fa-coins"></i></div>
+                <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Estimasi Biaya Per Semester</p>
+                <h2 id="calc-result" class="text-3xl font-mono font-bold text-amber-400">Rp 0</h2>
+                <p class="text-[10px] text-gray-500 mt-2">*Biaya belum termasuk pendaftaran dan almamater</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    function calculateUKT() {
+        const base = parseInt(document.getElementById('calc-prodi').value);
+        const mod = parseInt(document.getElementById('calc-jalur').value);
+        const total = base + mod;
+        document.getElementById('calc-result').innerText = "Rp " + total.toLocaleString('id-ID');
+    }
+</script>
+
+<!-- FEATURE 5: PERPUSTAKAAN & JURNAL -->
+<div id="modal-perpustakaan" class="fixed inset-0 z-[160] hidden bg-black/60 backdrop-blur-sm p-4 pt-20">
+    <div class="bg-white w-full max-w-2xl mx-auto rounded-3xl shadow-2xl flex flex-col h-[80vh] overflow-hidden animate-[slideDown_0.3s_ease-out]">
+        <div class="bg-gradient-to-r from-indigo-600 to-purple-700 p-6 text-white relative flex-shrink-0">
+            <button onclick="closeModal('modal-perpustakaan')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                <i class="fas fa-times"></i>
+            </button>
+            <h3 class="text-2xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-book-reader"></i> E-Library & Jurnal</h3>
+            <div class="relative">
+                <input type="text" id="lib-search" onkeyup="searchLib()" placeholder="Cari buku manajemen, akuntansi, atau penulis..." class="w-full bg-white/10 border border-white/20 rounded-xl pl-12 pr-4 py-3 text-white placeholder-indigo-200 focus:outline-none focus:bg-white/20 focus:ring-2 focus:ring-white">
+                <i class="fas fa-search absolute left-4 top-3.5 text-indigo-200 text-lg"></i>
+            </div>
+        </div>
+
+        <div class="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-3" id="lib-results">
+            <!-- Results populated by JS -->
+            <div class="lib-item bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow flex gap-4 cursor-pointer">
+                <div class="w-12 h-16 bg-blue-100 rounded flex items-center justify-center text-blue-500 text-2xl flex-shrink-0"><i class="fas fa-book"></i></div>
+                <div>
+                    <span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">Buku</span>
+                    <h4 class="font-bold text-gray-800 mt-1 leading-tight">Pengantar Manajemen Modern</h4>
+                    <p class="text-xs text-gray-500 mt-1">Prof. Dr. H. Abdul, M.Si.</p>
+                </div>
+            </div>
+            <div class="lib-item bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow flex gap-4 cursor-pointer">
+                <div class="w-12 h-16 bg-rose-100 rounded flex items-center justify-center text-rose-500 text-2xl flex-shrink-0"><i class="fas fa-file-pdf"></i></div>
+                <div>
+                    <span class="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold">Jurnal Nasional</span>
+                    <h4 class="font-bold text-gray-800 mt-1 leading-tight">Analisis Laporan Keuangan UMKM</h4>
+                    <p class="text-xs text-gray-500 mt-1">Jurnal Ekonomi & Bisnis (Vol. 4)</p>
+                </div>
+            </div>
+            <div class="lib-item bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow flex gap-4 cursor-pointer">
+                <div class="w-12 h-16 bg-blue-100 rounded flex items-center justify-center text-blue-500 text-2xl flex-shrink-0"><i class="fas fa-book"></i></div>
+                <div>
+                    <span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">Buku</span>
+                    <h4 class="font-bold text-gray-800 mt-1 leading-tight">Dasar-Dasar Akuntansi</h4>
+                    <p class="text-xs text-gray-500 mt-1">Drs. Budi Santoso</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    function searchLib() {
+        const filter = document.getElementById('lib-search').value.toUpperCase();
+        const items = document.querySelectorAll('.lib-item');
+        items.forEach(item => {
+            const txt = item.innerText || item.textContent;
+            item.style.display = txt.toUpperCase().indexOf(filter) > -1 ? "" : "none";
+        });
+    }
+</script>
+
+<!-- FEATURE 6: DIREKTORI KONTAK -->
+<div id="modal-kontak" class="fixed inset-0 z-[160] hidden bg-gray-50 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-xl overflow-hidden animate-[slideUp_0.3s_ease-out] flex flex-col max-h-[85vh]">
+        <div class="bg-gradient-to-r from-teal-500 to-cyan-600 px-6 py-5 text-white flex justify-between items-center shadow-md flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-address-book text-2xl drop-shadow-md"></i>
+                <h3 class="text-lg font-bold tracking-tight">Direktori & Hotline</h3>
+            </div>
+            <button onclick="closeModal('modal-kontak')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="p-4 overflow-y-auto flex-1 space-y-3 bg-slate-50">
+            <a href="https://wa.me/6281234567890" target="_blank" class="block bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-teal-300 hover:shadow-md transition-all group">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center text-xl group-hover:bg-teal-500 group-hover:text-white transition-colors"><i class="fas fa-user-tie"></i></div>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-gray-800">Tata Usaha (Akademik)</h4>
+                        <p class="text-xs text-gray-500">KRS, Jadwal, Surat Menyurat</p>
+                    </div>
+                    <i class="fab fa-whatsapp text-2xl text-green-500"></i>
+                </div>
+            </a>
+
+            <a href="https://wa.me/6281234567891" target="_blank" class="block bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-amber-300 hover:shadow-md transition-all group">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-xl group-hover:bg-amber-500 group-hover:text-white transition-colors"><i class="fas fa-file-invoice-dollar"></i></div>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-gray-800">Bagian Keuangan</h4>
+                        <p class="text-xs text-gray-500">UKT, Pembayaran, Beasiswa</p>
+                    </div>
+                    <i class="fab fa-whatsapp text-2xl text-green-500"></i>
+                </div>
+            </a>
+
+            <a href="mailto:it@stiesam.ac.id" class="block bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-blue-300 hover:shadow-md transition-all group">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl group-hover:bg-blue-500 group-hover:text-white transition-colors"><i class="fas fa-laptop-code"></i></div>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-gray-800">Layanan IT</h4>
+                        <p class="text-xs text-gray-500">Lupa Password, Error Sistem</p>
+                    </div>
+                    <i class="fas fa-envelope text-2xl text-blue-400"></i>
+                </div>
+            </a>
+
+            <a href="tel:0541123456" class="block bg-red-50 p-4 rounded-2xl shadow-sm border border-red-200 hover:border-red-400 hover:shadow-md transition-all group">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-white text-red-600 flex items-center justify-center text-xl group-hover:bg-red-600 group-hover:text-white transition-colors"><i class="fas fa-phone-volume"></i></div>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-red-800">Hotline Darurat Kampus</h4>
+                        <p class="text-xs text-red-600">Keamanan & Keadaan Darurat</p>
+                    </div>
+                    <i class="fas fa-phone text-xl text-red-600"></i>
+                </div>
+            </a>
         </div>
     </div>
 </div>
