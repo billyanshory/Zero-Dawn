@@ -2907,6 +2907,314 @@ HOME_HTML = """
 
     <!-- MODALS -->
 
+    <!-- Modal Profil Kampus -->
+    <div id="modal-profil-kampus" class="fixed inset-0 z-[100] hidden">
+        <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] overflow-y-auto">
+            <div class="relative w-full max-w-2xl mx-auto p-6 md:p-12">
+                <button onclick="closeModal('modal-profil-kampus')" class="absolute top-4 right-4 md:top-8 md:right-8 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center transition-colors">&times;</button>
+
+                <div class="text-center mb-10">
+                    <div class="w-20 h-20 bg-sky-50 text-sky-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">
+                        <i class="fas fa-university"></i>
+                    </div>
+                    <h2 class="text-3xl font-extrabold text-gray-800 mb-2">Profil Kampus</h2>
+                    <p class="text-gray-500 font-medium">Sekolah Tinggi Ilmu Ekonomi STIESAM Samarinda</p>
+                </div>
+
+                <div class="space-y-6 text-gray-600 leading-relaxed text-justify">
+                    <img src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80" alt="Gedung Kampus" class="w-full h-64 object-cover rounded-3xl shadow-md mb-6">
+
+                    <p>Sekolah Tinggi Ilmu Ekonomi (STIE) SAM Samarinda didirikan dengan komitmen teguh untuk menghasilkan sarjana ekonomi yang profesional, beretika, dan mampu bersaing di era digital. Dengan fasilitas pembelajaran yang representatif dan didukung oleh staf pengajar yang kompeten di bidangnya, STIESAM terus bertransformasi menjadi pusat unggulan kajian ekonomi di Kalimantan Timur.</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-8">
+                        <div class="bg-sky-50 p-6 rounded-2xl border border-sky-100">
+                            <h4 class="text-sky-800 font-bold mb-2 flex items-center gap-2"><i class="fas fa-eye"></i> Visi</h4>
+                            <p class="text-sm">Menjadi institusi pendidikan tinggi ekonomi yang terkemuka, inovatif, dan berdaya saing global dengan menjunjung tinggi nilai-nilai moral dan etika bisnis.</p>
+                        </div>
+                        <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100">
+                            <h4 class="text-blue-800 font-bold mb-2 flex items-center gap-2"><i class="fas fa-bullseye"></i> Misi</h4>
+                            <p class="text-sm">1. Menyelenggarakan pendidikan yang berkualitas.<br>2. Melaksanakan penelitian yang bermanfaat.<br>3. Melakukan pengabdian yang berdampak nyata bagi masyarakat.</p>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Program Studi</h3>
+                    <div class="space-y-3">
+                        <div class="p-4 border border-gray-200 rounded-xl hover:shadow-md transition">
+                            <h4 class="font-bold text-gray-800">S1 Manajemen</h4>
+                            <p class="text-sm text-gray-500">Akreditasi B. Fokus pada pengembangan manajerial, bisnis digital, dan kewirausahaan.</p>
+                        </div>
+                        <div class="p-4 border border-gray-200 rounded-xl hover:shadow-md transition">
+                            <h4 class="font-bold text-gray-800">S1 Akuntansi</h4>
+                            <p class="text-sm text-gray-500">Akreditasi B. Menghasilkan akuntan publik dan privat yang kredibel dan melek teknologi.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal PMB -->
+    <div id="modal-pmb" class="fixed inset-0 z-[100] hidden">
+        <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] overflow-y-auto">
+            <div class="relative w-full max-w-xl mx-auto p-6 md:p-12">
+                <button onclick="closeModal('modal-pmb')" class="absolute top-4 right-4 md:top-8 md:right-8 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center transition-colors">&times;</button>
+
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <h2 class="text-2xl font-extrabold text-gray-800 mb-2">Pendaftaran Mahasiswa Baru</h2>
+                    <p class="text-gray-500 font-medium text-sm">Isi formulir pendaftaran digital di bawah ini.</p>
+                </div>
+
+                <form id="pmb-form" action="/api/pmb/register" method="POST" enctype="multipart/form-data" class="space-y-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Nama Lengkap Sesuai Ijazah</label>
+                        <input type="text" name="nama" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Upload Scan Ijazah Terakhir (JPG/PNG)</label>
+                        <input type="file" name="foto_ijazah" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Upload Scan KTP (JPG/PNG)</label>
+                        <input type="file" name="foto_ktp" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Upload Bukti Transfer Pendaftaran (JPG/PNG)</label>
+                        <input type="file" name="bukti_transfer" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    </div>
+
+                    <div id="pmb-alert" class="hidden rounded-xl p-3 text-sm font-bold text-center mt-4"></div>
+
+                    <button type="submit" id="pmb-submit-btn" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-700 transition transform hover:scale-[1.02] mt-4">
+                        <i class="fas fa-paper-plane mr-2"></i>Kirim Pendaftaran
+                    </button>
+                </form>
+
+                <script>
+                    document.getElementById('pmb-form').addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const btn = document.getElementById('pmb-submit-btn');
+                        const alertBox = document.getElementById('pmb-alert');
+                        btn.disabled = true;
+                        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Mengirim...';
+
+                        try {
+                            const fd = new FormData(e.target);
+                            const res = await fetch('/api/pmb/register', {
+                                method: 'POST',
+                                body: fd
+                            });
+                            const data = await res.json();
+
+                            alertBox.classList.remove('hidden', 'bg-red-50', 'text-red-600', 'bg-green-50', 'text-green-600');
+                            if(data.success) {
+                                alertBox.classList.add('bg-green-50', 'text-green-600');
+                                alertBox.innerText = data.message;
+                                e.target.reset();
+                            } else {
+                                alertBox.classList.add('bg-red-50', 'text-red-600');
+                                alertBox.innerText = data.error || 'Gagal mengirim data.';
+                            }
+                        } catch(err) {
+                            alertBox.classList.remove('hidden');
+                            alertBox.classList.add('bg-red-50', 'text-red-600');
+                            alertBox.innerText = 'Terjadi kesalahan sistem.';
+                        } finally {
+                            btn.disabled = false;
+                            btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Kirim Pendaftaran';
+                        }
+                    });
+                </script>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Cek Status PMB -->
+    <div id="modal-cek-status-pmb" class="fixed inset-0 z-[100] hidden">
+        <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] overflow-y-auto">
+            <div class="relative w-full max-w-md mx-auto p-6 md:p-12 text-center mt-20">
+                <button onclick="closeModal('modal-cek-status-pmb')" class="absolute top-0 right-0 md:-top-4 md:-right-4 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center transition-colors">&times;</button>
+
+                <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                    <i class="fas fa-search-dollar"></i>
+                </div>
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">Cek Status PMB</h2>
+                <p class="text-gray-500 font-medium text-sm mb-6">Masukkan nama lengkap Anda yang terdaftar.</p>
+
+                <div class="flex gap-2 mb-6">
+                    <input type="text" id="cek-nama" placeholder="Ketik Nama Lengkap..." class="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button onclick="cekStatusPMB()" class="bg-indigo-600 text-white px-6 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition"><i class="fas fa-search"></i></button>
+                </div>
+
+                <div id="cek-status-result" class="text-left bg-gray-50 p-4 rounded-2xl border border-gray-100 hidden">
+                    <!-- Results will be injected here -->
+                </div>
+
+                <script>
+                    async function cekStatusPMB() {
+                        const nama = document.getElementById('cek-nama').value;
+                        const resBox = document.getElementById('cek-status-result');
+                        if(!nama) return;
+
+                        resBox.classList.remove('hidden');
+                        resBox.innerHTML = '<p class="text-center text-gray-500 text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>Mencari...</p>';
+
+                        try {
+                            const res = await fetch('/api/pmb/check?nama=' + encodeURIComponent(nama));
+                            const data = await res.json();
+
+                            if(data.error) {
+                                resBox.innerHTML = `<p class="text-center text-red-500 font-bold text-sm">${data.error}</p>`;
+                            } else {
+                                let html = `<p class="font-bold text-gray-800 mb-1">${data.nama}</p>`;
+                                let statusClass = data.status === 'Diterima' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700';
+                                html += `<p class="text-xs text-gray-500 mb-3">Status: <span class="px-2 py-1 rounded font-bold ${statusClass}">${data.status}</span></p>`;
+
+                                if(data.status === 'Diterima') {
+                                    html += `<div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                                                <p class="text-xs text-indigo-800 font-bold mb-1">Selamat Anda Diterima!</p>
+                                                <p class="text-xs text-indigo-600">NPM Anda: <span class="font-mono font-bold text-lg block">${data.npm}</span></p>
+                                                <p class="text-[10px] text-indigo-500 mt-2">Gunakan NPM sebagai Username untuk masuk ke Portal Mahasiswa.</p>
+                                             </div>`;
+                                } else {
+                                    html += `<p class="text-xs text-gray-500 italic">Berkas Anda sedang dalam proses verifikasi oleh Tata Usaha. Mohon periksa kembali nanti.</p>`;
+                                }
+                                resBox.innerHTML = html;
+                            }
+                        } catch(err) {
+                            resBox.innerHTML = '<p class="text-center text-red-500 font-bold text-sm">Terjadi kesalahan sistem.</p>';
+                        }
+                    }
+                </script>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Berita Agenda -->
+    <div id="modal-berita-agenda" class="fixed inset-0 z-[100] hidden">
+        <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] overflow-y-auto">
+            <div class="relative w-full max-w-2xl mx-auto p-6 md:p-12">
+                <button onclick="closeModal('modal-berita-agenda')" class="absolute top-4 right-4 md:top-8 md:right-8 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center transition-colors">&times;</button>
+
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                        <i class="fas fa-newspaper"></i>
+                    </div>
+                    <h2 class="text-2xl font-extrabold text-gray-800 mb-2">Berita & Agenda</h2>
+                    <p class="text-gray-500 font-medium text-sm">Informasi terkini kegiatan kampus STIESAM.</p>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 hover:shadow-md transition">
+                        <div class="w-full md:w-32 h-32 bg-gray-200 rounded-xl flex-shrink-0 overflow-hidden">
+                            <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" class="w-full h-full object-cover">
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded uppercase tracking-wider">Seminar Nasional</span>
+                            <h4 class="font-bold text-gray-800 text-lg mt-2 mb-1">Tantangan Ekonomi Digital 2025</h4>
+                            <p class="text-xs text-gray-500 mb-2"><i class="fas fa-calendar-alt mr-1"></i> 12 Oktober 2024 • Auditorium STIESAM</p>
+                            <p class="text-sm text-gray-600 line-clamp-2">Seminar nasional yang membahas tentang persiapan UMKM menghadapi transformasi ekonomi digital dan kecerdasan buatan.</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 hover:shadow-md transition">
+                        <div class="w-full md:w-32 h-32 bg-gray-200 rounded-xl flex-shrink-0 overflow-hidden">
+                            <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" class="w-full h-full object-cover">
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded uppercase tracking-wider">Pengumuman</span>
+                            <h4 class="font-bold text-gray-800 text-lg mt-2 mb-1">Penerimaan Beasiswa Prestasi</h4>
+                            <p class="text-xs text-gray-500 mb-2"><i class="fas fa-calendar-alt mr-1"></i> 05 November 2024</p>
+                            <p class="text-sm text-gray-600 line-clamp-2">Telah dibuka pendaftaran beasiswa prestasi untuk mahasiswa aktif semester 3 hingga 7. Segera daftarkan diri Anda di portal mahasiswa.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Galeri Jurnal -->
+    <div id="modal-galeri-jurnal" class="fixed inset-0 z-[100] hidden">
+        <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] overflow-y-auto">
+            <div class="relative w-full max-w-4xl mx-auto p-6 md:p-12">
+                <button onclick="closeModal('modal-galeri-jurnal')" class="absolute top-4 right-4 md:top-8 md:right-8 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center transition-colors">&times;</button>
+
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                        <i class="fas fa-book-open"></i>
+                    </div>
+                    <h2 class="text-2xl font-extrabold text-gray-800 mb-2">Galeri Jurnal & Penelitian</h2>
+                    <p class="text-gray-500 font-medium text-sm">Kumpulan publikasi ilmiah civitas akademika STIESAM.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Dummy Jurnals -->
+                    <div class="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-lg hover:border-purple-200 transition group cursor-pointer">
+                        <div class="flex justify-between items-start mb-3">
+                            <span class="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded">Manajemen Keuangan</span>
+                            <span class="text-[10px] text-gray-400">Vol 12, No. 2 (2023)</span>
+                        </div>
+                        <h4 class="font-bold text-gray-800 group-hover:text-purple-700 transition text-lg mb-2 leading-tight">Analisis Pengaruh Literasi Keuangan Terhadap Kinerja UMKM di Samarinda</h4>
+                        <p class="text-xs text-gray-500 mb-4 font-medium"><i class="fas fa-user-edit mr-1"></i> Dr. Budi Santoso, M.Si., Rina Astuti, S.E.</p>
+                        <button class="text-xs font-bold text-purple-600 hover:text-purple-800"><i class="fas fa-file-pdf mr-1"></i> Download PDF</button>
+                    </div>
+
+                    <div class="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-lg hover:border-purple-200 transition group cursor-pointer">
+                        <div class="flex justify-between items-start mb-3">
+                            <span class="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded">Akuntansi Publik</span>
+                            <span class="text-[10px] text-gray-400">Vol 13, No. 1 (2024)</span>
+                        </div>
+                        <h4 class="font-bold text-gray-800 group-hover:text-purple-700 transition text-lg mb-2 leading-tight">Transparansi Anggaran Pendapatan dan Belanja Desa (APBDes) Melalui Platform Digital</h4>
+                        <p class="text-xs text-gray-500 mb-4 font-medium"><i class="fas fa-user-edit mr-1"></i> Dr. Andi Wijaya, Ak., M.Ak.</p>
+                        <button class="text-xs font-bold text-purple-600 hover:text-purple-800"><i class="fas fa-file-pdf mr-1"></i> Download PDF</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Tracer Study -->
+    <div id="modal-tracer-study" class="fixed inset-0 z-[100] hidden">
+        <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] overflow-y-auto">
+            <div class="relative w-full max-w-xl mx-auto p-6 md:p-12">
+                <button onclick="closeModal('modal-tracer-study')" class="absolute top-4 right-4 md:top-8 md:right-8 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center transition-colors">&times;</button>
+
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                        <i class="fas fa-briefcase"></i>
+                    </div>
+                    <h2 class="text-2xl font-extrabold text-gray-800 mb-2">Tracer Study Alumni</h2>
+                    <p class="text-gray-500 font-medium text-sm">Pelacakan rekam jejak lulusan STIESAM.</p>
+                </div>
+
+                <div class="bg-orange-50 border border-orange-100 rounded-2xl p-6 text-center mb-6">
+                    <i class="fas fa-bullhorn text-orange-400 text-4xl mb-3"></i>
+                    <h3 class="font-bold text-gray-800 mb-2">Panggilan Untuk Alumni!</h3>
+                    <p class="text-sm text-gray-600 mb-4">Bantu kami meningkatkan kualitas pendidikan dengan mengisi kuesioner Tracer Study. Data Anda sangat berharga bagi akreditasi kampus.</p>
+                    <a href="javascript:void(0)" class="inline-block bg-orange-500 text-white px-6 py-3 rounded-xl font-bold shadow hover:bg-orange-600 transition">Isi Kuesioner Sekarang</a>
+                </div>
+
+                <h4 class="font-bold text-gray-800 mb-4 text-center">Statistik Serapan Kerja Lulusan</h4>
+                <div class="space-y-3">
+                    <div>
+                        <div class="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>Bekerja di Sektor Swasta</span><span>65%</span></div>
+                        <div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-orange-500 h-2 rounded-full" style="width: 65%"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>PNS / BUMN</span><span>15%</span></div>
+                        <div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-blue-500 h-2 rounded-full" style="width: 15%"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>Wirausaha / Wirausaha Mandiri</span><span>20%</span></div>
+                        <div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-green-500 h-2 rounded-full" style="width: 20%"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Developer -->
     <div id="modal-developer" class="fixed inset-0 z-[100] hidden">
         <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] overflow-y-auto flex items-center justify-center p-4">
@@ -4614,6 +4922,57 @@ HOME_HTML = """
 # --- ROUTES ---
 
 # --- ROUTES ---
+
+@app.route('/api/pmb/register', methods=['POST'])
+def api_pmb_register():
+    try:
+        nama = request.form.get('nama')
+        foto_ijazah = request.files.get('foto_ijazah')
+        foto_ktp = request.files.get('foto_ktp')
+        bukti_transfer = request.files.get('bukti_transfer')
+
+        if not all([nama, foto_ijazah, foto_ktp, bukti_transfer]):
+            return jsonify({'success': False, 'error': 'Semua field dan file harus diisi.'})
+
+        ijazah_filename = compress_image(foto_ijazah, app.config['UPLOAD_FOLDER'])
+        ktp_filename = compress_image(foto_ktp, app.config['UPLOAD_FOLDER'])
+        bukti_filename = compress_image(bukti_transfer, app.config['UPLOAD_FOLDER'])
+
+        new_pmb = PendaftaranPMB(
+            nama=nama,
+            foto_ijazah=ijazah_filename,
+            foto_ktp=ktp_filename,
+            bukti_transfer=bukti_filename,
+            status='Pending'
+        )
+        db.session.add(new_pmb)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Pendaftaran berhasil dikirim. Silakan cek status secara berkala.'})
+    except Exception as e:
+        print(f"Error in PMB Register: {e}")
+        return jsonify({'success': False, 'error': 'Terjadi kesalahan sistem saat memproses formulir.'})
+
+@app.route('/api/pmb/check', methods=['GET'])
+def api_pmb_check():
+    try:
+        nama = request.args.get('nama')
+        if not nama:
+            return jsonify({'error': 'Nama tidak boleh kosong'})
+
+        # Case insensitive exact match or like query
+        pmb = PendaftaranPMB.query.filter(func.lower(PendaftaranPMB.nama) == func.lower(nama)).order_by(PendaftaranPMB.id.desc()).first()
+
+        if not pmb:
+            return jsonify({'error': 'Data pendaftaran tidak ditemukan.'})
+
+        return jsonify({
+            'nama': pmb.nama,
+            'status': pmb.status,
+            'npm': pmb.npm_generated if pmb.npm_generated else '-'
+        })
+    except Exception as e:
+        print(f"Error checking PMB status: {e}")
+        return jsonify({'error': 'Terjadi kesalahan sistem.'})
 
 @app.before_request
 def global_gatekeeper():
@@ -7288,89 +7647,93 @@ def dosen_dashboard():
     # Data Retrieval
     dosen_name = session.get('nama', 'Dosen Pengampu')
     
-    # 1. Jadwal Kuliah (Cermin dari TU)
-    jadwal_dosen = JadwalKuliah.query.filter_by(dosen=dosen_name).all()
-    
-    # 2. KRS Perwalian (Filter Lunas)
-    krs_raw = KRSMahasiswa.query.filter_by(dosen=dosen_name).order_by(KRSMahasiswa.id.desc()).all()
+    jadwal_dosen = []
     krs_perwalian = []
-    
-    # Track unique students for "Daftar Mahasiswa Perwalian"
     unique_npms = set()
     mahasiswa_perwalian = []
-    
-    for krs in krs_raw:
-        tagihan = TagihanKuliah.query.filter_by(npm=krs.npm).all()
-        # Ensure either there are no bills, or all bills are 'Lunas'
-        if not tagihan or all(t.status == 'Lunas' for t in tagihan):
-            krs_perwalian.append(krs)
-        
-        unique_npms.add(krs.npm)
-    
-    # 3. Masukan Nilai Akhir (Kelas)
     kelas_list = []
-    for jadwal in jadwal_dosen:
-        status_nilai = StatusNilai.query.filter_by(jadwal_id=jadwal.id).first()
-        is_published = status_nilai.is_published if status_nilai else False
+
+    try:
+        # 1. Jadwal Kuliah (Cermin dari TU)
+        jadwal_dosen = JadwalKuliah.query.filter_by(dosen=dosen_name).all()
         
-        # Determine students taking this class
-        krs_class = KRSMahasiswa.query.filter_by(mata_kuliah=jadwal.mata_kuliah, status='Disetujui Dosen').all()
+        # 2. KRS Perwalian (Filter Lunas)
+        krs_raw = KRSMahasiswa.query.filter_by(dosen=dosen_name).order_by(KRSMahasiswa.id.desc()).all()
         
-        student_data = []
-        for student_krs in krs_class:
-            # Calculate presence percentage
-            total_sessions = JurnalMengajar.query.filter_by(jadwal_id=jadwal.id).count()
-            if total_sessions == 0:
-                attendance_pct = 100 # No sessions yet, default ok
-            else:
-                present_count = KehadiranKelas.query.filter_by(jadwal_id=jadwal.id, npm=student_krs.npm, status='Hadir').count()
-                attendance_pct = (present_count / total_sessions) * 100
-                
-            student_data.append({
-                'npm': student_krs.npm,
-                'nama': User.query.filter_by(username=student_krs.npm).first().nama if User.query.filter_by(username=student_krs.npm).first() else 'Unknown',
-                'attendance_pct': attendance_pct
+        for krs in krs_raw:
+            tagihan = TagihanKuliah.query.filter_by(npm=krs.npm).all()
+            # Ensure either there are no bills, or all bills are 'Lunas'
+            if not tagihan or all(t.status == 'Lunas' for t in tagihan):
+                krs_perwalian.append(krs)
+            
+            unique_npms.add(krs.npm)
+        
+        # 3. Masukan Nilai Akhir (Kelas)
+        for jadwal in jadwal_dosen:
+            status_nilai = StatusNilai.query.filter_by(jadwal_id=jadwal.id).first()
+            is_published = status_nilai.is_published if status_nilai else False
+            
+            # Determine students taking this class
+            krs_class = KRSMahasiswa.query.filter_by(mata_kuliah=jadwal.mata_kuliah, status='Disetujui Dosen').all()
+            
+            student_data = []
+            for student_krs in krs_class:
+                # Calculate presence percentage
+                total_sessions = JurnalMengajar.query.filter_by(jadwal_id=jadwal.id).count()
+                if total_sessions == 0:
+                    attendance_pct = 100 # No sessions yet, default ok
+                else:
+                    present_count = KehadiranKelas.query.filter_by(jadwal_id=jadwal.id, npm=student_krs.npm, status='Hadir').count()
+                    attendance_pct = (present_count / total_sessions) * 100
+
+                user_obj = User.query.filter_by(username=student_krs.npm).first()
+                student_data.append({
+                    'npm': student_krs.npm,
+                    'nama': user_obj.nama if user_obj else 'Unknown',
+                    'attendance_pct': attendance_pct
+                })
+
+            kelas_list.append({
+                'jadwal': jadwal,
+                'is_published': is_published,
+                'students': student_data
             })
-            
-        kelas_list.append({
-            'jadwal': jadwal,
-            'is_published': is_published,
-            'students': student_data
-        })
-        
-    # 4. Mahasiswa Perwalian (Details, IPK, Transkrip)
-    for npm in unique_npms:
-        user = User.query.filter_by(username=npm).first()
-        if user:
-            nilai_list = NilaiMahasiswa.query.filter_by(npm=npm).all()
-            total_sks = 0
-            total_bobot = 0
-            for n in nilai_list:
-                nilai_angka = 4.0
-                if n.nilai_huruf == 'A': nilai_angka = 4.0
-                elif n.nilai_huruf == 'A-': nilai_angka = 3.7
-                elif n.nilai_huruf == 'B+': nilai_angka = 3.3
-                elif n.nilai_huruf == 'B': nilai_angka = 3.0
-                elif n.nilai_huruf == 'B-': nilai_angka = 2.7
-                elif n.nilai_huruf == 'C+': nilai_angka = 2.3
-                elif n.nilai_huruf == 'C': nilai_angka = 2.0
-                elif n.nilai_huruf == 'D': nilai_angka = 1.0
-                else: nilai_angka = 0.0
-                total_sks += n.sks
-                total_bobot += (n.sks * nilai_angka)
-            
-            ipk = (total_bobot / total_sks) if total_sks > 0 else 0
-            
-            arsip = LaciArsip.query.filter_by(npm=npm).all()
-            
-            mahasiswa_perwalian.append({
-                'npm': npm,
-                'nama': user.nama,
-                'status': user.status_akademik,
-                'ipk': ipk,
-                'transkrip': nilai_list,
-                'arsip': arsip
-            })
+
+        # 4. Mahasiswa Perwalian (Details, IPK, Transkrip)
+        for npm in unique_npms:
+            user = User.query.filter_by(username=npm).first()
+            if user:
+                nilai_list = NilaiMahasiswa.query.filter_by(npm=npm).all()
+                total_sks = 0
+                total_bobot = 0
+                for n in nilai_list:
+                    nilai_angka = 4.0
+                    if n.nilai_huruf == 'A': nilai_angka = 4.0
+                    elif n.nilai_huruf == 'A-': nilai_angka = 3.7
+                    elif n.nilai_huruf == 'B+': nilai_angka = 3.3
+                    elif n.nilai_huruf == 'B': nilai_angka = 3.0
+                    elif n.nilai_huruf == 'B-': nilai_angka = 2.7
+                    elif n.nilai_huruf == 'C+': nilai_angka = 2.3
+                    elif n.nilai_huruf == 'C': nilai_angka = 2.0
+                    elif n.nilai_huruf == 'D': nilai_angka = 1.0
+                    else: nilai_angka = 0.0
+                    total_sks += n.sks
+                    total_bobot += (n.sks * nilai_angka)
+
+                ipk = (total_bobot / total_sks) if total_sks > 0 else 0
+
+                arsip = LaciArsip.query.filter_by(npm=npm).all()
+
+                mahasiswa_perwalian.append({
+                    'npm': npm,
+                    'nama': user.nama,
+                    'status': user.status_akademik,
+                    'ipk': ipk,
+                    'transkrip': nilai_list,
+                    'arsip': arsip
+                })
+    except Exception as e:
+        print(f"Error loading Dosen Dashboard: {e}")
 
     # DOSEN THEME
     dosen_theme = {
