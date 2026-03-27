@@ -2714,41 +2714,52 @@ HOME_HTML = """
     <!-- MAIN GRID MENU -->
     <h3 class="text-gray-800 font-bold text-lg mb-4 pl-1 border-l-4 border-sky-500 leading-none py-1 ml-1 md:text-2xl md:mb-8">&nbsp;Menu Utama</h3>
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8 mb-8">
-        <a href="javascript:void(0)" onclick="openModal('modal-pmb')" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+        <!-- 1. Profil Kampus dan Program Studi -->
+        <a href="javascript:void(0)" onclick="openModal('modal-profil-kampus')" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
             <div class="bg-sky-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-sky-600 group-hover:bg-sky-500 group-hover:text-white transition-colors">
-                <i class="fas fa-user-graduate text-2xl md:text-3xl"></i>
+                <i class="fas fa-university text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm md:text-base font-semibold text-center text-gray-700 group-hover:text-sky-600 leading-tight">Penerimaan Mahasiswa Baru</span>
+            <span class="text-sm md:text-base font-semibold text-center text-gray-700 group-hover:text-sky-600 leading-tight">Profil Kampus</span>
         </a>
-        <a href="/agenda" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+
+        <!-- 2. Penerimaan Mahasiswa Baru Digital -->
+        <a href="javascript:void(0)" onclick="openModal('modal-pmb')" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
             <div class="bg-blue-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                <i class="fas fa-calendar-alt text-2xl md:text-3xl"></i>
+                <i class="fas fa-user-plus text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-blue-600">Jadwal Imam</span>
+            <span class="text-sm md:text-base font-semibold text-center text-gray-700 group-hover:text-blue-600 leading-tight">PMB Digital</span>
         </a>
-        <a href="/booking" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
-            <div class="bg-orange-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                <i class="fas fa-building text-2xl md:text-3xl"></i>
+
+        <!-- 3. Cek Status Pendaftaran Mahasiswa Baru -->
+        <a href="javascript:void(0)" onclick="openModal('modal-cek-status-pmb')" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+            <div class="bg-indigo-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-indigo-600 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                <i class="fas fa-search-dollar text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-orange-600">Peminjaman</span>
+            <span class="text-sm md:text-base font-semibold text-center text-gray-700 group-hover:text-indigo-600 leading-tight">Cek Status PMB</span>
         </a>
-        <a href="/zakat" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+
+        <!-- 4. Berita dan Agenda Kampus -->
+        <a href="javascript:void(0)" onclick="openModal('modal-berita-agenda')" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
             <div class="bg-green-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-green-600 group-hover:bg-green-500 group-hover:text-white transition-colors">
-                <i class="fas fa-hand-holding-heart text-2xl md:text-3xl"></i>
+                <i class="fas fa-newspaper text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-green-600">Zakat</span>
+            <span class="text-sm md:text-base font-semibold text-center text-gray-700 group-hover:text-green-600 leading-tight">Berita & Agenda</span>
         </a>
-        <a href="/gallery-dakwah" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+
+        <!-- 5. Galeri Jurnal dan Karya Ilmiah -->
+        <a href="javascript:void(0)" onclick="openModal('modal-galeri-jurnal')" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
             <div class="bg-purple-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-purple-600 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                <i class="fas fa-images text-2xl md:text-3xl"></i>
+                <i class="fas fa-book-open text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-purple-600">Galeri</span>
+            <span class="text-sm md:text-base font-semibold text-center text-gray-700 group-hover:text-purple-600 leading-tight">Galeri Jurnal</span>
         </a>
-        <a href="/suggestion" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
-            <div class="bg-pink-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-pink-600 group-hover:bg-pink-500 group-hover:text-white transition-colors">
-                <i class="fas fa-comment-dots text-2xl md:text-3xl"></i>
+
+        <!-- 6. Tracer Study dan Karir Alumni -->
+        <a href="javascript:void(0)" onclick="openModal('modal-tracer-study')" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+            <div class="bg-orange-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                <i class="fas fa-briefcase text-2xl md:text-3xl"></i>
             </div>
-            <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-pink-600">Kotak Saran</span>
+            <span class="text-sm md:text-base font-semibold text-center text-gray-700 group-hover:text-orange-600 leading-tight">Tracer Study</span>
         </a>
     </div>
 
