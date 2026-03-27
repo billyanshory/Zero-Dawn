@@ -2797,12 +2797,12 @@ HOME_HTML = """
     <div id="kalkulator-section" class="mb-6">
         <button onclick="toggleCalc()" class="w-full bg-white p-6 rounded-3xl shadow-lg border border-sky-100 flex justify-between items-center group hover:bg-sky-50 transition-all duration-300">
             <div class="flex items-center gap-4">
-                <div class="bg-sky-100 p-3 rounded-xl text-sky-600 group-hover:bg-sky-500 group-hover:text-white transition-colors shadow-sm">
-                    <i class="fas fa-calculator text-2xl"></i>
+                <div class="bg-emerald-100 p-3 rounded-xl text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors shadow-sm">
+                    <i class="fas fa-chart-line text-2xl"></i>
                 </div>
                 <div class="text-left">
-                    <h3 class="text-lg font-bold text-gray-800 group-hover:text-sky-700">Kalkulator Islam</h3>
-                    <p class="text-xs text-gray-500 font-medium">6 Alat Hitung Otomatis (Waris, Zakat, dll)</p>
+                    <h3 class="text-lg font-bold text-gray-800 group-hover:text-emerald-700">Kalkulator Ekonomi & Akademik STIESAM</h3>
+                    <p class="text-xs text-gray-500 font-medium">6 Mesin Finansial dan Akademik Modern</p>
                 </div>
             </div>
             <div id="calc-chevron" class="bg-gray-50 w-10 h-10 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-sky-500 transition-all duration-300">
@@ -2812,35 +2812,35 @@ HOME_HTML = """
         
         <div id="calc-content" class="hidden mt-6 animate-[slideDown_0.3s_ease-out]">
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                 <!-- WARIS -->
-                 <button onclick="openModal('modal-waris')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-users"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Waris</span>
+                 <!-- IPK -->
+                 <button onclick="openModal('modal-ipk')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-graduation-cap"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Target IPK</span>
                  </button>
-                 <!-- ZAKAT -->
-                 <button onclick="openModal('modal-zakat')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-hand-holding-usd"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Zakat Maal</span>
+                 <!-- BEP -->
+                 <button onclick="openModal('modal-bep')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-chart-pie"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">BEP & Laba</span>
                  </button>
-                 <!-- TAHAJJUD -->
-                 <button onclick="openModal('modal-tahajjud')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-moon"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Tahajjud</span>
+                 <!-- DEPRESIASI -->
+                 <button onclick="openModal('modal-depresiasi')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-car-crash"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Penyusutan Aset</span>
                  </button>
-                 <!-- KHATAM -->
-                 <button onclick="openModal('modal-khatam')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-quran"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Target Khatam</span>
+                 <!-- TVM -->
+                 <button onclick="openModal('modal-tvm')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-coins"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Nilai Waktu Uang</span>
                  </button>
-                 <!-- FIDYAH -->
-                 <button onclick="openModal('modal-fidyah')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-utensils"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Fidyah</span>
+                 <!-- ANGGARAN KOST -->
+                 <button onclick="openModal('modal-anggaran')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-wallet"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Anggaran Kost</span>
                  </button>
-                 <!-- HIJRI -->
-                 <button onclick="openModal('modal-hijri')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-sky-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
-                     <div class="bg-sky-50 text-sky-600 p-2.5 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fas fa-calendar-check"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-sky-700">Konverter Hijri</span>
+                 <!-- PAJAK LULUSAN -->
+                 <button onclick="openModal('modal-pajak')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-emerald-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left flex items-center gap-3 group">
+                     <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-colors"><i class="fas fa-file-invoice-dollar"></i></div>
+                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-emerald-700">Simulasi Pajak</span>
                  </button>
              </div>
         </div>
@@ -3515,214 +3515,175 @@ HOME_HTML = """
         </div>
     </div>
     
-    <!-- Modal Waris -->
-    <div id="modal-waris" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-waris')"></div>
+    <!-- Modal Simulasi Target IPK -->
+    <div id="modal-ipk" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-ipk')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-users text-sky-500 mr-2"></i>Kalkulator Waris</h3>
-                <button onclick="closeModal('modal-waris')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-graduation-cap text-emerald-500 mr-2"></i>Simulasi Target IPK</h3>
+                <button onclick="closeModal('modal-ipk')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Total Harta (Rp)</label>
-                    <input type="number" id="waris-harta" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">IPK Saat Ini</label>
+                    <input type="number" id="ipk-current" step="0.01" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Anak Laki-laki</label>
-                        <input type="number" id="waris-sons" value="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Anak Perempuan</label>
-                        <input type="number" id="waris-daughters" value="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
-                    </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Total SKS Ditempuh</label>
+                    <input type="number" id="ipk-sks-current" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
-                <button onclick="calcWaris()" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-sky-600 transition">Hitung Waris</button>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Target IPK Kelulusan</label>
+                    <input type="number" id="ipk-target" step="0.01" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Sisa SKS yang akan diambil</label>
+                    <input type="number" id="ipk-sks-sisa" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <button onclick="calcIPK()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Target Nilai</button>
                 
-                <div id="result-waris" class="hidden mt-4 bg-sky-50 p-4 rounded-xl border border-sky-100 text-sm"></div>
+                <div id="result-ipk" class="hidden mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-sm"></div>
             </div>
         </div>
     </div>
 
-    <!-- Modal Zakat -->
-    <div id="modal-zakat" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-zakat')"></div>
+    <!-- Modal BEP dan Margin Laba -->
+    <div id="modal-bep" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-bep')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-hand-holding-usd text-sky-500 mr-2"></i>Zakat Maal</h3>
-                <button onclick="closeModal('modal-zakat')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-chart-pie text-emerald-500 mr-2"></i>Titik Impas & Margin Laba</h3>
+                <button onclick="closeModal('modal-bep')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Harga Emas (per gram)</label>
-                    <input type="number" id="zakat-gold-price" value="1000000" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Biaya Tetap (Sewa, dll) (Rp)</label>
+                    <input type="number" id="bep-fixed" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Tabungan Uang (Rp)</label>
-                    <input type="number" id="zakat-savings" value="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Biaya Variabel per Unit (Bahan, dll) (Rp)</label>
+                    <input type="number" id="bep-variable" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Simpanan Emas (gram)</label>
-                    <input type="number" id="zakat-gold-grams" value="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Harga Jual per Unit (Rp)</label>
+                    <input type="number" id="bep-price" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
-                <button onclick="calcZakat()" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-sky-600 transition">Cek Kewajiban</button>
-                <div id="result-zakat" class="hidden mt-4 p-4 rounded-xl border text-sm"></div>
+                <button onclick="calcBEP()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Titik Impas</button>
+                <div id="result-bep" class="hidden mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-sm"></div>
             </div>
         </div>
     </div>
 
-    <!-- Modal Tahajjud -->
-    <div id="modal-tahajjud" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-tahajjud')"></div>
+    <!-- Modal Penyusutan Aset -->
+    <div id="modal-depresiasi" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-depresiasi')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-moon text-sky-500 mr-2"></i>Sepertiga Malam</h3>
-                <button onclick="closeModal('modal-tahajjud')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
-            </div>
-            <div class="space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Maghrib</label>
-                        <input type="time" id="tahajjud-maghrib" value="18:15" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Subuh</label>
-                        <input type="time" id="tahajjud-subuh" value="04:45" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
-                    </div>
-                </div>
-                <button onclick="calcTahajjud()" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-sky-600 transition">Hitung Waktu</button>
-                <div id="result-tahajjud" class="hidden mt-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-center">
-                    <p class="text-xs text-indigo-400 font-bold uppercase tracking-wider mb-1">Waktu Terbaik</p>
-                    <h2 class="text-3xl font-bold text-indigo-700" id="tahajjud-time">--:--</h2>
-                    <p class="text-xs text-indigo-500 mt-1">Mulai Sepertiga Malam Terakhir</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Khatam -->
-    <div id="modal-khatam" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-khatam')"></div>
-        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-quran text-sky-500 mr-2"></i>Target Khatam</h3>
-                <button onclick="closeModal('modal-khatam')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-car-crash text-emerald-500 mr-2"></i>Penyusutan Aset</h3>
+                <button onclick="closeModal('modal-depresiasi')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Target Khatam (kali)</label>
-                    <input type="number" id="khatam-times" value="1" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Durasi (hari)</label>
-                        <input type="number" id="khatam-days" value="30" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Baca per Hari (kali)</label>
-                        <input type="number" id="khatam-freq" value="5" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
-                    </div>
-                </div>
-                <button onclick="calcKhatam()" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-sky-600 transition">Hitung Target</button>
-                <div id="result-khatam" class="hidden mt-4 bg-sky-50 p-4 rounded-xl border border-sky-100 text-center">
-                    <p class="text-gray-600 text-sm">Anda harus membaca:</p>
-                    <h2 class="text-3xl font-bold text-sky-600 my-2"><span id="khatam-pages">0</span> Halaman</h2>
-                    <p class="text-xs text-gray-500">Setiap kali duduk membaca</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Fidyah -->
-    <div id="modal-fidyah" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-fidyah')"></div>
-        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-utensils text-sky-500 mr-2"></i>Fidyah & Qadha</h3>
-                <button onclick="closeModal('modal-fidyah')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
-            </div>
-            <div class="space-y-4">
-                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Jumlah Hutang Puasa (Hari)</label>
-                    <input type="number" id="fidyah-days" value="1" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Harga Beli Aset (Rp)</label>
+                    <input type="number" id="dep-price" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Kategori</label>
-                    <select id="fidyah-cat" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
-                        <option value="Sakit Tua">Sakit Tua / Menahun</option>
-                        <option value="Hamil">Hamil / Menyusui (Khawatir Anak)</option>
-                        <option value="Musafir">Musafir / Sakit Biasa</option>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Nilai Sisa (Residu) (Rp)</label>
+                    <input type="number" id="dep-residu" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Umur Ekonomis (Tahun)</label>
+                    <input type="number" id="dep-years" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Metode Penyusutan</label>
+                    <select id="dep-method" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        <option value="straight">Garis Lurus (Straight Line)</option>
+                        <option value="declining">Saldo Menurun Ganda (Double Declining)</option>
                     </select>
                 </div>
-                <button onclick="calcFidyah()" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-sky-600 transition">Hitung Kewajiban</button>
-                <div id="result-fidyah" class="hidden mt-4 space-y-2">
-                    <div class="bg-orange-50 p-3 rounded-xl border border-orange-100 flex justify-between items-center">
-                        <span class="text-sm text-orange-800 font-bold">Qadha (Ganti Puasa)</span>
-                        <span class="text-lg font-bold text-orange-600" id="fidyah-qadha">0 Hari</span>
-                    </div>
-                    <div class="bg-sky-50 p-3 rounded-xl border border-sky-100">
-                        <p class="text-xs text-sky-800 font-bold mb-1">Fidyah (Bayar)</p>
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-sky-600" id="fidyah-rice">0 Kg Beras</span>
-                            <span class="text-xs text-gray-400">atau</span>
-                            <span class="text-sm text-sky-600" id="fidyah-money">Rp 0</span>
-                        </div>
-                    </div>
-                </div>
+                <button onclick="calcDepresiasi()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Buat Tabel Penyusutan</button>
+                <div id="result-depresiasi" class="hidden mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-sm overflow-x-auto"></div>
             </div>
         </div>
     </div>
 
-    <!-- Modal Hijri -->
-    <div id="modal-hijri" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-hijri')"></div>
+    <!-- Modal Nilai Waktu Uang (TVM) -->
+    <div id="modal-tvm" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-tvm')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-calendar-check text-sky-500 mr-2"></i>Konverter Hijriyah</h3>
-                <button onclick="closeModal('modal-hijri')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-coins text-emerald-500 mr-2"></i>Nilai Waktu Uang</h3>
+                <button onclick="closeModal('modal-tvm')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
             <div class="space-y-4">
-                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Tanggal Masehi</label>
-                    <input type="date" id="hijri-date-input" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Mode Perhitungan</label>
+                    <select id="tvm-mode" onchange="toggleTVMInputs()" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        <option value="fv">Cari Nilai Masa Depan (FV)</option>
+                        <option value="pv">Cari Nilai Masa Kini (PV)</option>
+                    </select>
                 </div>
-                <button onclick="calcHijri()" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-sky-600 transition">Konversi</button>
-                <div id="result-hijri" class="hidden mt-4 bg-sky-50 p-6 rounded-xl border border-sky-100 text-center">
-                    <p class="text-xs text-sky-500 font-bold uppercase tracking-wider mb-2">Tanggal Hijriyah</p>
-                    <h2 class="text-2xl font-bold text-sky-800" id="hijri-output">...</h2>
+                <div id="tvm-pv-group">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Modal Awal / Present Value (Rp)</label>
+                    <input type="number" id="tvm-pv" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
+                <div id="tvm-fv-group" class="hidden">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Target Dana Masa Depan / Future Value (Rp)</label>
+                    <input type="number" id="tvm-fv" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Persentase Bunga/Return Tahunan (%)</label>
+                    <input type="number" id="tvm-rate" step="0.1" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Rentang Waktu (Tahun)</label>
+                    <input type="number" id="tvm-years" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <button onclick="calcTVM()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Proyeksikan</button>
+                <div id="result-tvm" class="hidden mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-sm"></div>
             </div>
         </div>
     </div>
 
-    <!-- Modal Explanation -->
-    <div id="modal-explanation" class="fixed inset-0 z-[110] hidden">
-        <div class="absolute inset-0 bg-white/80 backdrop-blur-md" onclick="closeModal('modal-explanation')"></div>
-        <div class="absolute bottom-0 left-0 w-full bg-white/90 backdrop-blur-xl rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 border border-white/50">
+    <!-- Modal Anggaran Anak Kost -->
+    <div id="modal-anggaran" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-anggaran')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-info-circle text-blue-500 mr-2"></i>Penjelasan Perhitungan</h3>
-                <button onclick="closeModal('modal-explanation')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-wallet text-emerald-500 mr-2"></i>Perencana Anggaran Kost</h3>
+                <button onclick="closeModal('modal-anggaran')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            <div class="space-y-6 overflow-y-auto max-h-[70vh] pb-10">
-                <!-- Logic Section -->
+            <div class="space-y-4">
                 <div>
-                    <h4 class="text-sm font-bold text-gray-800 uppercase tracking-wider mb-2 border-b border-gray-200 pb-1">Bedah Logika (Sains)</h4>
-                    <p id="exp-logic" class="text-sm text-gray-700 leading-relaxed font-medium bg-blue-50 p-4 rounded-xl border border-blue-100">
-                        ...
-                    </p>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Total Uang Saku Bulanan (Rp)</label>
+                    <input type="number" id="anggaran-uang" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
-                <!-- Sources Section -->
-                <div>
-                    <h4 class="text-sm font-bold text-gray-800 uppercase tracking-wider mb-2 border-b border-gray-200 pb-1">Dasar Hukum & Referensi</h4>
-                    <ul id="exp-sources" class="space-y-1">
-                        <!-- LI generated by JS -->
-                    </ul>
-                </div>
+                <button onclick="calcAnggaran()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Pisahkan Dana (Aturan 50/30/20)</button>
+                <div id="result-anggaran" class="hidden mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-sm"></div>
             </div>
         </div>
     </div>
 
+    <!-- Modal PPh 21 Lulusan Baru -->
+    <div id="modal-pajak" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-pajak')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-file-invoice-dollar text-emerald-500 mr-2"></i>Simulasi Pajak Lulusan Baru</h3>
+                <button onclick="closeModal('modal-pajak')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Penawaran Gaji Kotor per Bulan (Rp)</label>
+                    <input type="number" id="pajak-gaji" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <p class="text-xs text-gray-500 italic">Asumsi: Status Lajang/Single (TK/0), dengan potongan standar BPJS Ketenagakerjaan dan Kesehatan pekerja.</p>
+                <button onclick="calcPajak()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Simulasikan Take Home Pay</button>
+                <div id="result-pajak" class="hidden mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-sm"></div>
+            </div>
+        </div>
+    </div>
     <!-- Modal Medical Explanation -->
     <div id="modal-medical-explanation" class="fixed inset-0 z-[120] hidden">
         <div class="absolute inset-0 bg-white/80 backdrop-blur-md" onclick="closeModal('modal-medical-explanation')"></div>
@@ -4175,183 +4136,241 @@ HOME_HTML = """
             }
         }
 
-        function showExplanation() {
-            if(!currentExplanation.logic) return;
-            document.getElementById('exp-logic').innerText = currentExplanation.logic;
-            const ul = document.getElementById('exp-sources');
-            ul.innerHTML = '';
-            currentExplanation.sources.forEach(s => {
-                const li = document.createElement('li');
-                li.className = 'text-xs text-gray-600 mb-2 border-l-2 border-sky-500 pl-2';
-                const parts = s.split(' - ');
-                if(parts.length > 1) {
-                    li.innerHTML = `<span class="font-bold text-sky-700">${parts[0]}</span> - ${parts[1]}`;
-                } else {
-                    li.innerText = s;
-                }
-                ul.appendChild(li);
-            });
-            openModal('modal-explanation');
-        }
+        // 1. Simulasi Target IPK
+        function calcIPK() {
+            const ipkCurrent = parseFloat(document.getElementById('ipk-current').value);
+            const sksCurrent = parseInt(document.getElementById('ipk-sks-current').value);
+            const ipkTarget = parseFloat(document.getElementById('ipk-target').value);
+            const sksSisa = parseInt(document.getElementById('ipk-sks-sisa').value);
 
-        async function calcWaris() {
-            const data = {
-                harta: document.getElementById('waris-harta').value,
-                sons: document.getElementById('waris-sons').value,
-                daughters: document.getElementById('waris-daughters').value
-            };
-            const res = await postCalc('/api/calc/waris', data);
-            if(res) {
-                const div = document.getElementById('result-waris');
+            const div = document.getElementById('result-ipk');
+            if(isNaN(ipkCurrent) || isNaN(sksCurrent) || isNaN(ipkTarget) || isNaN(sksSisa)) {
+                div.innerHTML = `<span class="text-red-500 font-bold">Harap isi semua kolom dengan angka yang valid.</span>`;
+            } else {
+                const totalSKS = sksCurrent + sksSisa;
+                const totalBobotDibutuhkan = ipkTarget * totalSKS;
+                const bobotSaatIni = ipkCurrent * sksCurrent;
+                const sisaBobot = totalBobotDibutuhkan - bobotSaatIni;
+                const targetNilaiRata = sisaBobot / sksSisa;
+
                 div.classList.remove('hidden');
-                if(res.error) {
-                    div.innerHTML = `<span class="text-red-500 font-bold">${res.error}</span>`;
+                if (targetNilaiRata > 4.0) {
+                    div.innerHTML = `<span class="text-red-600 font-bold">Maaf, target ini tidak realistis. Anda butuh rata-rata nilai ${targetNilaiRata.toFixed(2)} (Maksimal IPK adalah 4.00). Pertimbangkan untuk menambah SKS atau menurunkan target.</span>`;
+                } else if (targetNilaiRata < 0) {
+                    div.innerHTML = `<span class="text-emerald-600 font-bold">Selamat! Bahkan dengan nilai terendah sekalipun, Anda kemungkinan besar akan melampaui target tersebut. Anda hanya butuh rata-rata ${targetNilaiRata.toFixed(2)}.</span>`;
                 } else {
-                    currentExplanation = res.explanation;
-                    div.innerHTML = `
-                        <p class="font-bold text-sky-800 mb-2">Hasil Pembagian:</p>
-                        <ul class="space-y-1 mb-4">
-                            <li class="flex justify-between"><span>Anak Laki-laki (@):</span> <span class="font-bold">Rp ${Number(res.result.son_share).toLocaleString('id-ID')}</span></li>
-                            <li class="flex justify-between"><span>Anak Perempuan (@):</span> <span class="font-bold">Rp ${Number(res.result.daughter_share).toLocaleString('id-ID')}</span></li>
-                        </ul>
-                        <button onclick="showExplanation()" class="w-full bg-blue-100 text-blue-600 text-xs font-bold py-2 rounded-lg hover:bg-blue-200 transition flex items-center justify-center gap-2">
-                            <i class="fas fa-info-circle"></i> PENJELASAN PERHITUNGAN
-                        </button>
-                    `;
+                    div.innerHTML = `<span class="text-emerald-700 font-bold">Untuk mencapai IPK ${ipkTarget}, Anda harus mengejar rata-rata nilai <span class="text-xl"> ${targetNilaiRata.toFixed(2)} </span> di sisa ${sksSisa} SKS Anda. Terus semangat belajar, Anda pasti bisa!</span>`;
                 }
             }
+            div.classList.remove('hidden');
         }
 
-        async function calcZakat() {
-            const data = {
-                gold_price: document.getElementById('zakat-gold-price').value,
-                savings: document.getElementById('zakat-savings').value,
-                gold_grams: document.getElementById('zakat-gold-grams').value
-            };
-            const res = await postCalc('/api/calc/zakat', data);
-            if(res) {
-                const div = document.getElementById('result-zakat');
-                div.classList.remove('hidden');
-                const r = res.result;
-                currentExplanation = res.explanation;
+        // 2. Titik Impas dan Margin Laba
+        function calcBEP() {
+            const fc = parseFloat(document.getElementById('bep-fixed').value);
+            const vc = parseFloat(document.getElementById('bep-variable').value);
+            const p = parseFloat(document.getElementById('bep-price').value);
+
+            const div = document.getElementById('result-bep');
+            if(isNaN(fc) || isNaN(vc) || isNaN(p) || (p - vc) <= 0) {
+                div.innerHTML = `<span class="text-red-500 font-bold">Data tidak valid. Harga Jual harus lebih besar dari Biaya Variabel agar tidak rugi permanen.</span>`;
+            } else {
+                const bepUnit = Math.ceil(fc / (p - vc));
+                const bepRp = bepUnit * p;
+                const marginLaba = ((p - vc) / p) * 100;
                 
-                div.className = r.wajib ? "mt-4 bg-red-50 p-4 rounded-xl border border-red-100 text-sm" : "mt-4 bg-green-50 p-4 rounded-xl border border-green-100 text-sm";
-                
-                let content = '';
-                if(r.wajib) {
-                    content = `
-                        <h4 class="font-bold text-red-600 mb-1"><i class="fas fa-exclamation-circle mr-1"></i> WAJIB ZAKAT</h4>
-                        <p class="text-gray-600 mb-2">Harta Anda melebih Nisab (Rp ${Number(r.nisab).toLocaleString()})</p>
-                        <p class="text-xs font-bold text-gray-500 uppercase">Zakat yang harus dikeluarkan:</p>
-                        <p class="text-2xl font-bold text-red-600 mb-3">Rp ${Number(r.zakat).toLocaleString()}</p>
-                    `;
-                } else {
-                    content = `
-                        <h4 class="font-bold text-green-600 mb-1"><i class="fas fa-check-circle mr-1"></i> BELUM WAJIB</h4>
-                        <p class="text-gray-600 mb-3">Total harta Anda (Rp ${Number(r.total_wealth).toLocaleString()}) belum mencapai Nisab (Rp ${Number(r.nisab).toLocaleString()}).</p>
-                    `;
-                }
-                content += `
-                    <button onclick="showExplanation()" class="w-full bg-white/50 border border-black/5 text-gray-600 text-xs font-bold py-2 rounded-lg hover:bg-white transition flex items-center justify-center gap-2">
-                        <i class="fas fa-info-circle"></i> PENJELASAN PERHITUNGAN
-                    </button>
+                div.innerHTML = `
+                    <p class="font-bold text-emerald-800 mb-2">Analisis Kelayakan Bisnis:</p>
+                    <ul class="space-y-1 mb-2">
+                        <li class="flex justify-between"><span>Titik Impas (Volume):</span> <span class="font-bold">${bepUnit.toLocaleString('id-ID')} Porsi/Unit</span></li>
+                        <li class="flex justify-between"><span>Titik Impas (Rupiah):</span> <span class="font-bold">Rp ${bepRp.toLocaleString('id-ID')}</span></li>
+                        <li class="flex justify-between"><span>Margin Kontribusi:</span> <span class="font-bold">${marginLaba.toFixed(2)}%</span></li>
+                    </ul>
+                    <p class="text-xs text-gray-600 italic">Usaha Anda harus menjual minimal ${bepUnit} porsi per bulan/periode hanya untuk menutupi biaya operasional (tidak rugi, belum untung).</p>
                 `;
-                div.innerHTML = content;
+            }
+            div.classList.remove('hidden');
+        }
+
+        // 3. Penyusutan Aset
+        function calcDepresiasi() {
+            const price = parseFloat(document.getElementById('dep-price').value);
+            const residu = parseFloat(document.getElementById('dep-residu').value);
+            const years = parseInt(document.getElementById('dep-years').value);
+            const method = document.getElementById('dep-method').value;
+
+            const div = document.getElementById('result-depresiasi');
+            if(isNaN(price) || isNaN(residu) || isNaN(years) || years <= 0) {
+                div.innerHTML = `<span class="text-red-500 font-bold">Data tidak valid.</span>`;
+            } else {
+                let html = `
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-emerald-100 text-emerald-800">
+                                <th class="p-2 border">Tahun</th>
+                                <th class="p-2 border">Beban Penyusutan</th>
+                                <th class="p-2 border">Akumulasi</th>
+                                <th class="p-2 border">Nilai Buku</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                let accum = 0;
+                let bookValue = price;
+
+                if(method === 'straight') {
+                    const yearlyDep = (price - residu) / years;
+                    for(let i=1; i<=years; i++) {
+                        accum += yearlyDep;
+                        bookValue -= yearlyDep;
+                        html += `
+                            <tr class="border-b">
+                                <td class="p-2 border">${i}</td>
+                                <td class="p-2 border">Rp ${Math.round(yearlyDep).toLocaleString('id-ID')}</td>
+                                <td class="p-2 border">Rp ${Math.round(accum).toLocaleString('id-ID')}</td>
+                                <td class="p-2 border">Rp ${Math.round(bookValue).toLocaleString('id-ID')}</td>
+                            </tr>
+                        `;
+                    }
+                } else {
+                    const rate = 2 / years;
+                    for(let i=1; i<=years; i++) {
+                        let yearlyDep = bookValue * rate;
+                        if(i === years) { // Last year adjustment to hit exact residu
+                            yearlyDep = bookValue - residu;
+                        }
+                        accum += yearlyDep;
+                        bookValue -= yearlyDep;
+                        html += `
+                            <tr class="border-b">
+                                <td class="p-2 border">${i}</td>
+                                <td class="p-2 border">Rp ${Math.round(yearlyDep).toLocaleString('id-ID')}</td>
+                                <td class="p-2 border">Rp ${Math.round(accum).toLocaleString('id-ID')}</td>
+                                <td class="p-2 border">Rp ${Math.round(bookValue).toLocaleString('id-ID')}</td>
+                            </tr>
+                        `;
+                    }
+                }
+                html += `</tbody></table>`;
+                div.innerHTML = html;
+            }
+            div.classList.remove('hidden');
+        }
+
+        // 4. Nilai Waktu Uang (TVM)
+        function toggleTVMInputs() {
+            const mode = document.getElementById('tvm-mode').value;
+            if(mode === 'fv') {
+                document.getElementById('tvm-pv-group').classList.remove('hidden');
+                document.getElementById('tvm-fv-group').classList.add('hidden');
+            } else {
+                document.getElementById('tvm-pv-group').classList.add('hidden');
+                document.getElementById('tvm-fv-group').classList.remove('hidden');
             }
         }
 
-        async function calcTahajjud() {
-            const data = {
-                maghrib: document.getElementById('tahajjud-maghrib').value,
-                subuh: document.getElementById('tahajjud-subuh').value
-            };
-            const res = await postCalc('/api/calc/tahajjud', data);
-            if(res) {
-                document.getElementById('result-tahajjud').classList.remove('hidden');
-                document.getElementById('tahajjud-time').innerText = res.result.time;
-                currentExplanation = res.explanation;
-                
-                // Check if button already exists to avoid dupes, or just append
-                const parent = document.getElementById('result-tahajjud');
-                if(!parent.querySelector('button')) {
-                     const btn = document.createElement('button');
-                     btn.className = "w-full bg-indigo-100 text-indigo-600 text-xs font-bold py-2 rounded-lg hover:bg-indigo-200 transition flex items-center justify-center gap-2 mt-3";
-                     btn.innerHTML = '<i class="fas fa-info-circle"></i> PENJELASAN PERHITUNGAN';
-                     btn.onclick = showExplanation;
-                     parent.appendChild(btn);
-                }
+        function calcTVM() {
+            const mode = document.getElementById('tvm-mode').value;
+            const rate = parseFloat(document.getElementById('tvm-rate').value) / 100;
+            const years = parseInt(document.getElementById('tvm-years').value);
+            const div = document.getElementById('result-tvm');
+
+            if(isNaN(rate) || isNaN(years)) {
+                div.innerHTML = `<span class="text-red-500 font-bold">Data tidak valid.</span>`;
+            } else if(mode === 'fv') {
+                const pv = parseFloat(document.getElementById('tvm-pv').value);
+                const fv = pv * Math.pow((1 + rate), years);
+                div.innerHTML = `<span class="text-emerald-700 font-bold">Uang senilai Rp ${pv.toLocaleString('id-ID')} saat ini, dalam ${years} tahun dengan return ${(rate*100).toFixed(2)}% per tahun akan bernilai:<br><span class="text-2xl">Rp ${Math.round(fv).toLocaleString('id-ID')}</span></span>`;
+            } else {
+                const fv = parseFloat(document.getElementById('tvm-fv').value);
+                const pv = fv / Math.pow((1 + rate), years);
+                div.innerHTML = `<span class="text-emerald-700 font-bold">Untuk mendapatkan Rp ${fv.toLocaleString('id-ID')} dalam ${years} tahun ke depan, modal yang harus Anda siapkan SAAT INI adalah:<br><span class="text-2xl">Rp ${Math.round(pv).toLocaleString('id-ID')}</span></span>`;
             }
+            div.classList.remove('hidden');
         }
 
-        async function calcKhatam() {
-             const data = {
-                target_times: document.getElementById('khatam-times').value,
-                days: document.getElementById('khatam-days').value,
-                freq_per_day: document.getElementById('khatam-freq').value
-            };
-            const res = await postCalc('/api/calc/khatam', data);
-            if(res) {
-                document.getElementById('result-khatam').classList.remove('hidden');
-                document.getElementById('khatam-pages').innerText = res.result.pages_per_session;
-                currentExplanation = res.explanation;
-                
-                const parent = document.getElementById('result-khatam');
-                if(!parent.querySelector('button')) {
-                     const btn = document.createElement('button');
-                     btn.className = "w-full bg-sky-100 text-sky-600 text-xs font-bold py-2 rounded-lg hover:bg-sky-200 transition flex items-center justify-center gap-2 mt-3";
-                     btn.innerHTML = '<i class="fas fa-info-circle"></i> PENJELASAN PERHITUNGAN';
-                     btn.onclick = showExplanation;
-                     parent.appendChild(btn);
-                }
+        // 5. Perencana Anggaran Anak Kost
+        function calcAnggaran() {
+            const total = parseFloat(document.getElementById('anggaran-uang').value);
+            const div = document.getElementById('result-anggaran');
+            if(isNaN(total) || total <= 0) {
+                div.innerHTML = `<span class="text-red-500 font-bold">Masukkan jumlah uang saku yang valid.</span>`;
+            } else {
+                const kebutuhan = total * 0.5;
+                const keinginan = total * 0.3;
+                const tabungan = total * 0.2;
+                div.innerHTML = `
+                    <p class="font-bold text-emerald-800 mb-3">Distribusi Sehat Uang Saku Anda:</p>
+                    <div class="space-y-3">
+                        <div class="bg-blue-50 p-3 rounded border border-blue-200">
+                            <p class="font-bold text-blue-700 text-sm">50% Kebutuhan Pokok</p>
+                            <p class="text-lg font-bold">Rp ${Math.round(kebutuhan).toLocaleString('id-ID')}</p>
+                            <p class="text-xs text-gray-500">Makan sehari-hari, kuota internet kuliah, sabun, dll.</p>
+                        </div>
+                        <div class="bg-orange-50 p-3 rounded border border-orange-200">
+                            <p class="font-bold text-orange-700 text-sm">30% Keinginan & Hiburan</p>
+                            <p class="text-lg font-bold">Rp ${Math.round(keinginan).toLocaleString('id-ID')}</p>
+                            <p class="text-xs text-gray-500">Nongkrong di kafe, nonton film, jajan boba.</p>
+                        </div>
+                        <div class="bg-green-50 p-3 rounded border border-green-200">
+                            <p class="font-bold text-green-700 text-sm">20% Tabungan / Investasi</p>
+                            <p class="text-lg font-bold">Rp ${Math.round(tabungan).toLocaleString('id-ID')}</p>
+                            <p class="text-xs text-gray-500">Dana darurat atau menabung untuk beli laptop/aset.</p>
+                        </div>
+                    </div>
+                `;
             }
+            div.classList.remove('hidden');
         }
 
-        async function calcFidyah() {
-             const data = {
-                days: document.getElementById('fidyah-days').value,
-                category: document.getElementById('fidyah-cat').value
-            };
-            const res = await postCalc('/api/calc/fidyah', data);
-            if(res) {
-                document.getElementById('result-fidyah').classList.remove('hidden');
-                document.getElementById('fidyah-qadha').innerText = res.result.qadha_days + " Hari";
-                document.getElementById('fidyah-rice').innerText = res.result.fidyah_rice.toFixed(1) + " Kg";
-                document.getElementById('fidyah-money').innerText = "Rp " + Number(res.result.fidyah_money).toLocaleString();
-                currentExplanation = res.explanation;
+        // 6. Simulasi PPh 21 Lulusan Baru
+        function calcPajak() {
+            const gajiKotor = parseFloat(document.getElementById('pajak-gaji').value);
+            const div = document.getElementById('result-pajak');
+            if(isNaN(gajiKotor) || gajiKotor <= 0) {
+                div.innerHTML = `<span class="text-red-500 font-bold">Data tidak valid.</span>`;
+            } else {
+                // Asumsi standar potongan BPJS Karyawan:
+                // JHT 2%, JP 1%, Kes 1%
+                const jht = gajiKotor * 0.02;
+                const jp = gajiKotor * 0.01;
+                const kes = gajiKotor * 0.01; // max limit omitted for simplicity for entry level
+                const totalBPJS = jht + jp + kes;
                 
-                const parent = document.getElementById('result-fidyah');
-                if(!parent.querySelector('.exp-btn')) { // Use class to identify
-                     const div = document.createElement('div');
-                     div.className = "exp-btn pt-2";
-                     div.innerHTML = `
-                        <button onclick="showExplanation()" class="w-full bg-gray-100 text-gray-600 text-xs font-bold py-2 rounded-lg hover:bg-gray-200 transition flex items-center justify-center gap-2">
-                            <i class="fas fa-info-circle"></i> PENJELASAN PERHITUNGAN
-                        </button>
-                     `;
-                     parent.appendChild(div);
-                }
-            }
-        }
+                // Simplified Pajak TER (Tarif Efektif Rata-Rata) utk TK/0
+                // Gaji <= 5.4jt = 0%
+                let pph21 = 0;
+                if(gajiKotor <= 5400000) {
+                    pph21 = 0;
+                } else if(gajiKotor <= 5650000) { pph21 = gajiKotor * 0.0025; }
+                else if(gajiKotor <= 5950000) { pph21 = gajiKotor * 0.005; }
+                else if(gajiKotor <= 6300000) { pph21 = gajiKotor * 0.0075; }
+                else if(gajiKotor <= 6750000) { pph21 = gajiKotor * 0.01; }
+                else if(gajiKotor <= 7500000) { pph21 = gajiKotor * 0.0125; }
+                else if(gajiKotor <= 8550000) { pph21 = gajiKotor * 0.015; }
+                else if(gajiKotor <= 9650000) { pph21 = gajiKotor * 0.0175; }
+                else if(gajiKotor <= 10050000) { pph21 = gajiKotor * 0.02; }
+                else { pph21 = gajiKotor * 0.025; }
 
-        async function calcHijri() {
-            const val = document.getElementById('hijri-date-input').value;
-            if(!val) return alert("Pilih tanggal dulu");
-            const data = { date: val };
-            const res = await postCalc('/api/calc/hijri', data);
-            if(res) {
-                document.getElementById('result-hijri').classList.remove('hidden');
-                document.getElementById('hijri-output').innerText = res.result.hijri;
-                currentExplanation = res.explanation;
-                
-                const parent = document.getElementById('result-hijri');
-                if(!parent.querySelector('button')) {
-                     const btn = document.createElement('button');
-                     btn.className = "w-full bg-sky-100 text-sky-600 text-xs font-bold py-2 rounded-lg hover:bg-sky-200 transition flex items-center justify-center gap-2 mt-3";
-                     btn.innerHTML = '<i class="fas fa-info-circle"></i> PENJELASAN PERHITUNGAN';
-                     btn.onclick = showExplanation;
-                     parent.appendChild(btn);
-                }
+                const thp = gajiKotor - totalBPJS - pph21;
+
+                div.innerHTML = `
+                    <p class="font-bold text-emerald-800 mb-2">Rincian Perkiraan Potongan:</p>
+                    <ul class="space-y-1 mb-3 text-sm border-b border-gray-200 pb-2">
+                        <li class="flex justify-between text-gray-600"><span>Gaji Kotor (Bruto):</span> <span>Rp ${gajiKotor.toLocaleString('id-ID')}</span></li>
+                        <li class="flex justify-between text-red-500"><span>BPJS Jaminan Hari Tua (2%):</span> <span>- Rp ${Math.round(jht).toLocaleString('id-ID')}</span></li>
+                        <li class="flex justify-between text-red-500"><span>BPJS Pensiun (1%):</span> <span>- Rp ${Math.round(jp).toLocaleString('id-ID')}</span></li>
+                        <li class="flex justify-between text-red-500"><span>BPJS Kesehatan (1%):</span> <span>- Rp ${Math.round(kes).toLocaleString('id-ID')}</span></li>
+                        <li class="flex justify-between text-red-500"><span>PPh 21 (Estimasi):</span> <span>- Rp ${Math.round(pph21).toLocaleString('id-ID')}</span></li>
+                    </ul>
+                    <div class="flex justify-between items-center text-emerald-700">
+                        <span class="font-bold">Gaji Bersih (Take Home Pay):</span>
+                        <span class="text-xl font-bold">Rp ${Math.round(thp).toLocaleString('id-ID')}</span>
+                    </div>
+                `;
             }
+            div.classList.remove('hidden');
         }
     </script>
 
@@ -6244,159 +6263,6 @@ def emergency():
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
-
-@app.route('/api/calc/waris', methods=['POST'])
-@limiter.limit("10 per minute")
-@csrf.exempt
-def api_calc_waris():
-    try:
-        data = request.json
-        harta = int(data['harta'])
-        sons = int(data['sons'])
-        daughters = int(data['daughters'])
-        
-        res = calc_waris(harta, sons, daughters)
-        if "error" in res:
-             return jsonify(res)
-        
-        # Bedah Logika
-        logic = f"Bapak/Ibu memasukkan total harta Rp {harta:,}. Dalam matematika waris, anak laki-laki dihitung 2 bagian lalu anak perempuan dihitung 1 bagian, karena ada {sons} anak laki-laki dan {daughters} perempuan, maka total poin pembagi adalah {res['points']}. Artinya, harta tersebut dibagi menjadi {res['points']} keping. Satu keping bernilai Rp {res['part_value']:,.0f}. Maka bagian anak laki-laki adalah 2 x {res['part_value']:,.0f} = Rp {res['son_share']:,.0f}, dan anak perempuan 1 x {res['part_value']:,.0f} = Rp {res['daughter_share']:,.0f}."
-        
-        return jsonify({
-            "result": res,
-            "explanation": {
-                "logic": logic,
-                "sources": DALIL_DATA["waris"]
-            }
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
-@app.route('/api/calc/zakat', methods=['POST'])
-@limiter.limit("10 per minute")
-@csrf.exempt
-def api_calc_zakat():
-    try:
-        data = request.json
-        gold_price = int(data['gold_price'])
-        savings = int(data['savings'])
-        gold_grams = int(data['gold_grams'])
-        
-        res = calc_zakat(gold_price, savings, gold_grams)
-        
-        status = "WAJIB" if res['wajib'] else "BELUM WAJIB"
-        cond_text = "lebih besar" if res['wajib'] else "lebih kecil"
-        
-        logic = f"Anda memiliki tabungan uang Rp {savings:,} dan emas {gold_grams} gram. Dengan harga emas Rp {gold_price:,}/gram, maka Nisab (batas minimal wajib zakat) adalah 85 gram x Rp {gold_price:,} = Rp {res['nisab']:,}. Total harta Anda dinilai sebesar Rp {res['total_wealth']:,}. Karena Rp {res['total_wealth']:,} {cond_text} dari Nisab, maka hukumnya {status} membayar Zakat Maal sebesar 2.5% (Rp {res['zakat']:,})."
-        
-        return jsonify({
-            "result": res,
-            "explanation": {
-                "logic": logic,
-                "sources": DALIL_DATA["zakat"]
-            }
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
-@app.route('/api/calc/tahajjud', methods=['POST'])
-@limiter.limit("10 per minute")
-@csrf.exempt
-def api_calc_tahajjud():
-    try:
-        data = request.json
-        res = calc_tahajjud(data['maghrib'], data['subuh'])
-        if "error" in res: return jsonify(res)
-        
-        logic = f"Waktu malam dihitung dari Maghrib ({data['maghrib']}) hingga Subuh ({data['subuh']}). Durasi total malam ini adalah {res['total_hours']} jam {res['total_minutes']} menit. Sepertiga malam terakhir adalah waktu istimewa (Qiyamul Lail). Kita bagi durasi malam menjadi 3 bagian, lalu ambil 1 bagian terakhir sebelum Subuh. Hasilnya, sepertiga malam terakhir dimulai pukul {res['time']}."
-        
-        return jsonify({
-            "result": res,
-            "explanation": {
-                "logic": logic,
-                "sources": DALIL_DATA["tahajjud"]
-            }
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
-@app.route('/api/calc/khatam', methods=['POST'])
-@limiter.limit("10 per minute")
-@csrf.exempt
-def api_calc_khatam():
-    try:
-        data = request.json
-        target_times = int(data['target_times'])
-        days = int(data['days'])
-        freq = int(data['freq_per_day'])
-        
-        res = calc_khatam(target_times, days, freq)
-        if isinstance(res, dict) and "error" in res: return jsonify(res)
-        if isinstance(res, int): # Fallback
-             pass
-
-        logic = f"Target Anda adalah khatam Al-Quran {target_times} kali dalam {days} hari. Total halaman Al-Quran standar adalah 604 halaman. Jadi total beban bacaan adalah {target_times} x 604 = {res['total_pages']} halaman. Anda memiliki kesempatan membaca {freq} kali sehari selama {days} hari, total {res['total_sessions']} sesi baca. Maka, {res['total_pages']} halaman dibagi {res['total_sessions']} sesi = {res['pages_per_session']} halaman setiap kali duduk."
-
-        return jsonify({
-            "result": res,
-            "explanation": {
-                "logic": logic,
-                "sources": DALIL_DATA["khatam"]
-            }
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
-@app.route('/api/calc/fidyah', methods=['POST'])
-@limiter.limit("10 per minute")
-@csrf.exempt
-def api_calc_fidyah():
-    try:
-        data = request.json
-        days = int(data['days'])
-        cat = data['category']
-        
-        res = calc_fidyah(days, cat)
-        
-        logic = f"Anda meninggalkan puasa sebanyak {days} hari karena alasan '{cat}'. Dalam fiqih, kategori ini mewajibkan membayar fidyah (memberi makan miskin). Hitungannya adalah {days} hari x 1 mud (0.6kg) = {res['fidyah_rice']:.1f} kg beras. Jika dikonversi ke uang makan (est. Rp 15.000/hari), maka totalnya Rp {res['fidyah_money']:,}."
-        
-        return jsonify({
-            "result": res,
-            "explanation": {
-                "logic": logic,
-                "sources": DALIL_DATA["fidyah"]
-            }
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
-@app.route('/api/calc/hijri', methods=['POST'])
-@limiter.limit("10 per minute")
-@csrf.exempt
-def api_calc_hijri():
-    try:
-        data = request.json
-        y, m, d = data['date'].split('-')
-        formatted_date = f"{d}-{m}-{y}"
-        
-        url = f"http://api.aladhan.com/v1/gToH?date={formatted_date}"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req) as response:
-            resp_data = json.loads(response.read().decode())
-            h = resp_data['data']['hijri']
-            res = f"{h['day']} {h['month']['en']} {h['year']} H"
-            
-            logic = f"Data diambil real-time dari API Aladhan (Internasional). Tanggal {formatted_date} Masehi dikonversi menjadi {res}."
-            
-            return jsonify({
-                "result": {"hijri": res},
-                "explanation": {
-                    "logic": logic,
-                    "sources": DALIL_DATA["hijri"]
-                }
-            })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
 
 @app.route('/api/yasin', methods=['GET'])
 @limiter.limit("10 per minute")
