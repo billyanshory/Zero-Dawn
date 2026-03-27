@@ -992,8 +992,8 @@ BASE_LAYOUT = """
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="/manifest.json">
-    <link rel="icon" type="image/png" href="/static/logomasjidalhijrah.png">
-    <link rel="apple-touch-icon" href="/static/logomasjidalhijrah.png">
+    <link rel="icon" type="image/png" href="/static/logo-stiesam.png">
+    <link rel="apple-touch-icon" href="/static/logo-stiesam.png">
     <script>
         function triggerEmergency() {
             const now = new Date();
@@ -1031,8 +1031,8 @@ BASE_LAYOUT = """
     <nav class="hidden md:flex fixed top-0 left-0 w-full z-50 {{ t_nav_bg }} shadow-sm px-8 py-4 justify-between items-center right-0">
         <div class="max-w-7xl mx-auto w-full flex justify-between items-center">
              <div class="flex items-center gap-4">
-                 <div class="{{ t_icon_bg }} p-2 rounded-xl">
-                    <i class="fas fa-university {{ t_icon_text }} text-2xl"></i>
+                 <div class="{{ t_icon_bg }} p-2 rounded-xl flex items-center justify-center">
+                    <img src="/static/logo-stiesam.png" alt="Logo STIESAM" class="h-8 w-8 object-contain">
                  </div>
                  <div>
                     <h1 class="text-xl font-bold {{ t_title_text }} leading-tight">Sekolah Tinggi Ilmu Ekonomi STIESAM</h1>
@@ -1051,9 +1051,14 @@ BASE_LAYOUT = """
 
     <!-- MOBILE HEADER -->
     <header class="md:hidden fixed top-0 left-0 w-full z-50 {{ t_nav_bg }} shadow-sm px-4 py-3 flex justify-between items-center max-w-md mx-auto right-0">
-        <div>
-            <p class="text-xs text-gray-500 font-medium">Assalamualaikum</p>
-            <h1 class="text-lg font-bold {{ t_title_text }} leading-tight">Sekolah Tinggi Ilmu Ekonomi STIESAM</h1>
+        <div class="flex items-center gap-2">
+            <div class="{{ t_icon_bg }} p-1.5 rounded-lg flex items-center justify-center">
+                <img src="/static/logo-stiesam.png" alt="Logo STIESAM" class="h-6 w-6 object-contain">
+            </div>
+            <div>
+                <h1 class="text-lg font-bold {{ t_title_text }} leading-tight">STIESAM</h1>
+                <p class="text-[10px] text-gray-500 font-medium">Samarinda</p>
+            </div>
         </div>
         <div class="text-right">
             <p class="text-[10px] font-bold {{ t_icon_text }} {{ t_icon_bg }} px-2 py-1 rounded-full border border-sky-200" id="hijri-date">Loading...</p>
@@ -1426,19 +1431,19 @@ BASE_LAYOUT = """
                 icons.forEach(i => i.className = "hover:opacity-80 infaq-icon text-[#FFD700]");
                 inputs.forEach(i => i.className = "w-full text-xs p-2 border rounded infaq-input-text text-[#0b1026] bg-white");
 
-            } else if (path.includes('/irma')) {
-                // IRMA THEME (Sage Green & Pink)
-                container.classList.add('bg-[#F4E7E1]', 'text-[#2F4F4F]');
-                title.classList.add('text-[#A0B391]');
-                tabs.classList.add('bg-[#A0B391]/20');
+            } else if (path.includes('/irma') || path.includes('/mahasiswa')) {
+                // MAHASISWA THEME (Sky Blue)
+                container.classList.add('bg-[#F0F9FF]', 'text-[#075985]');
+                title.classList.add('text-[#0284C7]');
+                tabs.classList.add('bg-[#BAE6FD]/20');
                 
                 boxes.forEach(box => {
-                    box.className = "p-4 rounded-2xl border flex justify-between items-center transition-colors duration-500 bg-white border-[#A0B391]/30";
+                    box.className = "p-4 rounded-2xl border flex justify-between items-center transition-colors duration-500 bg-white border-[#BAE6FD]/30";
                 });
-                labels.forEach(l => l.className = "text-[10px] font-bold uppercase infaq-label text-[#A0B391]");
-                texts.forEach(t => t.className = "font-mono font-bold text-sm infaq-text text-[#2F4F4F]");
-                icons.forEach(i => i.className = "hover:opacity-80 infaq-icon text-[#FFB6C1]");
-                inputs.forEach(i => i.className = "w-full text-xs p-2 border rounded infaq-input-text text-[#2F4F4F] bg-white");
+                labels.forEach(l => l.className = "text-[10px] font-bold uppercase infaq-label text-[#0284C7]");
+                texts.forEach(t => t.className = "font-mono font-bold text-sm infaq-text text-[#075985]");
+                icons.forEach(i => i.className = "hover:opacity-80 infaq-icon text-[#38BDF8]");
+                inputs.forEach(i => i.className = "w-full text-xs p-2 border rounded infaq-input-text text-[#075985] bg-white");
 
             } else {
                 // DEFAULT HOME (Emerald)
@@ -6153,23 +6158,23 @@ def donate():
         btn_action = "bg-[#FFD700] text-[#0b1026]"
     elif source == 'irma':
         theme = {
-            'nav_bg': 'bg-[#F4E7E1]/90 backdrop-blur-md border-b border-[#A0B391]/20',
-            'icon_bg': 'bg-[#A0B391]/20',
-            'icon_text': 'text-[#A0B391]',
-            'title_text': 'text-[#A0B391]',
-            'link_hover': 'hover:text-[#FFB6C1]',
-            'link_active': 'text-[#FFB6C1] font-bold',
-            'btn_primary': 'bg-[#A0B391] text-white hover:bg-[#FFB6C1]',
-            'bottom_nav_bg': 'bg-[#A0B391]',
-            'bottom_active': 'text-[#FFB6C1]',
-            'bottom_btn_bg': 'bg-[#FFB6C1]',
+            'nav_bg': 'bg-[#F0F9FF]/90 backdrop-blur-md border-b border-[#0284C7]/20',
+            'icon_bg': 'bg-[#0284C7]/20',
+            'icon_text': 'text-[#0284C7]',
+            'title_text': 'text-[#0284C7]',
+            'link_hover': 'hover:text-[#7DD3FC]',
+            'link_active': 'text-[#7DD3FC] font-bold',
+            'btn_primary': 'bg-[#0284C7] text-white hover:bg-[#7DD3FC]',
+            'bottom_nav_bg': 'bg-[#0284C7]',
+            'bottom_active': 'text-[#7DD3FC]',
+            'bottom_btn_bg': 'bg-[#7DD3FC]',
             'bottom_btn_text': 'text-white',
-            'bottom_text_inactive': 'text-[#F4E7E1]'
+            'bottom_text_inactive': 'text-[#F0F9FF]'
         }
-        bg_class = "bg-[#F4E7E1] text-gray-800"
-        card_class = "bg-white border-[#A0B391]/30"
-        text_highlight = "text-[#A0B391]"
-        btn_action = "bg-[#A0B391] text-white"
+        bg_class = "bg-[#F0F9FF] text-gray-800"
+        card_class = "bg-white border-[#0284C7]/30"
+        text_highlight = "text-[#0284C7]"
+        btn_action = "bg-[#0284C7] text-white"
     else:
         # Default Home
         bg_class = "bg-[#F8FAFC] text-gray-800"
@@ -6940,21 +6945,21 @@ RAMADHAN_DASHBOARD_HTML = """
 
 IRMA_STYLES = """
     <style>
-        .bg-sage { background-color: #A0B391; }
-        .text-sage { color: #A0B391; }
-        .border-sage { border-color: #A0B391; }
+        .bg-sage { background-color: #0284C7; }
+        .text-sage { color: #0284C7; }
+        .border-sage { border-color: #0284C7; }
         
-        .bg-pastel-pink { background-color: #FFB6C1; }
-        .text-pastel-pink { color: #FFB6C1; }
-        .border-pastel-pink { border-color: #FFB6C1; }
+        .bg-pastel-pink { background-color: #7DD3FC; }
+        .text-pastel-pink { color: #7DD3FC; }
+        .border-pastel-pink { border-color: #7DD3FC; }
         
-        .bg-off-white { background-color: #F4E7E1; }
+        .bg-off-white { background-color: #F0F9FF; }
         
         .text-dark-grey { color: #4A4A4A; }
-        .text-forest { color: #2F4F4F; } /* Dark Forest Green for contrast */
+        .text-forest { color: #075985; } /* Dark Forest Green for contrast */
         
         .irma-header {
-            background: linear-gradient(135deg, #A0B391 0%, #8DA57B 100%);
+            background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
         }
         
         .irma-card {
@@ -6967,18 +6972,18 @@ IRMA_STYLES = """
         .irma-card:hover {
             transform: scale(1.02);
             box-shadow: 0 20px 25px -5px rgba(160, 179, 145, 0.3);
-            border-color: #FFB6C1;
+            border-color: #7DD3FC;
         }
         
         .btn-irma-primary {
-            background-color: #A0B391;
+            background-color: #0284C7;
             color: white;
             border-radius: 0.75rem;
             font-weight: bold;
             transition: all 0.3s;
         }
         .btn-irma-primary:hover {
-            background-color: #FFB6C1;
+            background-color: #7DD3FC;
             transform: translateY(-2px);
         }
 
@@ -6994,7 +6999,7 @@ IRMA_STYLES = """
 """
 
 IRMA_DASHBOARD_HTML = """
-<div class="pt-24 pb-32 px-5 md:px-8 bg-[#F4E7E1] min-h-screen">
+<div class="pt-24 pb-32 px-5 md:px-8 bg-[#F0F9FF] min-h-screen">
     
     <!-- SPLIT HEADER -->
     <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-10">
@@ -7002,19 +7007,19 @@ IRMA_DASHBOARD_HTML = """
         <!-- LEFT: WELCOME -->
         <div class="hidden md:block pl-2">
             <p class="text-xl text-gray-500 font-medium mb-2">Salam Mahasiswa STIESAM</p>
-            <h1 class="text-5xl font-bold text-[#2F4F4F] leading-tight mb-6">Dasbor Mahasiswa<br>Terintegrasi</h1>
+            <h1 class="text-5xl font-bold text-[#075985] leading-tight mb-6">Dasbor Mahasiswa<br>Terintegrasi</h1>
             <p class="text-gray-600 text-lg leading-relaxed mb-8">
                 Pusat layanan akademik dan keuangan terpadu. Pantau rencana studi, kartu hasil studi, jadwal, dan tagihan dengan mudah dan efisien.
             </p>
             <div class="flex gap-4">
-                <button onclick="openModal('modal-jadwal-kuliah')" class="bg-[#A0B391] text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-[#8DA57B] transition transform hover:scale-105">Lihat Jadwal</button>
-                <button onclick="openModal('modal-profil-arsip')" class="bg-transparent text-[#A0B391] border-2 border-[#A0B391] px-8 py-3 rounded-full font-bold hover:bg-[#A0B391] hover:text-white transition transform hover:scale-105">Profil Saya</button>
+                <button onclick="openModal('modal-jadwal-kuliah')" class="bg-[#0284C7] text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-[#0369A1] transition transform hover:scale-105">Lihat Jadwal</button>
+                <button onclick="openModal('modal-profil-arsip')" class="bg-transparent text-[#0284C7] border-2 border-[#0284C7] px-8 py-3 rounded-full font-bold hover:bg-[#0284C7] hover:text-white transition transform hover:scale-105">Profil Saya</button>
             </div>
         </div>
 
         <!-- RIGHT: MAHASISWA STATS -->
         <div>
-            <div class="bg-gradient-to-br from-[#A0B391] to-[#8DA57B] rounded-3xl p-6 md:p-10 text-white shadow-xl relative overflow-hidden transform md:hover:scale-[1.02] transition-transform duration-500 border border-white/20">
+            <div class="bg-gradient-to-br from-[#0284C7] to-[#0369A1] rounded-3xl p-6 md:p-10 text-white shadow-xl relative overflow-hidden transform md:hover:scale-[1.02] transition-transform duration-500 border border-white/20">
                 <div class="absolute top-0 right-0 opacity-10 transform translate-x-4 -translate-y-4">
                     <i class="fas fa-graduation-cap text-9xl"></i>
                 </div>
@@ -7057,74 +7062,74 @@ IRMA_DASHBOARD_HTML = """
     </div>
 
     <!-- MENU GRID -->
-    <h3 class="text-[#2F4F4F] font-bold text-lg mb-4 pl-3 border-l-4 border-[#FFB6C1]">Layanan Akademik</h3>
+    <h3 class="text-[#075985] font-bold text-lg mb-4 pl-3 border-l-4 border-[#7DD3FC]">Layanan Akademik</h3>
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-24">
         
         <!-- 1. RENCANA STUDI -->
-        <button onclick="openModal('modal-rencana-studi')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
-             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#A0B391] group-hover:text-white transition-colors shadow-inner">
+        <button onclick="openModal('modal-rencana-studi')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#0284C7]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+             <div class="w-14 h-14 rounded-full bg-[#0284C7]/10 flex items-center justify-center text-[#0284C7] mb-3 group-hover:bg-[#0284C7] group-hover:text-white transition-colors shadow-inner">
                 <i class="fas fa-file-signature text-2xl"></i>
              </div>
-             <span class="font-bold text-sm text-gray-600 group-hover:text-[#A0B391]">Rencana Studi</span>
+             <span class="font-bold text-sm text-gray-600 group-hover:text-[#0284C7]">Rencana Studi</span>
         </button>
 
         <!-- 2. KARTU HASIL STUDI -->
-        <button onclick="openModal('modal-kartu-hasil-studi')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
-             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#A0B391] group-hover:text-white transition-colors shadow-inner">
+        <button onclick="openModal('modal-kartu-hasil-studi')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#0284C7]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+             <div class="w-14 h-14 rounded-full bg-[#0284C7]/10 flex items-center justify-center text-[#0284C7] mb-3 group-hover:bg-[#0284C7] group-hover:text-white transition-colors shadow-inner">
                 <i class="fas fa-graduation-cap text-2xl"></i>
              </div>
-             <span class="font-bold text-sm text-gray-600 group-hover:text-[#A0B391]">Kartu Hasil Studi</span>
+             <span class="font-bold text-sm text-gray-600 group-hover:text-[#0284C7]">Kartu Hasil Studi</span>
         </button>
 
         <!-- 3. PUSAT TAGIHAN -->
-        <button onclick="openModal('modal-pusat-tagihan')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all relative">
+        <button onclick="openModal('modal-pusat-tagihan')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#0284C7]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all relative">
              {% if has_unpaid %}
              <div class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-md animate-pulse">!</div>
              {% endif %}
-             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#A0B391] group-hover:text-white transition-colors shadow-inner">
+             <div class="w-14 h-14 rounded-full bg-[#0284C7]/10 flex items-center justify-center text-[#0284C7] mb-3 group-hover:bg-[#0284C7] group-hover:text-white transition-colors shadow-inner">
                 <i class="fas fa-money-check-alt text-2xl"></i>
              </div>
-             <span class="font-bold text-sm text-gray-600 group-hover:text-[#A0B391]">Pusat Tagihan</span>
+             <span class="font-bold text-sm text-gray-600 group-hover:text-[#0284C7]">Pusat Tagihan</span>
         </button>
 
         <!-- 4. JADWAL KULIAH -->
-        <button onclick="openModal('modal-jadwal-kuliah')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
-             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#A0B391] group-hover:text-white transition-colors shadow-inner">
+        <button onclick="openModal('modal-jadwal-kuliah')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#0284C7]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+             <div class="w-14 h-14 rounded-full bg-[#0284C7]/10 flex items-center justify-center text-[#0284C7] mb-3 group-hover:bg-[#0284C7] group-hover:text-white transition-colors shadow-inner">
                 <i class="fas fa-calendar-alt text-2xl"></i>
              </div>
-             <span class="font-bold text-sm text-center text-gray-600 group-hover:text-[#A0B391]">Jadwal Kuliah<br>& Ruangan</span>
+             <span class="font-bold text-sm text-center text-gray-600 group-hover:text-[#0284C7]">Jadwal Kuliah<br>& Ruangan</span>
         </button>
 
         <!-- 5. PERMOHONAN SURAT -->
-        <button onclick="openModal('modal-permohonan-surat')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
-             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#A0B391] group-hover:text-white transition-colors shadow-inner">
+        <button onclick="openModal('modal-permohonan-surat')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#0284C7]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+             <div class="w-14 h-14 rounded-full bg-[#0284C7]/10 flex items-center justify-center text-[#0284C7] mb-3 group-hover:bg-[#0284C7] group-hover:text-white transition-colors shadow-inner">
                 <i class="fas fa-envelope-open-text text-2xl"></i>
              </div>
-             <span class="font-bold text-sm text-center text-gray-600 group-hover:text-[#A0B391]">Permohonan Surat<br>Akademik</span>
+             <span class="font-bold text-sm text-center text-gray-600 group-hover:text-[#0284C7]">Permohonan Surat<br>Akademik</span>
         </button>
 
         <!-- 6. PROFIL DAN ARSIP DIGITAL -->
-        <button onclick="openModal('modal-profil-arsip')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
-             <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#A0B391] group-hover:text-white transition-colors shadow-inner">
+        <button onclick="openModal('modal-profil-arsip')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#0284C7]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
+             <div class="w-14 h-14 rounded-full bg-[#0284C7]/10 flex items-center justify-center text-[#0284C7] mb-3 group-hover:bg-[#0284C7] group-hover:text-white transition-colors shadow-inner">
                 <i class="fas fa-id-badge text-2xl"></i>
              </div>
-             <span class="font-bold text-sm text-center text-gray-600 group-hover:text-[#A0B391]">Profil & Arsip<br>Digital Saya</span>
+             <span class="font-bold text-sm text-center text-gray-600 group-hover:text-[#0284C7]">Profil & Arsip<br>Digital Saya</span>
         </button>
     </div>
 
     <!-- MODALS SECTION -->
     
     <!-- 3. MODAL PUSAT TAGIHAN -->
-    <div id="modal-pusat-tagihan" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+    <div id="modal-pusat-tagihan" class="hidden fixed inset-0 z-40 bg-[#F0F9FF] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
-            <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
-                <h3 class="text-xl font-bold text-[#2F4F4F]">Pusat Tagihan Pendidikan</h3>
+            <div class="flex justify-between items-center mb-6 border-b border-[#0284C7]/20 pb-4">
+                <h3 class="text-xl font-bold text-[#075985]">Pusat Tagihan Pendidikan</h3>
                 <button onclick="closeModal('modal-pusat-tagihan')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
             
             <div class="space-y-4">
                 {% for item in tagihan_list %}
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20 relative overflow-hidden">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#0284C7]/20 relative overflow-hidden">
                     {% if item['status'] == 'Lunas' %}
                     <div class="absolute top-4 right-4 text-green-500 font-bold text-sm flex items-center gap-1">
                         <i class="fas fa-check-circle"></i> Lunas
@@ -7136,7 +7141,7 @@ IRMA_DASHBOARD_HTML = """
                     {% endif %}
                     
                     <h4 class="font-bold text-lg text-gray-800 mb-1">{{ item['jenis_tagihan'] }}</h4>
-                    <p class="text-sm text-gray-500 mb-4">Total: <span class="font-bold text-[#2F4F4F]">Rp {{ "{:,.0f}".format(item['jumlah']|int) if item['jumlah']|string|length > 0 else '0' }}</span></p>
+                    <p class="text-sm text-gray-500 mb-4">Total: <span class="font-bold text-[#075985]">Rp {{ "{:,.0f}".format(item['jumlah']|int) if item['jumlah']|string|length > 0 else '0' }}</span></p>
                     
                     {% if item['status'] != 'Lunas' %}
                     <form action="/mahasiswa/tagihan/upload" method="POST" enctype="multipart/form-data" class="bg-gray-50 p-4 rounded-xl border border-gray-100 mt-4">
@@ -7144,8 +7149,8 @@ IRMA_DASHBOARD_HTML = """
                         <input type="hidden" name="tagihan_id" value="{{ item['id'] }}">
                         <label class="block text-xs font-bold text-gray-500 mb-2">Upload Bukti Transfer Bank:</label>
                         <div class="flex gap-2">
-                            <input type="file" name="bukti_transfer" required class="flex-1 text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#A0B391]/10 file:text-[#A0B391] hover:file:bg-[#A0B391]/20">
-                            <button type="submit" class="bg-[#A0B391] text-white px-4 py-2 rounded-full font-bold text-xs shadow-sm hover:bg-[#8DA57B] transition">Kirim</button>
+                            <input type="file" name="bukti_transfer" required class="flex-1 text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#0284C7]/10 file:text-[#0284C7] hover:file:bg-[#0284C7]/20">
+                            <button type="submit" class="bg-[#0284C7] text-white px-4 py-2 rounded-full font-bold text-xs shadow-sm hover:bg-[#0369A1] transition">Kirim</button>
                         </div>
                     </form>
                     {% endif %}
@@ -7154,7 +7159,7 @@ IRMA_DASHBOARD_HTML = """
                     {% endif %}
                 </div>
                 {% else %}
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20 text-center">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#0284C7]/20 text-center">
                     <p class="text-gray-500">Tidak ada tagihan aktif.</p>
                 </div>
                 {% endfor %}
@@ -7163,10 +7168,10 @@ IRMA_DASHBOARD_HTML = """
     </div>
 
     <!-- 1. MODAL RENCANA STUDI -->
-    <div id="modal-rencana-studi" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+    <div id="modal-rencana-studi" class="hidden fixed inset-0 z-40 bg-[#F0F9FF] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
-            <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
-                <h3 class="text-xl font-bold text-[#2F4F4F]">Pengisian Rencana Studi (KRS)</h3>
+            <div class="flex justify-between items-center mb-6 border-b border-[#0284C7]/20 pb-4">
+                <h3 class="text-xl font-bold text-[#075985]">Pengisian Rencana Studi (KRS)</h3>
                 <button onclick="closeModal('modal-rencana-studi')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
             
@@ -7177,39 +7182,39 @@ IRMA_DASHBOARD_HTML = """
                 </div>
                 <h4 class="text-xl font-bold text-red-600 mb-2">Akses Terkunci</h4>
                 <p class="text-gray-600 mb-6 leading-relaxed">Mohon maaf, Anda tidak dapat mengisi Kartu Rencana Studi karena masih terdapat tagihan pembayaran yang belum diselesaikan atau sedang menunggu verifikasi Tata Usaha.</p>
-                <button onclick="closeModal('modal-rencana-studi'); openModal('modal-pusat-tagihan')" class="bg-[#A0B391] text-white px-8 py-3 rounded-xl font-bold hover:bg-[#8DA57B] transition shadow-md">Menuju Pusat Tagihan</button>
+                <button onclick="closeModal('modal-rencana-studi'); openModal('modal-pusat-tagihan')" class="bg-[#0284C7] text-white px-8 py-3 rounded-xl font-bold hover:bg-[#0369A1] transition shadow-md">Menuju Pusat Tagihan</button>
             </div>
             {% else %}
             
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20 mb-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#0284C7]/20 mb-6">
                 <p class="text-sm text-gray-600 mb-4">Pilih mata kuliah dari jadwal yang ditawarkan semester ini. Mata kuliah yang dipilih akan diajukan ke Dosen Wali.</p>
                 <form action="/mahasiswa/krs/add" method="POST">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="space-y-3 mb-4 max-h-[40vh] overflow-y-auto custom-scrollbar">
                         {% for j in jadwal_list %}
                         <label class="flex items-start p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition cursor-pointer">
-                            <input type="checkbox" name="jadwal_ids" value="{{ j['id'] }}" class="accent-[#A0B391] w-5 h-5 mr-3 mt-1">
+                            <input type="checkbox" name="jadwal_ids" value="{{ j['id'] }}" class="accent-[#0284C7] w-5 h-5 mr-3 mt-1">
                             <div class="flex-1">
                                 <p class="font-bold text-sm text-gray-800">{{ j['mata_kuliah'] }}</p>
                                 <p class="text-xs text-gray-500">{{ j['hari'] }}, {{ j['jam'] }} • Ruang: {{ j['ruangan'] }}</p>
-                                <p class="text-xs font-medium text-[#A0B391] mt-1"><i class="fas fa-user-tie"></i> {{ j['dosen'] }}</p>
+                                <p class="text-xs font-medium text-[#0284C7] mt-1"><i class="fas fa-user-tie"></i> {{ j['dosen'] }}</p>
                             </div>
-                            <div class="bg-[#F4E7E1] text-[#2F4F4F] px-2 py-1 rounded text-[10px] font-bold">3 SKS</div>
+                            <div class="bg-[#F0F9FF] text-[#075985] px-2 py-1 rounded text-[10px] font-bold">3 SKS</div>
                         </label>
                         {% else %}
                         <p class="text-center text-gray-500 py-4">Belum ada jadwal kuliah yang dibuka oleh Tata Usaha.</p>
                         {% endfor %}
                     </div>
                     {% if jadwal_list %}
-                    <button type="submit" class="w-full bg-[#A0B391] text-white font-bold py-3 rounded-xl hover:bg-[#FFB6C1] transition shadow-md">Ajukan KRS</button>
+                    <button type="submit" class="w-full bg-[#0284C7] text-white font-bold py-3 rounded-xl hover:bg-[#7DD3FC] transition shadow-md">Ajukan KRS</button>
                     {% endif %}
                 </form>
             </div>
             
-            <h4 class="text-[#2F4F4F] font-bold mb-3 border-l-4 border-[#FFB6C1] pl-2">KRS Saya (Semester Ini)</h4>
+            <h4 class="text-[#075985] font-bold mb-3 border-l-4 border-[#7DD3FC] pl-2">KRS Saya (Semester Ini)</h4>
             <div class="space-y-3">
                 {% for k in krs_list %}
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-[#A0B391]/20 flex justify-between items-center">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-[#0284C7]/20 flex justify-between items-center">
                     <div>
                         <p class="font-bold text-gray-800 text-sm">{{ k['mata_kuliah'] }}</p>
                         <p class="text-xs text-gray-500">{{ k['dosen'] }} • {{ k['sks'] }} SKS</p>
@@ -7226,10 +7231,10 @@ IRMA_DASHBOARD_HTML = """
     </div>
 
     <!-- 2. MODAL KARTU HASIL STUDI -->
-    <div id="modal-kartu-hasil-studi" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+    <div id="modal-kartu-hasil-studi" class="hidden fixed inset-0 z-40 bg-[#F0F9FF] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
-            <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
-                <h3 class="text-xl font-bold text-[#2F4F4F]">Kartu Hasil Studi (KHS)</h3>
+            <div class="flex justify-between items-center mb-6 border-b border-[#0284C7]/20 pb-4">
+                <h3 class="text-xl font-bold text-[#075985]">Kartu Hasil Studi (KHS)</h3>
                 <button onclick="closeModal('modal-kartu-hasil-studi')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
             
@@ -7248,7 +7253,7 @@ IRMA_DASHBOARD_HTML = """
                 {% set smt_sks = namespace(value=0) %}
                 {% set smt_bobot = namespace(value=0) %}
                 
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20 mb-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#0284C7]/20 mb-6">
                     <div class="flex justify-between items-end mb-6 border-b border-gray-100 pb-4">
                         <div>
                             <h4 class="text-lg font-bold text-gray-800">{{ smt }}</h4>
@@ -7285,7 +7290,7 @@ IRMA_DASHBOARD_HTML = """
                             <tr>
                                 <td class="p-3 text-sm text-gray-800 font-medium">{{ n['mata_kuliah'] }}</td>
                                 <td class="p-3 text-sm text-gray-600 text-center">{{ n['sks'] }}</td>
-                                <td class="p-3 text-sm font-bold text-[#A0B391] text-center">{{ n['nilai_huruf'] }}</td>
+                                <td class="p-3 text-sm font-bold text-[#0284C7] text-center">{{ n['nilai_huruf'] }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -7300,20 +7305,20 @@ IRMA_DASHBOARD_HTML = """
                     </script>
                 </div>
             {% else %}
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20 text-center">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#0284C7]/20 text-center">
                     <p class="text-gray-500">Belum ada nilai yang diinput oleh Dosen.</p>
                 </div>
             {% endfor %}
             
             {% if nilai_list %}
-            <div class="fixed bottom-0 left-0 w-full bg-white border-t border-[#A0B391]/20 p-4 md:p-6 pb-safe z-50 flex justify-between items-center max-w-md mx-auto right-0 rounded-t-3xl shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+            <div class="fixed bottom-0 left-0 w-full bg-white border-t border-[#0284C7]/20 p-4 md:p-6 pb-safe z-50 flex justify-between items-center max-w-md mx-auto right-0 rounded-t-3xl shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
                 <div>
                     <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Indeks Prestasi Kumulatif</p>
-                    <h2 class="text-3xl font-bold text-[#2F4F4F]">{% set ipk = (total_bobot_kumulatif.value / total_sks_kumulatif.value) if total_sks_kumulatif.value > 0 else 0 %}{{ '%.2f' | format(ipk) }}</h2>
+                    <h2 class="text-3xl font-bold text-[#075985]">{% set ipk = (total_bobot_kumulatif.value / total_sks_kumulatif.value) if total_sks_kumulatif.value > 0 else 0 %}{{ '%.2f' | format(ipk) }}</h2>
                 </div>
                 <div class="text-right">
                     <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Total SKS</p>
-                    <h2 class="text-xl font-bold text-[#A0B391]">{{ total_sks_kumulatif.value }} SKS</h2>
+                    <h2 class="text-xl font-bold text-[#0284C7]">{{ total_sks_kumulatif.value }} SKS</h2>
                 </div>
             </div>
             {% endif %}
@@ -7321,30 +7326,30 @@ IRMA_DASHBOARD_HTML = """
     </div>
 
     <!-- 4. MODAL JADWAL KULIAH -->
-    <div id="modal-jadwal-kuliah" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+    <div id="modal-jadwal-kuliah" class="hidden fixed inset-0 z-40 bg-[#F0F9FF] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
-            <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
-                <h3 class="text-xl font-bold text-[#2F4F4F]">Jadwal Kuliah Waktu Nyata</h3>
+            <div class="flex justify-between items-center mb-6 border-b border-[#0284C7]/20 pb-4">
+                <h3 class="text-xl font-bold text-[#075985]">Jadwal Kuliah Waktu Nyata</h3>
                 <button onclick="closeModal('modal-jadwal-kuliah')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
             
-            <p class="text-sm text-gray-600 mb-6 bg-white p-4 rounded-xl border border-[#A0B391]/20 shadow-sm"><i class="fas fa-info-circle text-[#A0B391] mr-2"></i>Jadwal ini disinkronkan langsung dari ruang kendali Tata Usaha secara real-time.</p>
+            <p class="text-sm text-gray-600 mb-6 bg-white p-4 rounded-xl border border-[#0284C7]/20 shadow-sm"><i class="fas fa-info-circle text-[#0284C7] mr-2"></i>Jadwal ini disinkronkan langsung dari ruang kendali Tata Usaha secara real-time.</p>
             
             <div class="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
                 {% for item in jadwal_list %}
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-[#A0B391]/20 flex justify-between items-center group hover:border-[#A0B391]/50 transition-colors">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-[#0284C7]/20 flex justify-between items-center group hover:border-[#0284C7]/50 transition-colors">
                     <div>
                         <p class="font-bold text-gray-800 text-base mb-1">{{ item['mata_kuliah'] }}</p>
                         <div class="flex items-center gap-2 text-xs text-gray-500 mb-1">
-                            <span class="bg-[#F4E7E1] text-[#2F4F4F] px-2 py-0.5 rounded font-bold">{{ item['hari'] }}</span>
+                            <span class="bg-[#F0F9FF] text-[#075985] px-2 py-0.5 rounded font-bold">{{ item['hari'] }}</span>
                             <span class="text-gray-400"><i class="fas fa-clock mr-1"></i> {{ item['jam'] }}</span>
                             <span class="text-gray-400"><i class="fas fa-map-marker-alt mr-1"></i> {{ item['ruangan'] }}</span>
                         </div>
-                        <p class="text-xs font-bold text-[#A0B391]"><i class="fas fa-chalkboard-teacher mr-1"></i> {{ item['dosen'] }}</p>
+                        <p class="text-xs font-bold text-[#0284C7]"><i class="fas fa-chalkboard-teacher mr-1"></i> {{ item['dosen'] }}</p>
                     </div>
                 </div>
                 {% else %}
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20 text-center">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#0284C7]/20 text-center">
                     <p class="text-gray-500">Jadwal kuliah belum tersedia dari Tata Usaha.</p>
                 </div>
                 {% endfor %}
@@ -7352,23 +7357,23 @@ IRMA_DASHBOARD_HTML = """
         </div>
     </div>
     <!-- 5. MODAL PERMOHONAN SURAT -->
-    <div id="modal-permohonan-surat" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+    <div id="modal-permohonan-surat" class="hidden fixed inset-0 z-40 bg-[#F0F9FF] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
-            <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
-                <h3 class="text-xl font-bold text-[#2F4F4F]">Layanan Permohonan Surat</h3>
+            <div class="flex justify-between items-center mb-6 border-b border-[#0284C7]/20 pb-4">
+                <h3 class="text-xl font-bold text-[#075985]">Layanan Permohonan Surat</h3>
                 <button onclick="closeModal('modal-permohonan-surat')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
             
-            <form action="/mahasiswa/surat/request" method="POST" class="bg-white p-6 rounded-2xl shadow-sm border border-[#A0B391]/20 mb-6 relative overflow-hidden">
+            <form action="/mahasiswa/surat/request" method="POST" class="bg-white p-6 rounded-2xl shadow-sm border border-[#0284C7]/20 mb-6 relative overflow-hidden">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="absolute top-0 right-0 opacity-5 -mt-4 -mr-4">
-                    <i class="fas fa-paper-plane text-8xl text-[#A0B391]"></i>
+                    <i class="fas fa-paper-plane text-8xl text-[#0284C7]"></i>
                 </div>
                 <div class="relative z-10">
                     <p class="text-sm text-gray-600 mb-4">Pilih jenis surat yang ingin diajukan. Surat akan diverifikasi oleh Tata Usaha dan dapat diunduh dalam bentuk PDF dengan QR Code Tanda Tangan Elektronik.</p>
                     <div class="mb-4">
                         <label class="block text-xs font-bold text-gray-500 mb-2">Jenis Surat / Dokumen</label>
-                        <select name="jenis_surat" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#A0B391]">
+                        <select name="jenis_surat" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0284C7]">
                             <option value="Surat Keterangan Aktif Kuliah">Surat Keterangan Aktif Kuliah (Untuk Beasiswa/Tunjangan)</option>
                             <option value="Surat Pengantar Magang">Surat Pengantar Magang / PKL</option>
                             <option value="Surat Pengantar Riset">Surat Pengantar Riset / Penelitian TA</option>
@@ -7377,16 +7382,16 @@ IRMA_DASHBOARD_HTML = """
                     </div>
                     <div class="mb-4">
                         <label class="block text-xs font-bold text-gray-500 mb-2">Keterangan Tambahan / Tujuan Surat</label>
-                        <textarea name="keterangan" required placeholder="Contoh: Ditujukan kepada HRD PT Pertamina Balikpapan" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm h-20 focus:outline-none focus:ring-2 focus:ring-[#A0B391]"></textarea>
+                        <textarea name="keterangan" required placeholder="Contoh: Ditujukan kepada HRD PT Pertamina Balikpapan" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm h-20 focus:outline-none focus:ring-2 focus:ring-[#0284C7]"></textarea>
                     </div>
-                    <button type="submit" class="w-full bg-[#A0B391] text-white font-bold py-3 rounded-xl shadow-md hover:bg-[#FFB6C1] transition flex justify-center items-center gap-2"><i class="fas fa-paper-plane"></i> Kirim Permohonan</button>
+                    <button type="submit" class="w-full bg-[#0284C7] text-white font-bold py-3 rounded-xl shadow-md hover:bg-[#7DD3FC] transition flex justify-center items-center gap-2"><i class="fas fa-paper-plane"></i> Kirim Permohonan</button>
                 </div>
             </form>
 
-            <h4 class="text-[#2F4F4F] font-bold mb-3 border-l-4 border-[#FFB6C1] pl-2">Ruang Tunggu Permohonan</h4>
+            <h4 class="text-[#075985] font-bold mb-3 border-l-4 border-[#7DD3FC] pl-2">Ruang Tunggu Permohonan</h4>
             <div class="space-y-3">
                 {% for s in surat_list %}
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-[#A0B391]/20 relative">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-[#0284C7]/20 relative">
                     <div class="flex justify-between items-start mb-2">
                         <h5 class="font-bold text-gray-800">{{ s['jenis_surat'] }}</h5>
                         <span class="text-[10px] font-bold px-2 py-1 rounded-full {{ 'bg-yellow-100 text-yellow-600' if s['status'] == 'Menunggu Acc' else 'bg-green-100 text-green-600' }}">{{ s['status'] }}</span>
@@ -7398,12 +7403,12 @@ IRMA_DASHBOARD_HTML = """
                     <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
                         <p class="text-[10px] text-green-600 font-bold flex items-center gap-1"><i class="fas fa-shield-alt"></i> Ditandatangani Elektronik</p>
                         <!-- We use a mock URL for downloading the signed PDF for demonstration -->
-                        <button onclick="alert('Mengunduh Surat Digital Resmi (PDF)...')" class="bg-[#A0B391]/10 text-[#A0B391] px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-[#A0B391]/20 transition"><i class="fas fa-download mr-1"></i> Unduh PDF</button>
+                        <button onclick="alert('Mengunduh Surat Digital Resmi (PDF)...')" class="bg-[#0284C7]/10 text-[#0284C7] px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-[#0284C7]/20 transition"><i class="fas fa-download mr-1"></i> Unduh PDF</button>
                     </div>
                     {% endif %}
                 </div>
                 {% else %}
-                <div class="text-center bg-white p-6 rounded-2xl border border-[#A0B391]/20">
+                <div class="text-center bg-white p-6 rounded-2xl border border-[#0284C7]/20">
                     <p class="text-gray-400 text-sm italic">Belum ada surat yang diajukan.</p>
                 </div>
                 {% endfor %}
@@ -7412,23 +7417,23 @@ IRMA_DASHBOARD_HTML = """
     </div>
 
     <!-- 6. MODAL PROFIL DAN ARSIP DIGITAL -->
-    <div id="modal-profil-arsip" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
+    <div id="modal-profil-arsip" class="hidden fixed inset-0 z-40 bg-[#F0F9FF] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
-            <div class="flex justify-between items-center mb-6 border-b border-[#A0B391]/20 pb-4">
-                <h3 class="text-xl font-bold text-[#2F4F4F]">Profil & Arsip Digital Saya</h3>
+            <div class="flex justify-between items-center mb-6 border-b border-[#0284C7]/20 pb-4">
+                <h3 class="text-xl font-bold text-[#075985]">Profil & Arsip Digital Saya</h3>
                 <button onclick="closeModal('modal-profil-arsip')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
             
-            <div class="bg-white p-6 rounded-3xl shadow-lg border border-[#A0B391]/20 mb-6 relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-32 h-32 bg-[#A0B391]/10 rounded-bl-full -z-10"></div>
+            <div class="bg-white p-6 rounded-3xl shadow-lg border border-[#0284C7]/20 mb-6 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-[#0284C7]/10 rounded-bl-full -z-10"></div>
                 
                 <div class="flex items-center gap-6 mb-6">
                     <div class="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 shadow-inner border-4 border-white overflow-hidden relative">
                         <i class="fas fa-user-graduate"></i>
                     </div>
                     <div>
-                        <h4 class="text-xl font-bold text-[#2F4F4F] leading-tight">{{ user.nama if user else 'Nama Mahasiswa' }}</h4>
-                        <p class="text-sm font-bold text-[#A0B391] font-mono tracking-widest mt-1">{{ user.username if user else 'NPM' }}</p>
+                        <h4 class="text-xl font-bold text-[#075985] leading-tight">{{ user.nama if user else 'Nama Mahasiswa' }}</h4>
+                        <p class="text-sm font-bold text-[#0284C7] font-mono tracking-widest mt-1">{{ user.username if user else 'NPM' }}</p>
                         <span class="inline-block mt-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider {{ 'bg-green-100 text-green-700' if user and user.status_akademik == 'Aktif' else 'bg-red-100 text-red-700' }}">{{ user.status_akademik if user else 'Status' }}</span>
                     </div>
                 </div>
@@ -7439,12 +7444,12 @@ IRMA_DASHBOARD_HTML = """
                 <p class="text-[10px] text-center text-gray-400 mt-2 tracking-widest uppercase">Pindai KTM Digital</p>
             </div>
 
-            <h4 class="text-[#2F4F4F] font-bold mb-3 border-l-4 border-[#FFB6C1] pl-2">Laci Arsip Pribadi (Sinkron TU)</h4>
+            <h4 class="text-[#075985] font-bold mb-3 border-l-4 border-[#7DD3FC] pl-2">Laci Arsip Pribadi (Sinkron TU)</h4>
             <div class="space-y-3">
                 {% for a in arsip_list %}
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-[#A0B391]/20 flex justify-between items-center group hover:bg-gray-50 transition-colors">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-[#0284C7]/20 flex justify-between items-center group hover:bg-gray-50 transition-colors">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-[#A0B391]/10 text-[#A0B391] flex items-center justify-center text-lg">
+                        <div class="w-10 h-10 rounded-full bg-[#0284C7]/10 text-[#0284C7] flex items-center justify-center text-lg">
                             <i class="fas fa-file-pdf"></i>
                         </div>
                         <div>
@@ -7452,12 +7457,12 @@ IRMA_DASHBOARD_HTML = """
                             <p class="text-xs text-gray-500">{{ a['ukuran'] }} • Diunggah: {{ a['tanggal'] }}</p>
                         </div>
                     </div>
-                    <a href="/uploads/{{ a['file_path'] }}" target="_blank" class="w-10 h-10 flex items-center justify-center text-[#A0B391] hover:text-[#FFB6C1] hover:bg-[#FFB6C1]/10 rounded-full transition-colors">
+                    <a href="/uploads/{{ a['file_path'] }}" target="_blank" class="w-10 h-10 flex items-center justify-center text-[#0284C7] hover:text-[#7DD3FC] hover:bg-[#7DD3FC]/10 rounded-full transition-colors">
                         <i class="fas fa-download"></i>
                     </a>
                 </div>
                 {% else %}
-                <div class="bg-white p-6 rounded-2xl text-center border border-[#A0B391]/20">
+                <div class="bg-white p-6 rounded-2xl text-center border border-[#0284C7]/20">
                     <p class="text-gray-400 text-sm">Tidak ada dokumen di arsip Anda.</p>
                 </div>
                 {% endfor %}
@@ -7655,18 +7660,18 @@ def irma_dashboard():
     
     # IRMA THEME
     irma_theme = {
-        'nav_bg': 'bg-[#F4E7E1]/90 backdrop-blur-md border-b border-[#A0B391]/20',
-        'icon_bg': 'bg-[#A0B391]/20',
-        'icon_text': 'text-[#A0B391]',
-        'title_text': 'text-[#A0B391]',
-        'link_hover': 'hover:text-[#FFB6C1]',
-        'link_active': 'text-[#FFB6C1] font-bold',
-        'btn_primary': 'bg-[#A0B391] text-white hover:bg-[#FFB6C1]',
-        'bottom_nav_bg': 'bg-[#A0B391]',
-        'bottom_active': 'text-[#FFB6C1]',
-        'bottom_btn_bg': 'bg-[#FFB6C1]',
+        'nav_bg': 'bg-[#F0F9FF]/90 backdrop-blur-md border-b border-[#0284C7]/20',
+        'icon_bg': 'bg-[#0284C7]/20',
+        'icon_text': 'text-[#0284C7]',
+        'title_text': 'text-[#0284C7]',
+        'link_hover': 'hover:text-[#7DD3FC]',
+        'link_active': 'text-[#7DD3FC] font-bold',
+        'btn_primary': 'bg-[#0284C7] text-white hover:bg-[#7DD3FC]',
+        'bottom_nav_bg': 'bg-[#0284C7]',
+        'bottom_active': 'text-[#7DD3FC]',
+        'bottom_btn_bg': 'bg-[#7DD3FC]',
         'bottom_btn_text': 'text-white',
-        'bottom_text_inactive': 'text-[#F4E7E1]'
+        'bottom_text_inactive': 'text-[#F0F9FF]'
     }
 
     open_modal = request.args.get('open')
@@ -8390,13 +8395,13 @@ def manifest():
         "prefer_related_applications": False,
         "icons": [
             {
-                "src": "/static/logomasjidalhijrah.png",
+                "src": "/static/logo-stiesam.png",
                 "sizes": "192x192",
                 "type": "image/png",
                 "purpose": "any maskable"
             },
             {
-                "src": "/static/logomasjidalhijrah.png",
+                "src": "/static/logo-stiesam.png",
                 "sizes": "512x512",
                 "type": "image/png",
                 "purpose": "any maskable"
@@ -8410,7 +8415,7 @@ def service_worker():
 const CACHE_NAME = 'al-hijrah-v1';
 const ASSETS_TO_CACHE = [
     '/',
-    '/static/logomasjidalhijrah.png',
+    '/static/logo-stiesam.png',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
     'https://cdn.tailwindcss.com'
 ];
