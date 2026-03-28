@@ -1074,24 +1074,196 @@ BASE_LAYOUT = """
     <!-- MOBILE BOTTOM NAV -->
     {% if not hide_nav %}
     <nav class="md:hidden fixed bottom-0 left-0 w-full {{ t_bottom_bg }} z-50 pb-2 pt-2 max-w-md mx-auto right-0 border-t border-gray-100">
-        <div class="flex justify-around items-end h-14 px-2">
-            <a href="/" class="flex flex-col items-center justify-center {{ t_bottom_text_inactive }} {{ t_link_hover }} w-16 mb-1 transition-colors {{ t_bottom_active if active_page == 'home' else '' }}">
+        <div class="flex justify-between items-end h-14 px-2">
+            <a href="/" class="flex flex-col items-center justify-center {{ t_bottom_text_inactive }} {{ t_link_hover }} w-14 mb-1 transition-colors {{ t_bottom_active if active_page == 'home' else '' }}">
                 <i class="fas fa-home text-xl mb-1"></i>
-                <span class="text-[10px] font-medium">Beranda</span>
+                <span class="text-[9px] font-medium text-center leading-tight">Beranda</span>
             </a>
-            <a href="javascript:void(0)" onclick="openModal('modal-infaq')" class="flex flex-col items-center justify-center text-gray-400 {{ t_link_hover }} w-16 mb-6 relative z-10">
+            <a href="javascript:void(0)" onclick="openModal('modal-ktm-digital')" class="flex flex-col items-center justify-center {{ t_bottom_text_inactive }} {{ t_link_hover }} w-14 mb-1 transition-colors">
+                <i class="fas fa-id-card text-xl mb-1"></i>
+                <span class="text-[9px] font-medium text-center leading-tight">KTM Digital</span>
+            </a>
+            <a href="javascript:void(0)" onclick="openModal('modal-spp-payment')" class="flex flex-col items-center justify-center text-gray-400 {{ t_link_hover }} w-16 mb-6 relative z-10">
                 <div class="{{ t_bottom_btn_bg }} text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg border-4 border-white transform hover:scale-105 transition-transform">
-                    <i class="fas fa-qrcode text-2xl"></i>
+                    <i class="fas fa-wallet text-2xl"></i>
                 </div>
-                <span class="text-[10px] font-bold mt-1 {{ t_bottom_btn_text }}">Infaq</span>
+                <span class="text-[9px] font-bold mt-1 {{ t_bottom_btn_text }} text-center leading-tight whitespace-nowrap">Pembayaran SPP</span>
             </a>
-            <button onclick="triggerEmergency()" class="flex flex-col items-center justify-center {{ t_bottom_text_inactive }} hover:text-red-500 w-16 mb-1 transition-colors">
-                <i class="fas fa-phone-alt text-xl mb-1"></i>
-                <span class="text-[10px] font-medium">Darurat</span>
-            </button>
+            <a href="javascript:void(0)" onclick="openModal('modal-notifications')" class="flex flex-col items-center justify-center {{ t_bottom_text_inactive }} {{ t_link_hover }} w-14 mb-1 transition-colors relative">
+                <div class="relative">
+                    <i class="fas fa-bell text-xl mb-1"></i>
+                    <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                </div>
+                <span class="text-[9px] font-medium text-center leading-tight">Notifikasi</span>
+            </a>
+            <a href="javascript:void(0)" onclick="openModal('modal-today-schedule')" class="flex flex-col items-center justify-center {{ t_bottom_text_inactive }} {{ t_link_hover }} w-14 mb-1 transition-colors">
+                <i class="fas fa-calendar-alt text-xl mb-1"></i>
+                <span class="text-[9px] font-medium text-center leading-tight">Jadwal Kuliah</span>
+            </a>
         </div>
     </nav>
     {% endif %}
+
+    <!-- NEW MODALS FROM BOTTOM NAV -->
+
+    <!-- MODAL KTM DIGITAL -->
+    <div id="modal-ktm-digital" class="fixed inset-0 z-[150] hidden bg-black/80 backdrop-blur-sm flex justify-center items-center p-4">
+        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-[slideUp_0.3s_ease-out] relative">
+            <button onclick="closeModal('modal-ktm-digital')" class="absolute top-4 right-4 bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center z-10">&times;</button>
+            <div class="bg-gradient-to-br from-sky-600 to-sky-800 p-6 text-center text-white relative">
+                <div class="absolute inset-0 bg-white/5 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
+                <img src="/static/logo-stiesam.png" alt="Logo" class="h-12 w-12 mx-auto mb-2 object-contain bg-white rounded-full p-1 relative z-10">
+                <h3 class="font-bold tracking-widest text-lg relative z-10 uppercase">KTM DIGITAL</h3>
+                <p class="text-[10px] opacity-80 relative z-10">STIE Samarinda</p>
+            </div>
+            <div class="p-6 text-center">
+                <h4 class="text-xl font-bold text-gray-800 mb-1">{{ user.nama if user else 'NAMA MAHASISWA' }}</h4>
+                <p class="text-sm font-mono text-sky-600 font-bold tracking-widest mb-6">{{ user.username if user else 'NPM' }}</p>
+                <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4 flex justify-center">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ user.username if user else 'KTM_DIGITAL' }}" alt="QR Presensi" class="w-48 h-48 object-contain mix-blend-multiply">
+                </div>
+                <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Pindai Untuk Kehadiran / Perpustakaan</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PEMBAYARAN SPP -->
+    <div id="modal-spp-payment" class="fixed inset-0 z-[150] hidden bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center">
+        <div class="bg-white w-full md:max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] max-h-[85vh] overflow-y-auto relative">
+            <button onclick="closeModal('modal-spp-payment')" class="absolute top-4 right-4 bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center z-10">&times;</button>
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-wallet text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800">Pembayaran SPP / UKT</h3>
+                <p class="text-xs text-gray-500">Semester Ganjil 2024/2025</p>
+            </div>
+
+            <div class="bg-sky-50 border border-sky-100 rounded-2xl p-5 mb-6 text-center">
+                <p class="text-[10px] font-bold text-sky-600 uppercase tracking-widest mb-1">Total Tagihan Aktif</p>
+                <h2 class="text-3xl font-bold text-sky-800 mb-2">Rp 3.500.000</h2>
+                <span class="inline-block bg-red-100 text-red-600 px-3 py-1 rounded-full text-[10px] font-bold">Menunggu Pembayaran</span>
+            </div>
+
+            <div class="space-y-4">
+                <h4 class="text-sm font-bold text-gray-800 pl-2 border-l-4 border-sky-400">Metode Pembayaran (Virtual Account)</h4>
+
+                <div class="border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/8/88/Bank_Syariah_Indonesia_logo.svg" alt="BSI" class="h-6 object-contain">
+                        <div>
+                            <p class="text-xs text-gray-500 font-bold">BSI Virtual Account</p>
+                            <p class="font-mono text-sm font-bold text-gray-800" id="va-bsi">900123456789</p>
+                        </div>
+                    </div>
+                    <button onclick="copyText('va-bsi')" class="text-sky-500 hover:text-sky-700 bg-sky-50 p-2 rounded-lg"><i class="fas fa-copy"></i></button>
+                </div>
+
+                <div class="border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/a/a0/Bank_Kaltimtara_logo.png" alt="Kaltimtara" class="h-6 object-contain">
+                        <div>
+                            <p class="text-xs text-gray-500 font-bold">Bankaltimtara VA</p>
+                            <p class="font-mono text-sm font-bold text-gray-800" id="va-kaltim">112233445566</p>
+                        </div>
+                    </div>
+                    <button onclick="copyText('va-kaltim')" class="text-sky-500 hover:text-sky-700 bg-sky-50 p-2 rounded-lg"><i class="fas fa-copy"></i></button>
+                </div>
+            </div>
+
+            <button class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-sky-200 mt-6 hover:bg-sky-600 transition">Konfirmasi Pembayaran</button>
+        </div>
+    </div>
+
+    <!-- MODAL NOTIFIKASI -->
+    <div id="modal-notifications" class="fixed inset-0 z-[150] hidden bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center">
+        <div class="bg-white w-full md:max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] max-h-[85vh] overflow-y-auto relative">
+            <div class="flex justify-between items-center mb-6 sticky top-0 bg-white z-10 py-2 border-b border-gray-100">
+                <h3 class="text-xl font-bold text-gray-800"><i class="fas fa-bell text-sky-500 mr-2"></i>Notifikasi Akademik</h3>
+                <button onclick="closeModal('modal-notifications')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center">&times;</button>
+            </div>
+
+            <div class="space-y-3">
+                <!-- Notif 1 -->
+                <div class="bg-red-50 p-4 rounded-xl border border-red-100 flex gap-3">
+                    <div class="mt-1"><i class="fas fa-exclamation-circle text-red-500"></i></div>
+                    <div>
+                        <p class="text-xs text-red-500 font-bold mb-1">Hari Ini, 08:30</p>
+                        <p class="text-sm font-bold text-gray-800">Kelas Dibatalkan</p>
+                        <p class="text-xs text-gray-600 mt-1">Mata kuliah Manajemen Keuangan dengan Dosen Budi Santoso hari ini ditiadakan karena rapat prodi. Diganti minggu depan.</p>
+                    </div>
+                </div>
+                <!-- Notif 2 -->
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 flex gap-3">
+                    <div class="mt-1"><i class="fas fa-info-circle text-blue-500"></i></div>
+                    <div>
+                        <p class="text-xs text-blue-500 font-bold mb-1">Kemarin, 14:00</p>
+                        <p class="text-sm font-bold text-gray-800">Rilis Nilai Ujian Tengah Semester</p>
+                        <p class="text-xs text-gray-600 mt-1">Nilai UTS mata kuliah Pengantar Akuntansi telah dirilis oleh dosen pengampu. Silakan cek KHS Anda.</p>
+                    </div>
+                </div>
+                <!-- Notif 3 -->
+                <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-100 flex gap-3">
+                    <div class="mt-1"><i class="fas fa-clock text-yellow-500"></i></div>
+                    <div>
+                        <p class="text-xs text-yellow-600 font-bold mb-1">2 Hari Lalu</p>
+                        <p class="text-sm font-bold text-gray-800">Batas Akhir Pengisian KRS</p>
+                        <p class="text-xs text-gray-600 mt-1">Pengingat: Batas akhir pengisian Kartu Rencana Studi (KRS) adalah hari Jumat pukul 23:59 WITA.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL JADWAL KULIAH HARI INI -->
+    <div id="modal-today-schedule" class="fixed inset-0 z-[150] hidden bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center">
+        <div class="bg-white w-full md:max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] max-h-[85vh] overflow-y-auto relative">
+            <button onclick="closeModal('modal-today-schedule')" class="absolute top-4 right-4 bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center z-10">&times;</button>
+            <div class="mb-6">
+                <h3 class="text-xl font-bold text-sky-800 mb-1">Pandangan Cepat Jadwal</h3>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest" id="today-schedule-date">Hari Ini</p>
+                <script>
+                    document.getElementById('today-schedule-date').innerText = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                </script>
+            </div>
+
+            <div class="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent">
+
+                <!-- Class 1 -->
+                <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-sky-500 text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
+                        <i class="fas fa-book text-xs"></i>
+                    </div>
+                    <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-4 rounded-xl border border-sky-200 shadow-md">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[10px] font-bold text-sky-500 uppercase">08:00 - 10:30</span>
+                            <span class="text-[10px] bg-sky-50 text-sky-600 px-2 py-0.5 rounded font-bold border border-sky-100">Ruang 101</span>
+                        </div>
+                        <h4 class="font-bold text-gray-800 text-sm">Pengantar Ekonomi Makro</h4>
+                        <p class="text-xs text-gray-500 mt-1"><i class="fas fa-user-tie"></i> Dr. Susanto, M.E.</p>
+                    </div>
+                </div>
+
+                <!-- Class 2 -->
+                <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-gray-200 text-gray-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
+                        <i class="fas fa-book text-xs"></i>
+                    </div>
+                    <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-gray-50 p-4 rounded-xl border border-gray-100">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[10px] font-bold text-gray-500 uppercase">13:00 - 15:30</span>
+                            <span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-bold">Ruang 304</span>
+                        </div>
+                        <h4 class="font-bold text-gray-600 text-sm">Akuntansi Biaya</h4>
+                        <p class="text-xs text-gray-400 mt-1"><i class="fas fa-user-tie"></i> Rina Wati, M.Ak.</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <button onclick="closeModal('modal-today-schedule'); openModal('modal-jadwal-kuliah')" class="w-full mt-6 text-xs text-sky-600 font-bold hover:underline text-center">Lihat Jadwal Lengkap Keseluruhan</button>
+        </div>
+    </div>
 
     <!-- MODAL INFAQ REVOLUTION -->
     <div id="modal-infaq" class="fixed inset-0 z-[150] hidden">
@@ -6444,21 +6616,32 @@ RAMADHAN_DASHBOARD_HTML = """
 
     <!-- CUSTOM BOTTOM BAR (Adapted from BASE_LAYOUT) -->
     <nav class="md:hidden fixed bottom-0 left-0 w-full bg-midnight z-50 pb-2 pt-2 max-w-md mx-auto right-0 border-t border-gold/20 rounded-t-3xl">
-        <div class="flex justify-around items-end h-14 px-2">
-            <a href="/" class="flex flex-col items-center justify-center text-gray-400 hover:text-gold w-16 mb-1 transition-colors">
+        <div class="flex justify-between items-end h-14 px-2">
+            <a href="/" class="flex flex-col items-center justify-center text-gray-400 hover:text-gold w-14 mb-1 transition-colors">
                 <i class="fas fa-home text-xl mb-1"></i>
-                <span class="text-[10px] font-medium">Beranda</span>
+                <span class="text-[9px] font-medium text-center leading-tight">Beranda</span>
             </a>
-            <a href="javascript:void(0)" onclick="openModal('modal-infaq')" class="flex flex-col items-center justify-center text-gray-400 hover:text-gold w-16 mb-6 relative z-10">
-                <div class="bg-[#FFD700] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(255,215,0,0.4)] border-4 border-white transform hover:scale-105 transition-transform">
-                    <i class="fas fa-qrcode text-2xl"></i>
+            <a href="javascript:void(0)" onclick="openModal('modal-ktm-digital')" class="flex flex-col items-center justify-center text-gray-400 hover:text-gold w-14 mb-1 transition-colors">
+                <i class="fas fa-id-card text-xl mb-1"></i>
+                <span class="text-[9px] font-medium text-center leading-tight">KTM Digital</span>
+            </a>
+            <a href="javascript:void(0)" onclick="openModal('modal-spp-payment')" class="flex flex-col items-center justify-center text-gray-400 hover:text-gold w-16 mb-6 relative z-10">
+                <div class="bg-[#FFD700] text-midnight w-14 h-14 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(255,215,0,0.4)] border-4 border-midnight transform hover:scale-105 transition-transform">
+                    <i class="fas fa-wallet text-2xl"></i>
                 </div>
-                <span class="text-[10px] font-bold mt-1 text-gold">Infaq</span>
+                <span class="text-[9px] font-bold mt-1 text-gold text-center leading-tight whitespace-nowrap">Pembayaran SPP</span>
             </a>
-            <button onclick="triggerEmergency()" class="flex flex-col items-center justify-center text-gray-400 hover:text-red-400 w-16 mb-1 transition-colors">
-                <i class="fas fa-phone-alt text-xl mb-1"></i>
-                <span class="text-[10px] font-medium">Darurat</span>
-            </button>
+            <a href="javascript:void(0)" onclick="openModal('modal-notifications')" class="flex flex-col items-center justify-center text-gray-400 hover:text-gold w-14 mb-1 transition-colors relative">
+                <div class="relative">
+                    <i class="fas fa-bell text-xl mb-1"></i>
+                    <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border border-midnight"></span>
+                </div>
+                <span class="text-[9px] font-medium text-center leading-tight">Notifikasi</span>
+            </a>
+            <a href="javascript:void(0)" onclick="openModal('modal-today-schedule')" class="flex flex-col items-center justify-center text-gray-400 hover:text-gold w-14 mb-1 transition-colors">
+                <i class="fas fa-calendar-alt text-xl mb-1"></i>
+                <span class="text-[9px] font-medium text-center leading-tight">Jadwal Kuliah</span>
+            </a>
         </div>
     </nav>
 
