@@ -1030,34 +1030,35 @@ BASE_LAYOUT = """
     {% if not hide_nav %}
     <nav class="hidden md:flex fixed top-0 left-0 w-full z-50 {{ t_nav_bg }} shadow-sm px-8 py-4 justify-between items-center right-0">
         <div class="max-w-7xl mx-auto w-full flex justify-between items-center">
-             <div class="flex items-center gap-4">
-                 <div class="{{ t_icon_bg }} p-2 rounded-xl flex items-center justify-center">
-                    <img src="/static/logo-stiesam.png" alt="Logo STIESAM" class="h-8 w-8 object-contain">
+             <div class="flex items-center gap-4 h-12">
+                 <div class="h-full flex items-center justify-center">
+                    <img src="/static/logo-stiesam.png" alt="Logo STIESAM" class="h-full w-auto object-contain">
                  </div>
-                 <div>
-                    <h1 class="text-xl font-bold {{ t_title_text }} leading-tight">Sekolah Tinggi Ilmu Ekonomi STIESAM</h1>
-                    <p class="text-xs text-gray-500 font-medium">Samarinda, Kalimantan Timur</p>
+                 <div class="flex flex-col justify-between h-full py-0.5">
+                    <h1 class="text-xl font-bold {{ t_title_text }} leading-none">Sekolah Tinggi Ilmu Ekonomi STIESAM</h1>
+                    <p class="text-xs text-gray-500 font-medium leading-none">Samarinda, Kalimantan Timur</p>
                  </div>
              </div>
              <div class="flex items-center gap-8">
                 <a href="/" class="text-gray-600 font-medium {{ t_link_hover }} transition {{ t_link_active if active_page == 'home' else '' }}">Beranda</a>
-                <a href="/finance" class="text-gray-600 font-medium {{ t_link_hover }} transition {{ t_link_active if active_page == 'finance' else '' }}">Laporan Kas</a>
-                <a href="/agenda" class="text-gray-600 font-medium {{ t_link_hover }} transition {{ t_link_active if active_page == 'agenda' else '' }}">Jadwal</a>
-                <a href="javascript:void(0)" onclick="openModal('modal-infaq')" class="{{ t_btn_primary }} px-5 py-2 rounded-full font-bold shadow-lg transition transform hover:scale-105">Infaq Digital</a>
-                <button onclick="triggerEmergency()" class="text-red-500 font-bold hover:text-red-600 transition border border-red-200 px-4 py-2 rounded-full bg-red-50 hover:bg-red-100 cursor-pointer">Darurat</button>
+                <a href="javascript:void(0)" onclick="openModal('modal-ktm-digital')" class="text-gray-600 font-medium {{ t_link_hover }} transition">KTM Digital</a>
+                <a href="javascript:void(0)" onclick="openModal('modal-today-schedule')" class="text-gray-600 font-medium {{ t_link_hover }} transition">Jadwal</a>
+                <a href="javascript:void(0)" onclick="openModal('modal-notifications')" class="text-gray-600 font-medium {{ t_link_hover }} transition">Notifikasi</a>
+                <a href="javascript:void(0)" onclick="openModal('modal-spp-payment')" class="{{ t_btn_primary }} px-5 py-2 rounded-full font-bold shadow-lg transition transform hover:scale-105">Bayar SPP</a>
+                <button onclick="openModal('modal-kontak')" class="text-red-500 font-bold hover:text-red-600 transition border border-red-200 px-4 py-2 rounded-full bg-red-50 hover:bg-red-100 cursor-pointer">Darurat</button>
             </div>
         </div>
     </nav>
 
     <!-- MOBILE HEADER -->
     <header class="md:hidden fixed top-0 left-0 w-full z-50 {{ t_nav_bg }} shadow-sm px-4 py-3 flex justify-between items-center max-w-md mx-auto right-0">
-        <div class="flex items-center gap-2">
-            <div class="{{ t_icon_bg }} p-1.5 rounded-lg flex items-center justify-center">
-                <img src="/static/logo-stiesam.png" alt="Logo STIESAM" class="h-6 w-6 object-contain">
+        <div class="flex items-center gap-2 h-10">
+            <div class="h-full flex items-center justify-center">
+                <img src="/static/logo-stiesam.png" alt="Logo STIESAM" class="h-full w-auto object-contain">
             </div>
-            <div>
-                <h1 class="text-lg font-bold {{ t_title_text }} leading-tight">STIESAM</h1>
-                <p class="text-[10px] text-gray-500 font-medium">Samarinda</p>
+            <div class="flex flex-col justify-between h-full py-0.5">
+                <h1 class="text-lg font-bold {{ t_title_text }} leading-none">STIESAM</h1>
+                <p class="text-[10px] text-gray-500 font-medium leading-none mt-0.5">Samarinda, Kalimantan Timur</p>
             </div>
         </div>
         <div class="text-right">
@@ -1087,7 +1088,7 @@ BASE_LAYOUT = """
                 <div class="{{ t_bottom_btn_bg }} text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg border-4 border-white transform hover:scale-105 transition-transform">
                     <i class="fas fa-wallet text-2xl"></i>
                 </div>
-                <span class="text-[9px] font-bold mt-1 {{ t_bottom_btn_text }} text-center leading-tight whitespace-nowrap">Pembayaran SPP</span>
+                <span class="text-[9px] font-bold mt-1 {{ t_bottom_btn_text }} text-center leading-tight whitespace-nowrap">Bayar SPP</span>
             </a>
             <a href="javascript:void(0)" onclick="openModal('modal-notifications')" class="flex flex-col items-center justify-center {{ t_bottom_text_inactive }} {{ t_link_hover }} w-14 mb-1 transition-colors relative">
                 <div class="relative">
@@ -1098,7 +1099,7 @@ BASE_LAYOUT = """
             </a>
             <a href="javascript:void(0)" onclick="openModal('modal-today-schedule')" class="flex flex-col items-center justify-center {{ t_bottom_text_inactive }} {{ t_link_hover }} w-14 mb-1 transition-colors">
                 <i class="fas fa-calendar-alt text-xl mb-1"></i>
-                <span class="text-[9px] font-medium text-center leading-tight">Jadwal Kuliah</span>
+                <span class="text-[9px] font-medium text-center leading-tight">Jadwal</span>
             </a>
         </div>
     </nav>
@@ -1220,7 +1221,7 @@ BASE_LAYOUT = """
         <div class="bg-white w-full md:max-w-md md:rounded-3xl rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] max-h-[85vh] overflow-y-auto relative">
             <button onclick="closeModal('modal-today-schedule')" class="absolute top-4 right-4 bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center z-10">&times;</button>
             <div class="mb-6">
-                <h3 class="text-xl font-bold text-sky-800 mb-1">Pandangan Cepat Jadwal</h3>
+                <h3 class="text-xl font-bold text-sky-800 mb-1">Jadwal Kuliah</h3>
                 <p class="text-xs font-bold text-gray-400 uppercase tracking-widest" id="today-schedule-date">Hari Ini</p>
                 <script>
                     document.getElementById('today-schedule-date').innerText = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -6468,30 +6469,36 @@ RAMADHAN_DASHBOARD_HTML = """
     <!-- CUSTOM HEADER (Adapted from BASE_LAYOUT) -->
     <nav class="hidden md:flex fixed top-0 left-0 w-full z-50 glass-gold bg-midnight shadow-sm px-8 py-4 justify-between items-center right-0 border-b border-gold/20">
         <div class="max-w-7xl mx-auto w-full flex justify-between items-center">
-             <div class="flex items-center gap-4">
-                 <div class="bg-white/10 p-2 rounded-xl border border-gold/20">
-                    <i class="fas fa-mosque text-gold text-2xl"></i>
+             <div class="flex items-center gap-4 h-12">
+                 <div class="h-full flex items-center justify-center">
+                    <img src="/static/logo-stiesam.png" alt="Logo STIESAM" class="h-full w-auto object-contain">
                  </div>
-                 <div>
-                    <h1 class="text-xl font-bold text-gold leading-tight font-sans">Masjid Al Hijrah</h1>
-                    <p class="text-xs text-gray-400 font-medium">Samarinda, Kalimantan Timur</p>
+                 <div class="flex flex-col justify-between h-full py-0.5">
+                    <h1 class="text-xl font-bold text-gold leading-none font-sans">Sekolah Tinggi Ilmu Ekonomi STIESAM</h1>
+                    <p class="text-xs text-gray-400 font-medium leading-none">Samarinda, Kalimantan Timur</p>
                  </div>
              </div>
              <div class="flex items-center gap-8">
                 <a href="/" class="text-gray-300 font-medium hover:text-gold transition">Beranda</a>
-                <a href="/finance" class="text-gray-300 font-medium hover:text-gold transition">Laporan Kas</a>
-                <a href="/agenda" class="text-gray-300 font-medium hover:text-gold transition">Jadwal</a>
-                <a href="javascript:void(0)" onclick="openModal('modal-infaq')" class="bg-gold text-midnight px-5 py-2 rounded-full font-bold shadow-lg hover:bg-white transition transform hover:scale-105">Infaq Digital</a>
-                <button onclick="triggerEmergency()" class="text-red-400 font-bold hover:text-red-500 transition border border-red-500/50 px-4 py-2 rounded-full bg-red-500/10 hover:bg-red-500/20 cursor-pointer">Darurat</button>
+                <a href="javascript:void(0)" onclick="openModal('modal-ktm-digital')" class="text-gray-300 font-medium hover:text-gold transition">KTM Digital</a>
+                <a href="javascript:void(0)" onclick="openModal('modal-today-schedule')" class="text-gray-300 font-medium hover:text-gold transition">Jadwal</a>
+                <a href="javascript:void(0)" onclick="openModal('modal-notifications')" class="text-gray-300 font-medium hover:text-gold transition">Notifikasi</a>
+                <a href="javascript:void(0)" onclick="openModal('modal-spp-payment')" class="bg-gold text-midnight px-5 py-2 rounded-full font-bold shadow-lg hover:bg-white transition transform hover:scale-105">Bayar SPP</a>
+                <button onclick="openModal('modal-kontak')" class="text-red-400 font-bold hover:text-red-500 transition border border-red-500/50 px-4 py-2 rounded-full bg-red-500/10 hover:bg-red-500/20 cursor-pointer">Darurat</button>
             </div>
         </div>
     </nav>
 
     <!-- MOBILE HEADER (Adapted from BASE_LAYOUT) -->
     <header class="md:hidden fixed top-0 left-0 w-full z-50 glass-gold bg-midnight shadow-sm px-4 py-3 flex justify-between items-center max-w-md mx-auto right-0 border-b border-gold/20">
-        <div>
-            <p class="text-xs text-gray-400 font-medium">Assalamualaikum</p>
-            <h1 class="text-lg font-bold text-gold leading-tight font-sans">Masjid Al Hijrah</h1>
+        <div class="flex items-center gap-2 h-10">
+            <div class="h-full flex items-center justify-center">
+                <img src="/static/logo-stiesam.png" alt="Logo STIESAM" class="h-full w-auto object-contain">
+            </div>
+            <div class="flex flex-col justify-between h-full py-0.5">
+                <h1 class="text-lg font-bold text-gold leading-none font-sans">STIESAM</h1>
+                <p class="text-[10px] text-gray-400 font-medium leading-none mt-0.5">Samarinda, Kalimantan Timur</p>
+            </div>
         </div>
         <div class="text-right">
             <p class="text-[10px] font-bold text-[#FFD700] bg-[#0b1026] px-2 py-1 rounded-full border border-[#FFD700]" id="hijri-date-ramadhan">Loading...</p>
@@ -6629,7 +6636,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <div class="bg-[#FFD700] text-midnight w-14 h-14 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(255,215,0,0.4)] border-4 border-midnight transform hover:scale-105 transition-transform">
                     <i class="fas fa-wallet text-2xl"></i>
                 </div>
-                <span class="text-[9px] font-bold mt-1 text-gold text-center leading-tight whitespace-nowrap">Pembayaran SPP</span>
+                <span class="text-[9px] font-bold mt-1 text-gold text-center leading-tight whitespace-nowrap">Bayar SPP</span>
             </a>
             <a href="javascript:void(0)" onclick="openModal('modal-notifications')" class="flex flex-col items-center justify-center text-gray-400 hover:text-gold w-14 mb-1 transition-colors relative">
                 <div class="relative">
@@ -6640,7 +6647,7 @@ RAMADHAN_DASHBOARD_HTML = """
             </a>
             <a href="javascript:void(0)" onclick="openModal('modal-today-schedule')" class="flex flex-col items-center justify-center text-gray-400 hover:text-gold w-14 mb-1 transition-colors">
                 <i class="fas fa-calendar-alt text-xl mb-1"></i>
-                <span class="text-[9px] font-medium text-center leading-tight">Jadwal Kuliah</span>
+                <span class="text-[9px] font-medium text-center leading-tight">Jadwal</span>
             </a>
         </div>
     </nav>
@@ -8565,7 +8572,7 @@ def dosen_dashboard():
 def manifest():
     return jsonify({
         "name": "Sekolah Tinggi Ilmu Ekonomi STIESAM",
-        "short_name": "Al Hijrah",
+        "short_name": "STIESAM",
         "description": "Aplikasi Sekolah Tinggi Ilmu Ekonomi STIESAM Samarinda",
         "start_url": "/",
         "id": "/",
@@ -8574,7 +8581,7 @@ def manifest():
         "orientation": "portrait",
         "background_color": "#0b1026",
         "theme_color": "#FFD700",
-        "categories": ["lifestyle", "religious"],
+        "categories": ["education"],
         "prefer_related_applications": False,
         "icons": [
             {
