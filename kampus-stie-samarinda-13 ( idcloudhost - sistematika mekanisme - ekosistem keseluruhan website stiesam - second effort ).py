@@ -8,7 +8,7 @@ import urllib.request
 import pymysql
 import io
 from PIL import Image
-from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify, session
+from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify, session, flash
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, text
@@ -33,15 +33,14 @@ limiter = Limiter(
 )
 
 cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 86400})
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB Limit
+app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20MB Limit
 app.secret_key = os.environ.get("SECRET_KEY", "fallback_dev_key")
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.permanent_session_lifetime = datetime.timedelta(days=30)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///masjid.db'
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_size': 100, 'max_overflow': 200, 'pool_recycle': 280}
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4', 'pdf'}
 
 db = SQLAlchemy(app)
 
@@ -596,8 +595,8 @@ def compress_image(file_storage, upload_folder):
         raise ValueError("Invalid file content signature detected.")
     filename = secure_filename(file_storage.filename)
     
-    # Skip compression for video
-    if filename.lower().endswith('.mp4'):
+    # Skip compression for video or pdf
+    if filename.lower().endswith('.mp4') or filename.lower().endswith('.pdf'):
         save_path = os.path.join(upload_folder, filename)
         file_storage.save(save_path)
         return filename
@@ -1085,6 +1084,19 @@ BASE_LAYOUT = """
     </header>
     {% endif %}
 
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div id="flash-messages" class="fixed top-20 left-1/2 transform -translate-x-1/2 z-[999] w-full max-w-md px-4 pointer-events-none">
+          {% for category, message in messages %}
+            <div class="pointer-events-auto p-4 mb-2 rounded-xl shadow-lg border-l-4 text-sm font-bold animate-[slideUp_0.3s_ease-out] flex justify-between items-center {{ 'bg-red-50 text-red-600 border-red-500' if category == 'error' else 'bg-green-50 text-green-600 border-green-500' }}">
+                <span>{{ message }}</span>
+                <button onclick="this.parentElement.style.display='none'" class="text-gray-400 hover:text-gray-600 ml-4">&times;</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
     <!-- CONTENT -->
     <main class="min-h-screen relative w-full {{ 'max-w-md md:max-w-7xl mx-auto bg-[#F8FAFC]' if not full_width else '' }}">
         {{ content|safe }}
@@ -3559,7 +3571,7 @@ HOME_HTML = """
             </div>
             
             <!-- Scrollable Content -->
-            <form action="/api/tracer/submit" method="POST" class="flex-1 overflow-y-auto p-6 bg-white space-y-5 custom-scrollbar" onsubmit="alert('Terima kasih, data Tracer Study Anda berhasil dikirim.');">
+            <form action="/api/tracer/submit" method="POST" class="flex-1 overflow-y-auto p-6 bg-white space-y-5 custom-scrollbar">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div class="bg-orange-50/50 p-4 rounded-xl border border-orange-100 mb-2">
@@ -5646,6 +5658,24 @@ HOME_HTML = """
 
 # --- ROUTES ---
 
+from werkzeug.exceptions import RequestEntityTooLarge
+from flask_wtf.csrf import CSRFError
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_file_size_error(e):
+    if request.path.startswith('/api/pmb/register'):
+        return jsonify({'success': False, 'error': 'Ukuran berkas melebihi batas maksimal.'}), 413
+    return "File too large", 413
+
+@app.errorhandler(Exception)
+def handle_general_error(e):
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException):
+        return e
+    if request.path.startswith('/api/pmb/register'):
+        return jsonify({'success': False, 'error': str(e)}), 500
+    return "Internal server error", 500
+
 @app.route('/api/pmb/register', methods=['POST'])
 def api_pmb_register():
     try:
@@ -5661,13 +5691,16 @@ def api_pmb_register():
         ktp_filename = ""
         bukti_filename = ""
         
-        if foto_ijazah and allowed_file(foto_ijazah.filename):
-            ijazah_filename = compress_image(foto_ijazah, app.config['UPLOAD_FOLDER'])
-        if foto_ktp and allowed_file(foto_ktp.filename):
-            ktp_filename = compress_image(foto_ktp, app.config['UPLOAD_FOLDER'])
-        if bukti_transfer and allowed_file(bukti_transfer.filename):
-            bukti_filename = compress_image(bukti_transfer, app.config['UPLOAD_FOLDER'])
-            
+        try:
+            if foto_ijazah and allowed_file(foto_ijazah.filename):
+                ijazah_filename = compress_image(foto_ijazah, app.config['UPLOAD_FOLDER'])
+            if foto_ktp and allowed_file(foto_ktp.filename):
+                ktp_filename = compress_image(foto_ktp, app.config['UPLOAD_FOLDER'])
+            if bukti_transfer and allowed_file(bukti_transfer.filename):
+                bukti_filename = compress_image(bukti_transfer, app.config['UPLOAD_FOLDER'])
+        except ValueError as ve:
+            return jsonify({'success': False, 'error': str(ve)})
+
         new_pmb = PendaftaranPMB(
             nama=nama,
             foto_ijazah=ijazah_filename,
@@ -5701,8 +5734,11 @@ def api_tracer_submit():
         )
         db.session.add(new_tracer)
         db.session.commit()
+        flash("Data Tracer Study berhasil dikirim! Terima kasih atas partisipasi Anda.", "success")
     except Exception as e:
+        db.session.rollback()
         print(f"Error submitting Tracer Study: {e}")
+        flash("Terjadi kesalahan sistem saat mengirim data. Mohon coba lagi atau hubungi admin.", "error")
     return redirect(url_for('index'))
 
 @app.route('/api/pmb/check', methods=['GET'])
@@ -9081,7 +9117,7 @@ def tu_arsip_search():
 
 @app.route('/tu/publikasi/update', methods=['POST'])
 def tu_publikasi_update():
-    if not session.get('is_admin') and session.get('role') != 'Tata Usaha':
+    if not session.get('is_admin') and session.get('role') not in ['Tata Usaha', 'Admin']:
         return 'Unauthorized', 403
     try:
         keys = ['profil_deskripsi', 'profil_visi', 'profil_misi', 
@@ -9112,8 +9148,11 @@ def tu_publikasi_update():
                 else: db.session.add(AppSettings(key='berita_gambar', value=saved_filename))
                 
         db.session.commit()
+        flash("Pembaruan publikasi informasi berhasil disimpan.", "success")
     except Exception as e:
+        db.session.rollback()
         print(f"Error updating publikasi: {e}")
+        flash("Terjadi kesalahan sistem saat menyimpan publikasi informasi. Perubahan dibatalkan.", "error")
     return redirect(url_for('ramadhan_dashboard', open='modal-publikasi-informasi'))
 
 @app.route('/tu/tagihan/tambah', methods=['POST'])
