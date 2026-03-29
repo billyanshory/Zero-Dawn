@@ -1030,8 +1030,8 @@ BASE_LAYOUT = """
     {% if not hide_nav %}
     <nav class="hidden md:flex fixed top-0 left-0 w-full z-50 {{ t_nav_bg }} shadow-sm px-8 py-4 justify-between items-center right-0">
         <div class="max-w-7xl mx-auto w-full flex justify-between items-center">
-             <div class="flex items-center gap-4 h-12">
-                 <div class="h-full flex items-center justify-center">
+             <div class="flex items-center gap-4 h-12 cursor-pointer group" onclick="openModal('modal-logo-zoom')">
+                 <div class="h-full flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
                     <img src="/static/logo-stiesam.png" alt="Logo STIESAM" class="h-full w-auto object-contain">
                  </div>
                  <div class="flex flex-col justify-between h-full py-0.5">
@@ -1052,8 +1052,8 @@ BASE_LAYOUT = """
 
     <!-- MOBILE HEADER -->
     <header class="md:hidden fixed top-0 left-0 w-full z-50 {{ t_nav_bg }} shadow-sm px-4 py-3 flex justify-between items-center max-w-md mx-auto right-0">
-        <div class="flex items-center gap-2 h-10">
-            <div class="h-full flex items-center justify-center">
+        <div class="flex items-center gap-2 h-10 cursor-pointer group" onclick="openModal('modal-logo-zoom')">
+            <div class="h-full flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
                 <img src="/static/logo-stiesam.png" alt="Logo STIESAM" class="h-full w-auto object-contain">
             </div>
             <div class="flex flex-col justify-between h-full py-0.5">
@@ -1107,6 +1107,14 @@ BASE_LAYOUT = """
 
     <!-- NEW MODALS FROM BOTTOM NAV -->
     
+    <!-- MODAL LOGO ZOOM -->
+    <div id="modal-logo-zoom" class="fixed inset-0 z-[200] hidden bg-white/30 backdrop-blur-md flex justify-center items-center" onclick="closeModal('modal-logo-zoom')">
+        <div class="relative w-full max-w-sm flex justify-center items-center p-6 animate-[popupFadeIn_0.5s_ease-out]">
+            <button onclick="closeModal('modal-logo-zoom')" class="absolute top-4 right-4 bg-white/50 w-10 h-10 rounded-full text-gray-700 hover:bg-white flex items-center justify-center z-10 shadow-sm transition">&times;</button>
+            <img src="/static/logo-stiesam.png" alt="Logo STIESAM Besar" class="w-full max-w-[280px] object-contain drop-shadow-2xl transition-transform duration-500 scale-110">
+        </div>
+    </div>
+
     <!-- MODAL KTM DIGITAL -->
     <div id="modal-ktm-digital" class="fixed inset-0 z-[150] hidden bg-black/80 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-[slideUp_0.3s_ease-out] relative">
@@ -3348,7 +3356,7 @@ HOME_HTML = """
                     <i class="fas fa-bullhorn text-orange-400 text-4xl mb-3"></i>
                     <h3 class="font-bold text-gray-800 mb-2">Panggilan Untuk Alumni!</h3>
                     <p class="text-sm text-gray-600 mb-4">Bantu kami meningkatkan kualitas pendidikan dengan mengisi kuesioner Tracer Study. Data Anda sangat berharga bagi akreditasi kampus.</p>
-                    <a href="javascript:void(0)" class="inline-block bg-orange-500 text-white px-6 py-3 rounded-xl font-bold shadow hover:bg-orange-600 transition">Isi Kuesioner Sekarang</a>
+                    <button onclick="closeModal('modal-tracer-study'); openModal('modal-tracer-form')" class="inline-block bg-orange-500 text-white px-6 py-3 rounded-xl font-bold shadow hover:bg-orange-600 transition">Isi Kuesioner Sekarang</button>
                 </div>
                 
                 <h4 class="font-bold text-gray-800 mb-4 text-center">Statistik Serapan Kerja Lulusan</h4>
@@ -3372,42 +3380,47 @@ HOME_HTML = """
 
     <!-- Modal Developer -->
     <div id="modal-developer" class="fixed inset-0 z-[100] hidden">
-        <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] overflow-y-auto flex items-center justify-center p-4">
-            <div class="relative w-full max-w-md mx-auto flex flex-col items-center justify-center p-4 text-center">
-                <button onclick="closeModal('modal-developer'); stopDevAudio()" class="absolute top-0 right-0 md:-right-4 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center z-10">&times;</button>
+        <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] flex flex-col h-full max-h-screen">
+
+            <!-- Sticky Header -->
+            <div class="flex-shrink-0 sticky top-0 bg-white/80 backdrop-blur z-10 p-4 border-b border-gray-100 flex flex-col items-center justify-center relative shadow-sm">
+                <button onclick="closeModal('modal-developer'); stopDevAudio()" class="absolute right-4 top-4 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center transition">&times;</button>
+                <h2 class="text-[10px] font-bold text-gray-400 tracking-[0.3em] mb-1 uppercase">DEVELOPER</h2>
+                <h1 class="text-xl md:text-2xl font-extrabold text-sky-800" style="white-space: nowrap;">SAMARINDA WEB CREATIVE</h1>
+            </div>
+
+            <!-- Scrollable Content -->
+            <div class="flex-1 overflow-y-auto p-4 pb-20 flex flex-col items-center custom-scrollbar">
                 
-                <h2 class="text-xs font-bold text-gray-400 tracking-[0.3em] mb-2 uppercase">DEVELOPER</h2>
-                <h1 class="text-3xl font-extrabold text-sky-800 mb-8" style="white-space: nowrap; font-size: clamp(1.5rem, 5vw, 2.5rem);">SAMARINDA WEB CREATIVE</h1>
-                
-                <div class="mb-8">
-                    <img src="/static/Samarinda_Web_Creative_Logo-removebg-preview.png" alt="Logo Developer" class="h-32 object-contain mx-auto drop-shadow-2xl">
+                <div class="mb-8 mt-4">
+                    <img src="/static/Samarinda_Web_Creative_Logo-removebg-preview.png" alt="Logo Developer" class="h-32 md:h-40 object-contain mx-auto drop-shadow-2xl">
                 </div>
                 
-                <h3 class="text-xs font-bold text-gray-400 tracking-[0.2em] mb-4 uppercase border-b border-gray-200 pb-2 w-24 mx-auto">PIHAK KETIGA</h3>
-                <div class="flex flex-col gap-4 justify-center items-center mb-8">
-                    <img src="/static/pythonanywherelogo-removebg.png" class="h-16 object-contain">
-                    <img src="/static/pythonlogo.png" class="h-16 object-contain">
-                    <img src="/static/godaddylogo.png" class="h-8 object-contain">
+                <h3 class="text-xs font-bold text-gray-400 tracking-[0.2em] mb-4 uppercase border-b border-gray-200 pb-2 w-24 text-center">PIHAK KETIGA</h3>
+                <div class="flex flex-col gap-6 justify-center items-center mb-8">
+                    <img src="/static/pythonanywherelogo-removebg.png" class="h-16 md:h-20 object-contain">
+                    <img src="/static/pythonlogo.png" class="h-16 md:h-20 object-contain">
+                    <img src="/static/godaddylogo.png" class="h-8 md:h-10 object-contain">
                 </div>
                 
-                <div class="bg-gray-50 p-6 rounded-3xl border border-gray-100 mb-8 max-w-sm w-full mx-auto">
-                    <p class="text-sm text-gray-600 font-medium leading-relaxed mb-1">
+                <div class="bg-gray-50 p-6 rounded-3xl border border-gray-100 mb-8 max-w-sm w-full text-center">
+                    <p class="text-sm text-gray-600 font-medium leading-relaxed mb-2">
                         Samarinda, Kalimantan Timur,<br>
                         Jln. Delima Dalam, Blok. E, RT. 53
                     </p>
-                    <p class="text-xs text-gray-500 italic mt-2">"kalau butuh jasa pembuatan aplikasi website seperti ini, hubungi kami yaa hehee"</p>
+                    <p class="text-xs text-gray-500 italic">"kalau butuh jasa pembuatan aplikasi website seperti ini, hubungi kami yaa hehee"</p>
                 </div>
                 
-                <div class="flex items-center justify-center gap-4 mb-8">
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10 w-full max-w-xs">
                     <a href="https://www.instagram.com/samarindawebcreative/" target="_blank" class="bg-gradient-to-tr from-purple-500 to-pink-500 text-white w-12 h-12 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition shrink-0">
                         <i class="fab fa-instagram text-2xl"></i>
                     </a>
-                    <a href="https://b1l14n50r1.pythonanywhere.com/" class="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-full font-bold shadow-lg hover:scale-105 transition">
+                    <a href="https://b1l14n50r1.pythonanywhere.com/" class="flex items-center justify-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-full font-bold shadow-lg hover:scale-105 transition w-full">
                         <img src="/static/piton.png" class="h-6 w-6"> See Our Current Work
                     </a>
                 </div>
 
-                <p class="text-[10px] text-gray-400 font-serif">The 1975 - About You (Official)</p>
+                <p class="text-[10px] text-gray-400 font-serif mb-8 text-center">The 1975 - About You (Official)</p>
             </div>
         </div>
         <audio id="dev-audio" src="/static/The 1975 - About You (Official) - Fix.mp3"></audio>
@@ -3489,6 +3502,124 @@ HOME_HTML = """
             <button onclick="showMedicalExplanation('audio')" class="mt-4 w-full border border-blue-200 text-blue-500 text-[10px] font-bold py-2 rounded-lg hover:bg-blue-50 transition uppercase tracking-wider">
                 Penjelasan Medis
             </button>
+        </div>
+    </div>
+
+    <!-- Modal Tracer Form (Kuesioner) -->
+    <div id="modal-tracer-form" class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center">
+        <div class="bg-white w-full max-w-2xl md:rounded-3xl rounded-t-3xl shadow-2xl animate-[slideUp_0.3s_ease-out] flex flex-col max-h-[90vh]">
+
+            <!-- Sticky Header -->
+            <div class="flex justify-between items-center p-6 border-b border-orange-100 bg-orange-50 rounded-t-3xl sticky top-0 z-10 flex-shrink-0">
+                <div>
+                    <h3 class="text-xl font-bold text-orange-600 mb-1"><i class="fas fa-clipboard-list mr-2"></i>Kuesioner Tracer Study</h3>
+                    <p class="text-xs font-bold text-orange-400 tracking-widest uppercase">Akreditasi STIESAM</p>
+                </div>
+                <button onclick="closeModal('modal-tracer-form')" class="bg-white w-8 h-8 rounded-full text-gray-500 hover:bg-gray-100 flex items-center justify-center shadow-sm">&times;</button>
+            </div>
+
+            <!-- Scrollable Content -->
+            <div class="flex-1 overflow-y-auto p-6 bg-white space-y-5 custom-scrollbar">
+
+                <div class="bg-orange-50/50 p-4 rounded-xl border border-orange-100 mb-2">
+                    <p class="text-xs text-gray-600 leading-relaxed"><span class="font-bold text-orange-500">Penting:</span> Seluruh data kuesioner ini akan dijaga kerahasiaannya dan hanya digunakan untuk kepentingan peningkatan mutu pendidikan dan akreditasi kampus STIESAM.</p>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- 1 -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">1. Nama Lengkap</label>
+                        <input type="text" placeholder="Masukkan nama lengkap beserta gelar" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                    </div>
+                    <!-- 2 -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">2. Nomor Pokok Mahasiswa (NPM)</label>
+                        <input type="text" placeholder="Masukkan NPM Anda" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                    </div>
+                    <!-- 3 -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">3. Tahun Lulus</label>
+                            <input type="number" placeholder="Contoh: 2022" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">4. Program Studi</label>
+                            <select class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                                <option>S1 Manajemen</option>
+                                <option>S1 Akuntansi</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- 5 -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">5. Status Pekerjaan Saat Ini</label>
+                        <select class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                            <option>Bekerja (Full-time)</option>
+                            <option>Bekerja (Part-time / Freelance)</option>
+                            <option>Wirausaha / Memiliki Usaha Sendiri</option>
+                            <option>Melanjutkan Pendidikan</option>
+                            <option>Sedang Mencari Pekerjaan</option>
+                        </select>
+                    </div>
+                    <!-- 6 -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">6. Nama Perusahaan / Usaha</label>
+                        <input type="text" placeholder="Tempat Anda bekerja saat ini" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                    </div>
+                    <!-- 7 -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">7. Jabatan / Posisi</label>
+                        <input type="text" placeholder="Contoh: Staff Akuntan, Manager" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                    </div>
+                    <!-- 8 -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">8. Rentang Gaji Pertama</label>
+                        <select class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                            <option>Kurang dari Rp 3.000.000</option>
+                            <option>Rp 3.000.000 - Rp 5.000.000</option>
+                            <option>Rp 5.000.000 - Rp 10.000.000</option>
+                            <option>Lebih dari Rp 10.000.000</option>
+                        </select>
+                    </div>
+                    <!-- 9 -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">9. Kesesuaian Pekerjaan dgn Ilmu</label>
+                        <select class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                            <option>Sangat Sesuai</option>
+                            <option>Sesuai</option>
+                            <option>Kurang Sesuai</option>
+                            <option>Tidak Sesuai</option>
+                        </select>
+                    </div>
+                    <!-- 10 -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">10. Waktu Tunggu Mendapat Kerja Pertama</label>
+                        <select class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                            <option>Kurang dari 3 bulan</option>
+                            <option>3 - 6 bulan</option>
+                            <option>6 - 12 bulan</option>
+                            <option>Lebih dari 12 bulan</option>
+                        </select>
+                    </div>
+                    <!-- 11 -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">11. Saran Pengembangan Kurikulum</label>
+                        <textarea placeholder="Saran Anda untuk kampus tercinta..." class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm h-24 focus:outline-none focus:ring-2 focus:ring-orange-300"></textarea>
+                    </div>
+                    <!-- 12 -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">12. Nomor WhatsApp / Email Aktif</label>
+                        <input type="text" placeholder="Untuk keperluan verifikasi alumni" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Sticky Footer / Action -->
+            <div class="p-6 border-t border-gray-100 bg-white rounded-b-3xl flex-shrink-0">
+                <button onclick="closeModal('modal-tracer-form'); alert('Terima kasih, data Tracer Study Anda berhasil dikirim.');" class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-200 hover:from-orange-600 hover:to-orange-700 transition transform hover:-translate-y-0.5"><i class="fas fa-paper-plane mr-2"></i>Kirim Data Tracer Study</button>
+            </div>
+
         </div>
     </div>
 
@@ -6576,7 +6707,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-gold mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
                     <i class="fas fa-file-signature text-2xl"></i>
                 </div>
-                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Pabrik Surat Otomatis</span>
+                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Surat Otomatis</span>
             </button>
 
             <button onclick="openModal('modal-verifikasi-pmb')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
@@ -6584,7 +6715,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-gold mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
                     <i class="fas fa-id-card text-2xl"></i>
                 </div>
-                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Verifikasi PMB Digital</span>
+                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Verifikasi PMB</span>
             </button>
 
             <button onclick="openModal('modal-laci-arsip')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
@@ -6592,7 +6723,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-gold mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
                     <i class="fas fa-search text-2xl"></i>
                 </div>
-                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Laci Arsip Anti Rayap</span>
+                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Arsip Digital</span>
             </button>
 
             <button onclick="openModal('modal-verifikasi-pembayaran')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
@@ -6600,7 +6731,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-gold mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
                     <i class="fas fa-file-invoice-dollar text-2xl"></i>
                 </div>
-                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Verifikasi Pembayaran Uang Kuliah</span>
+                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Verifikasi SPP</span>
             </button>
 
             <button onclick="openModal('modal-kelola-jadwal')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
@@ -6608,7 +6739,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-gold mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
                     <i class="fas fa-calendar-alt text-2xl"></i>
                 </div>
-                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Kelola Jadwal Perkuliahan</span>
+                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Jadwal Kuliah</span>
             </button>
 
             <button onclick="openModal('modal-manajemen-sivitas')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
@@ -6616,7 +6747,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-gold mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
                     <i class="fas fa-users-cog text-2xl"></i>
                 </div>
-                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Manajemen Sivitas Akademika</span>
+                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Kelola Sivitas</span>
             </button>
         </div>
     </div>
@@ -8191,47 +8322,43 @@ def dosen_dashboard():
             </div>
         </div>
 
-        <h3 class="text-[#A05D4A] font-bold text-lg mb-4 pl-3 border-l-4 border-[#E8C5A8]">Grup Perwalian & Penilaian Akademik</h3>
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+        <h3 class="text-[#A05D4A] font-bold text-lg mb-4 pl-3 border-l-4 border-[#E8C5A8]">MENU UTAMA</h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-24">
             <button onclick="openModal('modal-persetujuan-krs')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/30 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
                  <div class="w-14 h-14 rounded-full bg-[#E8C5A8]/20 flex items-center justify-center text-[#A05D4A] mb-3 group-hover:bg-[#E8C5A8] group-hover:text-[#5D3425] transition-colors">
                     <i class="fas fa-file-signature text-2xl"></i>
                  </div>
-                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Persetujuan<br>Rencana Studi</span>
+                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Persetujuan KRS</span>
             </button>
             <button onclick="openModal('modal-masukan-nilai')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/30 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
                  <div class="w-14 h-14 rounded-full bg-[#E8C5A8]/20 flex items-center justify-center text-[#A05D4A] mb-3 group-hover:bg-[#E8C5A8] group-hover:text-[#5D3425] transition-colors">
                     <i class="fas fa-marker text-2xl"></i>
                  </div>
-                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Masukan<br>Nilai Akhir</span>
+                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Input Nilai</span>
             </button>
             <button onclick="openModal('modal-daftar-mahasiswa')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/30 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
                  <div class="w-14 h-14 rounded-full bg-[#E8C5A8]/20 flex items-center justify-center text-[#A05D4A] mb-3 group-hover:bg-[#E8C5A8] group-hover:text-[#5D3425] transition-colors">
                     <i class="fas fa-users text-2xl"></i>
                  </div>
-                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Daftar Mahasiswa<br>Perwalian</span>
+                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Mahasiswa Wali</span>
             </button>
-        </div>
-
-        <h3 class="text-[#A05D4A] font-bold text-lg mb-4 pl-3 border-l-4 border-[#E8C5A8]">Grup Operasional Mengajar</h3>
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-24">
             <button onclick="openModal('modal-jadwal-ruang')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/30 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
                  <div class="w-14 h-14 rounded-full bg-[#E8C5A8]/20 flex items-center justify-center text-[#A05D4A] mb-3 group-hover:bg-[#E8C5A8] group-hover:text-[#5D3425] transition-colors">
                     <i class="fas fa-calendar-alt text-2xl"></i>
                  </div>
-                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Jadwal Mengajar<br>& Ruang Kelas</span>
+                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Jadwal Mengajar</span>
             </button>
             <button onclick="openModal('modal-presensi-jurnal')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/30 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
                  <div class="w-14 h-14 rounded-full bg-[#E8C5A8]/20 flex items-center justify-center text-[#A05D4A] mb-3 group-hover:bg-[#E8C5A8] group-hover:text-[#5D3425] transition-colors">
                     <i class="fas fa-clipboard-check text-2xl"></i>
                  </div>
-                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Presensi &<br>Jurnal Perkuliahan</span>
+                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Presensi Kelas</span>
             </button>
             <button onclick="openModal('modal-profil-dosen')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/30 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
                  <div class="w-14 h-14 rounded-full bg-[#E8C5A8]/20 flex items-center justify-center text-[#A05D4A] mb-3 group-hover:bg-[#E8C5A8] group-hover:text-[#5D3425] transition-colors">
                     <i class="fas fa-user-tie text-2xl"></i>
                  </div>
-                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Profil &<br>Portofolio Dosen</span>
+                 <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Profil Dosen</span>
             </button>
         </div>
         
