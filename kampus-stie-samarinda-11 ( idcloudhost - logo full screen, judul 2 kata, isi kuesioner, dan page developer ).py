@@ -3085,18 +3085,18 @@ HOME_HTML = """
                 </div>
                 
                 <div class="space-y-6 text-gray-600 leading-relaxed text-justify">
-                    <img src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80" alt="Gedung Kampus" class="w-full h-64 object-cover rounded-3xl shadow-md mb-6">
+                    <img src="{{ '/uploads/' + settings.get('profil_gambar') if settings.get('profil_gambar') else 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80' }}" alt="Gedung Kampus" class="w-full h-64 object-cover rounded-3xl shadow-md mb-6">
                     
-                    <p>Sekolah Tinggi Ilmu Ekonomi (STIE) SAM Samarinda didirikan dengan komitmen teguh untuk menghasilkan sarjana ekonomi yang profesional, beretika, dan mampu bersaing di era digital. Dengan fasilitas pembelajaran yang representatif dan didukung oleh staf pengajar yang kompeten di bidangnya, STIESAM terus bertransformasi menjadi pusat unggulan kajian ekonomi di Kalimantan Timur.</p>
+                    <p style="white-space: pre-wrap;">{{ settings.get('profil_deskripsi', 'Sekolah Tinggi Ilmu Ekonomi (STIE) SAM Samarinda didirikan dengan komitmen teguh untuk menghasilkan sarjana ekonomi yang profesional, beretika, dan mampu bersaing di era digital. Dengan fasilitas pembelajaran yang representatif dan didukung oleh staf pengajar yang kompeten di bidangnya, STIESAM terus bertransformasi menjadi pusat unggulan kajian ekonomi di Kalimantan Timur.') }}</p>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-8">
                         <div class="bg-sky-50 p-6 rounded-2xl border border-sky-100">
                             <h4 class="text-sky-800 font-bold mb-2 flex items-center gap-2"><i class="fas fa-eye"></i> Visi</h4>
-                            <p class="text-sm">Menjadi institusi pendidikan tinggi ekonomi yang terkemuka, inovatif, dan berdaya saing global dengan menjunjung tinggi nilai-nilai moral dan etika bisnis.</p>
+                            <p class="text-sm" style="white-space: pre-wrap;">{{ settings.get('profil_visi', 'Menjadi institusi pendidikan tinggi ekonomi yang terkemuka, inovatif, dan berdaya saing global dengan menjunjung tinggi nilai-nilai moral dan etika bisnis.') }}</p>
                         </div>
                         <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100">
                             <h4 class="text-blue-800 font-bold mb-2 flex items-center gap-2"><i class="fas fa-bullseye"></i> Misi</h4>
-                            <p class="text-sm">1. Menyelenggarakan pendidikan yang berkualitas.<br>2. Melaksanakan penelitian yang bermanfaat.<br>3. Melakukan pengabdian yang berdampak nyata bagi masyarakat.</p>
+                            <p class="text-sm" style="white-space: pre-wrap;">{{ settings.get('profil_misi', '1. Menyelenggarakan pendidikan yang berkualitas.\n2. Melaksanakan penelitian yang bermanfaat.\n3. Melakukan pengabdian yang berdampak nyata bagi masyarakat.') }}</p>
                         </div>
                     </div>
                     
@@ -3273,13 +3273,13 @@ HOME_HTML = """
                 <div class="space-y-4">
                     <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 hover:shadow-md transition">
                         <div class="w-full md:w-32 h-32 bg-gray-200 rounded-xl flex-shrink-0 overflow-hidden">
-                            <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" class="w-full h-full object-cover">
+                            <img src="{{ '/uploads/' + settings.get('berita_gambar') if settings.get('berita_gambar') else 'https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80' }}" class="w-full h-full object-cover">
                         </div>
                         <div>
-                            <span class="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded uppercase tracking-wider">Seminar Nasional</span>
-                            <h4 class="font-bold text-gray-800 text-lg mt-2 mb-1">Tantangan Ekonomi Digital 2025</h4>
-                            <p class="text-xs text-gray-500 mb-2"><i class="fas fa-calendar-alt mr-1"></i> 12 Oktober 2024 • Auditorium STIESAM</p>
-                            <p class="text-sm text-gray-600 line-clamp-2">Seminar nasional yang membahas tentang persiapan UMKM menghadapi transformasi ekonomi digital dan kecerdasan buatan.</p>
+                            <span class="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded uppercase tracking-wider">{{ settings.get('berita_label', 'Seminar Nasional') }}</span>
+                            <h4 class="font-bold text-gray-800 text-lg mt-2 mb-1">{{ settings.get('berita_judul', 'Tantangan Ekonomi Digital 2025') }}</h4>
+                            <p class="text-xs text-gray-500 mb-2"><i class="fas fa-calendar-alt mr-1"></i> {{ settings.get('berita_waktu', '12 Oktober 2024 • Auditorium STIESAM') }}</p>
+                            <p class="text-sm text-gray-600 line-clamp-2">{{ settings.get('berita_isi', 'Seminar nasional yang membahas tentang persiapan UMKM menghadapi transformasi ekonomi digital dan kecerdasan buatan.') }}</p>
                         </div>
                     </div>
                     <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 hover:shadow-md transition">
@@ -3316,11 +3316,11 @@ HOME_HTML = """
                     <!-- Dummy Jurnals -->
                     <div class="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-lg hover:border-purple-200 transition group cursor-pointer">
                         <div class="flex justify-between items-start mb-3">
-                            <span class="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded">Manajemen Keuangan</span>
-                            <span class="text-[10px] text-gray-400">Vol 12, No. 2 (2023)</span>
+                            <span class="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded">{{ settings.get('jurnal_kategori', 'Manajemen Keuangan') }}</span>
+                            <span class="text-[10px] text-gray-400">{{ settings.get('jurnal_volume', 'Vol 12, No. 2 (2023)') }}</span>
                         </div>
-                        <h4 class="font-bold text-gray-800 group-hover:text-purple-700 transition text-lg mb-2 leading-tight">Analisis Pengaruh Literasi Keuangan Terhadap Kinerja UMKM di Samarinda</h4>
-                        <p class="text-xs text-gray-500 mb-4 font-medium"><i class="fas fa-user-edit mr-1"></i> Dr. Budi Santoso, M.Si., Rina Astuti, S.E.</p>
+                        <h4 class="font-bold text-gray-800 group-hover:text-purple-700 transition text-lg mb-2 leading-tight">{{ settings.get('jurnal_judul', 'Analisis Pengaruh Literasi Keuangan Terhadap Kinerja UMKM di Samarinda') }}</h4>
+                        <p class="text-xs text-gray-500 mb-4 font-medium"><i class="fas fa-user-edit mr-1"></i> {{ settings.get('jurnal_penulis', 'Dr. Budi Santoso, M.Si., Rina Astuti, S.E.') }}</p>
                         <button class="text-xs font-bold text-purple-600 hover:text-purple-800"><i class="fas fa-file-pdf mr-1"></i> Download PDF</button>
                     </div>
                     
@@ -5615,10 +5615,17 @@ def api_pmb_register():
         if not all([nama, foto_ijazah, foto_ktp, bukti_transfer]):
             return jsonify({'success': False, 'error': 'Semua field dan file harus diisi.'})
             
-        ijazah_filename = compress_image(foto_ijazah, app.config['UPLOAD_FOLDER'])
-        ktp_filename = compress_image(foto_ktp, app.config['UPLOAD_FOLDER'])
-        bukti_filename = compress_image(bukti_transfer, app.config['UPLOAD_FOLDER'])
+        ijazah_filename = ""
+        ktp_filename = ""
+        bukti_filename = ""
         
+        if foto_ijazah and allowed_file(foto_ijazah.filename):
+            ijazah_filename = compress_image(foto_ijazah, app.config['UPLOAD_FOLDER'])
+        if foto_ktp and allowed_file(foto_ktp.filename):
+            ktp_filename = compress_image(foto_ktp, app.config['UPLOAD_FOLDER'])
+        if bukti_transfer and allowed_file(bukti_transfer.filename):
+            bukti_filename = compress_image(bukti_transfer, app.config['UPLOAD_FOLDER'])
+
         new_pmb = PendaftaranPMB(
             nama=nama,
             foto_ijazah=ijazah_filename,
@@ -5677,7 +5684,7 @@ def index():
     except:
         epilepsi_logs = []
 
-    rendered_home = render_template_string(HOME_HTML, epilepsi_logs=epilepsi_logs, open_modal=request.args.get('open'), is_admin=session.get('is_admin', False))
+    rendered_home = render_template_string(HOME_HTML, epilepsi_logs=epilepsi_logs, open_modal=request.args.get('open'), is_admin=session.get('is_admin', False), settings=get_settings())
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=rendered_home, is_admin=session.get('is_admin', False), settings=get_settings())
 
 @app.route('/login', methods=['POST'])
@@ -6653,7 +6660,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 </p>
                 <div class="flex gap-4">
                     <button onclick="openModal('modal-tarawih')" class="bg-gold text-midnight px-8 py-3 rounded-full font-bold shadow-lg hover:bg-white transition transform hover:scale-105">Lihat Agenda</button>
-                    <a href="javascript:void(0)" onclick="openModal('modal-infaq')" class="bg-transparent text-gold border-2 border-gold px-8 py-3 rounded-full font-bold hover:bg-gold hover:text-midnight transition transform hover:scale-105">Infaq Sekarang</a>
+                    <a href="javascript:void(0)" onclick="openModal('modal-publikasi-informasi')" class="bg-transparent text-gold border-2 border-gold px-8 py-3 rounded-full font-bold hover:bg-gold hover:text-midnight transition transform hover:scale-105">PUBLIKASI INFORMASI</a>
                 </div>
              </div>
 
@@ -6935,6 +6942,16 @@ RAMADHAN_DASHBOARD_HTML = """
                 <button onclick="closeModal('modal-verifikasi-pembayaran')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
             
+            <form action="/tu/tagihan/tambah" method="POST" class="bg-white/5 p-4 border border-white/10 rounded-xl mb-6 space-y-3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" name="npm" placeholder="NPM Mahasiswa" required class="bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white">
+                    <input type="number" name="jumlah" placeholder="Nominal (Misal: 3500000)" required class="bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white">
+                </div>
+                <input type="text" name="jenis_tagihan" placeholder="Jenis Tagihan (Contoh: SPP Semester Ganjil 2024)" required class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white">
+                <button type="submit" class="w-full bg-gold text-midnight font-bold py-2 rounded-lg hover:bg-white transition">+ Terbitkan Tagihan</button>
+            </form>
+
             <div class="space-y-3">
                 {% for item in tagihan_list %}
                 <div class="bg-white/5 p-4 rounded-xl border border-white/10 flex justify-between items-center">
@@ -6943,6 +6960,9 @@ RAMADHAN_DASHBOARD_HTML = """
                         <p class="text-xs text-gray-400">NPM: {{ item['npm'] }} • Rp {{ item['jumlah'] }}</p>
                         {% if item['bukti_transfer'] %}
                         <a href="/uploads/{{ item['bukti_transfer'] }}" target="_blank" class="text-xs text-blue-400 underline mt-1 block">Lihat Bukti Transfer</a>
+                        {% endif %}
+                        {% if item['status'] != 'Lunas' %}
+                        <a href="https://wa.me/?text=Assalamualaikum%20warahmatullahi%20wabarakatuh.%20Pemberitahuan%20dari%20kampus%20STIESAM,%20terdapat%20tagihan%20{{ item['jenis_tagihan'] }}%20sebesar%20Rp%20{{ item['jumlah'] }}.%20Mohon%20untuk%20segera%20melakukan%20pembayaran%20sebelum%20tenggat%20waktu.%20Terima%20kasih." target="_blank" class="inline-block mt-2 text-xs bg-[#25D366]/20 text-[#25D366] px-2 py-1 rounded"><i class="fab fa-whatsapp"></i> Ingatkan (WA)</a>
                         {% endif %}
                     </div>
                     {% if item['status'] != 'Lunas' %}
@@ -6997,6 +7017,74 @@ RAMADHAN_DASHBOARD_HTML = """
                 <p class="text-gray-500 text-center">Jadwal kosong.</p>
                 {% endfor %}
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL PUBLIKASI INFORMASI -->
+    <div id="modal-publikasi-informasi" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                <h3 class="text-xl font-bold text-gold font-sans">Publikasi Informasi Publik</h3>
+                <button onclick="closeModal('modal-publikasi-informasi')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+            </div>
+
+            <form action="/tu/publikasi/update" method="POST" enctype="multipart/form-data" class="space-y-6">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="bg-white/5 border border-white/10 p-6 rounded-2xl">
+                    <h4 class="text-white font-bold mb-4 border-l-4 border-gold pl-2">1. Profil Kampus</h4>
+                    <label class="block text-xs text-gray-400 mb-1">Teks Sejarah / Deskripsi Utama</label>
+                    <textarea name="profil_deskripsi" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl p-3 text-sm text-white mb-3 h-24">{{ settings.get('profil_deskripsi', 'Sekolah Tinggi Ilmu Ekonomi (STIE) SAM Samarinda didirikan dengan komitmen teguh untuk menghasilkan sarjana ekonomi yang profesional, beretika, dan mampu bersaing di era digital. Dengan fasilitas pembelajaran yang representatif dan didukung oleh staf pengajar yang kompeten di bidangnya, STIESAM terus bertransformasi menjadi pusat unggulan kajian ekonomi di Kalimantan Timur.') }}</textarea>
+
+                    <label class="block text-xs text-gray-400 mb-1">Teks Visi Kampus</label>
+                    <textarea name="profil_visi" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl p-3 text-sm text-white mb-3 h-16">{{ settings.get('profil_visi', 'Menjadi institusi pendidikan tinggi ekonomi yang terkemuka, inovatif, dan berdaya saing global dengan menjunjung tinggi nilai-nilai moral dan etika bisnis.') }}</textarea>
+
+                    <label class="block text-xs text-gray-400 mb-1">Teks Misi Kampus</label>
+                    <textarea name="profil_misi" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl p-3 text-sm text-white mb-3 h-24">{{ settings.get('profil_misi', '1. Menyelenggarakan pendidikan yang berkualitas.\n2. Melaksanakan penelitian yang bermanfaat.\n3. Melakukan pengabdian yang berdampak nyata bagi masyarakat.') }}</textarea>
+
+                    <label class="block text-xs text-gray-400 mb-1">Gambar/Foto Profil Kampus (Opsional, max 2MB)</label>
+                    <input type="file" name="profil_gambar" class="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-gold/20 file:text-gold hover:file:bg-gold/30">
+                </div>
+
+                <div class="bg-white/5 border border-white/10 p-6 rounded-2xl">
+                    <h4 class="text-white font-bold mb-4 border-l-4 border-green-500 pl-2">2. Berita & Agenda Kampus</h4>
+                    <p class="text-xs text-gray-500 mb-4">Ubah isi berita/agenda utama yang ditampilkan pada beranda (Highlight 1).</p>
+
+                    <label class="block text-xs text-gray-400 mb-1">Kategori / Label (Contoh: Seminar Nasional)</label>
+                    <input type="text" name="berita_label" value="{{ settings.get('berita_label', 'Seminar Nasional') }}" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white mb-3">
+
+                    <label class="block text-xs text-gray-400 mb-1">Judul Berita</label>
+                    <input type="text" name="berita_judul" value="{{ settings.get('berita_judul', 'Tantangan Ekonomi Digital 2025') }}" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white mb-3">
+
+                    <label class="block text-xs text-gray-400 mb-1">Waktu & Tempat</label>
+                    <input type="text" name="berita_waktu" value="{{ settings.get('berita_waktu', '12 Oktober 2024 • Auditorium STIESAM') }}" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white mb-3">
+
+                    <label class="block text-xs text-gray-400 mb-1">Isi Berita</label>
+                    <textarea name="berita_isi" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl p-3 text-sm text-white mb-3 h-20">{{ settings.get('berita_isi', 'Seminar nasional yang membahas tentang persiapan UMKM menghadapi transformasi ekonomi digital dan kecerdasan buatan.') }}</textarea>
+
+                    <label class="block text-xs text-gray-400 mb-1">Gambar Sampul Berita (Opsional, max 2MB)</label>
+                    <input type="file" name="berita_gambar" class="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-green-500/20 file:text-green-500 hover:file:bg-green-500/30">
+                </div>
+
+                <div class="bg-white/5 border border-white/10 p-6 rounded-2xl">
+                    <h4 class="text-white font-bold mb-4 border-l-4 border-purple-500 pl-2">3. Galeri Jurnal & Penelitian</h4>
+                    <p class="text-xs text-gray-500 mb-4">Ubah isi sorotan jurnal penelitian utama (Highlight 1).</p>
+
+                    <label class="block text-xs text-gray-400 mb-1">Kategori Prodi (Contoh: Manajemen Keuangan)</label>
+                    <input type="text" name="jurnal_kategori" value="{{ settings.get('jurnal_kategori', 'Manajemen Keuangan') }}" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white mb-3">
+
+                    <label class="block text-xs text-gray-400 mb-1">Volume/Tahun</label>
+                    <input type="text" name="jurnal_volume" value="{{ settings.get('jurnal_volume', 'Vol 12, No. 2 (2023)') }}" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white mb-3">
+
+                    <label class="block text-xs text-gray-400 mb-1">Judul Penelitian</label>
+                    <textarea name="jurnal_judul" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl p-3 text-sm text-white mb-3 h-16">{{ settings.get('jurnal_judul', 'Analisis Pengaruh Literasi Keuangan Terhadap Kinerja UMKM di Samarinda') }}</textarea>
+
+                    <label class="block text-xs text-gray-400 mb-1">Penulis</label>
+                    <input type="text" name="jurnal_penulis" value="{{ settings.get('jurnal_penulis', 'Dr. Budi Santoso, M.Si., Rina Astuti, S.E.') }}" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white mb-3">
+                </div>
+
+                <button type="submit" class="w-full bg-gold text-midnight font-bold py-4 rounded-xl hover:bg-white transition text-lg"><i class="fas fa-save mr-2"></i>Simpan Perubahan Publikasi</button>
+            </form>
         </div>
     </div>
 
@@ -8816,6 +8904,15 @@ def tu_surat_acc():
             surat.status = 'Disetujui'
             # qr_code mock generation logic
             surat.qr_code = f"QR-{surat.npm}-{surat.jenis_surat}"
+
+            # Put into Laci Arsip automatically
+            arsip = LaciArsip(
+                npm=surat.npm,
+                nama_dokumen=f"Dokumen Resmi - {surat.jenis_surat}",
+                file_path="#",
+                ukuran="Digital PDF"
+            )
+            db.session.add(arsip)
             db.session.commit()
     except Exception as e:
         print(f"Error updating surat: {e}")
@@ -8870,6 +8967,69 @@ def tu_arsip_search():
     except Exception as e:
         print(f"Error arsip search: {e}")
         return jsonify({'error': 'Terjadi kesalahan sistem'})
+
+@app.route('/tu/publikasi/update', methods=['POST'])
+def tu_publikasi_update():
+    if not session.get('is_admin'):
+        return 'Unauthorized', 403
+    try:
+        keys = ['profil_deskripsi', 'profil_visi', 'profil_misi',
+                'berita_label', 'berita_judul', 'berita_waktu', 'berita_isi',
+                'jurnal_kategori', 'jurnal_volume', 'jurnal_judul', 'jurnal_penulis']
+
+        for k in keys:
+            val = request.form.get(k)
+            if val is not None:
+                s = AppSettings.query.get(k)
+                if s: s.value = val
+                else: db.session.add(AppSettings(key=k, value=val))
+
+        if 'profil_gambar' in request.files:
+            file = request.files['profil_gambar']
+            if file and allowed_file(file.filename):
+                saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
+                s = AppSettings.query.get('profil_gambar')
+                if s: s.value = saved_filename
+                else: db.session.add(AppSettings(key='profil_gambar', value=saved_filename))
+
+        if 'berita_gambar' in request.files:
+            file = request.files['berita_gambar']
+            if file and allowed_file(file.filename):
+                saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
+                s = AppSettings.query.get('berita_gambar')
+                if s: s.value = saved_filename
+                else: db.session.add(AppSettings(key='berita_gambar', value=saved_filename))
+
+        db.session.commit()
+    except Exception as e:
+        print(f"Error updating publikasi: {e}")
+    return redirect(url_for('ramadhan_dashboard', open='modal-publikasi-informasi'))
+
+@app.route('/tu/tagihan/tambah', methods=['POST'])
+def tu_tagihan_tambah():
+    if not session.get('is_admin'):
+        return 'Unauthorized', 403
+    try:
+        npm = request.form.get('npm')
+        jumlah = request.form.get('jumlah')
+        jenis_tagihan = request.form.get('jenis_tagihan')
+
+        user = User.query.filter_by(username=npm).first()
+        if not user:
+            print(f"Error: NPM {npm} tidak ditemukan.")
+            return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
+
+        new_tagihan = TagihanKuliah(
+            npm=npm,
+            jumlah=int(jumlah),
+            jenis_tagihan=jenis_tagihan,
+            status='Belum Lunas'
+        )
+        db.session.add(new_tagihan)
+        db.session.commit()
+    except Exception as e:
+        print(f"Error tambah tagihan: {e}")
+    return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
 
 @app.route('/tu/tagihan/lunas', methods=['POST'])
 def tu_tagihan_lunas():
