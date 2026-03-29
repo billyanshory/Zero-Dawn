@@ -313,6 +313,23 @@ class StatusNilai(db.Model):
     is_published = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, server_default=func.now())
 
+class TracerStudy(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nama_lengkap = db.Column(db.String(255), nullable=False)
+    npm = db.Column(db.String(255), nullable=False)
+    tahun_lulus = db.Column(db.String(10), nullable=False)
+    program_studi = db.Column(db.String(255), nullable=False)
+    status_pekerjaan = db.Column(db.String(255), nullable=False)
+    nama_perusahaan = db.Column(db.String(255))
+    jabatan = db.Column(db.String(255))
+    rentang_gaji = db.Column(db.String(255))
+    kesesuaian = db.Column(db.String(255))
+    waktu_tunggu = db.Column(db.String(255))
+    saran = db.Column(db.Text)
+    kontak = db.Column(db.String(255))
+    status = db.Column(db.String(50), default='Menunggu Verifikasi')
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
 def get_settings():
     try:
         settings = {item.key: item.value for item in AppSettings.query.all()}
@@ -574,6 +591,7 @@ def is_safe_file(file_storage):
     return kind.extension in ALLOWED_EXTENSIONS
 
 def compress_image(file_storage, upload_folder):
+    os.makedirs(upload_folder, exist_ok=True)
     if not is_safe_file(file_storage):
         raise ValueError("Invalid file content signature detected.")
     filename = secure_filename(file_storage.filename)
@@ -876,7 +894,7 @@ def model_getitem(self, key):
 
 for model in [Finance, Agenda, Booking, Zakat, GalleryDakwah, Suggestion, RamadhanKas, 
               TarawihSchedule, IrmaSchedule, IrmaMember, IrmaKas, IrmaGallery, 
-              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings, SuratOtomatis, PendaftaranPMB, TagihanKuliah, JadwalKuliah, User, LaciArsip, KRSMahasiswa, NilaiMahasiswa, KehadiranKelas, JurnalMengajar, StatusNilai]:
+              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings, SuratOtomatis, PendaftaranPMB, TagihanKuliah, JadwalKuliah, User, LaciArsip, KRSMahasiswa, NilaiMahasiswa, KehadiranKelas, JurnalMengajar, StatusNilai, TracerStudy]:
     model.__getitem__ = model_getitem
 
 STYLES_HTML = """
@@ -1108,9 +1126,9 @@ BASE_LAYOUT = """
     <!-- NEW MODALS FROM BOTTOM NAV -->
     
     <!-- MODAL LOGO ZOOM -->
-    <div id="modal-logo-zoom" class="fixed inset-0 z-[200] hidden bg-white/30 backdrop-blur-md flex justify-center items-center" onclick="closeModal('modal-logo-zoom')">
-        <div class="relative w-full max-w-sm flex justify-center items-center p-6 animate-[popupFadeIn_0.5s_ease-out]">
-            <button onclick="closeModal('modal-logo-zoom')" class="absolute top-4 right-4 bg-white/50 w-10 h-10 rounded-full text-gray-700 hover:bg-white flex items-center justify-center z-10 shadow-sm transition">&times;</button>
+    <div id="modal-logo-zoom" class="fixed inset-0 z-[200] hidden bg-white/30 backdrop-blur-md flex justify-center items-center" onclick="document.getElementById('modal-logo-zoom').classList.add('hidden'); if(history.state && history.state.modal === 'modal-logo-zoom') { history.replaceState(null, '', window.location.pathname); }">
+        <div class="relative w-full max-w-sm flex justify-center items-center p-6 animate-[popupFadeIn_0.5s_ease-out]" onclick="event.stopPropagation()">
+            <button onclick="document.getElementById('modal-logo-zoom').classList.add('hidden'); if(history.state && history.state.modal === 'modal-logo-zoom') { history.replaceState(null, '', window.location.pathname); }" class="absolute top-4 right-4 bg-white/50 w-10 h-10 rounded-full text-gray-700 hover:bg-white flex items-center justify-center z-10 shadow-sm transition">&times;</button>
             <img src="/static/logo-stiesam.png" alt="Logo STIESAM Besar" class="w-full max-w-[280px] object-contain drop-shadow-2xl transition-transform duration-500 scale-110">
         </div>
     </div>
@@ -3374,6 +3392,28 @@ HOME_HTML = """
                         <div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-green-500 h-2 rounded-full" style="width: 20%"></div></div>
                     </div>
                 </div>
+
+                <div class="mt-8 border-t border-gray-200 pt-6">
+                    <h4 class="font-bold text-gray-800 mb-4 text-center">Data Alumni Terverifikasi</h4>
+                    <div class="space-y-4">
+                        {% for item in verified_alumni_list %}
+                        <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col gap-2">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="font-bold text-gray-800">{{ item['nama_lengkap'] }}</p>
+                                    <p class="text-xs text-gray-500">Angkatan Lulus: {{ item['tahun_lulus'] }} • {{ item['program_studi'] }}</p>
+                                </div>
+                                <span class="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap"><i class="fas fa-check-circle"></i> Diverifikasi</span>
+                            </div>
+                            <div class="bg-gray-50 p-2 rounded-lg mt-1 border border-gray-100 text-xs text-gray-600">
+                                <p><span class="font-bold">Karir:</span> {{ item['status_pekerjaan'] }} di {{ item['nama_perusahaan'] or '-' }} sebagai {{ item['jabatan'] or '-' }}</p>
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-center text-gray-500 text-sm italic py-4 bg-gray-50 rounded-xl">Belum ada data alumni yang diverifikasi.</p>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -3519,8 +3559,9 @@ HOME_HTML = """
             </div>
             
             <!-- Scrollable Content -->
-            <div class="flex-1 overflow-y-auto p-6 bg-white space-y-5 custom-scrollbar">
-                
+            <form action="/api/tracer/submit" method="POST" class="flex-1 overflow-y-auto p-6 bg-white space-y-5 custom-scrollbar" onsubmit="alert('Terima kasih, data Tracer Study Anda berhasil dikirim.');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                 <div class="bg-orange-50/50 p-4 rounded-xl border border-orange-100 mb-2">
                     <p class="text-xs text-gray-600 leading-relaxed"><span class="font-bold text-orange-500">Penting:</span> Seluruh data kuesioner ini akan dijaga kerahasiaannya dan hanya digunakan untuk kepentingan peningkatan mutu pendidikan dan akreditasi kampus STIESAM.</p>
                 </div>
@@ -3529,87 +3570,87 @@ HOME_HTML = """
                     <!-- 1 -->
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">1. Nama Lengkap</label>
-                        <input type="text" placeholder="Masukkan nama lengkap beserta gelar" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                        <input type="text" name="nama_lengkap" required placeholder="Masukkan nama lengkap beserta gelar" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
                     </div>
                     <!-- 2 -->
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">2. Nomor Pokok Mahasiswa (NPM)</label>
-                        <input type="text" placeholder="Masukkan NPM Anda" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                        <input type="text" name="npm" required placeholder="Masukkan NPM Anda" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
                     </div>
                     <!-- 3 -->
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">3. Tahun Lulus</label>
-                            <input type="number" placeholder="Contoh: 2022" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                            <input type="number" name="tahun_lulus" required placeholder="Contoh: 2022" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">4. Program Studi</label>
-                            <select class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
-                                <option>S1 Manajemen</option>
-                                <option>S1 Akuntansi</option>
+                            <select name="program_studi" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                                <option value="S1 Manajemen">S1 Manajemen</option>
+                                <option value="S1 Akuntansi">S1 Akuntansi</option>
                             </select>
                         </div>
                     </div>
                     <!-- 5 -->
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">5. Status Pekerjaan Saat Ini</label>
-                        <select class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
-                            <option>Bekerja (Full-time)</option>
-                            <option>Bekerja (Part-time / Freelance)</option>
-                            <option>Wirausaha / Memiliki Usaha Sendiri</option>
-                            <option>Melanjutkan Pendidikan</option>
-                            <option>Sedang Mencari Pekerjaan</option>
+                        <select name="status_pekerjaan" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                            <option value="Bekerja (Full-time)">Bekerja (Full-time)</option>
+                            <option value="Bekerja (Part-time / Freelance)">Bekerja (Part-time / Freelance)</option>
+                            <option value="Wirausaha / Memiliki Usaha Sendiri">Wirausaha / Memiliki Usaha Sendiri</option>
+                            <option value="Melanjutkan Pendidikan">Melanjutkan Pendidikan</option>
+                            <option value="Sedang Mencari Pekerjaan">Sedang Mencari Pekerjaan</option>
                         </select>
                     </div>
                     <!-- 6 -->
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">6. Nama Perusahaan / Usaha</label>
-                        <input type="text" placeholder="Tempat Anda bekerja saat ini" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                        <input type="text" name="nama_perusahaan" placeholder="Tempat Anda bekerja saat ini" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
                     </div>
                     <!-- 7 -->
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">7. Jabatan / Posisi</label>
-                        <input type="text" placeholder="Contoh: Staff Akuntan, Manager" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                        <input type="text" name="jabatan" placeholder="Contoh: Staff Akuntan, Manager" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
                     </div>
                     <!-- 8 -->
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">8. Rentang Gaji Pertama</label>
-                        <select class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
-                            <option>Kurang dari Rp 3.000.000</option>
-                            <option>Rp 3.000.000 - Rp 5.000.000</option>
-                            <option>Rp 5.000.000 - Rp 10.000.000</option>
-                            <option>Lebih dari Rp 10.000.000</option>
+                        <select name="rentang_gaji" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                            <option value="Kurang dari Rp 3.000.000">Kurang dari Rp 3.000.000</option>
+                            <option value="Rp 3.000.000 - Rp 5.000.000">Rp 3.000.000 - Rp 5.000.000</option>
+                            <option value="Rp 5.000.000 - Rp 10.000.000">Rp 5.000.000 - Rp 10.000.000</option>
+                            <option value="Lebih dari Rp 10.000.000">Lebih dari Rp 10.000.000</option>
                         </select>
                     </div>
                     <!-- 9 -->
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">9. Kesesuaian Pekerjaan dgn Ilmu</label>
-                        <select class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
-                            <option>Sangat Sesuai</option>
-                            <option>Sesuai</option>
-                            <option>Kurang Sesuai</option>
-                            <option>Tidak Sesuai</option>
+                        <select name="kesesuaian" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                            <option value="Sangat Sesuai">Sangat Sesuai</option>
+                            <option value="Sesuai">Sesuai</option>
+                            <option value="Kurang Sesuai">Kurang Sesuai</option>
+                            <option value="Tidak Sesuai">Tidak Sesuai</option>
                         </select>
                     </div>
                     <!-- 10 -->
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">10. Waktu Tunggu Mendapat Kerja Pertama</label>
-                        <select class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
-                            <option>Kurang dari 3 bulan</option>
-                            <option>3 - 6 bulan</option>
-                            <option>6 - 12 bulan</option>
-                            <option>Lebih dari 12 bulan</option>
+                        <select name="waktu_tunggu" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                            <option value="Kurang dari 3 bulan">Kurang dari 3 bulan</option>
+                            <option value="3 - 6 bulan">3 - 6 bulan</option>
+                            <option value="6 - 12 bulan">6 - 12 bulan</option>
+                            <option value="Lebih dari 12 bulan">Lebih dari 12 bulan</option>
                         </select>
                     </div>
                     <!-- 11 -->
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">11. Saran Pengembangan Kurikulum</label>
-                        <textarea placeholder="Saran Anda untuk kampus tercinta..." class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm h-24 focus:outline-none focus:ring-2 focus:ring-orange-300"></textarea>
+                        <textarea name="saran" placeholder="Saran Anda untuk kampus tercinta..." class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm h-24 focus:outline-none focus:ring-2 focus:ring-orange-300"></textarea>
                     </div>
                     <!-- 12 -->
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">12. Nomor WhatsApp / Email Aktif</label>
-                        <input type="text" placeholder="Untuk keperluan verifikasi alumni" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+                        <input type="text" name="kontak" required placeholder="Untuk keperluan verifikasi alumni" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
                     </div>
                 </div>
 
@@ -3617,8 +3658,9 @@ HOME_HTML = """
 
             <!-- Sticky Footer / Action -->
             <div class="p-6 border-t border-gray-100 bg-white rounded-b-3xl flex-shrink-0">
-                <button onclick="closeModal('modal-tracer-form'); alert('Terima kasih, data Tracer Study Anda berhasil dikirim.');" class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-200 hover:from-orange-600 hover:to-orange-700 transition transform hover:-translate-y-0.5"><i class="fas fa-paper-plane mr-2"></i>Kirim Data Tracer Study</button>
+                <button type="submit" class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-200 hover:from-orange-600 hover:to-orange-700 transition transform hover:-translate-y-0.5"><i class="fas fa-paper-plane mr-2"></i>Kirim Data Tracer Study</button>
             </div>
+            </form>
             
         </div>
     </div>
@@ -5640,6 +5682,29 @@ def api_pmb_register():
         print(f"Error in PMB Register: {e}")
         return jsonify({'success': False, 'error': 'Terjadi kesalahan sistem saat memproses formulir.'})
 
+@app.route('/api/tracer/submit', methods=['POST'])
+def api_tracer_submit():
+    try:
+        new_tracer = TracerStudy(
+            nama_lengkap=request.form.get('nama_lengkap'),
+            npm=request.form.get('npm'),
+            tahun_lulus=request.form.get('tahun_lulus'),
+            program_studi=request.form.get('program_studi'),
+            status_pekerjaan=request.form.get('status_pekerjaan'),
+            nama_perusahaan=request.form.get('nama_perusahaan'),
+            jabatan=request.form.get('jabatan'),
+            rentang_gaji=request.form.get('rentang_gaji'),
+            kesesuaian=request.form.get('kesesuaian'),
+            waktu_tunggu=request.form.get('waktu_tunggu'),
+            saran=request.form.get('saran'),
+            kontak=request.form.get('kontak')
+        )
+        db.session.add(new_tracer)
+        db.session.commit()
+    except Exception as e:
+        print(f"Error submitting Tracer Study: {e}")
+    return redirect(url_for('index'))
+
 @app.route('/api/pmb/check', methods=['GET'])
 def api_pmb_check():
     try:
@@ -5684,7 +5749,12 @@ def index():
     except:
         epilepsi_logs = []
 
-    rendered_home = render_template_string(HOME_HTML, epilepsi_logs=epilepsi_logs, open_modal=request.args.get('open'), is_admin=session.get('is_admin', False), settings=get_settings())
+    try:
+        verified_alumni_list = TracerStudy.query.filter_by(status='Diverifikasi').order_by(TracerStudy.id.desc()).all()
+    except:
+        verified_alumni_list = []
+
+    rendered_home = render_template_string(HOME_HTML, epilepsi_logs=epilepsi_logs, verified_alumni_list=verified_alumni_list, open_modal=request.args.get('open'), is_admin=session.get('is_admin', False), settings=get_settings())
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=rendered_home, is_admin=session.get('is_admin', False), settings=get_settings())
 
 @app.route('/login', methods=['POST'])
@@ -6607,8 +6677,8 @@ RAMADHAN_DASHBOARD_HTML = """
     <!-- CUSTOM HEADER (Adapted from BASE_LAYOUT) -->
     <nav class="hidden md:flex fixed top-0 left-0 w-full z-50 glass-gold bg-midnight shadow-sm px-8 py-4 justify-between items-center right-0 border-b border-gold/20">
         <div class="max-w-7xl mx-auto w-full flex justify-between items-center">
-             <div class="flex items-center gap-4 h-12">
-                 <div class="h-full flex items-center justify-center">
+             <div class="flex items-center gap-4 h-12 cursor-pointer group" onclick="openModal('modal-logo-zoom')">
+                 <div class="h-full flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
                     <img src="/static/logo-stiesam.png" alt="Logo STIESAM" class="h-full w-auto object-contain">
                  </div>
                  <div class="flex flex-col justify-between h-full py-0.5">
@@ -6629,8 +6699,8 @@ RAMADHAN_DASHBOARD_HTML = """
 
     <!-- MOBILE HEADER (Adapted from BASE_LAYOUT) -->
     <header class="md:hidden fixed top-0 left-0 w-full z-50 glass-gold bg-midnight shadow-sm px-4 py-3 flex justify-between items-center max-w-md mx-auto right-0 border-b border-gold/20">
-        <div class="flex items-center gap-2 h-10">
-            <div class="h-full flex items-center justify-center">
+        <div class="flex items-center gap-2 h-10 cursor-pointer group" onclick="openModal('modal-logo-zoom')">
+            <div class="h-full flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
                 <img src="/static/logo-stiesam.png" alt="Logo STIESAM" class="h-full w-auto object-contain">
             </div>
             <div class="flex flex-col justify-between h-full py-0.5">
@@ -6659,7 +6729,7 @@ RAMADHAN_DASHBOARD_HTML = """
                     Pusat layanan administrasi akademik yang presisi, cepat, dan efisien untuk melayani kebutuhan mahasiswa dan dosen secara digital.
                 </p>
                 <div class="flex gap-4">
-                    <button onclick="openModal('modal-tarawih')" class="bg-gold text-midnight px-8 py-3 rounded-full font-bold shadow-lg hover:bg-white transition transform hover:scale-105">Lihat Agenda</button>
+                    <button onclick="openModal('modal-cek-alumni')" class="bg-gold text-midnight px-8 py-3 rounded-full font-bold shadow-lg hover:bg-white transition transform hover:scale-105">Cek Alumni</button>
                     <a href="javascript:void(0)" onclick="openModal('modal-publikasi-informasi')" class="bg-transparent text-gold border-2 border-gold px-8 py-3 rounded-full font-bold hover:bg-gold hover:text-midnight transition transform hover:scale-105">PUBLIKASI INFORMASI</a>
                 </div>
              </div>
@@ -7015,6 +7085,41 @@ RAMADHAN_DASHBOARD_HTML = """
                 </div>
                 {% else %}
                 <p class="text-gray-500 text-center">Jadwal kosong.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CEK ALUMNI -->
+    <div id="modal-cek-alumni" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
+        <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                <h3 class="text-xl font-bold text-gold font-sans">Verifikasi Tracer Study Alumni</h3>
+                <button onclick="closeModal('modal-cek-alumni')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+            </div>
+
+            <div class="space-y-4">
+                {% for item in tracer_list %}
+                <div class="bg-white/5 p-5 rounded-2xl shadow-sm border border-white/10 relative">
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-bold text-white text-lg">{{ item['nama_lengkap'] }} <span class="text-xs font-mono text-gold ml-2">({{ item['npm'] }})</span></h4>
+                        <span class="text-[10px] font-bold px-2 py-1 rounded-full {{ 'bg-yellow-500/20 text-yellow-400' if item['status'] == 'Menunggu Verifikasi' else 'bg-green-500/20 text-green-400' }}">{{ item['status'] }}</span>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-1">Lulus: {{ item['tahun_lulus'] }} • {{ item['program_studi'] }}</p>
+                    <p class="text-xs text-gray-400 mb-3">Kerja: {{ item['status_pekerjaan'] }} di {{ item['nama_perusahaan'] or '-' }} sebagai {{ item['jabatan'] or '-' }}</p>
+
+                    {% if item['status'] == 'Menunggu Verifikasi' %}
+                    <form action="/tu/tracer/verify" method="POST" class="mt-4 pt-3 border-t border-white/10 text-right">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="id" value="{{ item['id'] }}">
+                        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-green-600 transition">Verifikasi & Publikasi</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="bg-white/5 p-6 rounded-2xl border border-white/10 text-center">
+                    <p class="text-gray-400 text-sm">Belum ada data Tracer Study dari alumni.</p>
+                </div>
                 {% endfor %}
             </div>
         </div>
@@ -7902,6 +8007,8 @@ def ramadhan_dashboard():
     jadwal_list = []
     akun_list = []
     arsip_list = []
+    tracer_list = []
+    verified_alumni_list = []
     
     try:
         surat_list = SuratOtomatis.query.order_by(SuratOtomatis.id.desc()).all()
@@ -7910,6 +8017,8 @@ def ramadhan_dashboard():
         jadwal_list = JadwalKuliah.query.order_by(JadwalKuliah.id.desc()).all()
         akun_list = User.query.order_by(User.id.desc()).all()
         arsip_list = LaciArsip.query.order_by(LaciArsip.id.desc()).all()
+        tracer_list = TracerStudy.query.order_by(TracerStudy.id.desc()).all()
+        verified_alumni_list = TracerStudy.query.filter_by(status='Diverifikasi').order_by(TracerStudy.id.desc()).all()
     except Exception as e:
         print(f"Error fetching TU Dashboard data: {e}")
         
@@ -7921,6 +8030,8 @@ def ramadhan_dashboard():
                                               jadwal_list=jadwal_list,
                                               akun_list=akun_list,
                                               arsip_list=arsip_list,
+                                              tracer_list=tracer_list,
+                                              verified_alumni_list=verified_alumni_list,
                                               open_modal=request.args.get('open'),
                                               is_admin=session.get('is_admin', False),
                                               settings=get_settings())
@@ -8970,7 +9081,7 @@ def tu_arsip_search():
 
 @app.route('/tu/publikasi/update', methods=['POST'])
 def tu_publikasi_update():
-    if not session.get('is_admin'):
+    if not session.get('is_admin') and session.get('role') != 'Tata Usaha':
         return 'Unauthorized', 403
     try:
         keys = ['profil_deskripsi', 'profil_visi', 'profil_misi', 
@@ -9077,6 +9188,20 @@ def tu_akun_update():
     except Exception as e:
         print(f"Error update status akademik: {e}")
     return redirect(url_for('ramadhan_dashboard', open='modal-manajemen-sivitas'))
+
+@app.route('/tu/tracer/verify', methods=['POST'])
+def tu_tracer_verify():
+    if not session.get('is_admin') and session.get('role') != 'Tata Usaha':
+        return 'Unauthorized', 403
+    try:
+        t_id = request.form.get('id')
+        tracer = TracerStudy.query.get(t_id)
+        if tracer:
+            tracer.status = 'Diverifikasi'
+            db.session.commit()
+    except Exception as e:
+        print(f"Error tracer verify: {e}")
+    return redirect(url_for('ramadhan_dashboard', open='modal-cek-alumni'))
 
 @app.route('/tu/akun/reset_password', methods=['POST'])
 def tu_akun_reset_password():
