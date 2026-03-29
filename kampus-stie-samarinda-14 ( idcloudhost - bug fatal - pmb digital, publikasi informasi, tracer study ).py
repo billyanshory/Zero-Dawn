@@ -7,9 +7,11 @@ import csv
 import urllib.request
 import pymysql
 import io
+from reportlab.pdfgen import canvas
 from PIL import Image
 from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify, session, flash
 from werkzeug.utils import secure_filename
+from werkzeug.security import check_password_hash, generate_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, text
 from flask_wtf.csrf import CSRFProtect
@@ -37,8 +39,10 @@ app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20MB Limit
 app.secret_key = os.environ.get("SECRET_KEY", "fallback_dev_key")
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.permanent_session_lifetime = datetime.timedelta(days=30)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///masjid.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://tahkilfc_user:{}@localhost/db_slb'.format(os.environ.get('DB_PASSWORD', ''))
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Removed duplicated ENGINE_OPTIONS here because we will append it safely.
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_size': 20, 'max_overflow': 100, 'pool_recycle': 280, 'pool_timeout': 30}
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4', 'pdf'}
 
@@ -5716,6 +5720,7 @@ def api_pmb_register():
         return jsonify({'success': False, 'error': 'Terjadi kesalahan sistem saat memproses formulir.'})
 
 @app.route('/api/tracer/submit', methods=['POST'])
+@limiter.limit("3 per minute")
 def api_tracer_submit():
     try:
         new_tracer = TracerStudy(
@@ -5739,7 +5744,7 @@ def api_tracer_submit():
         db.session.rollback()
         print(f"Error submitting Tracer Study: {e}")
         flash("Terjadi kesalahan sistem saat mengirim data. Mohon coba lagi atau hubungi admin.", "error")
-    return redirect(url_for('index'))
+    return redirect(request.referrer or url_for('index'))
 
 @app.route('/api/pmb/check', methods=['GET'])
 def api_pmb_check():
@@ -5799,14 +5804,23 @@ def login():
     username = request.form.get('username')
     password = request.form.get('password')
     
-    if username == 'admin':
-        if password == 'takmirmasjid':
+    user = User.query.filter_by(username=username).first()
+    if user and check_password_hash(user.password_hash, password):
+        session['username'] = user.username
+        session['npm'] = user.username
+        session['nama'] = user.nama
+        session['role'] = user.role
+        session.permanent = True
+
+        if user.role in ['Tata Usaha', 'Admin']:
             session['is_admin'] = True
-            session.permanent = True
-        elif password == 'kameramasjid':
-            session['is_gallery_admin'] = True
-            session.permanent = True
+            return redirect(url_for('ramadhan_dashboard'))
+        elif user.role == 'Dosen':
+            return redirect(url_for('dosen_dashboard'))
+        elif user.role == 'Mahasiswa':
+            return redirect(url_for('irma_dashboard'))
             
+    flash('Kredensial tidak valid', 'error')
     return redirect(request.referrer or url_for('index'))
 
 @app.route('/logout')
@@ -8440,12 +8454,19 @@ def dosen_dashboard():
         # 2. KRS Perwalian (Filter Lunas)
         krs_raw = KRSMahasiswa.query.filter_by(dosen=dosen_name).order_by(KRSMahasiswa.id.desc()).all()
         
+        # Optimization: Fetch all tagihan in one go to prevent N+1
+        npms_in_krs = [k.npm for k in krs_raw]
+        all_tagihan = TagihanKuliah.query.filter(TagihanKuliah.npm.in_(npms_in_krs)).all() if npms_in_krs else []
+        tagihan_map = {}
+        for t in all_tagihan:
+            tagihan_map.setdefault(t.npm, []).append(t)
+
         for krs in krs_raw:
-            tagihan = TagihanKuliah.query.filter_by(npm=krs.npm).all()
+            tagihan = tagihan_map.get(krs.npm, [])
             # Ensure either there are no bills, or all bills are 'Lunas'
             if not tagihan or all(t.status == 'Lunas' for t in tagihan):
                 krs_perwalian.append(krs)
-            
+
             unique_npms.add(krs.npm)
         
         # 3. Masukan Nilai Akhir (Kelas)
@@ -9049,14 +9070,26 @@ def tu_surat_acc():
         surat = SuratOtomatis.query.get(surat_id)
         if surat:
             surat.status = 'Disetujui'
-            # qr_code mock generation logic
             surat.qr_code = f"QR-{surat.npm}-{surat.jenis_surat}"
             
-            # Put into Laci Arsip automatically
+            # PDF Generation
+            import uuid
+            from reportlab.pdfgen import canvas
+            filename = f"surat_{surat.npm}_{uuid.uuid4().hex[:8]}.pdf"
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+            c = canvas.Canvas(filepath)
+            c.drawString(100, 800, "KAMPUS STIE SAMARINDA")
+            c.drawString(100, 780, f"Dokumen: {surat.jenis_surat}")
+            c.drawString(100, 760, f"Diberikan kepada NPM: {surat.npm}")
+            c.drawString(100, 740, f"Keterangan: {surat.keterangan}")
+            c.drawString(100, 700, f"Disetujui secara elektronik: {surat.qr_code}")
+            c.save()
+
             arsip = LaciArsip(
                 npm=surat.npm,
                 nama_dokumen=f"Dokumen Resmi - {surat.jenis_surat}",
-                file_path="#",
+                file_path=filename,
                 ukuran="Digital PDF"
             )
             db.session.add(arsip)
@@ -9074,10 +9107,11 @@ def tu_pmb_verifikasi():
         pmb = PendaftaranPMB.query.get(pmb_id)
         if pmb:
             pmb.status = 'Diterima'
-            import random
-            new_npm = f"240{random.randint(1000,9999)}"
+            # Terstruktur: Tahun + 01 + Urutan
+            year_prefix = str(datetime.date.today().year)[-2:]
+            count = User.query.filter_by(role='Mahasiswa').count()
+            new_npm = f"{year_prefix}01{str(count+1).zfill(4)}"
             pmb.npm_generated = new_npm
-            from werkzeug.security import generate_password_hash
             new_user = User(username=new_npm, password_hash=generate_password_hash("mahasiswa123"), role='Mahasiswa', nama=pmb.nama, status_akademik='Aktif')
             db.session.add(new_user)
             db.session.commit()
@@ -9117,7 +9151,7 @@ def tu_arsip_search():
 
 @app.route('/tu/publikasi/update', methods=['POST'])
 def tu_publikasi_update():
-    if not session.get('is_admin') and session.get('role') not in ['Tata Usaha', 'Admin']:
+    if session.get('role') not in ['Tata Usaha', 'Admin']:
         return 'Unauthorized', 403
     try:
         keys = ['profil_deskripsi', 'profil_visi', 'profil_misi', 
@@ -9160,15 +9194,19 @@ def tu_tagihan_tambah():
     if not session.get('is_admin'):
         return 'Unauthorized', 403
     try:
-        npm = request.form.get('npm')
-        jumlah = request.form.get('jumlah')
+        npm = request.form.get('npm', '').strip()
+        jumlah = request.form.get('jumlah', '').strip()
         jenis_tagihan = request.form.get('jenis_tagihan')
-        
+
+        if not npm.isdigit() or not jumlah.isdigit():
+            flash("Format input tidak valid. Pastikan NPM dan Nominal hanya berisi angka presisi tanpa karakter asing.", "error")
+            return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
+
         user = User.query.filter_by(username=npm).first()
         if not user:
-            print(f"Error: NPM {npm} tidak ditemukan.")
+            flash(f"Error: NPM {npm} tidak ditemukan dalam sistem.", "error")
             return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
-            
+
         new_tagihan = TagihanKuliah(
             npm=npm,
             jumlah=int(jumlah),
@@ -9177,8 +9215,11 @@ def tu_tagihan_tambah():
         )
         db.session.add(new_tagihan)
         db.session.commit()
+        flash("Tagihan berhasil ditambahkan.", "success")
     except Exception as e:
+        db.session.rollback()
         print(f"Error tambah tagihan: {e}")
+        flash("Terjadi kesalahan sistem.", "error")
     return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
 
 @app.route('/tu/tagihan/lunas', methods=['POST'])
@@ -9293,7 +9334,8 @@ def dosen_nilai_submit():
                     
                     # Prevent duplicate logic or overwrite existing if needed. We assume one grade per semester per class.
                     # As a simplistic approach: we just add a new record. In a real scenario, we might want to update.
-                    existing_nilai = NilaiMahasiswa.query.filter_by(npm=npm, mata_kuliah=mata_kuliah, semester='Gasal 2024/2025').first()
+                    semester_aktif = get_settings().get('semester_aktif', 'Gasal 2024/2025')
+                    existing_nilai = NilaiMahasiswa.query.filter_by(npm=npm, mata_kuliah=mata_kuliah, semester=semester_aktif).first()
                     
                     if not existing_nilai:
                         new_nilai = NilaiMahasiswa(
@@ -9301,7 +9343,7 @@ def dosen_nilai_submit():
                             mata_kuliah=mata_kuliah,
                             sks=3, # Assume 3 for simplicity based on KRS logic
                             nilai_huruf=val,
-                            semester='Gasal 2024/2025' # Hardcoded semester for demonstration
+                            semester=semester_aktif
                         )
                         db.session.add(new_nilai)
                     else:
@@ -9355,4 +9397,4 @@ def dosen_presensi_submit():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True, port=5000)
+    app.run(debug=False, port=5000)
