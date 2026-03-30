@@ -39,873 +39,20 @@ app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20MB Limit
 app.secret_key = os.environ.get("SECRET_KEY", "fallback_dev_key")
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.permanent_session_lifetime = datetime.timedelta(days=30)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://tahkilfc_user:{}@localhost/db_slb'.format(os.environ.get('DB_PASSWORD', ''))
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Removed duplicated ENGINE_OPTIONS here because we will append it safely.
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_size': 20, 'max_overflow': 100, 'pool_recycle': 280, 'pool_timeout': 30}
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {}
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'txt', 'csv'}
 
 db = SQLAlchemy(app)
 
-# --- DATA SUMBER HUKUM (DALIL) ---
-# --- DATA SUMBER HUKUM (DALIL) ---
-DALIL_DATA = {
-    "waris": [
-        "QS. An-Nisa: 11 - \"Allah mensyariatkan bagimu tentang pembagian pusaka untuk anak-anakmu. Yaitu: bahagian seorang anak laki-laki sama dengan bagaikan dua orang anak perempuan.\"",
-        "QS. An-Nisa: 7 - \"Bagi orang laki-laki ada hak bagian dari harta peninggalan ibu-bapa dan kerabatnya, dan bagi orang wanita ada hak bagian (pula).\"",
-        "HR. Bukhari & Muslim - \"Berikanlah harta warisan kepada yang berhak menerimanya, sedangkan sisanya adalah untuk kerabat laki-laki yang paling dekat.\""
-    ],
-    "zakat": [
-        "QS. At-Taubah: 103 - \"Ambillah zakat dari sebagian harta mereka, dengan zakat itu kamu membersihkan dan mensucikan mereka.\"",
-        "HR. Abu Daud - \"Tidak ada kewajiban zakat pada emas hingga mencapai 20 dinar (setara 85 gram).\"",
-        "QS. Adz-Dzariyat: 19 - \"Dan pada harta-harta mereka ada hak untuk orang miskin yang meminta dan orang miskin yang tidak mendapat bagian.\""
-    ],
-    "tahajjud": [
-        "HR. Bukhari & Muslim - \"Rabb kita turun ke langit dunia pada setiap malam yaitu ketika sepertiga malam terakhir untuk mengabulkan doa hamba-Nya.\"",
-        "QS. Al-Isra: 79 - \"Dan pada sebagian malam hari shalat tahajudlah kamu sebagai suatu ibadah tambahan bagimu.\"",
-        "QS. Al-Muzzammil: 6 - \"Sesungguhnya bangun di waktu malam adalah lebih tepat untuk khusyuk dan bacaan di waktu itu lebih berkesan.\""
-    ],
-    "khatam": [
-        "HR. Tirmidzi - \"Siapa yang membaca satu huruf dari Al Quran maka baginya satu kebaikan, satu kebaikan dilipatkan menjadi 10 kebaikan.\"",
-        "HR. Bukhari - \"Amalan yang paling dicintai Allah adalah yang terus-menerus (istiqomah) meskipun sedikit.\"",
-        "HR. Muslim - \"Bacalah Al-Quran, sesungguhnya ia akan datang pada hari kiamat memberi syafaat bagi pembacanya.\""
-    ],
-    "fidyah": [
-        "QS. Al-Baqarah: 184 - \"Maka barangsiapa diantara kamu ada yang sakit atau dalam perjalanan, maka wajiblah baginya berpuasa sebanyak hari yang ditinggalkan itu pada hari-hari yang lain.\"",
-        "QS. Al-Baqarah: 184 (Lanjutan) - \"Dan wajib bagi orang-orang yang berat menjalankannya membayar fidyah, yaitu memberi makan seorang miskin.\"",
-        "Ijma Ulama / SK BAZNAS - \"Besaran fidyah adalah satu mud (sekitar 0,6 kg beras) atau setara biaya makan satu hari untuk satu orang miskin.\""
-    ],
-    "hijri": [
-        "QS. At-Taubah: 36 - \"Sesungguhnya bilangan bulan pada sisi Allah adalah dua belas bulan, dalam ketetapan Allah di waktu Dia menciptakan langit dan bumi.\"",
-        "QS. Al-Baqarah: 189 - \"Katakanlah: Bulan sabit itu adalah tanda-tanda waktu bagi manusia dan bagi ibadah haji.\"",
-        "Sejarah Islam - \"Penetapan Kalender Hijriyah dimulai pada masa Khalifah Umar bin Khattab yang menjadikan peristiwa Hijrah sebagai titik awal tahun.\""
-    ]
-}
-
-# --- DATABASE SETUP ---
-DB_NAME = 'masjid.db'
-
-# --- DATABASE MODELS ---
-
-class Finance(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.String(255), nullable=False)
-    type = db.Column(db.String(255), nullable=False)
-    category = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    amount = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class Agenda(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.String(255), nullable=False)
-    time = db.Column(db.String(255), nullable=False)
-    title = db.Column(db.String(255), nullable=False)
-    speaker = db.Column(db.String(255), nullable=False)
-    type = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class Booking(db.Model):
-    __tablename__ = 'bookings'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), nullable=False)
-    date = db.Column(db.String(255), nullable=False)
-    purpose = db.Column(db.Text, nullable=False)
-    type = db.Column(db.String(255), nullable=False)
-    status = db.Column(db.String(50), default='Pending')
-    contact = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class Zakat(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    donor_name = db.Column(db.String(255), nullable=False)
-    type = db.Column(db.String(255), nullable=False)
-    amount = db.Column(db.String(255), nullable=False)
-    notes = db.Column(db.Text)
-    status = db.Column(db.String(50), default='Pending')
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class GalleryDakwah(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(255), nullable=False)
-    image = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text)
-    date = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class Suggestion(db.Model):
-    __tablename__ = 'suggestions'
-    id = db.Column(db.Integer, primary_key=True)
-    content = db.Column(db.Text, nullable=False)
-    date = db.Column(db.String(255), nullable=False)
-    status = db.Column(db.String(50), default='Unread')
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class RamadhanKas(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.String(255), nullable=False)
-    type = db.Column(db.String(255), nullable=False)
-    category = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    amount = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class TarawihSchedule(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    night_index = db.Column(db.Integer, nullable=False)
-    date = db.Column(db.String(255))
-    imam = db.Column(db.String(255))
-    penceramah = db.Column(db.String(255))
-    judul = db.Column(db.Text)
-
-class IrmaSchedule(db.Model):
-    __tablename__ = 'irma_schedule'
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.String(255), nullable=False)
-    name = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(255), nullable=False)
-    notes = db.Column(db.Text)
-
-class IrmaMember(db.Model):
-    __tablename__ = 'irma_members'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), nullable=False)
-    age = db.Column(db.Integer)
-    hobbies = db.Column(db.Text)
-    instagram = db.Column(db.String(255))
-    joined_at = db.Column(db.DateTime, server_default=func.now())
-    wa_number = db.Column(db.String(255))
-    status = db.Column(db.String(50), default='Pending')
-
-class IrmaKas(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.String(255), nullable=False)
-    type = db.Column(db.String(255), nullable=False)
-    amount = db.Column(db.Integer, nullable=False)
-    description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class IrmaGallery(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(255), nullable=False)
-    creator = db.Column(db.String(255), nullable=False)
-    content_type = db.Column(db.String(255), nullable=False)
-    content = db.Column(db.Text, nullable=False)
-    caption = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class IrmaProker(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(255), nullable=False)
-    status = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text)
-    date = db.Column(db.String(255))
-
-class IrmaCurhat(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    question = db.Column(db.Text, nullable=False)
-    answer = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, server_default=func.now())
-    answered_at = db.Column(db.DateTime)
-
-class EpilepsiLog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.String(255), nullable=False)
-    time = db.Column(db.String(255), nullable=False)
-    trigger = db.Column(db.String(255), nullable=False)
-    notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-
-class SuratOtomatis(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    npm = db.Column(db.String(255), nullable=False)
-    jenis_surat = db.Column(db.String(255), nullable=False)
-    keterangan = db.Column(db.Text, nullable=False)
-    status = db.Column(db.String(50), default='Menunggu Acc')
-    tanggal = db.Column(db.String(255), default=lambda: str(datetime.date.today()))
-    qr_code = db.Column(db.String(255))
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class PendaftaranPMB(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    nama = db.Column(db.String(255), nullable=False)
-    foto_ijazah = db.Column(db.String(255))
-    foto_ktp = db.Column(db.String(255))
-    bukti_transfer = db.Column(db.String(255))
-    status = db.Column(db.String(50), default='Pending')
-    npm_generated = db.Column(db.String(255))
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class TagihanKuliah(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    npm = db.Column(db.String(255), nullable=False)
-    jenis_tagihan = db.Column(db.String(255), nullable=False)
-    jumlah = db.Column(db.Integer, nullable=False)
-    bukti_transfer = db.Column(db.String(255))
-    status = db.Column(db.String(50), default='Belum Lunas')
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class JadwalKuliah(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    hari = db.Column(db.String(50), nullable=False)
-    jam = db.Column(db.String(50), nullable=False)
-    mata_kuliah = db.Column(db.String(255), nullable=False)
-    dosen = db.Column(db.String(255), nullable=False)
-    ruangan = db.Column(db.String(50), nullable=False)
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(255), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(50), nullable=False)
-    nama = db.Column(db.String(255))
-    status_akademik = db.Column(db.String(50), default='Aktif')
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class LaciArsip(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    npm = db.Column(db.String(255), nullable=False)
-    nama_dokumen = db.Column(db.String(255), nullable=False)
-    file_path = db.Column(db.String(255), nullable=False)
-    ukuran = db.Column(db.String(50))
-    tanggal = db.Column(db.String(255), default=lambda: str(datetime.date.today()))
-
-class AppSettings(db.Model):
-    key = db.Column(db.String(255), primary_key=True)
-    value = db.Column(db.Text)
-
-class KRSMahasiswa(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    npm = db.Column(db.String(255), nullable=False)
-    mata_kuliah = db.Column(db.String(255), nullable=False)
-    dosen = db.Column(db.String(255), nullable=False)
-    sks = db.Column(db.Integer, default=3)
-    status = db.Column(db.String(50), default='Menunggu Acc Dosen')
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class NilaiMahasiswa(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    npm = db.Column(db.String(255), nullable=False)
-    mata_kuliah = db.Column(db.String(255), nullable=False)
-    sks = db.Column(db.Integer, nullable=False)
-    nilai_huruf = db.Column(db.String(5), nullable=False)
-    semester = db.Column(db.String(50), nullable=False)
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class KehadiranKelas(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    jadwal_id = db.Column(db.Integer, nullable=False)
-    npm = db.Column(db.String(255), nullable=False)
-    tanggal = db.Column(db.String(255), nullable=False)
-    status = db.Column(db.String(50), default='Hadir')
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class JurnalMengajar(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    jadwal_id = db.Column(db.Integer, nullable=False)
-    tanggal = db.Column(db.String(255), nullable=False)
-    materi = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class StatusNilai(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    jadwal_id = db.Column(db.Integer, nullable=False)
-    is_published = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-class TracerStudy(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    nama_lengkap = db.Column(db.String(255), nullable=False)
-    npm = db.Column(db.String(255), nullable=False)
-    tahun_lulus = db.Column(db.String(10), nullable=False)
-    program_studi = db.Column(db.String(255), nullable=False)
-    status_pekerjaan = db.Column(db.String(255), nullable=False)
-    nama_perusahaan = db.Column(db.String(255))
-    jabatan = db.Column(db.String(255))
-    rentang_gaji = db.Column(db.String(255))
-    kesesuaian = db.Column(db.String(255))
-    waktu_tunggu = db.Column(db.String(255))
-    saran = db.Column(db.Text)
-    kontak = db.Column(db.String(255))
-    status = db.Column(db.String(50), default='Menunggu Verifikasi')
-    created_at = db.Column(db.DateTime, server_default=func.now())
-
-def get_settings():
-    try:
-        settings = {item.key: item.value for item in AppSettings.query.all()}
-    except:
-        settings = {}
-    return settings
-
-class PrayTimes:
-    def __init__(self, method="MWL"):
-        self.method = method
-        self.methods = {
-            "MWL": {"fajr": 18, "isha": 17},
-            "ISNA": {"fajr": 15, "isha": 15},
-            "Egypt": {"fajr": 19.5, "isha": 17.5},
-            "Makkah": {"fajr": 18.5, "isha": 90},  # minutes
-            "Karachi": {"fajr": 18, "isha": 18},
-            "Tehran": {"fajr": 17.7, "isha": 14, "maghrib": 4.5, "midnight": "Jafari"},
-            "Jafari": {"fajr": 16, "isha": 14, "maghrib": 4, "midnight": "Jafari"}
-        }
-        self.params = self.methods[method]
-
-    def set_calc_method(self, method):
-        if method in self.methods:
-            self.params = self.methods[method]
-
-    def get_prayer_times(self, year, month, day, latitude, longitude, timezone):
-        return self.compute_times(year, month, day, latitude, longitude, timezone)
-
-    def compute_times(self, year, month, day, lat, lng, tzone):
-        d = self.days_since_j2000(year, month, day) + 0.5 - tzone / 24.0
-        eqt = self.equation_of_time(d)
-        decl = self.sun_declination(d)
-        noon = self.compute_mid_day(d - 0.5 + tzone / 24.0)
-
-        times = {
-            "Fajr": self.compute_time(180 - self.params["fajr"], decl, lat, noon),
-            "Sunrise": self.compute_time(180 - 0.833, decl, lat, noon),
-            "Dhuhr": noon,
-            "Asr": self.compute_asr(1, decl, lat, noon), # Shafi'i
-            "Sunset": self.compute_time(0.833, decl, lat, noon),
-            "Maghrib": self.compute_time(0.833, decl, lat, noon) if "maghrib" not in self.params else self.compute_time(self.params["maghrib"], decl, lat, noon),
-            "Isha": self.compute_time(self.params["isha"], decl, lat, noon)
-        }
-        
-        # Adjust for timezone
-        final_times = {}
-        for name, t in times.items():
-            final_times[name] = self.adjust_time(t, tzone)
-            
-        return final_times
-
-    def days_since_j2000(self, year, month, day):
-        if month <= 2:
-            year -= 1
-            month += 12
-        a = math.floor(year / 100)
-        b = 2 - a + math.floor(a / 4)
-        return math.floor(365.25 * (year + 4716)) + math.floor(30.6001 * (month + 1)) + day + b - 1524.5
-
-    def equation_of_time(self, d):
-        g = self.fix_angle(357.529 + 0.98560028 * d)
-        q = self.fix_angle(280.459 + 0.98564736 * d)
-        l = self.fix_angle(q + 1.915 * math.sin(math.radians(g)) + 0.020 * math.sin(math.radians(2 * g)))
-        e = 23.439 - 0.00000036 * d
-        ra = math.degrees(math.atan2(math.cos(math.radians(e)) * math.sin(math.radians(l)), math.cos(math.radians(l)))) / 15.0
-        ra = self.fix_hour(ra)
-        return q / 15.0 - ra
-
-    def sun_declination(self, d):
-        g = self.fix_angle(357.529 + 0.98560028 * d)
-        q = self.fix_angle(280.459 + 0.98564736 * d)
-        l = self.fix_angle(q + 1.915 * math.sin(math.radians(g)) + 0.020 * math.sin(math.radians(2 * g)))
-        e = 23.439 - 0.00000036 * d
-        return math.degrees(math.asin(math.sin(math.radians(e)) * math.sin(math.radians(l))))
-
-    def compute_mid_day(self, t):
-        t2 = self.equation_of_time(t)
-        return 12 - t2
-
-    def compute_time(self, g, decl, lat, noon):
-        try:
-            d = math.degrees(math.acos((math.sin(math.radians(g)) - math.sin(math.radians(decl)) * math.sin(math.radians(lat))) / (math.cos(math.radians(decl)) * math.cos(math.radians(lat)))))
-        except:
-            return 0 # Handle polar regions if needed
-        return noon - d / 15.0 if g > 90 else noon + d / 15.0 
-
-    def compute_asr(self, step, decl, lat, noon):
-        try:
-            d = math.degrees(math.acos((math.sin(math.atan(step + math.tan(math.radians(abs(lat - decl)))))-math.sin(math.radians(decl))*math.sin(math.radians(lat)))/(math.cos(math.radians(decl))*math.cos(math.radians(lat)))))
-        except:
-             return 0
-        return noon + d / 15.0
-
-    def fix_angle(self, a):
-        return a - 360.0 * math.floor(a / 360.0)
-
-    def fix_hour(self, a):
-        return a - 24.0 * math.floor(a / 24.0)
-
-    def adjust_time(self, t, tzone):
-        t += tzone - 8 # Base is calculated relative to GMT, we just add timezone
-        t = self.fix_hour(t)
-        hours = int(t)
-        minutes = int((t - hours) * 60)
-        return f"{hours:02d}:{minutes:02d}"
-
-# --- ISLAMIC CALCULATOR LOGIC ---
-
-def gregorian_to_hijri(date_obj):
-    # Offset -1 day -> BRUTE FORCE -3 DAYS (Updated for 2026 adjustment)
-    date_obj = date_obj - datetime.timedelta(days=3)
-    
-    # Kuwaiti Algorithm
-    day = date_obj.day
-    month = date_obj.month
-    year = date_obj.year
-
-    m = month
-    y = year
-    if m < 3:
-        y -= 1
-        m += 12
-
-    a = math.floor(y / 100.)
-    b = 2 - a + math.floor(a / 4.)
-    if y < 1583: b = 0
-    if y == 1582:
-        if m > 10: b = -10
-        if m == 10:
-            b = 0
-            if day > 4: b = -10
-
-    jd = math.floor(365.25 * (y + 4716)) + math.floor(30.6001 * (m + 1)) + day + b - 1524.5
-
-    iYear = 10631. / 30.
-    epochAstro = 1948084
-    shift1 = 8.01 / 60.
-
-    z = jd - epochAstro
-    cyc = math.floor(z / 10631.)
-    z = z - 10631 * cyc
-    j = math.floor((z - shift1) / iYear)
-    iy = 30 * cyc + j
-    z = z - math.floor(j * iYear + shift1)
-    im = math.floor((z + 28.5001) / 29.5)
-    if im == 13: im = 12
-    id = z - math.floor(29.5001 * im - 29)
-
-    months = ["Muharram", "Safar", "Rabiul Awal", "Rabiul Akhir", "Jumadil Awal", "Jumadil Akhir",
-              "Rajab", "Syaban", "Ramadan", "Syawal", "Zulqaidah", "Zulhijjah"]
-
-    return f"{int(id)} {months[int(im)-1]} {int(iy)} H"
-
-def calc_waris(harta, sons, daughters):
-    if sons == 0 and daughters == 0:
-        return {"error": "Tidak ada ahli waris anak"}
-    
-    total_points = (sons * 2) + (daughters * 1)
-    if total_points == 0: return {"error": "Total poin 0"}
-    
-    one_part = harta / total_points
-    son_share = one_part * 2
-    daughter_share = one_part * 1
-    
-    return {
-        "harta": harta,
-        "points": total_points,
-        "part_value": one_part,
-        "son_share": son_share,
-        "daughter_share": daughter_share
-    }
-
-def calc_zakat(gold_price, savings, gold_grams):
-    nisab = 85 * gold_price
-    total_wealth = savings + (gold_grams * gold_price)
-    wajib = total_wealth >= nisab
-    zakat = total_wealth * 0.025 if wajib else 0
-    return {
-        "nisab": nisab,
-        "total_wealth": total_wealth,
-        "wajib": wajib,
-        "zakat": zakat
-    }
-
-def calc_tahajjud(maghrib, subuh):
-    # Format HH:MM
-    try:
-        m_h, m_m = map(int, maghrib.split(':'))
-        s_h, s_m = map(int, subuh.split(':'))
-        
-        maghrib_dt = datetime.datetime(2023, 1, 1, m_h, m_m)
-        subuh_dt = datetime.datetime(2023, 1, 2, s_h, s_m) # Next day
-        
-        if maghrib_dt > subuh_dt:
-             subuh_dt += datetime.timedelta(days=1)
-             
-        diff = subuh_dt - maghrib_dt
-        third_duration = diff / 3
-        
-        last_third_start = subuh_dt - third_duration
-        
-        # Calculate total hours and minutes for explanation
-        total_seconds = diff.total_seconds()
-        total_hours = int(total_seconds // 3600)
-        total_minutes = int((total_seconds % 3600) // 60)
-        
-        return {
-            "time": last_third_start.strftime("%H:%M"),
-            "total_hours": total_hours,
-            "total_minutes": total_minutes
-        }
-    except:
-        return {"error": "Invalid Time"}
-
-def calc_khatam(target_times, days, freq_per_day):
-    try:
-        total_pages = 604 * target_times
-        total_sessions = days * freq_per_day
-        if total_sessions == 0:
-            return {
-                "pages_per_session": 0,
-                "total_pages": total_pages,
-                "total_sessions": 0
-            }
-        pages_per_session = math.ceil(total_pages / total_sessions)
-        return {
-            "pages_per_session": pages_per_session,
-            "total_pages": total_pages,
-            "total_sessions": total_sessions
-        }
-    except:
-        return {"error": "Error"}
-
-def calc_fidyah(days, category):
-    qadha = days
-    fidyah_rice = days * 0.6
-    fidyah_money = days * 15000
-    
-    return {
-        "qadha_days": qadha,
-        "fidyah_rice": fidyah_rice,
-        "fidyah_money": fidyah_money
-    }
-
-# Samarinda Coordinates
-LAT = -0.502106
-LNG = 117.153709
-TZ = 8 # WITA
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def is_safe_file(file_storage):
-    """Deep inspection of file mime types and signatures."""
-    # Skip strict signature check for non-image documents where filetype might return None
-    ext = file_storage.filename.rsplit('.', 1)[1].lower() if '.' in file_storage.filename else ''
-    if ext in {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'txt', 'csv'}:
-        return True
-        
-    kind = filetype.guess(file_storage.read(2048))
-    file_storage.seek(0) # Reset pointer
-    if kind is None:
-        return False
-    return kind.extension in ALLOWED_EXTENSIONS
-
-def compress_image(file_storage, upload_folder):
-    os.makedirs(upload_folder, exist_ok=True)
-    if not is_safe_file(file_storage):
-        raise ValueError("Invalid file content signature detected.")
-    filename = secure_filename(file_storage.filename)
-    
-    # Skip compression for video or documents
-    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
-    if ext in {'mp4', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'txt', 'csv'}:
-        save_path = os.path.join(upload_folder, filename)
-        file_storage.save(save_path)
-        return filename
-        
-    # Process Image
-    try:
-        img = Image.open(file_storage)
-        
-        # Convert to RGB (standardize for JPG)
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-            
-        # Resize max 800x800
-        img.thumbnail((800, 800), Image.Resampling.LANCZOS)
-        
-        # Force JPG extension
-        base = os.path.splitext(filename)[0]
-        new_filename = base + ".jpg"
-        save_path = os.path.join(upload_folder, new_filename)
-        
-        # Compress loop
-        quality = 90
-        while quality >= 10:
-            img_byte_arr = io.BytesIO()
-            img.save(img_byte_arr, format='JPEG', quality=quality, optimize=True)
-            size_kb = img_byte_arr.tell() / 1024
-            if size_kb < 500:
-                break
-            quality -= 5
-        
-        # Save final
-        with open(save_path, 'wb') as f:
-            f.write(img_byte_arr.getbuffer())
-            
-        return new_filename
-        
-    except Exception as e:
-        print(f"Compression error: {e}")
-        # Fallback
-        save_path = os.path.join(upload_folder, filename)
-        file_storage.seek(0)
-        file_storage.save(save_path)
-        return filename
-
-# --- RAMADHAN HELPER FUNCTIONS ---
-
-# --- RAMADHAN HELPER FUNCTIONS ---
-
-def seed_ramadhan_schedule():
-    if TarawihSchedule.query.count() == 0:
-        schedule_data = [
-            (1, "Ustadz M. Faisal Bulqiah", "Ustadz M. Faisal Bulqiah"),
-            (2, "Ustadz H. Bunyamin LC MA", "Ustadz H. Bunyamin LC MA"),
-            (3, "Ustadz H. Sutanil fadlan M. Al Hafidz", "Ustadz H. Sutanil fadlan M. Al Hafidz"),
-            (4, "Ustadz Fathurrahman Al Hafidz", "Ustadz Fathurrahman Al Hafidz"),
-            (5, "Ustadz H. Abdul Syakur LC MA", "Ustadz H. Abdul Syakur LC MA"),
-            (6, "Ustadz Ibnu Mulkan M.Pd", "Ustadz Ibnu Mulkan M.Pd"),
-            (7, "KH Muhammad Mansur", "KH Muhammad Mansur"),
-            (8, "Ustadz Mahyudin S. Ag M.Pd", "Ustadz Mahyudin S. Ag M.Pd"),
-            (9, "Ustadz Dr Ahmad Nur Zahrani M.Ag", "Ustadz Dr Ahmad Nur Zahrani M.Ag"),
-            (10, "Ustadz Wahyu Utami L.C M. Pd", "Ustadz Wahyu Utami L.C M. Pd"),
-            (11, "Ustadz Prof Dr Abdul Majid MA", "Ustadz Prof Dr Abdul Majid MA"),
-            (12, "KH Azhar Qowiem M. Pd", "KH Azhar Qowiem M. Pd"),
-            (13, "Ustadz Fathur Rojak", "Ustadz Fathur Rojak"),
-            (14, "Ustadz Amirullah M.Ud", "Ustadz Amirullah M.Ud"),
-            (15, "Ustadz H. Dr. Akmad Haries M.Si", "Ustadz H. Dr. Akmad Haries M.Si"),
-            (16, "Ustadz Ahmad Nur Jamil", "Ustadz Ahmad Nur Jamil"),
-            (17, "Ustadz H. Susanto L.C", "Ustadz H. Susanto L.C"),
-            (18, "Ustadz Ahmad Husairi S. Pd", "Ustadz Ahmad Husairi S. Pd"),
-            (19, "Ustadz M. Faisal Bulqiah", "Ustadz M. Faisal Bulqiah"),
-            (20, "Ustadz Rivky Cahaya Hakiki", "Ustadz Rivky Cahaya Hakiki"),
-            (21, "Ustadz Imam Syafii", "Ustadz Imam Syafii"),
-            (22, "Ustadz Ahmad Subhi", "Ustadz Ahmad Subhi"),
-            (23, "Ustadz Ahmad Ihsan S.Pd", "Ustadz Ahmad Ihsan S.Pd"),
-            (24, "Ustadz Syahrial M.Ud", "Ustadz Syahrial M.Ud"),
-            (25, "Ustadz Rivky Cahaya Hakiki", "Ustadz Rivky Cahaya Hakiki"),
-            (26, "Ustadz H. Maraio L.C. M.Pd.I", "Ustadz H. Maraio L.C. M.Pd.I"),
-            (27, "Ustadz H. Darmaizar LC M.Ag", "Ustadz H. Darmaizar LC M.Ag"),
-            (28, "Ustadz Ahmad Jailani", "Ustadz Ahmad Jailani"),
-            (29, "Ustadz Robi Ar-Rasyid", "Ustadz Robi Ar-Rasyid"),
-            (30, "Ustadz Fathur Rojak", "Ustadz Fathur Rojak"),
-        ]
-
-        for night, imam, penceramah in schedule_data:
-            entry = TarawihSchedule(
-                night_index=night, 
-                date=f"Ramadhan {night}", 
-                imam=imam, 
-                penceramah=penceramah, 
-                judul="-"
-            )
-            db.session.add(entry)
-        db.session.commit()
-
-RAW_TAKJIL_DATA = """
-### **DATA JADWAL TAKJIL MASJID AL HIJRAH (RAMADHAN 2026)** 
-
-**Hari 1 (18-Feb-26)**  
-1. H.Muhtadi (RT.49), 2. La Juadi (RT.50), 3. Hariyadi (RT.51), 4. H. Hadransyah (RT.52), 5. Mukayan (RT.52), 6. Ibu Abdulah (RT.52), 7. M. Latif (RT.53), 8. Mahfud (RT.57), 9. Eko Pranoto (RT.53), 10. Hj. Elnawati (RT.49), 11. Maryono (RT.49), 12. Rindayanto (RT.50), 13. Yoyo P. (RT.55), 14. Sabran (RT.55) 
- 
-**Hari 2 (19-Feb-26)** 
-1. H. Haryoto (RT.49), 2. Ahmad Zaidi (RT.51), 3. Ovan Iskandar (RT.51), 4. H. Kandi H. (RT.52), 5. La Nuju (RT.53), 6. Hj. Rusmiati (RT.56), 7. H. Parto Sirun (RT.56), 8. H. Asnan Alus (RT.57), 9. H. Herman (RT.49), 10. Ibu sabaruddin (RT.53), 11. Ibu sugi / muntoha (RT.52), 12. Subandi (RT.55), 13. Sofyansyah (RT.50), 14. Asmudin (RT.56) 
- 
-**Hari 3 (20-Feb-26)** 
-1. H. Harsuji (RT.49), 2. Andre/ Landito (RT.51), 3. Najiman (RT.51), 4. Syamsu (RT.52), 5. Pak Waras (RT.55), 6. Ulil Azmi (RT.56), 7. La sidun (RT.51), 8. Hariyanto (RT.57), 9. Ibu asan basri (bengkel asa) (RT.57), 10. Bimo Sunaryo (RT.53), 11. Syaiful Bakri (RT.55), 12. La Bano (RT.53), 13. Ibu ideham dekot (RT.57), 14. Jufri (RT.52), 15. Rohmad Muslim (RT.51), 16. Boby (RT.51) 
- 
-**Hari 4 (21-Feb-26)** 
-1. H. Mardjuni (RT.49), 2. La Bondu (RT.51), 3. Misdan (RT.51), 4. Adi Wibowo (RT.52), 5. Suyanto (RT.55), 6. H. Syamsudin Japri (RT.56), 7. Hj. M. Ishak (RT.49), 8. Suryadi (RT.52), 9. Andri (RT.57), 10. Budi Hariana (RT.55), 11. Mukhlis (RT.56), 12. Mama Daus (RT.51), 13. condro Lukito (RT.53), 14. Haludin (RT.51), 15. Aidil (RT.56), 16. Kahar (RT.57) 
- 
-**Hari 5 (22-Feb-26)** 
-1. La Bila (RT.50), 2. Darmaji /Erna (RT.50), 3. Rusmianti (RT.51), 4. Rony Pasla (RT.52), 5. Sumoharjo (RT.53), 6. Ujianto (RT.53), 7. Jamaludin Eka (RT.56), 8. Umar Uji (RT.50), 9. Supriyansyah (RT.50), 10. H. F. Suwarno (RT.52), 11. Dr. Dedy S. (RT.49), 12. La Asri (RT.50), 13. Pak Asmin (RT.55), 14. Paiman (RT.56), 15. kastum (RT.52) 
- 
-**Hari 6 (23-Feb-26)** 
-1. Ir. Ari Mulyadi (RT.49), 2. Sudalil (RT.52), 3. Mistono (RT.51), 4. Kasim (RT.52), 5. Dr. Randy (RT.52), 6. Yayat (RT.53), 7. Sarno (RT.55), 8. M. Taufik (RT.50), 9. Hj. Eva Paqun (RT.57), 10. La Ludu (RT.50), 11. La Komu (RT.52), 12. Sapto (RT.51), 13. Asep (RT.53), 14. Jufri (RT.52), 15. Drs. safii (RT.55) 
- 
-**Hari 7 (24-Feb-26)** 
-1. Ir. Haryoto (RT.49), 2. Sukadi (RT.50), 3. Samingan (RT.51), 4. Mianto (RT.51), 5. Sakti (RT.57), 6. Sabar (RT.53), 7. Gunaji (RT.49), 8. La Jumadi (RT.56), 9. Rusli (RT.57), 10. Jamrah (RT.57), 11. H. Marsaid (RT.50), 12. La Jamulia (RT.56), 13. Irwanto (RT.55), 14. Rudiman /idim (RT.53), 15. Sudihardani (RT.57) 
- 
-**Hari 8 (25-Feb-26)** 
-1. Latif (RT.56), 2. Mangin (RT.50), 3. La Jemo (RT.55), 4. Sanyoto (RT.52), 5. H. Andreas (RT.53), 6. Ahmad Adha (RT.53), 7. H. Katmidi (RT.49), 8. Agus S. (RT.56), 9. Syarifudin (RT.53), 10. sardi (RT.52), 11. Babang Legiono (RT.52), 12. Ibu sabarudin (RT.53), 13. Sri budi (RT.57), 14. La beo (RT.51), 15. La Saani (RT.51) 
- 
-**Hari 9 (26-Feb-26)** 
-1. Sumardiansyah (RT.53), 2. Nanang / Ny. Kastun (RT.56), 3. Adi Setiawan (RT.50), 4. Ibu Erlena (RT.53), 5. La Juru (RT.53), 6. Kaslim (RT.55), 7. Wr. Magetan (RT.57), 8. H. Sugiyono (RT.57), 9. Taufik Hidayat (RT.50), 10. Supriyadi (Pak Yono) (RT.51), 11. Edy Sulistyo (RT.53), 12. Edy rusmini (RT.52), 13. H. Hamsanudin P. (RT.52), 14. La Besa (RT.53) 
- 
-**Hari 10 (27-Feb-26)** 
-1. Ibu Heru Santoso (Alm) (RT.49), 2. Syahdan Hadib (RT.57), 3. H.Umar/La kenje (RT.51), 4. Irfan Iskandar (RT.55), 5. Margi R. (RT.52), 6. Zainudin (bladuk) (RT.53), 7. Siman (RT.55), 8. La Bango (RT.55), 9. Kris Kurniawan (RT.52), 10. Safrani (RT.50), 11. Edi ( Bapak Mia ) (RT.51), 12. Sugeng PLN (RT.51), 13. H. Lanaya (RT.50), 14. Rukayat (RT.51) 
- 
-**Hari 11 (28-Feb-26)** 
-1. Sirun /Ipah (RT.49), 2. Tomi Libra (RT.50), 3. Untung Suparno (RT.52), 4. Wijaya (RT.53), 5. Suriansyah (RT.53), 6. Ibu asan basri (bengkel asa) (RT.57), 7. La Edi (RT.55), 8. La Mandiri (RT.55), 9. M. Latif (RT.53), 10. Rifai (RT.53), 11. paino (RT.50), 12. M. Rusli (RT.50), 13. La Mihadi (RT.51), 14. Tajuddin Djuna/ Jainal (RT.55), 15. Kahar (RT.57) 
- 
-**Hari 12 (1-Mar-26)** 
-1. H. Syaifudin (RT.49), 2. Asrani Karim (RT.49), 3. Slamet Susanto (RT.50), 4. Erwin Donanto (RT.51), 5. Lisna Wati (RT.53), 6. Lela (RT.53), 7. Sunarto (RT.55), 8. Denok (RT.51), 9. Loso (RT.53), 10. Tony Bowo (RT.53), 11. H. Zainudin (RT.57), 12. La Bano (RT.53), 13. Agus /Dwiyanto (RT.51), 14. Adi Setiawan (RT.50), 15. La Jayani (RT.50) 
- 
-**Hari 13 (2-Mar-26)** 
-1. Sutrisno (RT.49), 2. La Haludin (RT.55), 3. Samiin (RT.50), 4. Yoyok Ardiansyah (RT.52), 5. Ribut Setiawan (RT.57), 6. Elven Noor (RT.53), 7. Ny. Sidik (RT.55), 8. Sanjaya (RT.56), 9. Sugeng Anas (RT.57), 10. H. Firdaus (RT.53), 11. Sugeng Chairudin (RT.53), 12. Zainuri (RT.51), 13. Johan (RT.51), 14. Syamjudin (RT.55), 15. La Yanto (RT.51) 
- 
-**Hari 14 (3-Mar-26)** 
-1. Sigit (RT.49), 2. Eka/Jeliteng Prasojo (RT.50), 3. La Japo (RT.51), 4. Jarot (RT.52), 5. Agustinawati (RT.53), 6. Mulyono Edy (RT.53), 7. Mat Rais (RT.55), 8. Legianto (RT.56), 9. La Jahali (RT.56), 10. La Mili Tale (RT.55), 11. Mulyadi (wa Pain) (RT.56), 12. La Amirudin (RT.55), 13. Wr. Magetan (RT.57), 14. sujai (RT.55), 15. Pak Asmin (RT.55) 
- 
-**Hari 15 (4-Mar-26)** 
-1. La Suri Hamsa (RT.51), 2. Prianto (RT.49), 3. Misrun (RT.50), 4. Usman / Meti (RT.51), 5. H. Noor Hamdi (RT.52), 6. La Rumpu (RT.53), 7. Mas'ud Effendi (RT.53), 8. Subandi (RT.55), 9. La Anjo (RT.56), 10. H. Sofyan Noor (RT.57), 11. Lampero (RT.50), 12. Bambang (RT.50), 13. Siska (RT.51), 14. supriono (RT.55), 15. Boby (RT.51) 
- 
-**Hari 16 (5-Mar-26)** 
-1. H. Muhtadi (RT.49), 2. La Juadi (RT.50), 3. H. Hadransyah (RT.52), 4. Mukayan (RT.52), 5. Ibu Abdulah (RT.52), 6. M. Ali (RT.56), 7. Mahfud (RT.57), 8. Eko Pranoto (RT.53), 9. Hj. Elnawati (RT.49), 10. Maryono (RT.49), 11. Yoyo P. (RT.55), 12. Rindayanto (RT.50), 13. Syahran (RT.56), 14. Rohmad Muslim (RT.51), 15. La sidun (RT.51) 
- 
-**Hari 17 (6-Mar-26)** 
-1. H. Haryoto (RT.49), 2. Ahmad Zaidi (RT.51), 3. Ovan Iskandar (RT.51), 4. H. Kandi H. (RT.52), 5. La suju (RT.53), 6. Hj. Rusmiati (RT.56), 7. H. Parto Sirun (RT.56), 8. H. Asnan Alus (RT.57), 9. H. Herman (RT.49), 10. sukadi (RT.50), 11. Ibu sugi / Muntoha (RT.52), 12. Tomi Libra (RT.50), 13. Deni Wibawa (RT.50), 14. Asmudin (RT.56), 15. Sabran (RT.55) 
- 
-**Hari 18 (7-Mar-26)** 
-1. H. Harsuji (RT.49), 2. Andre/Landito (RT.51), 3. Najiman (RT.51), 4. Syamsu (RT.52), 5. Pak Waras (RT.55), 6. Ulil Azmi (RT.56), 7. La Saani (RT.51), 8. Hariyanto (RT.57), 9. Rusli (RT.57), 10. Bimo Sunaryo (RT.53), 11. Syaiful Bakri (RT.55), 12. H. Marsaid (RT.50), 13. ibu Ideham dekot (RT.57), 14. Amiruddin (RT.56), 15. Pina/Miadi (RT.53) 
- 
-**Hari 19 (8-Mar-26)** 
-1. H. Mardjuni (RT.49), 2. H. Lanaya (RT.50), 3. Misdan (RT.51), 4. Adi Wibowo (RT.52), 5. Suyanto (RT.55), 6. H. Syamsudin Japri (RT.56), 7. H. M. Ishak (RT.49), 8. Suryadi (RT.52), 9. Wa Pipa (RT.55), 10. Budi Hariana (RT.55), 11. Mukhlis (RT.56), 12. Mama Daus (RT.51), 13. condro Lukito (RT.53), 14. Aidil (RT.56), 15. Sudihardani (RT.57) 
- 
-**Hari 20 (9-Mar-26)** 
-1. Dr. Indra (RT.49), 2. Darmaji/Erna (RT.50), 3. Rusmianti (RT.51), 4. Rony Pasla (RT.52), 5. La Mili Ruca (RT.53), 6. Ujianto (RT.53), 7. Jamaludin /eka (RT.56), 8. Drs. Safii (RT.55), 9. Supriyansyah (RT.50), 10. H. F. Suwarno (RT.52), 11. Dr. Dedy S. (RT.49), 12. La Asri (RT.50), 13. Porimin (RT.55), 14. Paiman (RT.56), 15. Hj. Eva Paqun (RT.57) 
- 
-**Hari 21 (10-Mar-26)** 
-1. Ir. Ari Mulyadi (RT.49), 2. Sudalil (RT.52), 3. Mistono (RT.51), 4. Kasim (RT.52), 5. Dr. Randy (RT.52), 6. Yayat (RT.53), 7. Sarno (RT.55), 8. La Rilu (RT.55), 9. La Yare (RT.55), 10. La Bila (RT.50), 11. La Komu (RT.52), 12. Sapto (RT.51), 13. Asep (RT.53), 14. Haludin (RT.51), 15. Jupi (RT.52) 
- 
-**Hari 22 (11-Mar-26)** 
-1. Ir. Haryoto (RT.49), 2. Kris Kurniawan (RT.52), 3. Samingan (RT.51), 4. Agustinawati (RT.53), 5. Sakti (RT.57), 6. Sabar (RT.53), 7. Rudin Lapandewa (RT.53), 8. La Jumadi (RT.56), 9. Mianto (RT.51), 10. Jamrah (RT.57), 11. Hariyadi (RT.51), 12. La Jamulia (RT.56), 13. Irwanto (RT.55), 14. Rudiman /idim (RT.53), 15. Mulyadi (wa Pain) (RT.56) 
- 
-**Hari 23 (12-Mar-26)** 
-1. Latif (RT.56), 2. Mangin (RT.50), 3. La Jemo (RT.55), 4. Sanyoto (RT.52), 5. H. Andreas (RT.53), 6. Ahmad Adha (RT.53), 7. La beo (RT.51), 8. Agus S. (RT.56), 9. Syarifudin (RT.53), 10. Sardi (RT.52), 11. Bambang Legiono (RT.52), 12. Slamet Susanto (RT.50), 13. Sri budi (RT.57), 14. Sugeng PLN (RT.51), 15. Kastum (RT.52) 
- 
-**Hari 24 (13-Mar-26)** 
-1. La Piy (RT.53), 2. Nanang / Ny. Kastun (RT.56), 3. La Sani (RT.55), 4. Ibu Erlena (RT.53), 5. Sedek Buton (RT.53), 6. Syahran (RT.56), 7. H. Sugiyono (RT.57), 8. La pudin (RT.50), 9. Supriyadi (Pak Yono) (RT.51), 10. Syarif Rahman (RT.52), 11. Edy Sulistyo (RT.53), 12. Edy rusmini (RT.52), 13. H. Hamsanudin P. (RT.52), 14. Joko (kunci) (RT.56), 15. Suprianto (RT.55) 
- 
-**Hari 25 (14-Mar-26)** 
-1. Ibu Heru Santoso (Alm) (RT.49), 2. H. Syahdan Hadib (RT.57), 3. H.Umar/La kenje (RT.51), 4. Irfan Iskandar (RT.55), 5. Margi R. (RT.52), 6. Zainudin (bladuk) (RT.53), 7. Siman (RT.55), 8. La Wardi (RT.55), 9. Yando (RT.52), 10. Safrani (RT.50), 11. Edi (bapak Mia) (RT.51), 12. Sulistio (RT.51), 13. La Ami Arni (RT.55), 14. Rukayat (RT.51), 15. paino (RT.50) 
- 
-**Hari 26 (15-Mar-26)** 
-1. Sirun /ipah (RT.49), 2. Umar Uji (RT.50), 3. Untung Suparno (RT.52), 4. Roby Hermawan (RT.53), 5. Suriansyah (RT.53), 6. Syamjudin (RT.55), 7. La Edi (RT.55), 8. Wa Pipa (RT.55), 9. La Bondu (RT.51), 10. Rifai (RT.53), 11. M. Rusli (RT.50), 12. La Mihadi (RT.51), 13. Tajuddin Djuna/Jainal (RT.55), 14. suprio (RT.55), 15. Tony Bowo (RT.53) 
- 
-**Hari 27 (16-Mar-26)** 
-1. H. Syaifudin (RT.49), 2. Asrani Karim (RT.49), 3. Sofyansyah (RT.50), 4. Erwin Donanto (RT.51), 5. Lisna Wati (RT.53), 6. Lela (RT.53), 7. Sunarto (RT.55), 8. Denok (RT.51), 9. Loso (RT.53), 10. Pak Bibit (RT.50), 11. H. Zainudin (RT.57), 12. Deni Wibawa (RT.50), 13. Agus dwiyanto (RT.51), 14. Yuliansah (RT.50), 15. Gunawan (RT.50) 
- 
-**Hari 28 (17-Mar-26)** 
-1. Sutrisno (RT.49), 2. La Haludin (RT.55), 3. Johan (RT.51), 4. Yoyok Ardiansyah (RT.52), 5. Ribut Setiawan (RT.57), 6. La Besa (RT.53), 7. Ny. Sidik (RT.55), 8. Sanjaya (RT.56), 9. Sugeng Anas (RT.57), 10. H. Firdaus (RT.53), 11. Sugeng Chairudin (RT.53), 12. Zainuri (RT.51), 13. La Bango (RT.55), 14. La Yanto (RT.51), 15. Joko (kunci) (RT.56) 
- 
-**Hari 29 (18-Mar-26)** 
-1. Sigit (RT.49), 2. Eka/ Jeliteng (RT.50), 3. La Japo (RT.51), 4. Jarot (RT.52), 5. La Jayani (RT.50), 6. Mulyono Edy (RT.53), 7. Mat Rais (RT.55), 8. Legianto (RT.56), 9. La Jahali (RT.56), 10. H. Sofyan Noor (RT.57), 11. Aril (RT.51), 12. La Anjo (RT.56), 13. Jupi (RT.52), 14. sujai (RT.55), 15. Yando (RT.52) 
- 
-**Hari 30 (19-Mar-26)** 
-1. La Suri Hamsa (RT.51), 2. Ibu Edy Heflin (RT.49), 3. Misrun (RT.50), 4. Usman / Meti (RT.51), 5. H. Noor Hamdi (RT.52), 6. La Rumpu (RT.53), 7. Mas'ud Effendi (RT.53), 8. suprio (RT.55), 9. Mulyono (RT.56), 10. Andri (RT.57), 11. Lampero (RT.50), 12. Bambang (RT.50), 13. Siska (RT.51), 14. Wijaya (RT.53), 15. La pudin (RT.50)
-"""
-
-def parse_takjil_data():
-    data = []
-    import re
-    
-    current_date = None
-    
-    # Split by newlines
-    lines = RAW_TAKJIL_DATA.strip().split('\n')
-    
-    for line in lines:
-        line = line.strip()
-        if not line: continue
-        
-        # Check for Date Header: **Hari 1 (18-Feb-26)**
-        date_match = re.search(r'\((.*?)\)', line)
-        if line.startswith('**Hari') and date_match:
-            current_date = date_match.group(1)
-            continue
-            
-        # Parse items: 1. Name (RT), 2. Name (RT)
-        # We split by comma followed by number and dot: ", \d+\."
-        # Or simpler: split by regex ", (?=\d+\.)"
-        
-        if current_date:
-            items = re.split(r', (?=\d+\.)', line)
-            for item in items:
-                # Format: "1. Name (RT)" or "1. Name"
-                # Remove number prefix
-                item = re.sub(r'^\d+\.\s*', '', item)
-                
-                # Extract RT if exists
-                rt_match = re.search(r'\((.*?)\)$', item)
-                if rt_match:
-                    rt = rt_match.group(1)
-                    name = item.replace(f'({rt})', '').strip()
-                else:
-                    rt = '-'
-                    name = item.strip()
-                    
-                data.append({
-                    'Tanggal': current_date,
-                    'Nama': name,
-                    'Ket.': rt
-                })
-    return data
-
-def get_takjil_data():
-    return parse_takjil_data()
-
-@cache.cached(timeout=86400, key_prefix='imsakiyah_schedule')
-def get_imsakiyah_schedule():
-    schedule = []
-    try:
-        # 1. Panggil API Aladhan untuk Samarinda, Indonesia
-        # 2. Bulan Februari & Maret 2026 (Ramadhan 1447 H) & Method 20 (Kemenag RI)
-        months = [2, 3]
-        all_days = []
-        
-        for m in months:
-            url = f"http://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month={m}&year=2026"
-            with urllib.request.urlopen(url) as response:
-                data = json.loads(response.read().decode())
-                if 'data' in data:
-                    all_days.extend(data['data'])
-            
-        today = datetime.date.today()
-        
-        # 3. Filter Tanggal (19 Feb - 19 Mar 2026)
-        start_date = datetime.date(2026, 2, 19)
-        end_date = datetime.date(2026, 3, 19)
-
-        for day in all_days:
-            # Parse date
-            date_obj = datetime.datetime.strptime(day['date']['gregorian']['date'], "%d-%m-%Y").date()
-            
-            if not (start_date <= date_obj <= end_date):
-                continue
-
-            timings = day['timings']
-            
-            # Format HH:MM (strip seconds/timezone if any)
-            def clean_time(t): return t.split(' ')[0]
-
-            schedule.append({
-                'date_str': date_obj.strftime('%d/%m'),
-                'imsak': clean_time(timings['Imsak']),
-                'fajr': clean_time(timings['Fajr']),
-                'dhuhr': clean_time(timings['Dhuhr']),
-                'asr': clean_time(timings['Asr']),
-                'maghrib': clean_time(timings['Maghrib']),
-                'isha': clean_time(timings['Isha']),
-                'is_today': (date_obj == today)
-            })
-                
-    except Exception as e:
-        print(f"Error fetching Imsakiyah API: {e}")
-        # Fallback empty or local calculation if needed, but user requested API specifically.
-        
-    return schedule
-
-# --- FRONTEND ASSETS & LAYOUT ---
-
-# --- ORM Compatibility Patch (Allow dict-style access in Jinja) ---
-def model_getitem(self, key):
-    return getattr(self, key)
-
-for model in [Finance, Agenda, Booking, Zakat, GalleryDakwah, Suggestion, RamadhanKas, 
-              TarawihSchedule, IrmaSchedule, IrmaMember, IrmaKas, IrmaGallery, 
-              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings, SuratOtomatis, PendaftaranPMB, TagihanKuliah, JadwalKuliah, User, LaciArsip, KRSMahasiswa, NilaiMahasiswa, KehadiranKelas, JurnalMengajar, StatusNilai, TracerStudy]:
-    model.__getitem__ = model_getitem
-
+# ============================================================================
+# ZONA BRANKAS TAMPILAN (UI Vault)
+# ============================================================================
+
+# --- STYLES_HTML ---
 STYLES_HTML = """
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -1009,6 +156,7 @@ STYLES_HTML = """
     </style>
 """
 
+# --- BASE_LAYOUT ---
 BASE_LAYOUT = """
 <!DOCTYPE html>
 <html lang="id">
@@ -1810,6 +958,7 @@ BASE_LAYOUT = """
 </html>
 """
 
+# --- FITUR_MASJID_HTML ---
 FITUR_MASJID_HTML = """
 <style>
     .app-drawer-grid {
@@ -2800,6 +1949,7 @@ FITUR_MASJID_HTML = """
 </script>
 """
 
+# --- HOME_HTML ---
 HOME_HTML = """
 <div class="pt-20 md:pt-32 pb-32 px-5 md:px-8">
     
@@ -5668,1082 +4818,7 @@ HOME_HTML = """
 
 """
 
-# --- ROUTES ---
-
-# --- ROUTES ---
-
-from werkzeug.exceptions import RequestEntityTooLarge
-from flask_wtf.csrf import CSRFError
-
-@app.errorhandler(RequestEntityTooLarge)
-def handle_file_size_error(e):
-    if request.path.startswith('/api/pmb/register'):
-        return jsonify({'success': False, 'error': 'Ukuran berkas melebihi batas maksimal.'}), 413
-    return "File too large", 413
-
-@app.errorhandler(Exception)
-def handle_general_error(e):
-    from werkzeug.exceptions import HTTPException
-    if isinstance(e, HTTPException):
-        return e
-    if request.path.startswith('/api/pmb/register'):
-        return jsonify({'success': False, 'error': str(e)}), 500
-    return "Internal server error", 500
-
-@app.route('/api/pmb/register', methods=['POST'])
-def api_pmb_register():
-    try:
-        nama = request.form.get('nama')
-        foto_ijazah = request.files.get('foto_ijazah')
-        foto_ktp = request.files.get('foto_ktp')
-        bukti_transfer = request.files.get('bukti_transfer')
-        
-        if not all([nama, foto_ijazah, foto_ktp, bukti_transfer]):
-            return jsonify({'success': False, 'error': 'Semua field dan file harus diisi.'})
-            
-        if not foto_ijazah or foto_ijazah.filename == '':
-            return jsonify({'success': False, 'error': 'Berkas foto_ijazah wajib diunggah dan tidak boleh kosong.'})
-            
-        if not foto_ktp or foto_ktp.filename == '':
-            return jsonify({'success': False, 'error': 'Berkas foto_ktp wajib diunggah dan tidak boleh kosong.'})
-            
-        if not bukti_transfer or bukti_transfer.filename == '':
-            return jsonify({'success': False, 'error': 'Berkas bukti_transfer wajib diunggah dan tidak boleh kosong.'})
-            
-        ijazah_filename = ""
-        ktp_filename = ""
-        bukti_filename = ""
-        
-        try:
-            if foto_ijazah and allowed_file(foto_ijazah.filename):
-                ijazah_filename = compress_image(foto_ijazah, app.config['UPLOAD_FOLDER'])
-            if foto_ktp and allowed_file(foto_ktp.filename):
-                ktp_filename = compress_image(foto_ktp, app.config['UPLOAD_FOLDER'])
-            if bukti_transfer and allowed_file(bukti_transfer.filename):
-                bukti_filename = compress_image(bukti_transfer, app.config['UPLOAD_FOLDER'])
-        except ValueError as ve:
-            return jsonify({'success': False, 'error': str(ve)})
-
-        new_pmb = PendaftaranPMB(
-            nama=nama,
-            foto_ijazah=ijazah_filename,
-            foto_ktp=ktp_filename,
-            bukti_transfer=bukti_filename,
-            status='Pending'
-        )
-        db.session.add(new_pmb)
-        db.session.commit()
-        return jsonify({'success': True, 'message': 'Pendaftaran berhasil dikirim. Silakan cek status secara berkala.'})
-    except Exception as e:
-        print(f"Error in PMB Register: {e}")
-        return jsonify({'success': False, 'error': 'Terjadi kesalahan sistem saat memproses formulir.'})
-
-@app.route('/api/tracer/submit', methods=['POST'])
-@limiter.limit("3 per minute")
-def api_tracer_submit():
-    try:
-        new_tracer = TracerStudy(
-            nama_lengkap=request.form.get('nama_lengkap'),
-            npm=request.form.get('npm'),
-            tahun_lulus=request.form.get('tahun_lulus'),
-            program_studi=request.form.get('program_studi'),
-            status_pekerjaan=request.form.get('status_pekerjaan'),
-            nama_perusahaan=request.form.get('nama_perusahaan'),
-            jabatan=request.form.get('jabatan'),
-            rentang_gaji=request.form.get('rentang_gaji'),
-            kesesuaian=request.form.get('kesesuaian'),
-            waktu_tunggu=request.form.get('waktu_tunggu'),
-            saran=request.form.get('saran'),
-            kontak=request.form.get('kontak')
-        )
-        db.session.add(new_tracer)
-        db.session.commit()
-        flash("Data Tracer Study berhasil dikirim! Terima kasih atas partisipasi Anda.", "success")
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error submitting Tracer Study: {e}")
-        flash("Terjadi kesalahan sistem saat mengirim data. Mohon coba lagi atau hubungi admin.", "error")
-    return redirect(request.referrer or url_for('index'))
-
-@app.route('/api/pmb/check', methods=['GET'])
-def api_pmb_check():
-    try:
-        nama = request.args.get('nama')
-        if not nama:
-            return jsonify({'error': 'Nama tidak boleh kosong'})
-            
-        # Case insensitive exact match or like query
-        pmb = PendaftaranPMB.query.filter(func.lower(PendaftaranPMB.nama) == func.lower(nama)).order_by(PendaftaranPMB.id.desc()).first()
-        
-        if not pmb:
-            return jsonify({'error': 'Data pendaftaran tidak ditemukan.'})
-            
-        return jsonify({
-            'nama': pmb.nama,
-            'status': pmb.status,
-            'npm': pmb.npm_generated if pmb.npm_generated else '-'
-        })
-    except Exception as e:
-        print(f"Error checking PMB status: {e}")
-        return jsonify({'error': 'Terjadi kesalahan sistem.'})
-
-@app.before_request
-def global_gatekeeper():
-    if request.path == '/api/pmb/register' and request.method == 'POST':
-        max_size = app.config.get('MAX_CONTENT_LENGTH', 20 * 1024 * 1024)
-        if request.content_length and request.content_length > max_size:
-            return jsonify({'success': False, 'error': 'Ukuran file melebihi batas 20MB.'}), 413
-
-    if request.endpoint in ['index', 'login', 'logout', 'static']:
-        return
-        
-    user_id = session.get('user_id')
-    if user_id:
-        try:
-            user = db.session.get(User, user_id)
-            if user and user.status_akademik != 'Aktif':
-                session.clear()
-                return "Akses Ditolak: Status Akademik Anda tidak Aktif.", 403
-        except Exception as e:
-            print(f"Error in gatekeeper: {e}")
-
-@app.route('/')
-def index():
-    try:
-        epilepsi_logs = EpilepsiLog.query.order_by(EpilepsiLog.date.desc(), EpilepsiLog.time.desc()).limit(5).all()
-    except:
-        epilepsi_logs = []
-        
-    try:
-        verified_alumni_list = TracerStudy.query.filter_by(status='Diverifikasi').order_by(TracerStudy.id.desc()).all()
-    except:
-        verified_alumni_list = []
-
-    rendered_home = render_template_string(HOME_HTML, epilepsi_logs=epilepsi_logs, verified_alumni_list=verified_alumni_list, open_modal=request.args.get('open'), is_admin=session.get('is_admin', False), settings=get_settings())
-    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=rendered_home, is_admin=session.get('is_admin', False), settings=get_settings())
-
-@app.route('/login', methods=['POST'])
-@limiter.limit("5 per minute")
-def login():
-    username = request.form.get('username')
-    password = request.form.get('password')
-    
-    user = User.query.filter_by(username=username).first()
-    if user and check_password_hash(user.password_hash, password):
-        session['user_id'] = user.id
-        session['username'] = user.username
-        session['npm'] = user.username
-        session['nama'] = user.nama
-        session['role'] = user.role
-        session.permanent = True
-        
-        if user.role in ['Tata Usaha', 'Admin']:
-            session['is_admin'] = True
-            return redirect(url_for('ramadhan_dashboard'))
-        elif user.role == 'Dosen':
-            return redirect(url_for('dosen_dashboard'))
-        elif user.role == 'Mahasiswa':
-            return redirect(url_for('irma_dashboard'))
-            
-    flash('Kredensial tidak valid', 'error')
-    return redirect(request.referrer or url_for('index'))
-
-@app.route('/logout')
-def logout():
-    session.pop('is_admin', None)
-    session.pop('is_gallery_admin', None)
-    return redirect(url_for('index'))
-
-@app.route('/therapy/log', methods=['POST'])
-def therapy_log():
-    try:
-        log = EpilepsiLog(
-            date=request.form['date'],
-            time=request.form['time'],
-            trigger=request.form['trigger'],
-            notes=request.form['notes']
-        )
-        db.session.add(log)
-        db.session.commit()
-    except Exception as e:
-        print(f"Error logging therapy: {e}")
-    return redirect(url_for('index', open='modal-terapi-log'))
-
-@app.route('/finance', methods=['GET', 'POST'])
-def finance():
-    if request.method == 'POST':
-        if 'delete_id' in request.form:
-            Finance.query.filter_by(id=request.form['delete_id']).delete()
-        else:
-            item = Finance(
-                date=request.form['date'],
-                type=request.form['type'],
-                category=request.form['category'],
-                description=request.form['description'],
-                amount=int(request.form['amount'])
-            )
-            db.session.add(item)
-        db.session.commit()
-        return redirect(url_for('finance'))
-    
-    items = Finance.query.order_by(Finance.date.desc()).all()
-    
-    total_in = db.session.query(func.sum(Finance.amount)).filter_by(type='Pemasukan').scalar() or 0
-    total_out = db.session.query(func.sum(Finance.amount)).filter_by(type='Pengeluaran').scalar() or 0
-    balance = total_in - total_out
-
-    content = """
-    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="text-xl font-bold text-gray-800">Laporan Kas</h3>
-            {% if is_admin %}
-            <button onclick="document.getElementById('modal-add').classList.remove('hidden')" class="bg-sky-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-sky-600 transition">+ Input</button>
-            {% endif %}
-        </div>
-
-        <div class="grid grid-cols-1 gap-4 mb-6">
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-sky-100 relative overflow-hidden">
-                <div class="absolute right-0 top-0 p-4 opacity-10"><i class="fas fa-wallet text-6xl text-sky-500"></i></div>
-                <p class="text-sm text-gray-500 font-medium mb-1">Saldo Akhir</p>
-                <h2 class="text-3xl font-bold text-sky-600">Rp {{ "{:,.0f}".format(balance) }}</h2>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
-                    <p class="text-xs text-gray-400 mb-1">Pemasukan</p>
-                    <h3 class="text-lg font-bold text-green-500">Rp {{ "{:,.0f}".format(total_in) }}</h3>
-                </div>
-                <div class="bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
-                    <p class="text-xs text-gray-400 mb-1">Pengeluaran</p>
-                    <h3 class="text-lg font-bold text-red-500">Rp {{ "{:,.0f}".format(total_out) }}</h3>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
-            <div class="bg-gray-50 px-5 py-3 border-b border-gray-100">
-                <h4 class="font-bold text-gray-700 text-sm">Riwayat Transaksi</h4>
-            </div>
-            <div class="divide-y divide-gray-100">
-                {% for item in items %}
-                <div class="p-4 flex justify-between items-start hover:bg-gray-50 transition">
-                    <div>
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ 'bg-green-100 text-green-600' if item['type'] == 'Pemasukan' else 'bg-red-100 text-red-600' }}">{{ item['category'] }}</span>
-                            <span class="text-xs text-gray-400">{{ item['date'] }}</span>
-                        </div>
-                        <p class="text-sm font-medium text-gray-800">{{ item['description'] }}</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm font-bold {{ 'text-green-600' if item['type'] == 'Pemasukan' else 'text-red-500' }}">
-                            {{ "+" if item['type'] == 'Pemasukan' else "-" }} {{ "{:,.0f}".format(item['amount']) }}
-                        </p>
-                        {% if is_admin %}
-                        <form method="POST" class="inline-block mt-1">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                            <input type="hidden" name="delete_id" value="{{ item['id'] }}">
-                            <button class="text-gray-300 hover:text-red-500 text-xs" onclick="return confirm('Hapus?')"><i class="fas fa-trash"></i></button>
-                        </form>
-                        {% endif %}
-                    </div>
-                </div>
-                {% else %}
-                <div class="p-8 text-center text-gray-400 text-sm">Belum ada data transaksi.</div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal -->
-    {% if is_admin %}
-    <div id="modal-add" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="document.getElementById('modal-add').classList.add('hidden')"></div>
-        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out]">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold">Input Kas Baru</h3>
-                <button onclick="document.getElementById('modal-add').classList.add('hidden')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
-            </div>
-            <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Tanggal</label>
-                        <input type="date" name="date" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Jenis</label>
-                            <select name="type" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
-                                <option value="Pemasukan">Pemasukan</option>
-                                <option value="Pengeluaran">Pengeluaran</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Kategori</label>
-                            <select name="category" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
-                                <option value="Infaq Jumat">Infaq Jumat</option>
-                                <option value="Operasional">Operasional</option>
-                                <option value="Pembangunan">Pembangunan</option>
-                                <option value="Sosial">Sosial</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Keterangan</label>
-                        <input type="text" name="description" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Contoh: Bayar Listrik" required>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Nominal (Rp)</label>
-                        <input type="number" name="amount" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
-                    </div>
-                    <button type="submit" class="w-full bg-sky-500 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-sky-600 transition mt-4">Simpan Data</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    {% endif %}
-    """
-    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='finance', content=render_template_string(content, items=items, total_in=total_in, total_out=total_out, balance=balance, is_admin=session.get('is_admin', False)), is_admin=session.get('is_admin', False), settings=get_settings())
-
-@app.route('/agenda', methods=['GET', 'POST'])
-def agenda():
-    if request.method == 'POST':
-        if 'delete_id' in request.form:
-            Agenda.query.filter_by(id=request.form['delete_id']).delete()
-        else:
-            item = Agenda(
-                date=request.form['date'],
-                time=request.form['time'],
-                title=request.form['title'],
-                speaker=request.form['speaker'],
-                type=request.form['type']
-            )
-            db.session.add(item)
-        db.session.commit()
-        return redirect(url_for('agenda'))
-
-    items = Agenda.query.order_by(Agenda.date.asc(), Agenda.time.asc()).all()
-
-#     conn.close()
-
-    content = """
-    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="text-xl font-bold text-gray-800">Jadwal Imam & Kajian</h3>
-            {% if is_admin %}
-            <button onclick="document.getElementById('modal-agenda').classList.remove('hidden')" class="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-blue-600 transition">+ Tambah</button>
-            {% endif %}
-        </div>
-
-        <div class="space-y-4">
-            {% for item in items %}
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex gap-4 relative">
-                {% if is_admin %}
-                <form method="POST" class="absolute top-2 right-2">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                    <input type="hidden" name="delete_id" value="{{ item['id'] }}">
-                    <button class="text-gray-300 hover:text-red-500" onclick="return confirm('Hapus?')">&times;</button>
-                </form>
-                {% endif %}
-                <div class="flex-shrink-0 flex flex-col items-center justify-center bg-blue-50 w-16 h-16 rounded-2xl text-blue-600">
-                    <span class="text-xs font-bold uppercase">{{ item['date'][5:7] }}/{{ item['date'][8:] }}</span>
-                    <span class="text-xs">{{ item['time'] }}</span>
-                </div>
-                <div>
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ 'bg-amber-100 text-amber-700' if item['type'] == 'Jumat' else 'bg-blue-100 text-blue-700' }} mb-1 inline-block">{{ item['type'] }}</span>
-                    <h4 class="font-bold text-gray-800 leading-tight mb-1">{{ item['title'] }}</h4>
-                    <p class="text-xs text-gray-500"><i class="fas fa-user-circle mr-1"></i> {{ item['speaker'] }}</p>
-                </div>
-            </div>
-            {% else %}
-            <div class="text-center py-10 text-gray-400">Belum ada agenda terjadwal.</div>
-            {% endfor %}
-        </div>
-    </div>
-
-    <!-- Modal -->
-    {% if is_admin %}
-    <div id="modal-agenda" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="document.getElementById('modal-agenda').classList.add('hidden')"></div>
-        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out]">
-            <h3 class="text-lg font-bold mb-6">Tambah Agenda</h3>
-            <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                <div class="space-y-4">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Tanggal</label>
-                            <input type="date" name="date" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Jam</label>
-                            <input type="time" name="time" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Jenis</label>
-                        <select name="type" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
-                            <option value="Jumat">Sholat Jumat</option>
-                            <option value="Kajian">Kajian Rutin</option>
-                            <option value="PHBI">PHBI</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Judul / Tema</label>
-                        <input type="text" name="title" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Ustadz / Imam</label>
-                        <input type="text" name="speaker" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
-                    </div>
-                    <button type="submit" class="w-full bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg mt-4">Simpan</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    {% endif %}
-    """
-    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='agenda', content=render_template_string(content, items=items, is_admin=session.get('is_admin', False)), is_admin=session.get('is_admin', False), settings=get_settings())
-
-@app.route('/booking', methods=['GET', 'POST'])
-def booking():
-    if request.method == 'POST':
-        if 'status_update' in request.form:
-             booking = Booking.query.get(request.form['booking_id'])
-             if booking:
-                 booking.status = request.form['status']
-        else:
-             item = Booking(
-                 name=request.form['name'],
-                 date=request.form['date'],
-                 purpose=request.form['purpose'],
-                 type=request.form['type'],
-                 contact=request.form['contact']
-             )
-             db.session.add(item)
-        db.session.commit()
-        return redirect(url_for('booking'))
-
-    items = Booking.query.order_by(Booking.created_at.desc()).all()
-
-#     conn.close()
-
-    content = """
-    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
-        <h3 class="text-xl font-bold text-gray-800 mb-2">Peminjaman Fasilitas</h3>
-        <p class="text-sm text-gray-500 mb-6">Ajukan peminjaman ambulan atau area masjid.</p>
-
-        <form method="POST" class="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 mb-8">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Nama Peminjam</label>
-                    <input type="text" name="name" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
-                </div>
-                <div>
-                     <label class="block text-xs font-bold text-gray-500 mb-1">No. HP / WA</label>
-                    <input type="text" name="contact" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Tanggal</label>
-                        <input type="date" name="date" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Fasilitas</label>
-                        <select name="type" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
-                            <option value="Ambulan">Ambulan</option>
-                            <option value="Area Masjid">Area Masjid</option>
-                            <option value="Peralatan">Peralatan</option>
-                        </select>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Keperluan</label>
-                    <textarea name="purpose" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" rows="2" required></textarea>
-                </div>
-                <button type="submit" class="w-full bg-orange-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-orange-600 transition">Ajukan</button>
-            </div>
-        </form>
-
-        <h4 class="font-bold text-gray-800 mb-4 border-l-4 border-orange-500 pl-2">Status Pengajuan</h4>
-        <div class="space-y-3">
-            {% for item in items %}
-            <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
-                <div class="flex justify-between items-start mb-2">
-                    <h5 class="font-bold text-gray-800">{{ item['name'] }}</h5>
-                    <span class="text-[10px] font-bold px-2 py-1 rounded-lg {{ 'bg-yellow-100 text-yellow-700' if item['status'] == 'Pending' else ('bg-green-100 text-green-700' if item['status'] == 'Approved' else 'bg-red-100 text-red-700') }}">
-                        {{ item['status'] }}
-                    </span>
-                </div>
-                <p class="text-xs text-gray-500 mb-1"><i class="fas fa-tag mr-1 text-orange-400"></i> {{ item['type'] }} • {{ item['date'] }}</p>
-                <p class="text-xs text-gray-600 italic">"{{ item['purpose'] }}"</p>
-                
-                {% if item['status'] == 'Pending' and is_admin %}
-                <div class="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-                     <form method="POST" class="flex-1">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                        <input type="hidden" name="status_update" value="1">
-                        <input type="hidden" name="booking_id" value="{{ item['id'] }}">
-                        <input type="hidden" name="status" value="Approved">
-                        <button class="w-full bg-green-50 text-green-600 text-xs font-bold py-2 rounded-lg hover:bg-green-100">Setujui</button>
-                    </form>
-                    <form method="POST" class="flex-1">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                        <input type="hidden" name="status_update" value="1">
-                        <input type="hidden" name="booking_id" value="{{ item['id'] }}">
-                        <input type="hidden" name="status" value="Rejected">
-                        <button class="w-full bg-red-50 text-red-600 text-xs font-bold py-2 rounded-lg hover:bg-red-100">Tolak</button>
-                    </form>
-                </div>
-                {% endif %}
-            </div>
-            {% else %}
-            <p class="text-center text-gray-400 text-sm">Belum ada pengajuan.</p>
-            {% endfor %}
-        </div>
-    </div>
-    """
-    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='booking', content=render_template_string(content, items=items, is_admin=session.get('is_admin', False)), is_admin=session.get('is_admin', False), settings=get_settings())
-
-@app.route('/zakat', methods=['GET', 'POST'])
-def zakat():
-    if request.method == 'POST':
-         item = Zakat(
-             donor_name=request.form['donor_name'],
-             type=request.form['type'],
-             amount=request.form['amount'],
-             notes=request.form['notes'],
-             status='Pending'
-         )
-         db.session.add(item)
-         db.session.commit()
-         return redirect(url_for('zakat'))
-    
-    items = Zakat.query.order_by(Zakat.created_at.desc()).limit(50).all()
-    
-    # Calculate totals (Python side for safety with String column)
-    fitrah_items = Zakat.query.filter_by(type='Zakat Fitrah').all()
-    total_zakat_fitrah = sum(int(float(i.amount)) for i in fitrah_items if i.amount.replace('.','').isdigit())
-    
-    total_sapi = Zakat.query.filter_by(type='Qurban Sapi').count()
-    total_kambing = Zakat.query.filter_by(type='Qurban Kambing').count()
-
-    content = """
-    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="text-xl font-bold text-gray-800">Zakat & Qurban</h3>
-            <div class="flex gap-2">
-                <button onclick="triggerZakatWA()" class="bg-[#25D366] text-white px-3 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-green-600 transition flex items-center gap-1">
-                    <i class="fab fa-whatsapp text-sm"></i> <span class="hidden md:inline">Konfirmasi Admin</span>
-                </button>
-                <button onclick="document.getElementById('modal-zakat').classList.remove('hidden')" class="bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-green-600 transition">+ Input</button>
-            </div>
-        </div>
-        <script>
-            function triggerZakatWA() {
-                const now = new Date();
-                const h = now.getHours();
-                let time = "Malam";
-                if (h >= 0 && h < 11) time = "Pagi";
-                else if (h >= 11 && h < 15) time = "Siang";
-                else if (h >= 15 && h < 18) time = "Sore";
-                
-                const msg = `Assalamualaikum Pak, selamat ${time}, saya ingin berqurban atau melakukan zakat Pak, terima kasih 🙏`;
-                window.location.href = "https://wa.me/6282330890500?text=" + encodeURIComponent(msg);
-            }
-        </script>
-
-        <div class="grid grid-cols-2 gap-4 mb-8">
-            <div class="bg-white p-4 rounded-3xl shadow-sm border border-green-50 text-center">
-                <p class="text-xs text-gray-400 mb-1">Zakat Fitrah</p>
-                <h3 class="text-lg font-bold text-green-600">Rp {{ "{:,.0f}".format(total_zakat_fitrah) }}</h3>
-            </div>
-            <div class="bg-white p-4 rounded-3xl shadow-sm border border-green-50 text-center">
-                <p class="text-xs text-gray-400 mb-1">Hewan Qurban</p>
-                <h3 class="text-sm font-bold text-gray-800">{{ total_sapi }} Sapi <br> {{ total_kambing }} Kambing</h3>
-            </div>
-        </div>
-
-        <h4 class="font-bold text-gray-800 mb-4 pl-2 border-l-4 border-green-500">Data Terbaru</h4>
-        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="divide-y divide-gray-100">
-                {% for item in items %}
-                <div class="p-4 flex justify-between items-start">
-                    <div>
-                        <div class="flex items-center gap-2 mb-1">
-                            <h5 class="font-bold text-gray-800 text-sm">{{ item['donor_name'] }}</h5>
-                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ 'bg-yellow-100 text-yellow-600' if item['status'] == 'Pending' else ('bg-green-100 text-green-600' if item['status'] == 'Approved' else 'bg-red-100 text-red-600') }}">{{ item['status'] }}</span>
-                        </div>
-                        <p class="text-xs text-gray-500">{{ item['type'] }} • {{ item['notes'] }}</p>
-                        
-                        {% if is_admin and item['status'] == 'Pending' %}
-                        <div class="flex gap-2 mt-2">
-                            <form action="/zakat/status" method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                                <input type="hidden" name="id" value="{{ item['id'] }}">
-                                <input type="hidden" name="status" value="Approved">
-                                <button class="bg-green-500 text-white text-[10px] px-2 py-1 rounded hover:bg-green-600">Approve</button>
-                            </form>
-                            <form action="/zakat/status" method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                                <input type="hidden" name="id" value="{{ item['id'] }}">
-                                <input type="hidden" name="status" value="Rejected">
-                                <button class="bg-red-500 text-white text-[10px] px-2 py-1 rounded hover:bg-red-600">Tolak</button>
-                            </form>
-                        </div>
-                        {% endif %}
-                    </div>
-                    <div class="font-bold text-green-600 text-sm text-right">
-                        {{ "Rp {:,.0f}".format(item['amount']|int) if item['amount'].isdigit() else item['amount'] }}
-                    </div>
-                </div>
-                {% else %}
-                <div class="p-6 text-center text-gray-400">Belum ada data.</div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal -->
-    <div id="modal-zakat" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="document.getElementById('modal-zakat').classList.add('hidden')"></div>
-        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out]">
-            <h3 class="text-lg font-bold mb-6">Input Data</h3>
-            <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Nama</label>
-                        <input type="text" name="donor_name" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Jenis</label>
-                        <select name="type" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
-                            <option value="Zakat Fitrah">Zakat Fitrah</option>
-                            <option value="Zakat Mal">Zakat Mal</option>
-                            <option value="Qurban Sapi">Qurban Sapi</option>
-                            <option value="Qurban Kambing">Qurban Kambing</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Jumlah / Nominal</label>
-                        <input type="text" name="amount" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" placeholder="Ex: 50000 atau 1 Ekor" required>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Catatan</label>
-                        <input type="text" name="notes" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" placeholder="Ex: Hamba Allah">
-                    </div>
-                    <button type="submit" class="w-full bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg mt-4">Simpan Data</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    """
-    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='zakat', content=render_template_string(content, items=items, total_zakat_fitrah=total_zakat_fitrah, total_sapi=total_sapi, total_kambing=total_kambing, is_admin=session.get('is_admin', False)), is_admin=session.get('is_admin', False), settings=get_settings())
-
-@app.route('/zakat/status', methods=['POST'])
-def zakat_status():
-    if not session.get('is_admin'):
-        return redirect(url_for('zakat'))
-    
-    try:
-        item = Zakat.query.get(request.form['id'])
-        if item:
-            item.status = request.form['status']
-            db.session.commit()
-    except Exception as e:
-        print(f"Error updating zakat status: {e}")
-    return redirect(url_for('zakat'))
-
-@app.route('/gallery-dakwah', methods=['GET', 'POST'])
-def gallery_dakwah():
-    is_admin = session.get('is_admin', False)
-    is_gallery_admin = session.get('is_gallery_admin', False)
-    can_edit = is_admin or is_gallery_admin
-
-    if request.method == 'POST' and can_edit:
-        if 'delete_id' in request.form:
-             GalleryDakwah.query.filter_by(id=request.form['delete_id']).delete()
-        elif 'image' in request.files:
-            file = request.files['image']
-            if file and allowed_file(file.filename):
-                saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
-                item = GalleryDakwah(
-                    title=request.form['title'],
-                    image=saved_filename,
-                    description=request.form['description'],
-                    date=str(datetime.date.today())
-                )
-                db.session.add(item)
-        db.session.commit()
-        return redirect(url_for('gallery_dakwah'))
-    
-    items = GalleryDakwah.query.order_by(GalleryDakwah.created_at.desc()).all()
-
-#     conn.close()
-
-    content = """
-    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="text-xl font-bold text-gray-800">Galeri Dakwah</h3>
-            {% if can_edit %}
-            <button onclick="document.getElementById('modal-upload').classList.remove('hidden')" class="bg-purple-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-purple-600 transition">+ Foto</button>
-            {% endif %}
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-            {% for item in items %}
-            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden relative group">
-                <div class="aspect-square bg-gray-200 relative cursor-pointer" onclick='openGalleryModal({{ url_for("uploaded_file", filename=item["image"])|tojson }}, {{ item["title"]|tojson }}, {{ item["description"]|tojson }})'>
-                    <img src="/uploads/{{ item['image'] }}" class="w-full h-full object-cover" alt="{{ item['title'] }}">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-3">
-                        <p class="text-white text-xs font-bold leading-tight line-clamp-2">{{ item['title'] }}</p>
-                    </div>
-                </div>
-                {% if can_edit %}
-                <form method="POST" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                    <input type="hidden" name="delete_id" value="{{ item['id'] }}">
-                    <button class="bg-red-500 text-white w-6 h-6 rounded-full text-xs shadow-md" onclick="return confirm('Hapus?')">&times;</button>
-                </form>
-                {% endif %}
-            </div>
-            {% else %}
-            <div class="col-span-2 text-center py-10 text-gray-400">Belum ada dokumentasi.</div>
-            {% endfor %}
-        </div>
-    </div>
-
-    <!-- Modal Upload -->
-    {% if can_edit %}
-    <div id="modal-upload" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="document.getElementById('modal-upload').classList.add('hidden')"></div>
-        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out]">
-            <h3 class="text-lg font-bold mb-6">Upload Foto</h3>
-            <form method="POST" enctype="multipart/form-data">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Judul</label>
-                        <input type="text" name="title" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Deskripsi</label>
-                        <input type="text" name="description" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Foto</label>
-                        <input type="file" name="image" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
-                    </div>
-                    <button type="submit" class="w-full bg-purple-500 text-white font-bold py-4 rounded-xl shadow-lg mt-4">Upload</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- GALLERY MODAL FULLSCREEN -->
-    <div id="modal-gallery-view" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/90 backdrop-blur-sm animate-[fadeIn_0.3s_ease-out]" onclick="closeGalleryModal()">
-        <div class="relative max-w-6xl w-[90%] h-[85vh] bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row" onclick="event.stopPropagation()">
-            <!-- Image Side -->
-            <div class="flex-1 bg-black flex items-center justify-center relative h-1/2 md:h-full">
-                <img id="gallery-modal-img" src="" class="max-w-full max-h-full object-contain">
-                <button onclick="closeGalleryModal()" class="absolute top-4 left-4 bg-black/50 text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/70 md:hidden">&times;</button>
-            </div>
-            <!-- Info Side -->
-            <div class="w-full md:w-96 bg-white p-8 flex flex-col justify-center h-1/2 md:h-full relative overflow-y-auto">
-                <button onclick="closeGalleryModal()" class="hidden md:flex absolute top-6 right-6 bg-gray-100 text-gray-500 w-10 h-10 rounded-full items-center justify-center hover:bg-gray-200 transition">&times;</button>
-                <h3 id="gallery-modal-title" class="text-3xl font-bold text-gray-800 mb-4 font-sans leading-tight"></h3>
-                <div class="w-12 h-1 bg-purple-500 rounded-full mb-6"></div>
-                <p id="gallery-modal-desc" class="text-gray-600 leading-relaxed text-lg"></p>
-                <div class="mt-auto pt-8">
-                     <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Galeri Dakwah</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    <script>
-        function openGalleryModal(imgSrc, title, desc) {
-            document.getElementById('gallery-modal-img').src = imgSrc;
-            document.getElementById('gallery-modal-title').innerText = title;
-            document.getElementById('gallery-modal-desc').innerText = desc || 'Tidak ada deskripsi.';
-            document.getElementById('modal-gallery-view').classList.remove('hidden');
-        }
-        function closeGalleryModal() {
-            document.getElementById('modal-gallery-view').classList.add('hidden');
-        }
-    </script>
-    """
-    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='gallery', content=render_template_string(content, items=items, can_edit=can_edit), is_admin=session.get('is_admin', False), settings=get_settings())
-
-@app.route('/suggestion', methods=['GET', 'POST'])
-def suggestion():
-    if request.method == 'POST':
-         try:
-             item = Suggestion(
-                 content=request.form['content'],
-                 date=str(datetime.date.today())
-             )
-             db.session.add(item)
-             db.session.commit()
-         except Exception as e:
-             print(f"Error saving suggestion: {e}")
-             db.session.rollback()
-         return redirect(url_for('suggestion', success=1))
-    
-    items = Suggestion.query.order_by(Suggestion.created_at.desc()).limit(10).all()
-
-    content = """
-    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
-        <h3 class="text-xl font-bold text-gray-800 mb-4">Kotak Saran Digital</h3>
-        
-        {% if request.args.get('success') %}
-        <div class="bg-green-100 text-green-700 p-3 rounded-xl mb-4 text-center font-bold text-sm border border-green-200 animate-pulse">
-            Terima kasih, saran Anda telah terkirim!
-        </div>
-        {% endif %}
-
-        <form action="/suggestion" method="POST" class="bg-white p-6 rounded-3xl shadow-lg border border-pink-50 mb-8">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-            <div class="mb-4">
-                <label class="block text-xs font-bold text-gray-500 mb-2">Kritik & Saran Anda</label>
-                <textarea name="content" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm min-h-[120px]" placeholder="Silakan tulis masukan Anda..." required></textarea>
-            </div>
-            <button type="submit" class="w-full bg-pink-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-pink-600 transition">Kirim</button>
-        </form>
-        
-        {% if is_admin %}
-        <h6 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Laporan Masuk (Admin)</h6>
-        <div class="space-y-3">
-            {% for item in items %}
-            <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-[10px] text-gray-400">{{ item['date'] }}</span>
-                    <span class="bg-gray-100 text-gray-500 text-[10px] px-2 py-0.5 rounded-full">{{ item['status'] }}</span>
-                </div>
-                <p class="text-sm text-gray-700">{{ item['content'] }}</p>
-            </div>
-            {% else %}
-            <p class="text-center text-gray-400 text-sm">Belum ada saran.</p>
-            {% endfor %}
-        </div>
-        {% endif %}
-    </div>
-    """
-    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='suggestion', content=render_template_string(content, items=items, is_admin=session.get('is_admin', False)), is_admin=session.get('is_admin', False), settings=get_settings())
-
-@app.route('/fitur_masjid')
-def fitur_masjid():
-    rendered_content = render_template_string(FITUR_MASJID_HTML)
-    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=rendered_content, is_admin=session.get('is_admin', False), settings=get_settings())
-
-@app.route('/prayer-times')
-def prayer_times_api():
-    now = datetime.datetime.now()
-    pt = PrayTimes()
-    times = pt.get_prayer_times(now.year, now.month, now.day, LAT, LNG, TZ)
-    return jsonify(times)
-
-@app.route('/donate', methods=['GET', 'POST'])
-def donate():
-    is_admin = session.get('is_admin', False)
-    
-    if request.method == 'POST' and is_admin:
-        key = request.form.get('key')
-        val = request.form.get('value')
-        
-        if 'qris_image' in request.files:
-            file = request.files['qris_image']
-            if file and allowed_file(file.filename):
-                saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
-                
-                # Update setting
-                s = AppSettings.query.get('infaq_qris_image')
-                if s: s.value = saved_filename
-                else: db.session.add(AppSettings(key='infaq_qris_image', value=saved_filename))
-        
-        if key and val:
-             s = AppSettings.query.get(key)
-             if s: s.value = val
-             else: db.session.add(AppSettings(key=key, value=val))
-             
-        db.session.commit()
-        return redirect(url_for('donate', source=request.args.get('source')))
-
-    # Fetch settings
-    settings = get_settings()
-    acc_no = settings.get('infaq_rekening', '7123456789 (BSI - Masjid Al Hijrah)')
-    qris_img = settings.get('infaq_qris_image', '')
-    qris_url = f"/uploads/{qris_img}" if qris_img else "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=MasjidAlHijrahInfaq"
-    
-    source = request.args.get('source')
-    
-    # Theme Logic
-    theme = {}
-    if source == 'ramadhan':
-        theme = {
-            'nav_bg': 'glass-gold bg-[#0b1026]',
-            'icon_bg': 'bg-[#FFD700]/20',
-            'icon_text': 'text-[#FFD700]',
-            'title_text': 'text-[#FFD700]',
-            'link_hover': 'hover:text-[#FFD700]',
-            'link_active': 'text-[#FFD700] font-bold',
-            'btn_primary': 'bg-[#FFD700] text-[#0b1026] hover:bg-white',
-            'bottom_nav_bg': 'bg-[#0b1026] border-t border-[#FFD700]/20',
-            'bottom_active': 'text-[#FFD700]',
-            'bottom_btn_bg': 'bg-[#FFD700]',
-            'bottom_btn_text': 'text-[#0b1026]',
-            'bottom_text_inactive': 'text-gray-400'
-        }
-        bg_class = "bg-[#0b1026] text-white"
-        card_class = "bg-[#151e3f] border-[#FFD700]/30"
-        text_highlight = "text-[#FFD700]"
-        btn_action = "bg-[#FFD700] text-[#0b1026]"
-    elif source == 'irma':
-        theme = {
-            'nav_bg': 'bg-[#F0F9FF]/90 backdrop-blur-md border-b border-[#0284C7]/20',
-            'icon_bg': 'bg-[#0284C7]/20',
-            'icon_text': 'text-[#0284C7]',
-            'title_text': 'text-[#0284C7]',
-            'link_hover': 'hover:text-[#7DD3FC]',
-            'link_active': 'text-[#7DD3FC] font-bold',
-            'btn_primary': 'bg-[#0284C7] text-white hover:bg-[#7DD3FC]',
-            'bottom_nav_bg': 'bg-[#0284C7]',
-            'bottom_active': 'text-[#7DD3FC]',
-            'bottom_btn_bg': 'bg-[#7DD3FC]',
-            'bottom_btn_text': 'text-white',
-            'bottom_text_inactive': 'text-[#F0F9FF]'
-        }
-        bg_class = "bg-[#F0F9FF] text-gray-800"
-        card_class = "bg-white border-[#0284C7]/30"
-        text_highlight = "text-[#0284C7]"
-        btn_action = "bg-[#0284C7] text-white"
-    else:
-        # Default Home
-        bg_class = "bg-[#F8FAFC] text-gray-800"
-        card_class = "bg-white border-sky-50"
-        text_highlight = "text-sky-600"
-        btn_action = "bg-sky-500 text-white"
-
-    content = f"""
-    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8 text-center min-h-screen flex flex-col items-center justify-center {bg_class}">
-        <div class="{card_class} p-8 rounded-[40px] shadow-2xl border max-w-md w-full relative overflow-hidden">
-             <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-current to-transparent opacity-50 {text_highlight}"></div>
-             <h2 class="text-2xl font-bold mb-2 {text_highlight}">Infaq Digital</h2>
-             <p class="text-sm opacity-70 mb-6">Scan QRIS menggunakan E-Wallet apa saja</p>
-             
-             <div class="bg-white p-4 rounded-2xl shadow-inner border border-gray-100 inline-block mb-6 relative group">
-                <img src="{qris_url}" alt="QRIS" class="w-48 h-48 mx-auto object-contain">
-                <a href="{qris_url}" download="QRIS_Masjid.png" class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl text-white font-bold backdrop-blur-sm">
-                    <i class="fas fa-download mr-2"></i> Download
-                </a>
-             </div>
-
-             <div class="flex gap-2 justify-center mb-6 max-w-xs mx-auto w-full">
-                <a href="{qris_url}" download="QRIS_Masjid.png" class="flex-1 bg-gray-100 text-gray-700 px-3 py-3 rounded-xl text-xs font-bold hover:bg-gray-200 text-center transition"><i class="fas fa-download mr-1"></i> Download QRIS</a>
-                <button onclick="triggerInfaqWA()" class="flex-1 bg-[#25D366] text-white px-3 py-3 rounded-xl text-xs font-bold hover:bg-green-600 transition shadow-lg shadow-green-200"><i class="fab fa-whatsapp mr-1"></i> Konfirmasi WA</button>
-             </div>
-             
-             <div class="mb-4 max-w-xs mx-auto">
-                 <label class="block text-[10px] font-bold text-gray-400 mb-1 text-left">Keperluan (untuk Konfirmasi WA)</label>
-                 <select id="infaq-type-select" class="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
-                     <option value="Masjid">Masjid</option>
-                     <option value="Qurban">Qurban</option>
-                     <option value="Zakat">Zakat</option>
-                     <option value="Infaq">Infaq</option>
-                 </select>
-             </div>
-             
-             <div class="mb-6">
-                <p class="text-xs font-bold uppercase tracking-widest opacity-50 mb-1">Nomor Rekening</p>
-                <div class="bg-gray-50/50 p-3 rounded-xl border border-dashed border-gray-300 flex items-center justify-between gap-2">
-                    <span id="donate-rek-text" class="font-mono font-bold text-lg select-all text-gray-800">{acc_no}</span>
-                    <button onclick="copyText('donate-rek-text')" class="p-2 rounded-lg hover:bg-gray-200 transition text-gray-500"><i class="fas fa-copy"></i></button>
-                </div>
-             </div>
-             <script>window.addEventListener('load', function() {{ if(typeof formatBankDisplay === 'function') formatBankDisplay('donate-rek-text'); }});</script>
-             
-             {{% if is_admin %}}
-             <div class="border-t border-gray-200/50 pt-6 mt-6 text-left">
-                <h4 class="text-xs font-bold text-red-500 uppercase mb-3"><i class="fas fa-cog"></i> Admin Settings</h4>
-                <form method="POST" enctype="multipart/form-data" class="space-y-3">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                    <div>
-                        <label class="text-[10px] font-bold opacity-70">Update No. Rekening</label>
-                        <input type="hidden" name="key" value="infaq_rekening">
-                        <div class="flex gap-2">
-                            <input type="text" name="value" value="{acc_no}" class="w-full text-xs p-2 rounded-lg border border-gray-300 text-black">
-                            <button class="bg-blue-500 text-white px-3 rounded-lg text-xs">Save</button>
-                        </div>
-                    </div>
-                </form>
-                <form method="POST" enctype="multipart/form-data" class="mt-3">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                    <label class="text-[10px] font-bold opacity-70 block mb-1">Update QRIS Image</label>
-                    <div class="flex gap-2">
-                        <input type="file" name="qris_image" class="w-full text-xs text-gray-500">
-                        <button class="bg-blue-500 text-white px-3 rounded-lg text-xs">Upload</button>
-                    </div>
-                </form>
-             </div>
-             {{% endif %}}
-             
-             <div class="flex justify-center gap-3 opacity-60 grayscale hover:grayscale-0 transition-all mt-4">
-                <i class="fas fa-wallet text-2xl"></i>
-                <i class="fas fa-university text-2xl"></i>
-                <i class="fas fa-mobile-alt text-2xl"></i>
-             </div>
-        </div>
-        <br>
-        <a href="/" class="opacity-50 text-sm font-medium hover:opacity-100 transition">Kembali ke Beranda</a>
-        </div>
-    </div>
-    """
-    
-    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML + (RAMADHAN_STYLES if source=='ramadhan' else (IRMA_STYLES if source=='irma' else '')), active_page='donate', theme=theme, content=render_template_string(content, is_admin=is_admin, settings=get_settings()), is_admin=is_admin)
-
-@app.route('/emergency')
-def emergency():
-    return redirect("https://wa.me/6281241865310?text=Halo%20Takmir%20Masjid,%20Ada%20Keadaan%20Darurat!")
-
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
-
-@app.route('/api/yasin', methods=['GET'])
-@limiter.limit("10 per minute")
-@cache.cached(timeout=86400)
-def api_yasin():
-    try:
-        url = "https://equran.id/api/v2/surat/36"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req) as response:
-            data = json.loads(response.read().decode())
-            return jsonify(data)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# --- RAMADHAN SPECIAL FEATURES ---
-
-RAMADHAN_STYLES = """
-
-# """
-
+# --- RAMADHAN_DASHBOARD_HTML ---
 RAMADHAN_DASHBOARD_HTML = """
 <div class="bg-midnight min-h-screen pb-24 relative overflow-hidden font-sans">
     <!-- BACKGROUND PATTERN -->
@@ -7537,8 +5612,12 @@ RAMADHAN_DASHBOARD_HTML = """
 </script>
 """
 
-# --- IRMA DASHBOARD ASSETS ---
+# --- RAMADHAN_STYLES ---
+RAMADHAN_STYLES = """
 
+# """
+
+# --- IRMA_STYLES ---
 IRMA_STYLES = """
     <style>
         .bg-sage { background-color: #0284C7; }
@@ -7594,6 +5673,7 @@ IRMA_STYLES = """
     </style>
 """
 
+# --- IRMA_DASHBOARD_HTML ---
 IRMA_DASHBOARD_HTML = """
 <div class="pt-24 pb-32 px-5 md:px-8 bg-[#F0F9FF] min-h-screen">
     
@@ -8075,398 +6155,1568 @@ IRMA_DASHBOARD_HTML = """
 </div>
 """
 
-# --- RAMADHAN ROUTES ---
 
-@app.route('/ramadhan')
+# ============================================================================
+# ZONA PANGKALAN DATA (Database Models)
+# ============================================================================
 
-# --- RAMADHAN ROUTES ---
+# --- DATABASE MODELS (Zona Model) ---
+class Finance(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.String(255), nullable=False)
+    type = db.Column(db.String(255), nullable=False)
+    category = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    amount = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, server_default=func.now())
 
-@app.route('/ramadhan')
-def ramadhan_dashboard():
-    surat_list = []
-    pmb_list = []
-    tagihan_list = []
-    jadwal_list = []
-    akun_list = []
-    arsip_list = []
-    tracer_list = []
-    verified_alumni_list = []
+class Agenda(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.String(255), nullable=False)
+    time = db.Column(db.String(255), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    speaker = db.Column(db.String(255), nullable=False)
+    type = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class Booking(db.Model):
+    __tablename__ = 'bookings'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    date = db.Column(db.String(255), nullable=False)
+    purpose = db.Column(db.Text, nullable=False)
+    type = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(50), default='Pending')
+    contact = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class Zakat(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    donor_name = db.Column(db.String(255), nullable=False)
+    type = db.Column(db.String(255), nullable=False)
+    amount = db.Column(db.String(255), nullable=False)
+    notes = db.Column(db.Text)
+    status = db.Column(db.String(50), default='Pending')
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class GalleryDakwah(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    image = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    date = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class Suggestion(db.Model):
+    __tablename__ = 'suggestions'
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.Text, nullable=False)
+    date = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(50), default='Unread')
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class RamadhanKas(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.String(255), nullable=False)
+    type = db.Column(db.String(255), nullable=False)
+    category = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    amount = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class TarawihSchedule(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    night_index = db.Column(db.Integer, nullable=False)
+    date = db.Column(db.String(255))
+    imam = db.Column(db.String(255))
+    penceramah = db.Column(db.String(255))
+    judul = db.Column(db.Text)
+
+class IrmaSchedule(db.Model):
+    __tablename__ = 'irma_schedule'
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.String(255), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(255), nullable=False)
+    notes = db.Column(db.Text)
+
+class IrmaMember(db.Model):
+    __tablename__ = 'irma_members'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    age = db.Column(db.Integer)
+    hobbies = db.Column(db.Text)
+    instagram = db.Column(db.String(255))
+    joined_at = db.Column(db.DateTime, server_default=func.now())
+    wa_number = db.Column(db.String(255))
+    status = db.Column(db.String(50), default='Pending')
+
+class IrmaKas(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.String(255), nullable=False)
+    type = db.Column(db.String(255), nullable=False)
+    amount = db.Column(db.Integer, nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class IrmaGallery(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    creator = db.Column(db.String(255), nullable=False)
+    content_type = db.Column(db.String(255), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    caption = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class IrmaProker(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    date = db.Column(db.String(255))
+
+class IrmaCurhat(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    question = db.Column(db.Text, nullable=False)
+    answer = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+    answered_at = db.Column(db.DateTime)
+
+class EpilepsiLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.String(255), nullable=False)
+    time = db.Column(db.String(255), nullable=False)
+    trigger = db.Column(db.String(255), nullable=False)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class SuratOtomatis(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    npm = db.Column(db.String(255), nullable=False)
+    jenis_surat = db.Column(db.String(255), nullable=False)
+    keterangan = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(50), default='Menunggu Acc')
+    tanggal = db.Column(db.String(255), default=lambda: str(datetime.date.today()))
+    qr_code = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class PendaftaranPMB(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nama = db.Column(db.String(255), nullable=False)
+    foto_ijazah = db.Column(db.String(255))
+    foto_ktp = db.Column(db.String(255))
+    bukti_transfer = db.Column(db.String(255))
+    status = db.Column(db.String(50), default='Pending', index=True)
+    npm_generated = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class TagihanKuliah(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    npm = db.Column(db.String(255), nullable=False, index=True)
+    jenis_tagihan = db.Column(db.String(255), nullable=False)
+    jumlah = db.Column(db.Integer, nullable=False)
+    bukti_transfer = db.Column(db.String(255))
+    status = db.Column(db.String(50), default='Belum Lunas', index=True)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class JadwalKuliah(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    hari = db.Column(db.String(50), nullable=False)
+    jam = db.Column(db.String(50), nullable=False)
+    mata_kuliah = db.Column(db.String(255), nullable=False)
+    dosen = db.Column(db.String(255), nullable=False, index=True)
+    ruangan = db.Column(db.String(50), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(50), nullable=False, index=True)
+    nama = db.Column(db.String(255))
+    status_akademik = db.Column(db.String(50), default='Aktif', index=True)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class LaciArsip(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    npm = db.Column(db.String(255), nullable=False)
+    nama_dokumen = db.Column(db.String(255), nullable=False)
+    file_path = db.Column(db.String(255), nullable=False)
+    ukuran = db.Column(db.String(50))
+    tanggal = db.Column(db.String(255), default=lambda: str(datetime.date.today()))
+
+class AppSettings(db.Model):
+    key = db.Column(db.String(255), primary_key=True)
+    value = db.Column(db.Text)
+
+class KRSMahasiswa(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    npm = db.Column(db.String(255), nullable=False)
+    mata_kuliah = db.Column(db.String(255), nullable=False)
+    dosen = db.Column(db.String(255), nullable=False)
+    sks = db.Column(db.Integer, default=3)
+    status = db.Column(db.String(50), default='Menunggu Acc Dosen')
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class NilaiMahasiswa(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    npm = db.Column(db.String(255), nullable=False)
+    mata_kuliah = db.Column(db.String(255), nullable=False)
+    sks = db.Column(db.Integer, nullable=False)
+    nilai_huruf = db.Column(db.String(5), nullable=False)
+    semester = db.Column(db.String(50), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class KehadiranKelas(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    jadwal_id = db.Column(db.Integer, nullable=False)
+    npm = db.Column(db.String(255), nullable=False)
+    tanggal = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(50), default='Hadir')
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class JurnalMengajar(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    jadwal_id = db.Column(db.Integer, nullable=False)
+    tanggal = db.Column(db.String(255), nullable=False)
+    materi = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class StatusNilai(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    jadwal_id = db.Column(db.Integer, nullable=False)
+    is_published = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class TracerStudy(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nama_lengkap = db.Column(db.String(255), nullable=False)
+    npm = db.Column(db.String(255), nullable=False, index=True)
+    tahun_lulus = db.Column(db.String(10), nullable=False)
+    program_studi = db.Column(db.String(255), nullable=False)
+    status_pekerjaan = db.Column(db.String(255), nullable=False)
+    nama_perusahaan = db.Column(db.String(255))
+    jabatan = db.Column(db.String(255))
+    rentang_gaji = db.Column(db.String(255))
+    kesesuaian = db.Column(db.String(255))
+    waktu_tunggu = db.Column(db.String(255))
+    saran = db.Column(db.Text)
+    kontak = db.Column(db.String(255))
+    status = db.Column(db.String(50), default='Menunggu Verifikasi', index=True)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class PrayTimes:
+    def __init__(self, method="MWL"):
+        self.method = method
+        self.methods = {
+            "MWL": {"fajr": 18, "isha": 17},
+            "ISNA": {"fajr": 15, "isha": 15},
+            "Egypt": {"fajr": 19.5, "isha": 17.5},
+            "Makkah": {"fajr": 18.5, "isha": 90},  # minutes
+            "Karachi": {"fajr": 18, "isha": 18},
+            "Tehran": {"fajr": 17.7, "isha": 14, "maghrib": 4.5, "midnight": "Jafari"},
+            "Jafari": {"fajr": 16, "isha": 14, "maghrib": 4, "midnight": "Jafari"}
+        }
+        self.params = self.methods[method]
+
+    def set_calc_method(self, method):
+        if method in self.methods:
+            self.params = self.methods[method]
+
+    def get_prayer_times(self, year, month, day, latitude, longitude, timezone):
+        return self.compute_times(year, month, day, latitude, longitude, timezone)
+
+    def compute_times(self, year, month, day, lat, lng, tzone):
+        d = self.days_since_j2000(year, month, day) + 0.5 - tzone / 24.0
+        eqt = self.equation_of_time(d)
+        decl = self.sun_declination(d)
+        noon = self.compute_mid_day(d - 0.5 + tzone / 24.0)
+
+        times = {
+            "Fajr": self.compute_time(180 - self.params["fajr"], decl, lat, noon),
+            "Sunrise": self.compute_time(180 - 0.833, decl, lat, noon),
+            "Dhuhr": noon,
+            "Asr": self.compute_asr(1, decl, lat, noon), # Shafi'i
+            "Sunset": self.compute_time(0.833, decl, lat, noon),
+            "Maghrib": self.compute_time(0.833, decl, lat, noon) if "maghrib" not in self.params else self.compute_time(self.params["maghrib"], decl, lat, noon),
+            "Isha": self.compute_time(self.params["isha"], decl, lat, noon)
+        }
+
+        # Adjust for timezone
+        final_times = {}
+        for name, t in times.items():
+            final_times[name] = self.adjust_time(t, tzone)
+
+        return final_times
+
+    def days_since_j2000(self, year, month, day):
+        if month <= 2:
+            year -= 1
+            month += 12
+        a = math.floor(year / 100)
+        b = 2 - a + math.floor(a / 4)
+        return math.floor(365.25 * (year + 4716)) + math.floor(30.6001 * (month + 1)) + day + b - 1524.5
+
+    def equation_of_time(self, d):
+        g = self.fix_angle(357.529 + 0.98560028 * d)
+        q = self.fix_angle(280.459 + 0.98564736 * d)
+        l = self.fix_angle(q + 1.915 * math.sin(math.radians(g)) + 0.020 * math.sin(math.radians(2 * g)))
+        e = 23.439 - 0.00000036 * d
+        ra = math.degrees(math.atan2(math.cos(math.radians(e)) * math.sin(math.radians(l)), math.cos(math.radians(l)))) / 15.0
+        ra = self.fix_hour(ra)
+        return q / 15.0 - ra
+
+    def sun_declination(self, d):
+        g = self.fix_angle(357.529 + 0.98560028 * d)
+        q = self.fix_angle(280.459 + 0.98564736 * d)
+        l = self.fix_angle(q + 1.915 * math.sin(math.radians(g)) + 0.020 * math.sin(math.radians(2 * g)))
+        e = 23.439 - 0.00000036 * d
+        return math.degrees(math.asin(math.sin(math.radians(e)) * math.sin(math.radians(l))))
+
+    def compute_mid_day(self, t):
+        t2 = self.equation_of_time(t)
+        return 12 - t2
+
+    def compute_time(self, g, decl, lat, noon):
+        try:
+            d = math.degrees(math.acos((math.sin(math.radians(g)) - math.sin(math.radians(decl)) * math.sin(math.radians(lat))) / (math.cos(math.radians(decl)) * math.cos(math.radians(lat)))))
+        except:
+            return 0 # Handle polar regions if needed
+        return noon - d / 15.0 if g > 90 else noon + d / 15.0
+
+    def compute_asr(self, step, decl, lat, noon):
+        try:
+            d = math.degrees(math.acos((math.sin(math.atan(step + math.tan(math.radians(abs(lat - decl)))))-math.sin(math.radians(decl))*math.sin(math.radians(lat)))/(math.cos(math.radians(decl))*math.cos(math.radians(lat)))))
+        except:
+             return 0
+        return noon + d / 15.0
+
+    def fix_angle(self, a):
+        return a - 360.0 * math.floor(a / 360.0)
+
+    def fix_hour(self, a):
+        return a - 24.0 * math.floor(a / 24.0)
+
+    def adjust_time(self, t, tzone):
+        t += tzone - 8 # Base is calculated relative to GMT, we just add timezone
+        t = self.fix_hour(t)
+        hours = int(t)
+        minutes = int((t - hours) * 60)
+        return f"{hours:02d}:{minutes:02d}"
+
+
+# --- DATA SUMBER HUKUM (DALIL) ---
+# --- DATA SUMBER HUKUM (DALIL) ---
+DALIL_DATA = {
+    "waris": [
+        "QS. An-Nisa: 11 - \"Allah mensyariatkan bagimu tentang pembagian pusaka untuk anak-anakmu. Yaitu: bahagian seorang anak laki-laki sama dengan bagaikan dua orang anak perempuan.\"",
+        "QS. An-Nisa: 7 - \"Bagi orang laki-laki ada hak bagian dari harta peninggalan ibu-bapa dan kerabatnya, dan bagi orang wanita ada hak bagian (pula).\"",
+        "HR. Bukhari & Muslim - \"Berikanlah harta warisan kepada yang berhak menerimanya, sedangkan sisanya adalah untuk kerabat laki-laki yang paling dekat.\""
+    ],
+    "zakat": [
+        "QS. At-Taubah: 103 - \"Ambillah zakat dari sebagian harta mereka, dengan zakat itu kamu membersihkan dan mensucikan mereka.\"",
+        "HR. Abu Daud - \"Tidak ada kewajiban zakat pada emas hingga mencapai 20 dinar (setara 85 gram).\"",
+        "QS. Adz-Dzariyat: 19 - \"Dan pada harta-harta mereka ada hak untuk orang miskin yang meminta dan orang miskin yang tidak mendapat bagian.\""
+    ],
+    "tahajjud": [
+        "HR. Bukhari & Muslim - \"Rabb kita turun ke langit dunia pada setiap malam yaitu ketika sepertiga malam terakhir untuk mengabulkan doa hamba-Nya.\"",
+        "QS. Al-Isra: 79 - \"Dan pada sebagian malam hari shalat tahajudlah kamu sebagai suatu ibadah tambahan bagimu.\"",
+        "QS. Al-Muzzammil: 6 - \"Sesungguhnya bangun di waktu malam adalah lebih tepat untuk khusyuk dan bacaan di waktu itu lebih berkesan.\""
+    ],
+    "khatam": [
+        "HR. Tirmidzi - \"Siapa yang membaca satu huruf dari Al Quran maka baginya satu kebaikan, satu kebaikan dilipatkan menjadi 10 kebaikan.\"",
+        "HR. Bukhari - \"Amalan yang paling dicintai Allah adalah yang terus-menerus (istiqomah) meskipun sedikit.\"",
+        "HR. Muslim - \"Bacalah Al-Quran, sesungguhnya ia akan datang pada hari kiamat memberi syafaat bagi pembacanya.\""
+    ],
+    "fidyah": [
+        "QS. Al-Baqarah: 184 - \"Maka barangsiapa diantara kamu ada yang sakit atau dalam perjalanan, maka wajiblah baginya berpuasa sebanyak hari yang ditinggalkan itu pada hari-hari yang lain.\"",
+        "QS. Al-Baqarah: 184 (Lanjutan) - \"Dan wajib bagi orang-orang yang berat menjalankannya membayar fidyah, yaitu memberi makan seorang miskin.\"",
+        "Ijma Ulama / SK BAZNAS - \"Besaran fidyah adalah satu mud (sekitar 0,6 kg beras) atau setara biaya makan satu hari untuk satu orang miskin.\""
+    ],
+    "hijri": [
+        "QS. At-Taubah: 36 - \"Sesungguhnya bilangan bulan pada sisi Allah adalah dua belas bulan, dalam ketetapan Allah di waktu Dia menciptakan langit dan bumi.\"",
+        "QS. Al-Baqarah: 189 - \"Katakanlah: Bulan sabit itu adalah tanda-tanda waktu bagi manusia dan bagi ibadah haji.\"",
+        "Sejarah Islam - \"Penetapan Kalender Hijriyah dimulai pada masa Khalifah Umar bin Khattab yang menjadikan peristiwa Hijrah sebagai titik awal tahun.\""
+    ]
+}
+
+# --- DATABASE SETUP ---
+DB_NAME = 'masjid.db'
+
+# --- DATABASE MODELS ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def get_settings():
+    try:
+        settings = {item.key: item.value for item in AppSettings.query.all()}
+    except:
+        settings = {}
+    return settings
+
+
+# --- ISLAMIC CALCULATOR LOGIC ---
+
+def gregorian_to_hijri(date_obj):
+    # Offset -1 day -> BRUTE FORCE -3 DAYS (Updated for 2026 adjustment)
+    date_obj = date_obj - datetime.timedelta(days=3)
+
+    # Kuwaiti Algorithm
+    day = date_obj.day
+    month = date_obj.month
+    year = date_obj.year
+
+    m = month
+    y = year
+    if m < 3:
+        y -= 1
+        m += 12
+
+    a = math.floor(y / 100.)
+    b = 2 - a + math.floor(a / 4.)
+    if y < 1583: b = 0
+    if y == 1582:
+        if m > 10: b = -10
+        if m == 10:
+            b = 0
+            if day > 4: b = -10
+
+    jd = math.floor(365.25 * (y + 4716)) + math.floor(30.6001 * (m + 1)) + day + b - 1524.5
+
+    iYear = 10631. / 30.
+    epochAstro = 1948084
+    shift1 = 8.01 / 60.
+
+    z = jd - epochAstro
+    cyc = math.floor(z / 10631.)
+    z = z - 10631 * cyc
+    j = math.floor((z - shift1) / iYear)
+    iy = 30 * cyc + j
+    z = z - math.floor(j * iYear + shift1)
+    im = math.floor((z + 28.5001) / 29.5)
+    if im == 13: im = 12
+    id = z - math.floor(29.5001 * im - 29)
+
+    months = ["Muharram", "Safar", "Rabiul Awal", "Rabiul Akhir", "Jumadil Awal", "Jumadil Akhir",
+              "Rajab", "Syaban", "Ramadan", "Syawal", "Zulqaidah", "Zulhijjah"]
+
+    return f"{int(id)} {months[int(im)-1]} {int(iy)} H"
+
+def calc_waris(harta, sons, daughters):
+    if sons == 0 and daughters == 0:
+        return {"error": "Tidak ada ahli waris anak"}
+
+    total_points = (sons * 2) + (daughters * 1)
+    if total_points == 0: return {"error": "Total poin 0"}
     
+    one_part = harta / total_points
+    son_share = one_part * 2
+    daughter_share = one_part * 1
+
+    return {
+        "harta": harta,
+        "points": total_points,
+        "part_value": one_part,
+        "son_share": son_share,
+        "daughter_share": daughter_share
+    }
+
+def calc_zakat(gold_price, savings, gold_grams):
+    nisab = 85 * gold_price
+    total_wealth = savings + (gold_grams * gold_price)
+    wajib = total_wealth >= nisab
+    zakat = total_wealth * 0.025 if wajib else 0
+    return {
+        "nisab": nisab,
+        "total_wealth": total_wealth,
+        "wajib": wajib,
+        "zakat": zakat
+    }
+
+def calc_tahajjud(maghrib, subuh):
+    # Format HH:MM
     try:
-        surat_list = SuratOtomatis.query.order_by(SuratOtomatis.id.desc()).all()
-        pmb_list = PendaftaranPMB.query.order_by(PendaftaranPMB.id.desc()).all()
-        tagihan_list = TagihanKuliah.query.order_by(TagihanKuliah.id.desc()).all()
-        jadwal_list = JadwalKuliah.query.order_by(JadwalKuliah.id.desc()).all()
-        akun_list = User.query.order_by(User.id.desc()).all()
-        arsip_list = LaciArsip.query.order_by(LaciArsip.id.desc()).all()
-        tracer_list = TracerStudy.query.order_by(TracerStudy.id.desc()).all()
-        verified_alumni_list = TracerStudy.query.filter_by(status='Diverifikasi').order_by(TracerStudy.id.desc()).all()
-    except Exception as e:
-        print(f"Error fetching TU Dashboard data: {e}")
+        m_h, m_m = map(int, maghrib.split(':'))
+        s_h, s_m = map(int, subuh.split(':'))
         
-    # Render CONTENT first
-    rendered_content = render_template_string(RAMADHAN_DASHBOARD_HTML,
-                                              surat_list=surat_list,
-                                              pmb_list=pmb_list,
-                                              tagihan_list=tagihan_list,
-                                              jadwal_list=jadwal_list,
-                                              akun_list=akun_list,
-                                              arsip_list=arsip_list,
-                                              tracer_list=tracer_list,
-                                              verified_alumni_list=verified_alumni_list,
-                                              open_modal=request.args.get('open'),
-                                              is_admin=session.get('is_admin', False),
-                                              settings=get_settings())
+        maghrib_dt = datetime.datetime(2023, 1, 1, m_h, m_m)
+        subuh_dt = datetime.datetime(2023, 1, 2, s_h, s_m) # Next day
 
-    return render_template_string(BASE_LAYOUT, 
-                                  styles=STYLES_HTML + RAMADHAN_STYLES, 
-                                  active_page='ramadhan', 
-                                  content=rendered_content,
-                                  hide_nav=True,
-                                  full_width=True,
-                                  is_admin=session.get('is_admin', False),
-                                  settings=get_settings())
+        if maghrib_dt > subuh_dt:
+             subuh_dt += datetime.timedelta(days=1)
 
-@app.route('/ramadhan/kas', methods=['POST'])
-def ramadhan_kas_action():
+        diff = subuh_dt - maghrib_dt
+        third_duration = diff / 3
+
+        last_third_start = subuh_dt - third_duration
+
+        # Calculate total hours and minutes for explanation
+        total_seconds = diff.total_seconds()
+        total_hours = int(total_seconds // 3600)
+        total_minutes = int((total_seconds % 3600) // 60)
+
+        return {
+            "time": last_third_start.strftime("%H:%M"),
+            "total_hours": total_hours,
+            "total_minutes": total_minutes
+        }
+    except:
+        return {"error": "Invalid Time"}
+
+def calc_khatam(target_times, days, freq_per_day):
     try:
-        item = RamadhanKas(
-            date=request.form['date'],
-            type=request.form['type'],
-            category=request.form['category'],
-            description=request.form['description'],
-            amount=int(request.form['amount'])
-        )
-        db.session.add(item)
-        db.session.commit()
+        total_pages = 604 * target_times
+        total_sessions = days * freq_per_day
+        if total_sessions == 0:
+            return {
+                "pages_per_session": 0,
+                "total_pages": total_pages,
+                "total_sessions": 0
+            }
+        pages_per_session = math.ceil(total_pages / total_sessions)
+        return {
+            "pages_per_session": pages_per_session,
+            "total_pages": total_pages,
+            "total_sessions": total_sessions
+        }
+    except:
+        return {"error": "Error"}
+
+def calc_fidyah(days, category):
+    qadha = days
+    fidyah_rice = days * 0.6
+    fidyah_money = days * 15000
+
+    return {
+        "qadha_days": qadha,
+        "fidyah_rice": fidyah_rice,
+        "fidyah_money": fidyah_money
+    }
+
+# Samarinda Coordinates
+LAT = -0.502106
+LNG = 117.153709
+TZ = 8 # WITA
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def is_safe_file(file_storage):
+    """Deep inspection of file mime types and signatures."""
+    # Skip strict signature check for non-image documents where filetype might return None
+    ext = file_storage.filename.rsplit('.', 1)[1].lower() if '.' in file_storage.filename else ''
+    if ext in {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'txt', 'csv'}:
+        return True
+
+    kind = filetype.guess(file_storage.read(2048))
+    file_storage.seek(0) # Reset pointer
+    if kind is None:
+        return False
+    return kind.extension in ALLOWED_EXTENSIONS
+
+def compress_image(file_storage, upload_folder):
+    os.makedirs(upload_folder, exist_ok=True)
+    if not is_safe_file(file_storage):
+        raise ValueError("Invalid file content signature detected.")
+    filename = secure_filename(file_storage.filename)
+
+    # Skip compression for video or documents
+    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+    if ext in {'mp4', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'txt', 'csv'}:
+        save_path = os.path.join(upload_folder, filename)
+        file_storage.save(save_path)
+        return filename
+
+    # Process Image
+    try:
+        img = Image.open(file_storage)
+
+        # Convert to RGB (standardize for JPG)
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+
+        # Resize max 800x800
+        img.thumbnail((800, 800), Image.Resampling.LANCZOS)
+
+        # Force JPG extension
+        base = os.path.splitext(filename)[0]
+        new_filename = base + ".jpg"
+        save_path = os.path.join(upload_folder, new_filename)
+
+        # Compress loop
+        quality = 90
+        while quality >= 10:
+            img_byte_arr = io.BytesIO()
+            img.save(img_byte_arr, format='JPEG', quality=quality, optimize=True)
+            size_kb = img_byte_arr.tell() / 1024
+            if size_kb < 500:
+                break
+            quality -= 5
+
+        # Save final
+        with open(save_path, 'wb') as f:
+            f.write(img_byte_arr.getbuffer())
+
+        return new_filename
+
     except Exception as e:
-        print(f"Error saving kas: {e}")
-    return redirect(url_for('ramadhan_dashboard', open='modal-kas-ramadhan'))
+        print(f"Compression error: {e}")
+        # Fallback
+        save_path = os.path.join(upload_folder, filename)
+        file_storage.seek(0)
+        file_storage.save(save_path)
+        return filename
 
-@app.route('/ramadhan/tarawih', methods=['POST'])
-def ramadhan_tarawih_action():
-    try:
-        night = request.form['night_index']
-        item = TarawihSchedule.query.filter_by(night_index=night).first()
-        if item:
-            item.imam = request.form['imam']
-            item.penceramah = request.form['penceramah']
-            item.judul = request.form['judul']
-        else:
-            item = TarawihSchedule(
+# --- RAMADHAN HELPER FUNCTIONS ---
+
+# --- RAMADHAN HELPER FUNCTIONS ---
+
+def seed_ramadhan_schedule():
+    if TarawihSchedule.query.count() == 0:
+        schedule_data = [
+            (1, "Ustadz M. Faisal Bulqiah", "Ustadz M. Faisal Bulqiah"),
+            (2, "Ustadz H. Bunyamin LC MA", "Ustadz H. Bunyamin LC MA"),
+            (3, "Ustadz H. Sutanil fadlan M. Al Hafidz", "Ustadz H. Sutanil fadlan M. Al Hafidz"),
+            (4, "Ustadz Fathurrahman Al Hafidz", "Ustadz Fathurrahman Al Hafidz"),
+            (5, "Ustadz H. Abdul Syakur LC MA", "Ustadz H. Abdul Syakur LC MA"),
+            (6, "Ustadz Ibnu Mulkan M.Pd", "Ustadz Ibnu Mulkan M.Pd"),
+            (7, "KH Muhammad Mansur", "KH Muhammad Mansur"),
+            (8, "Ustadz Mahyudin S. Ag M.Pd", "Ustadz Mahyudin S. Ag M.Pd"),
+            (9, "Ustadz Dr Ahmad Nur Zahrani M.Ag", "Ustadz Dr Ahmad Nur Zahrani M.Ag"),
+            (10, "Ustadz Wahyu Utami L.C M. Pd", "Ustadz Wahyu Utami L.C M. Pd"),
+            (11, "Ustadz Prof Dr Abdul Majid MA", "Ustadz Prof Dr Abdul Majid MA"),
+            (12, "KH Azhar Qowiem M. Pd", "KH Azhar Qowiem M. Pd"),
+            (13, "Ustadz Fathur Rojak", "Ustadz Fathur Rojak"),
+            (14, "Ustadz Amirullah M.Ud", "Ustadz Amirullah M.Ud"),
+            (15, "Ustadz H. Dr. Akmad Haries M.Si", "Ustadz H. Dr. Akmad Haries M.Si"),
+            (16, "Ustadz Ahmad Nur Jamil", "Ustadz Ahmad Nur Jamil"),
+            (17, "Ustadz H. Susanto L.C", "Ustadz H. Susanto L.C"),
+            (18, "Ustadz Ahmad Husairi S. Pd", "Ustadz Ahmad Husairi S. Pd"),
+            (19, "Ustadz M. Faisal Bulqiah", "Ustadz M. Faisal Bulqiah"),
+            (20, "Ustadz Rivky Cahaya Hakiki", "Ustadz Rivky Cahaya Hakiki"),
+            (21, "Ustadz Imam Syafii", "Ustadz Imam Syafii"),
+            (22, "Ustadz Ahmad Subhi", "Ustadz Ahmad Subhi"),
+            (23, "Ustadz Ahmad Ihsan S.Pd", "Ustadz Ahmad Ihsan S.Pd"),
+            (24, "Ustadz Syahrial M.Ud", "Ustadz Syahrial M.Ud"),
+            (25, "Ustadz Rivky Cahaya Hakiki", "Ustadz Rivky Cahaya Hakiki"),
+            (26, "Ustadz H. Maraio L.C. M.Pd.I", "Ustadz H. Maraio L.C. M.Pd.I"),
+            (27, "Ustadz H. Darmaizar LC M.Ag", "Ustadz H. Darmaizar LC M.Ag"),
+            (28, "Ustadz Ahmad Jailani", "Ustadz Ahmad Jailani"),
+            (29, "Ustadz Robi Ar-Rasyid", "Ustadz Robi Ar-Rasyid"),
+            (30, "Ustadz Fathur Rojak", "Ustadz Fathur Rojak"),
+        ]
+
+        for night, imam, penceramah in schedule_data:
+            entry = TarawihSchedule(
                 night_index=night,
-                imam=request.form['imam'],
-                penceramah=request.form['penceramah'],
-                judul=request.form['judul']
+                date=f"Ramadhan {night}",
+                imam=imam,
+                penceramah=penceramah,
+                judul="-"
             )
-            db.session.add(item)
+            db.session.add(entry)
         db.session.commit()
+
+RAW_TAKJIL_DATA = """
+### **DATA JADWAL TAKJIL MASJID AL HIJRAH (RAMADHAN 2026)**
+
+**Hari 1 (18-Feb-26)**
+1. H.Muhtadi (RT.49), 2. La Juadi (RT.50), 3. Hariyadi (RT.51), 4. H. Hadransyah (RT.52), 5. Mukayan (RT.52), 6. Ibu Abdulah (RT.52), 7. M. Latif (RT.53), 8. Mahfud (RT.57), 9. Eko Pranoto (RT.53), 10. Hj. Elnawati (RT.49), 11. Maryono (RT.49), 12. Rindayanto (RT.50), 13. Yoyo P. (RT.55), 14. Sabran (RT.55)
+
+**Hari 2 (19-Feb-26)**
+1. H. Haryoto (RT.49), 2. Ahmad Zaidi (RT.51), 3. Ovan Iskandar (RT.51), 4. H. Kandi H. (RT.52), 5. La Nuju (RT.53), 6. Hj. Rusmiati (RT.56), 7. H. Parto Sirun (RT.56), 8. H. Asnan Alus (RT.57), 9. H. Herman (RT.49), 10. Ibu sabaruddin (RT.53), 11. Ibu sugi / muntoha (RT.52), 12. Subandi (RT.55), 13. Sofyansyah (RT.50), 14. Asmudin (RT.56)
+
+**Hari 3 (20-Feb-26)**
+1. H. Harsuji (RT.49), 2. Andre/ Landito (RT.51), 3. Najiman (RT.51), 4. Syamsu (RT.52), 5. Pak Waras (RT.55), 6. Ulil Azmi (RT.56), 7. La sidun (RT.51), 8. Hariyanto (RT.57), 9. Ibu asan basri (bengkel asa) (RT.57), 10. Bimo Sunaryo (RT.53), 11. Syaiful Bakri (RT.55), 12. La Bano (RT.53), 13. Ibu ideham dekot (RT.57), 14. Jufri (RT.52), 15. Rohmad Muslim (RT.51), 16. Boby (RT.51)
+
+**Hari 4 (21-Feb-26)**
+1. H. Mardjuni (RT.49), 2. La Bondu (RT.51), 3. Misdan (RT.51), 4. Adi Wibowo (RT.52), 5. Suyanto (RT.55), 6. H. Syamsudin Japri (RT.56), 7. Hj. M. Ishak (RT.49), 8. Suryadi (RT.52), 9. Andri (RT.57), 10. Budi Hariana (RT.55), 11. Mukhlis (RT.56), 12. Mama Daus (RT.51), 13. condro Lukito (RT.53), 14. Haludin (RT.51), 15. Aidil (RT.56), 16. Kahar (RT.57)
+
+**Hari 5 (22-Feb-26)**
+1. La Bila (RT.50), 2. Darmaji /Erna (RT.50), 3. Rusmianti (RT.51), 4. Rony Pasla (RT.52), 5. Sumoharjo (RT.53), 6. Ujianto (RT.53), 7. Jamaludin Eka (RT.56), 8. Umar Uji (RT.50), 9. Supriyansyah (RT.50), 10. H. F. Suwarno (RT.52), 11. Dr. Dedy S. (RT.49), 12. La Asri (RT.50), 13. Pak Asmin (RT.55), 14. Paiman (RT.56), 15. kastum (RT.52)
+
+**Hari 6 (23-Feb-26)**
+1. Ir. Ari Mulyadi (RT.49), 2. Sudalil (RT.52), 3. Mistono (RT.51), 4. Kasim (RT.52), 5. Dr. Randy (RT.52), 6. Yayat (RT.53), 7. Sarno (RT.55), 8. M. Taufik (RT.50), 9. Hj. Eva Paqun (RT.57), 10. La Ludu (RT.50), 11. La Komu (RT.52), 12. Sapto (RT.51), 13. Asep (RT.53), 14. Jufri (RT.52), 15. Drs. safii (RT.55)
+
+**Hari 7 (24-Feb-26)**
+1. Ir. Haryoto (RT.49), 2. Sukadi (RT.50), 3. Samingan (RT.51), 4. Mianto (RT.51), 5. Sakti (RT.57), 6. Sabar (RT.53), 7. Gunaji (RT.49), 8. La Jumadi (RT.56), 9. Rusli (RT.57), 10. Jamrah (RT.57), 11. H. Marsaid (RT.50), 12. La Jamulia (RT.56), 13. Irwanto (RT.55), 14. Rudiman /idim (RT.53), 15. Sudihardani (RT.57)
+
+**Hari 8 (25-Feb-26)**
+1. Latif (RT.56), 2. Mangin (RT.50), 3. La Jemo (RT.55), 4. Sanyoto (RT.52), 5. H. Andreas (RT.53), 6. Ahmad Adha (RT.53), 7. H. Katmidi (RT.49), 8. Agus S. (RT.56), 9. Syarifudin (RT.53), 10. sardi (RT.52), 11. Babang Legiono (RT.52), 12. Ibu sabarudin (RT.53), 13. Sri budi (RT.57), 14. La beo (RT.51), 15. La Saani (RT.51)
+
+**Hari 9 (26-Feb-26)**
+1. Sumardiansyah (RT.53), 2. Nanang / Ny. Kastun (RT.56), 3. Adi Setiawan (RT.50), 4. Ibu Erlena (RT.53), 5. La Juru (RT.53), 6. Kaslim (RT.55), 7. Wr. Magetan (RT.57), 8. H. Sugiyono (RT.57), 9. Taufik Hidayat (RT.50), 10. Supriyadi (Pak Yono) (RT.51), 11. Edy Sulistyo (RT.53), 12. Edy rusmini (RT.52), 13. H. Hamsanudin P. (RT.52), 14. La Besa (RT.53)
+
+**Hari 10 (27-Feb-26)**
+1. Ibu Heru Santoso (Alm) (RT.49), 2. Syahdan Hadib (RT.57), 3. H.Umar/La kenje (RT.51), 4. Irfan Iskandar (RT.55), 5. Margi R. (RT.52), 6. Zainudin (bladuk) (RT.53), 7. Siman (RT.55), 8. La Bango (RT.55), 9. Kris Kurniawan (RT.52), 10. Safrani (RT.50), 11. Edi ( Bapak Mia ) (RT.51), 12. Sugeng PLN (RT.51), 13. H. Lanaya (RT.50), 14. Rukayat (RT.51)
+
+**Hari 11 (28-Feb-26)**
+1. Sirun /Ipah (RT.49), 2. Tomi Libra (RT.50), 3. Untung Suparno (RT.52), 4. Wijaya (RT.53), 5. Suriansyah (RT.53), 6. Ibu asan basri (bengkel asa) (RT.57), 7. La Edi (RT.55), 8. La Mandiri (RT.55), 9. M. Latif (RT.53), 10. Rifai (RT.53), 11. paino (RT.50), 12. M. Rusli (RT.50), 13. La Mihadi (RT.51), 14. Tajuddin Djuna/ Jainal (RT.55), 15. Kahar (RT.57)
+
+**Hari 12 (1-Mar-26)**
+1. H. Syaifudin (RT.49), 2. Asrani Karim (RT.49), 3. Slamet Susanto (RT.50), 4. Erwin Donanto (RT.51), 5. Lisna Wati (RT.53), 6. Lela (RT.53), 7. Sunarto (RT.55), 8. Denok (RT.51), 9. Loso (RT.53), 10. Tony Bowo (RT.53), 11. H. Zainudin (RT.57), 12. La Bano (RT.53), 13. Agus /Dwiyanto (RT.51), 14. Adi Setiawan (RT.50), 15. La Jayani (RT.50)
+
+**Hari 13 (2-Mar-26)**
+1. Sutrisno (RT.49), 2. La Haludin (RT.55), 3. Samiin (RT.50), 4. Yoyok Ardiansyah (RT.52), 5. Ribut Setiawan (RT.57), 6. Elven Noor (RT.53), 7. Ny. Sidik (RT.55), 8. Sanjaya (RT.56), 9. Sugeng Anas (RT.57), 10. H. Firdaus (RT.53), 11. Sugeng Chairudin (RT.53), 12. Zainuri (RT.51), 13. Johan (RT.51), 14. Syamjudin (RT.55), 15. La Yanto (RT.51)
+
+**Hari 14 (3-Mar-26)**
+1. Sigit (RT.49), 2. Eka/Jeliteng Prasojo (RT.50), 3. La Japo (RT.51), 4. Jarot (RT.52), 5. Agustinawati (RT.53), 6. Mulyono Edy (RT.53), 7. Mat Rais (RT.55), 8. Legianto (RT.56), 9. La Jahali (RT.56), 10. La Mili Tale (RT.55), 11. Mulyadi (wa Pain) (RT.56), 12. La Amirudin (RT.55), 13. Wr. Magetan (RT.57), 14. sujai (RT.55), 15. Pak Asmin (RT.55)
+
+**Hari 15 (4-Mar-26)**
+1. La Suri Hamsa (RT.51), 2. Prianto (RT.49), 3. Misrun (RT.50), 4. Usman / Meti (RT.51), 5. H. Noor Hamdi (RT.52), 6. La Rumpu (RT.53), 7. Mas'ud Effendi (RT.53), 8. Subandi (RT.55), 9. La Anjo (RT.56), 10. H. Sofyan Noor (RT.57), 11. Lampero (RT.50), 12. Bambang (RT.50), 13. Siska (RT.51), 14. supriono (RT.55), 15. Boby (RT.51)
+
+**Hari 16 (5-Mar-26)**
+1. H. Muhtadi (RT.49), 2. La Juadi (RT.50), 3. H. Hadransyah (RT.52), 4. Mukayan (RT.52), 5. Ibu Abdulah (RT.52), 6. M. Ali (RT.56), 7. Mahfud (RT.57), 8. Eko Pranoto (RT.53), 9. Hj. Elnawati (RT.49), 10. Maryono (RT.49), 11. Yoyo P. (RT.55), 12. Rindayanto (RT.50), 13. Syahran (RT.56), 14. Rohmad Muslim (RT.51), 15. La sidun (RT.51)
+
+**Hari 17 (6-Mar-26)**
+1. H. Haryoto (RT.49), 2. Ahmad Zaidi (RT.51), 3. Ovan Iskandar (RT.51), 4. H. Kandi H. (RT.52), 5. La suju (RT.53), 6. Hj. Rusmiati (RT.56), 7. H. Parto Sirun (RT.56), 8. H. Asnan Alus (RT.57), 9. H. Herman (RT.49), 10. sukadi (RT.50), 11. Ibu sugi / Muntoha (RT.52), 12. Tomi Libra (RT.50), 13. Deni Wibawa (RT.50), 14. Asmudin (RT.56), 15. Sabran (RT.55)
+
+**Hari 18 (7-Mar-26)**
+1. H. Harsuji (RT.49), 2. Andre/Landito (RT.51), 3. Najiman (RT.51), 4. Syamsu (RT.52), 5. Pak Waras (RT.55), 6. Ulil Azmi (RT.56), 7. La Saani (RT.51), 8. Hariyanto (RT.57), 9. Rusli (RT.57), 10. Bimo Sunaryo (RT.53), 11. Syaiful Bakri (RT.55), 12. H. Marsaid (RT.50), 13. ibu Ideham dekot (RT.57), 14. Amiruddin (RT.56), 15. Pina/Miadi (RT.53)
+
+**Hari 19 (8-Mar-26)**
+1. H. Mardjuni (RT.49), 2. H. Lanaya (RT.50), 3. Misdan (RT.51), 4. Adi Wibowo (RT.52), 5. Suyanto (RT.55), 6. H. Syamsudin Japri (RT.56), 7. H. M. Ishak (RT.49), 8. Suryadi (RT.52), 9. Wa Pipa (RT.55), 10. Budi Hariana (RT.55), 11. Mukhlis (RT.56), 12. Mama Daus (RT.51), 13. condro Lukito (RT.53), 14. Aidil (RT.56), 15. Sudihardani (RT.57)
+
+**Hari 20 (9-Mar-26)**
+1. Dr. Indra (RT.49), 2. Darmaji/Erna (RT.50), 3. Rusmianti (RT.51), 4. Rony Pasla (RT.52), 5. La Mili Ruca (RT.53), 6. Ujianto (RT.53), 7. Jamaludin /eka (RT.56), 8. Drs. Safii (RT.55), 9. Supriyansyah (RT.50), 10. H. F. Suwarno (RT.52), 11. Dr. Dedy S. (RT.49), 12. La Asri (RT.50), 13. Porimin (RT.55), 14. Paiman (RT.56), 15. Hj. Eva Paqun (RT.57)
+
+**Hari 21 (10-Mar-26)**
+1. Ir. Ari Mulyadi (RT.49), 2. Sudalil (RT.52), 3. Mistono (RT.51), 4. Kasim (RT.52), 5. Dr. Randy (RT.52), 6. Yayat (RT.53), 7. Sarno (RT.55), 8. La Rilu (RT.55), 9. La Yare (RT.55), 10. La Bila (RT.50), 11. La Komu (RT.52), 12. Sapto (RT.51), 13. Asep (RT.53), 14. Haludin (RT.51), 15. Jupi (RT.52)
+
+**Hari 22 (11-Mar-26)**
+1. Ir. Haryoto (RT.49), 2. Kris Kurniawan (RT.52), 3. Samingan (RT.51), 4. Agustinawati (RT.53), 5. Sakti (RT.57), 6. Sabar (RT.53), 7. Rudin Lapandewa (RT.53), 8. La Jumadi (RT.56), 9. Mianto (RT.51), 10. Jamrah (RT.57), 11. Hariyadi (RT.51), 12. La Jamulia (RT.56), 13. Irwanto (RT.55), 14. Rudiman /idim (RT.53), 15. Mulyadi (wa Pain) (RT.56)
+
+**Hari 23 (12-Mar-26)**
+1. Latif (RT.56), 2. Mangin (RT.50), 3. La Jemo (RT.55), 4. Sanyoto (RT.52), 5. H. Andreas (RT.53), 6. Ahmad Adha (RT.53), 7. La beo (RT.51), 8. Agus S. (RT.56), 9. Syarifudin (RT.53), 10. Sardi (RT.52), 11. Bambang Legiono (RT.52), 12. Slamet Susanto (RT.50), 13. Sri budi (RT.57), 14. Sugeng PLN (RT.51), 15. Kastum (RT.52)
+
+**Hari 24 (13-Mar-26)**
+1. La Piy (RT.53), 2. Nanang / Ny. Kastun (RT.56), 3. La Sani (RT.55), 4. Ibu Erlena (RT.53), 5. Sedek Buton (RT.53), 6. Syahran (RT.56), 7. H. Sugiyono (RT.57), 8. La pudin (RT.50), 9. Supriyadi (Pak Yono) (RT.51), 10. Syarif Rahman (RT.52), 11. Edy Sulistyo (RT.53), 12. Edy rusmini (RT.52), 13. H. Hamsanudin P. (RT.52), 14. Joko (kunci) (RT.56), 15. Suprianto (RT.55)
+
+**Hari 25 (14-Mar-26)**
+1. Ibu Heru Santoso (Alm) (RT.49), 2. H. Syahdan Hadib (RT.57), 3. H.Umar/La kenje (RT.51), 4. Irfan Iskandar (RT.55), 5. Margi R. (RT.52), 6. Zainudin (bladuk) (RT.53), 7. Siman (RT.55), 8. La Wardi (RT.55), 9. Yando (RT.52), 10. Safrani (RT.50), 11. Edi (bapak Mia) (RT.51), 12. Sulistio (RT.51), 13. La Ami Arni (RT.55), 14. Rukayat (RT.51), 15. paino (RT.50)
+
+**Hari 26 (15-Mar-26)**
+1. Sirun /ipah (RT.49), 2. Umar Uji (RT.50), 3. Untung Suparno (RT.52), 4. Roby Hermawan (RT.53), 5. Suriansyah (RT.53), 6. Syamjudin (RT.55), 7. La Edi (RT.55), 8. Wa Pipa (RT.55), 9. La Bondu (RT.51), 10. Rifai (RT.53), 11. M. Rusli (RT.50), 12. La Mihadi (RT.51), 13. Tajuddin Djuna/Jainal (RT.55), 14. suprio (RT.55), 15. Tony Bowo (RT.53)
+
+**Hari 27 (16-Mar-26)**
+1. H. Syaifudin (RT.49), 2. Asrani Karim (RT.49), 3. Sofyansyah (RT.50), 4. Erwin Donanto (RT.51), 5. Lisna Wati (RT.53), 6. Lela (RT.53), 7. Sunarto (RT.55), 8. Denok (RT.51), 9. Loso (RT.53), 10. Pak Bibit (RT.50), 11. H. Zainudin (RT.57), 12. Deni Wibawa (RT.50), 13. Agus dwiyanto (RT.51), 14. Yuliansah (RT.50), 15. Gunawan (RT.50)
+
+**Hari 28 (17-Mar-26)**
+1. Sutrisno (RT.49), 2. La Haludin (RT.55), 3. Johan (RT.51), 4. Yoyok Ardiansyah (RT.52), 5. Ribut Setiawan (RT.57), 6. La Besa (RT.53), 7. Ny. Sidik (RT.55), 8. Sanjaya (RT.56), 9. Sugeng Anas (RT.57), 10. H. Firdaus (RT.53), 11. Sugeng Chairudin (RT.53), 12. Zainuri (RT.51), 13. La Bango (RT.55), 14. La Yanto (RT.51), 15. Joko (kunci) (RT.56)
+
+**Hari 29 (18-Mar-26)**
+1. Sigit (RT.49), 2. Eka/ Jeliteng (RT.50), 3. La Japo (RT.51), 4. Jarot (RT.52), 5. La Jayani (RT.50), 6. Mulyono Edy (RT.53), 7. Mat Rais (RT.55), 8. Legianto (RT.56), 9. La Jahali (RT.56), 10. H. Sofyan Noor (RT.57), 11. Aril (RT.51), 12. La Anjo (RT.56), 13. Jupi (RT.52), 14. sujai (RT.55), 15. Yando (RT.52)
+
+**Hari 30 (19-Mar-26)**
+1. La Suri Hamsa (RT.51), 2. Ibu Edy Heflin (RT.49), 3. Misrun (RT.50), 4. Usman / Meti (RT.51), 5. H. Noor Hamdi (RT.52), 6. La Rumpu (RT.53), 7. Mas'ud Effendi (RT.53), 8. suprio (RT.55), 9. Mulyono (RT.56), 10. Andri (RT.57), 11. Lampero (RT.50), 12. Bambang (RT.50), 13. Siska (RT.51), 14. Wijaya (RT.53), 15. La pudin (RT.50)
+"""
+
+def parse_takjil_data():
+    data = []
+    import re
+    
+    current_date = None
+    
+    # Split by newlines
+    lines = RAW_TAKJIL_DATA.strip().split('\n')
+    
+    for line in lines:
+        line = line.strip()
+        if not line: continue
+        
+        # Check for Date Header: **Hari 1 (18-Feb-26)**
+        date_match = re.search(r'\((.*?)\)', line)
+        if line.startswith('**Hari') and date_match:
+            current_date = date_match.group(1)
+            continue
+
+        # Parse items: 1. Name (RT), 2. Name (RT)
+        # We split by comma followed by number and dot: ", \d+\."
+        # Or simpler: split by regex ", (?=\d+\.)"
+        
+        if current_date:
+            items = re.split(r', (?=\d+\.)', line)
+            for item in items:
+                # Format: "1. Name (RT)" or "1. Name"
+                # Remove number prefix
+                item = re.sub(r'^\d+\.\s*', '', item)
+
+                # Extract RT if exists
+                rt_match = re.search(r'\((.*?)\)$', item)
+                if rt_match:
+                    rt = rt_match.group(1)
+                    name = item.replace(f'({rt})', '').strip()
+                else:
+                    rt = '-'
+                    name = item.strip()
+
+                data.append({
+                    'Tanggal': current_date,
+                    'Nama': name,
+                    'Ket.': rt
+                })
+    return data
+
+def get_takjil_data():
+    return parse_takjil_data()
+
+@cache.cached(timeout=86400, key_prefix='imsakiyah_schedule')
+def get_imsakiyah_schedule():
+    schedule = []
+    try:
+        # 1. Panggil API Aladhan untuk Samarinda, Indonesia
+        # 2. Bulan Februari & Maret 2026 (Ramadhan 1447 H) & Method 20 (Kemenag RI)
+        months = [2, 3]
+        all_days = []
+
+        for m in months:
+            url = f"http://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month={m}&year=2026"
+            with urllib.request.urlopen(url) as response:
+                data = json.loads(response.read().decode())
+                if 'data' in data:
+                    all_days.extend(data['data'])
+            
+        today = datetime.date.today()
+
+        # 3. Filter Tanggal (19 Feb - 19 Mar 2026)
+        start_date = datetime.date(2026, 2, 19)
+        end_date = datetime.date(2026, 3, 19)
+
+        for day in all_days:
+            # Parse date
+            date_obj = datetime.datetime.strptime(day['date']['gregorian']['date'], "%d-%m-%Y").date()
+            
+            if not (start_date <= date_obj <= end_date):
+                continue
+
+            timings = day['timings']
+            
+            # Format HH:MM (strip seconds/timezone if any)
+            def clean_time(t): return t.split(' ')[0]
+
+            schedule.append({
+                'date_str': date_obj.strftime('%d/%m'),
+                'imsak': clean_time(timings['Imsak']),
+                'fajr': clean_time(timings['Fajr']),
+                'dhuhr': clean_time(timings['Dhuhr']),
+                'asr': clean_time(timings['Asr']),
+                'maghrib': clean_time(timings['Maghrib']),
+                'isha': clean_time(timings['Isha']),
+                'is_today': (date_obj == today)
+            })
+
     except Exception as e:
-        print(f"Error saving tarawih: {e}")
-    return redirect(url_for('ramadhan_dashboard', open='modal-tarawih'))
+        db.session.rollback()
+        print(f"Error fetching Imsakiyah API: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+        # Fallback empty or local calculation if needed, but user requested API specifically.
+        
+    return schedule
+
+# --- FRONTEND ASSETS & LAYOUT ---
+
+# --- ORM Compatibility Patch (Allow dict-style access in Jinja) ---
+def model_getitem(self, key):
+    return getattr(self, key)
+
+for model in [Finance, Agenda, Booking, Zakat, GalleryDakwah, Suggestion, RamadhanKas,
+              TarawihSchedule, IrmaSchedule, IrmaMember, IrmaKas, IrmaGallery,
+              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings, SuratOtomatis, PendaftaranPMB, TagihanKuliah, JadwalKuliah, User, LaciArsip, KRSMahasiswa, NilaiMahasiswa, KehadiranKelas, JurnalMengajar, StatusNilai, TracerStudy]:
+    model.__getitem__ = model_getitem
+
+
+
+
+
+# --- ROUTES ---
+
+# --- ROUTES ---
+
+from werkzeug.exceptions import RequestEntityTooLarge
+from flask_wtf.csrf import CSRFError
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# --- RAMADHAN SPECIAL FEATURES ---
+
+
+
+# --- IRMA DASHBOARD ASSETS ---
+
+
+
+# --- RAMADHAN ROUTES ---
+
+
+
 
 # --- IRMA ROUTES ---
 
-@app.route('/irma')
-@app.route('/mahasiswa')
-def irma_dashboard():
-    # Initialize Defaults
-    is_admin = False
-    schedule_list = []
-    kas_list = []
-    kas_summary = {'income': 0, 'out': 0, 'balance': 0}
-    gallery_list = []
-    proker_list = []
-    curhat_list = []
-    members_list = []
-    check_status = None
-    settings_data = {}
-    
-    # NEW MAHASISWA LOGIC
-    user = None
-    tagihan_list = []
-    krs_list = []
-    nilai_list = []
-    jadwal_list = []
-    surat_list = []
-    arsip_list = []
-    has_unpaid = False
-    
-    npm = session.get('npm') or session.get('username') or '2401234' # Fallback for mock view
-    
+
+
+
+
+
+
+
+
+
+
+
+
+def manifest():
+    return jsonify({
+        "name": "Sekolah Tinggi Ilmu Ekonomi STIESAM",
+        "short_name": "STIESAM",
+        "description": "Aplikasi Sekolah Tinggi Ilmu Ekonomi STIESAM Samarinda",
+        "start_url": "/",
+        "id": "/",
+        "scope": "/",
+        "display": "standalone",
+        "orientation": "portrait",
+        "background_color": "#0b1026",
+        "theme_color": "#FFD700",
+        "categories": ["education"],
+        "prefer_related_applications": False,
+        "icons": [
+            {
+                "src": "/static/logo-stiesam.png",
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "any maskable"
+            },
+            {
+                "src": "/static/logo-stiesam.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any maskable"
+            }
+        ]
+    })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ============================================================================
+# AUTH & SECURITY ROUTES
+# ============================================================================
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_file_size_error(e):
+    if request.path.startswith('/api/pmb/register'):
+        return jsonify({'success': False, 'error': 'Ukuran berkas melebihi batas maksimal.'}), 413
+    return "File too large", 413
+
+@app.errorhandler(Exception)
+def handle_general_error(e):
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException):
+        return e
+    if request.path.startswith('/api/pmb/register'):
+        return jsonify({'success': False, 'error': str(e)}), 500
+    return "Internal server error", 500
+
+@app.before_request
+def global_gatekeeper():
+    if request.path == '/api/pmb/register' and request.method == 'POST':
+        max_size = app.config.get('MAX_CONTENT_LENGTH', 20 * 1024 * 1024)
+        if request.content_length and request.content_length > max_size:
+            return jsonify({'success': False, 'error': 'Ukuran file melebihi batas 20MB.'}), 413
+
+    if request.endpoint in ['index', 'login', 'logout', 'static']:
+        return
+        
+    user_id = session.get('user_id')
+    if user_id:
+        try:
+            user = db.session.get(User, user_id)
+            if user and user.status_akademik != 'Aktif':
+                session.clear()
+                return "Akses Ditolak: Status Akademik Anda tidak Aktif.", 403
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error in gatekeeper: {e}")
+            flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+
+@app.route('/login', methods=['POST'])
+@limiter.limit("5 per minute")
+def login():
+    username = request.form.get('username')
+    password = request.form.get('password')
+
+    user = User.query.filter_by(username=username).first()
+    if user and check_password_hash(user.password_hash, password):
+        session['user_id'] = user.id
+        session['username'] = user.username
+        session['npm'] = user.username
+        session['nama'] = user.nama
+        session['role'] = user.role
+        session.permanent = True
+        
+        if user.role in ['Tata Usaha', 'Admin']:
+            session['is_admin'] = True
+            return redirect(url_for('ramadhan_dashboard'))
+        elif user.role == 'Dosen':
+            return redirect(url_for('dosen_dashboard'))
+        elif user.role == 'Mahasiswa':
+            return redirect(url_for('irma_dashboard'))
+
+    flash('Kredensial tidak valid', 'error')
+    return redirect(request.referrer or url_for('index'))
+
+@app.route('/logout')
+def logout():
+    session.pop('is_admin', None)
+    session.pop('is_gallery_admin', None)
+    return redirect(url_for('index'))
+
+@app.route('/seed-admin')
+def seed_admin():
     try:
-        is_admin = session.get('is_admin', False)
-        settings_data = get_settings()
-        
-        # Fetch User Session Data
-        user = User.query.filter_by(username=npm).first()
-        
-        if npm:
-            tagihan_list = TagihanKuliah.query.filter_by(npm=npm).order_by(TagihanKuliah.id.desc()).all()
-            has_unpaid = any(t.status != 'Lunas' for t in tagihan_list)
-            
-            krs_list = KRSMahasiswa.query.filter_by(npm=npm).order_by(KRSMahasiswa.id.desc()).all()
-            nilai_list = NilaiMahasiswa.query.filter_by(npm=npm).order_by(NilaiMahasiswa.semester.desc(), NilaiMahasiswa.id.desc()).all()
-            
-            jadwal_list = JadwalKuliah.query.order_by(JadwalKuliah.id.desc()).all()
-            
-            surat_list = SuratOtomatis.query.filter_by(npm=npm).order_by(SuratOtomatis.id.desc()).all()
-            arsip_list = LaciArsip.query.filter_by(npm=npm).order_by(LaciArsip.id.desc()).all()
-
-        # 1. Schedule List (Legacy)
-        try:
-            schedule_list = IrmaSchedule.query.order_by(IrmaSchedule.date.desc(), IrmaSchedule.id.desc()).all()
-        except Exception as e:
-            print(f"Error fetching Schedule: {e}")
-        
-        # 2. Kas (Finance - Legacy)
-        try:
-            kas_list = IrmaKas.query.order_by(IrmaKas.date.desc()).all()
-            fin_in = db.session.query(func.sum(IrmaKas.amount)).filter_by(type='Pemasukan').scalar() or 0
-            fin_out = db.session.query(func.sum(IrmaKas.amount)).filter_by(type='Pengeluaran').scalar() or 0
-            kas_summary = {'income': fin_in, 'out': fin_out, 'balance': fin_in - fin_out}
-        except Exception as e:
-            print(f"Error fetching Kas: {e}")
-        
-        # 3. Gallery (Mading - Legacy)
-        try:
-            gallery_list = IrmaGallery.query.order_by(IrmaGallery.created_at.desc()).all()
-        except Exception as e:
-            print(f"Error fetching Gallery: {e}")
-        
-        # 4. Proker (Events - Legacy)
-        try:
-            proker_list = IrmaProker.query.order_by(IrmaProker.date.asc()).all()
-        except Exception as e:
-            print(f"Error fetching Proker: {e}")
-        
-        # 5. Curhat (Q&A - Legacy)
-        try:
-            curhat_list = IrmaCurhat.query.order_by(IrmaCurhat.created_at.desc()).all()
-        except Exception as e:
-            print(f"Error fetching Curhat: {e}")
-        
-        # 6. Members (Legacy)
-        try:
-            if is_admin:
-                members_list = IrmaMember.query.order_by(IrmaMember.joined_at.desc()).all()
-            
-            check_wa = request.args.get('check_wa')
-            if check_wa:
-                check_status = IrmaMember.query.filter_by(wa_number=check_wa).first()
-        except Exception as e:
-            print(f"Error fetching Members: {e}")
-
+        admin_exists = User.query.filter_by(role='Tata Usaha').first()
+        if not admin_exists:
+            new_admin = User(
+                username='adminstiesam',
+                password_hash=generate_password_hash('stiesamadmin123'),
+                role='Tata Usaha',
+                nama='Administrator STIESAM',
+                status_akademik='Aktif'
+            )
+            db.session.add(new_admin)
+            db.session.commit()
+            return "Akun administrator Tata Usaha berhasil dibuat."
+        return "Akun administrator Tata Usaha sudah ada."
     except Exception as e:
-        print(f"Critical Error in Dashboard: {e}")
-    
-    # IRMA THEME
-    irma_theme = {
-        'nav_bg': 'bg-[#F0F9FF]/90 backdrop-blur-md border-b border-[#0284C7]/20',
-        'icon_bg': 'bg-[#0284C7]/20',
-        'icon_text': 'text-[#0284C7]',
-        'title_text': 'text-[#0284C7]',
-        'link_hover': 'hover:text-[#7DD3FC]',
-        'link_active': 'text-[#7DD3FC] font-bold',
-        'btn_primary': 'bg-[#0284C7] text-white hover:bg-[#7DD3FC]',
-        'bottom_nav_bg': 'bg-[#0284C7]',
-        'bottom_active': 'text-[#7DD3FC]',
-        'bottom_btn_bg': 'bg-[#7DD3FC]',
-        'bottom_btn_text': 'text-white',
-        'bottom_text_inactive': 'text-[#F0F9FF]'
-    }
+        return f"Error: {e}"
 
-    open_modal = request.args.get('open')
 
-    return render_template_string(BASE_LAYOUT, 
-                                  styles=STYLES_HTML + IRMA_STYLES, 
-                                  active_page='irma', 
-                                  theme=irma_theme,
-                                  content=render_template_string(IRMA_DASHBOARD_HTML,
-                                                                 user=user,
-                                                                 tagihan_list=tagihan_list,
-                                                                 krs_list=krs_list,
-                                                                 nilai_list=nilai_list,
-                                                                 jadwal_list=jadwal_list,
-                                                                 surat_list=surat_list,
-                                                                 arsip_list=arsip_list,
-                                                                 has_unpaid=has_unpaid,
-                                                                 schedule_list=schedule_list,
-                                                                 kas_list=kas_list,
-                                                                 kas_summary=kas_summary,
-                                                                 gallery_list=gallery_list,
-                                                                 proker_list=proker_list,
-                                                                 curhat_list=curhat_list,
-                                                                 members_list=members_list,
-                                                                 check_status=check_status,
-                                                                 open_modal=open_modal,
-                                                                 is_admin=is_admin, settings=settings_data),
-                                  full_width=True,
-                                  is_admin=is_admin,
-                                  settings=settings_data)
+# ============================================================================
+# PUBLIC & API ROUTES
+# ============================================================================
 
-@app.route('/irma/schedule', methods=['POST'])
-def irma_schedule():
-    if 'delete_id' in request.form:
-        IrmaSchedule.query.filter_by(id=request.form['delete_id']).delete()
-    else:
-        item = IrmaSchedule(
-            name=request.form['name'],
-            role=request.form['role'],
-            date=request.form['date']
-        )
-        db.session.add(item)
-    db.session.commit()
-    return redirect(url_for('irma_dashboard', open='modal-duty'))
-
-@app.route('/irma/join', methods=['GET', 'POST'])
-def irma_join():
-    if request.method == 'GET':
-        return redirect(url_for('irma_dashboard', open='modal-join', check_wa=request.args.get('check_wa')))
-
-    action = request.form.get('action')
-    if action in ['approve', 'reject']:
-        member = IrmaMember.query.get(request.form['member_id'])
-        if member:
-            member.status = 'Approved' if action == 'approve' else 'Rejected'
-    else:
-        item = IrmaMember(
-            name=request.form['name'],
-            age=request.form['age'],
-            hobbies=request.form['hobbies'],
-            instagram=request.form['instagram'],
-            wa_number=request.form['wa_number']
-        )
-        db.session.add(item)
-    db.session.commit()
-    return redirect(url_for('irma_dashboard', open='modal-join'))
-
-@app.route('/irma/kas', methods=['POST'])
-def irma_kas():
-    item = IrmaKas(
-        date=request.form['date'],
-        type=request.form['type'],
-        description=request.form['description'],
-        amount=int(request.form['amount'])
-    )
-    db.session.add(item)
-    db.session.commit()
-    return redirect(url_for('irma_dashboard', open='modal-finance'))
-
-@app.route('/irma/gallery', methods=['POST'])
-def irma_gallery():
+@app.route('/api/pmb/register', methods=['POST'])
+def api_pmb_register():
     try:
-        title = request.form.get('title', '')[:255]
-        creator = request.form.get('creator', '')[:255]
-        content = request.form.get('content', '')
-        caption = content
-        post_type = 'Text'
+        nama = request.form.get('nama')
+        foto_ijazah = request.files.get('foto_ijazah')
+        foto_ktp = request.files.get('foto_ktp')
+        bukti_transfer = request.files.get('bukti_transfer')
         
-        if 'image' in request.files:
-            file = request.files['image']
-            if file and file.filename != '':
-                if allowed_file(file.filename):
-                    saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
-                    content = saved_filename
-                    post_type = 'Image'
+        if not all([nama, foto_ijazah, foto_ktp, bukti_transfer]):
+            return jsonify({'success': False, 'error': 'Semua field dan file harus diisi.'})
+
+        if not foto_ijazah or foto_ijazah.filename == '':
+            return jsonify({'success': False, 'error': 'Berkas foto_ijazah wajib diunggah dan tidak boleh kosong.'})
+
+        if not foto_ktp or foto_ktp.filename == '':
+            return jsonify({'success': False, 'error': 'Berkas foto_ktp wajib diunggah dan tidak boleh kosong.'})
+
+        if not bukti_transfer or bukti_transfer.filename == '':
+            return jsonify({'success': False, 'error': 'Berkas bukti_transfer wajib diunggah dan tidak boleh kosong.'})
+
+        ijazah_filename = ""
+        ktp_filename = ""
+        bukti_filename = ""
         
-        # Ensure fallback for caption
-        if caption is None: caption = ""
-        
-        item = IrmaGallery(title=title, creator=creator, content_type=post_type, content=content, caption=caption)
-        db.session.add(item)
+        try:
+            if foto_ijazah and allowed_file(foto_ijazah.filename):
+                ijazah_filename = compress_image(foto_ijazah, app.config['UPLOAD_FOLDER'])
+            if foto_ktp and allowed_file(foto_ktp.filename):
+                ktp_filename = compress_image(foto_ktp, app.config['UPLOAD_FOLDER'])
+            if bukti_transfer and allowed_file(bukti_transfer.filename):
+                bukti_filename = compress_image(bukti_transfer, app.config['UPLOAD_FOLDER'])
+        except ValueError as ve:
+            return jsonify({'success': False, 'error': str(ve)})
+
+        new_pmb = PendaftaranPMB(
+            nama=nama,
+            foto_ijazah=ijazah_filename,
+            foto_ktp=ktp_filename,
+            bukti_transfer=bukti_filename,
+            status='Pending'
+        )
+        db.session.add(new_pmb)
         db.session.commit()
+        return jsonify({'success': True, 'message': 'Pendaftaran berhasil dikirim. Silakan cek status secara berkala.'})
     except Exception as e:
-        print(f"Error uploading gallery: {e}")
         db.session.rollback()
-        
-    return redirect(url_for('irma_dashboard', open='modal-wall'))
+        print(f"Error in PMB Register: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+        return jsonify({'success': False, 'error': 'Terjadi kesalahan sistem saat memproses formulir.'})
 
-@app.route('/irma/proker', methods=['POST'])
-def irma_proker():
-    item = IrmaProker(
-        title=request.form['title'],
-        status=request.form['status'],
-        description=request.form['description'],
-        date=request.form['date']
-    )
-    db.session.add(item)
-    db.session.commit()
-    return redirect(url_for('irma_dashboard', open='modal-events'))
-
-@app.route('/irma/curhat', methods=['POST'])
-def irma_curhat():
-    if 'answer' in request.form:
-        item = IrmaCurhat.query.get(request.form['answer_id'])
-        if item:
-            item.answer = request.form['answer']
-            item.answered_at = datetime.datetime.now()
-    else:
-        item = IrmaCurhat(question=request.form['question'])
-        db.session.add(item)
-    db.session.commit()
-    return redirect(url_for('irma_dashboard', open='modal-qa'))
-
-@app.route('/mahasiswa/tagihan/upload', methods=['POST'])
-def mahasiswa_tagihan_upload():
+@app.route('/api/tracer/submit', methods=['POST'])
+@limiter.limit("3 per minute")
+def api_tracer_submit():
     try:
-        t_id = request.form.get('tagihan_id')
-        tagihan = TagihanKuliah.query.get(t_id)
-        if tagihan and 'bukti_transfer' in request.files:
-            file = request.files['bukti_transfer']
+        new_tracer = TracerStudy(
+            nama_lengkap=request.form.get('nama_lengkap'),
+            npm=request.form.get('npm'),
+            tahun_lulus=request.form.get('tahun_lulus'),
+            program_studi=request.form.get('program_studi'),
+            status_pekerjaan=request.form.get('status_pekerjaan'),
+            nama_perusahaan=request.form.get('nama_perusahaan'),
+            jabatan=request.form.get('jabatan'),
+            rentang_gaji=request.form.get('rentang_gaji'),
+            kesesuaian=request.form.get('kesesuaian'),
+            waktu_tunggu=request.form.get('waktu_tunggu'),
+            saran=request.form.get('saran'),
+            kontak=request.form.get('kontak')
+        )
+        db.session.add(new_tracer)
+        db.session.commit()
+        flash("Data Tracer Study berhasil dikirim! Terima kasih atas partisipasi Anda.", "success")
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error submitting Tracer Study: {e}")
+        flash("Terjadi kesalahan sistem saat mengirim data. Mohon coba lagi atau hubungi admin.", "error")
+    return redirect(request.referrer or url_for('index'))
+
+@app.route('/api/pmb/check', methods=['GET'])
+def api_pmb_check():
+    try:
+        nama = request.args.get('nama')
+        if not nama:
+            return jsonify({'error': 'Nama tidak boleh kosong'})
+
+        # Case insensitive exact match or like query
+        pmb = PendaftaranPMB.query.filter(func.lower(PendaftaranPMB.nama) == func.lower(nama)).order_by(PendaftaranPMB.id.desc()).first()
+
+        if not pmb:
+            return jsonify({'error': 'Data pendaftaran tidak ditemukan.'})
+
+        return jsonify({
+            'nama': pmb.nama,
+            'status': pmb.status,
+            'npm': pmb.npm_generated if pmb.npm_generated else '-'
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error checking PMB status: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+        return jsonify({'error': 'Terjadi kesalahan sistem.'})
+
+@app.route('/')
+def index():
+    try:
+        epilepsi_logs = EpilepsiLog.query.order_by(EpilepsiLog.date.desc(), EpilepsiLog.time.desc()).limit(5).all()
+    except:
+        epilepsi_logs = []
+
+    try:
+        verified_alumni_list = TracerStudy.query.filter_by(status='Diverifikasi').order_by(TracerStudy.id.desc()).all()
+    except:
+        verified_alumni_list = []
+
+    rendered_home = render_template_string(HOME_HTML, epilepsi_logs=epilepsi_logs, verified_alumni_list=verified_alumni_list, open_modal=request.args.get('open'), is_admin=session.get('is_admin', False), settings=get_settings())
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=rendered_home, is_admin=session.get('is_admin', False), settings=get_settings())
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
+
+@app.route('/sw.js')
+def service_worker():
+    sw_code = """
+const CACHE_NAME = 'al-hijrah-v1';
+const ASSETS_TO_CACHE = [
+    '/',
+    '/static/logo-stiesam.png',
+    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+    'https://cdn.tailwindcss.com'
+];
+
+self.addEventListener('install', (event) => {
+    self.skipWaiting();
+    event.waitUntil(
+        caches.open(CACHE_NAME).then((cache) => {
+            return cache.addAll(ASSETS_TO_CACHE);
+        })
+    );
+});
+
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    if (cacheName !== CACHE_NAME) {
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        })
+    );
+    return self.clients.claim();
+});
+
+self.addEventListener('fetch', (event) => {
+    event.respondWith(
+        fetch(event.request).then((networkResponse) => {
+             if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+                 return networkResponse;
+             }
+             const responseToCache = networkResponse.clone();
+             caches.open(CACHE_NAME).then((cache) => {
+                 cache.put(event.request, responseToCache);
+             });
+             return networkResponse;
+        }).catch(() => {
+            return caches.match(event.request);
+        })
+    );
+});
+"""
+    return Response(sw_code, mimetype='application/javascript')
+
+
+# ============================================================================
+# TATA USAHA (ADMIN) ROUTES
+# ============================================================================
+
+@app.route('/donate/update', methods=['POST'])
+def donate_update():
+    if session.get('role') not in ['Tata Usaha', 'Admin']:
+        return redirect(url_for('index'))
+
+    keys = ['infaq_rekening_masjid', 'infaq_rekening_qurban', 'infaq_rekening_zakat']
+    for k in keys:
+        val = request.form.get(k)
+        if val:
+            s = AppSettings.query.get(k)
+            if s: s.value = val
+            else: db.session.add(AppSettings(key=k, value=val))
+
+    if 'qris_image' in request.files:
+        file = request.files['qris_image']
+        if file and allowed_file(file.filename):
+            saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
+            s = AppSettings.query.get('infaq_qris_image')
+            if s: s.value = saved_filename
+            else: db.session.add(AppSettings(key='infaq_qris_image', value=saved_filename))
+
+    db.session.commit()
+    return redirect(request.referrer)
+
+@app.route('/tu/surat/acc', methods=['POST'])
+def tu_surat_acc():
+    if session.get('role') not in ['Tata Usaha', 'Admin']:
+        return 'Unauthorized', 403
+    try:
+        surat_id = request.form.get('id')
+        surat = SuratOtomatis.query.get(surat_id)
+        if surat:
+            surat.status = 'Disetujui'
+            surat.qr_code = f"QR-{surat.npm}-{surat.jenis_surat}"
+
+            # PDF Generation
+            import uuid
+            from reportlab.pdfgen import canvas
+            filename = f"surat_{surat.npm}_{uuid.uuid4().hex[:8]}.pdf"
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+            c = canvas.Canvas(filepath)
+            c.drawString(100, 800, "KAMPUS STIE SAMARINDA")
+            c.drawString(100, 780, f"Dokumen: {surat.jenis_surat}")
+            c.drawString(100, 760, f"Diberikan kepada NPM: {surat.npm}")
+            c.drawString(100, 740, f"Keterangan: {surat.keterangan}")
+            c.drawString(100, 700, f"Disetujui secara elektronik: {surat.qr_code}")
+            c.save()
+
+            arsip = LaciArsip(
+                npm=surat.npm,
+                nama_dokumen=f"Dokumen Resmi - {surat.jenis_surat}",
+                file_path=filename,
+                ukuran="Digital PDF"
+            )
+            db.session.add(arsip)
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating surat: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+    return redirect(url_for('ramadhan_dashboard', open='modal-pabrik-surat'))
+
+@app.route('/tu/pmb/verifikasi', methods=['POST'])
+def tu_pmb_verifikasi():
+    if session.get('role') not in ['Tata Usaha', 'Admin']:
+        return 'Unauthorized', 403
+    try:
+        pmb_id = request.form.get('id')
+        pmb = PendaftaranPMB.query.get(pmb_id)
+        if pmb:
+            pmb.status = 'Diterima'
+            # Terstruktur: Tahun + 01 + Urutan
+            year_prefix = str(datetime.date.today().year)[-2:]
+            count = User.query.filter_by(role='Mahasiswa').count()
+            new_npm = f"{year_prefix}01{str(count+1).zfill(4)}"
+            pmb.npm_generated = new_npm
+            new_user = User(username=new_npm, password_hash=generate_password_hash("mahasiswa123"), role='Mahasiswa', nama=pmb.nama, status_akademik='Aktif')
+            db.session.add(new_user)
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error PMB verifikasi: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+    return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pmb'))
+
+@app.route('/tu/arsip/search', methods=['GET'])
+def tu_arsip_search():
+    npm = request.args.get('npm')
+    if not npm:
+        return jsonify({'error': 'NPM kosong'})
+
+    try:
+        user = User.query.filter_by(username=npm).first()
+        if not user:
+            return jsonify({'error': 'Mahasiswa tidak ditemukan'})
+        
+        tagihan_raw = TagihanKuliah.query.filter_by(npm=npm).all()
+        tagihan = [{'jenis_tagihan': t.jenis_tagihan, 'status': t.status} for t in tagihan_raw]
+        
+        dok_raw = LaciArsip.query.filter_by(npm=npm).all()
+        dokumen = [{'nama_dokumen': d.nama_dokumen, 'file_path': d.file_path} for d in dok_raw]
+        
+        return jsonify({
+            'user': {
+                'nama': user.nama,
+                'username': user.username,
+                'status_akademik': user.status_akademik
+            },
+            'tagihan': tagihan,
+            'dokumen': dokumen
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error arsip search: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+        return jsonify({'error': 'Terjadi kesalahan sistem'})
+
+@app.route('/tu/publikasi/update', methods=['POST'])
+def tu_publikasi_update():
+    if session.get('role') not in ['Tata Usaha', 'Admin']:
+        return 'Unauthorized', 403
+    try:
+        keys = ['profil_deskripsi', 'profil_visi', 'profil_misi',
+                'berita_label', 'berita_judul', 'berita_waktu', 'berita_isi',
+                'jurnal_kategori', 'jurnal_volume', 'jurnal_judul', 'jurnal_penulis']
+
+        for k in keys:
+            val = request.form.get(k)
+            if val is not None:
+                s = AppSettings.query.get(k)
+                if s: s.value = val
+                else: db.session.add(AppSettings(key=k, value=val))
+
+        if 'profil_gambar' in request.files:
+            file = request.files['profil_gambar']
             if file and allowed_file(file.filename):
                 saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
-                tagihan.bukti_transfer = saved_filename
-                tagihan.status = 'Menunggu Konfirmasi'
-                db.session.commit()
-    except Exception as e:
-        print(f"Error uploading bukti transfer: {e}")
-    return redirect(url_for('irma_dashboard', open='modal-pusat-tagihan'))
+                s = AppSettings.query.get('profil_gambar')
+                if s: s.value = saved_filename
+                else: db.session.add(AppSettings(key='profil_gambar', value=saved_filename))
 
-@app.route('/mahasiswa/krs/add', methods=['POST'])
-def mahasiswa_krs_add():
-    npm = session.get('npm') or session.get('username') or '2401234'
-    try:
-        tagihan_list = TagihanKuliah.query.filter_by(npm=npm).all()
-        has_unpaid = any(t.status != 'Lunas' for t in tagihan_list)
-        if has_unpaid:
-            return redirect(url_for('irma_dashboard', open='modal-rencana-studi'))
+        if 'berita_gambar' in request.files:
+            file = request.files['berita_gambar']
+            if file and allowed_file(file.filename):
+                saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
+                s = AppSettings.query.get('berita_gambar')
+                if s: s.value = saved_filename
+                else: db.session.add(AppSettings(key='berita_gambar', value=saved_filename))
 
-        jadwal_ids = request.form.getlist('jadwal_ids')
-        for j_id in jadwal_ids:
-            jadwal = JadwalKuliah.query.get(j_id)
-            if jadwal:
-                # Prevent duplicate entries for same matkul
-                existing = KRSMahasiswa.query.filter_by(npm=npm, mata_kuliah=jadwal.mata_kuliah).first()
-                if not existing:
-                    new_krs = KRSMahasiswa(
-                        npm=npm,
-                        mata_kuliah=jadwal.mata_kuliah,
-                        dosen=jadwal.dosen,
-                        sks=3,
-                        status='Menunggu Acc Dosen'
-                    )
-                    db.session.add(new_krs)
         db.session.commit()
+        flash("Pembaruan publikasi informasi berhasil disimpan.", "success")
     except Exception as e:
-        print(f"Error submitting KRS: {e}")
-    return redirect(url_for('irma_dashboard', open='modal-rencana-studi'))
+        db.session.rollback()
+        print(f"Error updating publikasi: {e}")
+        flash("Terjadi kesalahan sistem saat menyimpan publikasi informasi. Perubahan dibatalkan.", "error")
+    return redirect(url_for('ramadhan_dashboard', open='modal-publikasi-informasi'))
 
-@app.route('/mahasiswa/surat/request', methods=['POST'])
-def mahasiswa_surat_request():
-    npm = session.get('npm') or session.get('username') or '2401234'
+@app.route('/tu/tagihan/tambah', methods=['POST'])
+def tu_tagihan_tambah():
+    if session.get('role') not in ['Tata Usaha', 'Admin']:
+        return 'Unauthorized', 403
     try:
-        item = SuratOtomatis(
+        npm = request.form.get('npm', '').strip()
+        jumlah = request.form.get('jumlah', '').strip()
+        jenis_tagihan = request.form.get('jenis_tagihan')
+
+        if not npm.isdigit() or not jumlah.isdigit():
+            flash("Format input tidak valid. Pastikan NPM dan Nominal hanya berisi angka presisi tanpa karakter asing.", "error")
+            return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
+
+        user = User.query.filter_by(username=npm).first()
+        if not user:
+            flash(f"Error: NPM {npm} tidak ditemukan dalam sistem.", "error")
+            return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
+
+        new_tagihan = TagihanKuliah(
             npm=npm,
-            jenis_surat=request.form['jenis_surat'],
-            keterangan=request.form['keterangan']
+            jumlah=int(jumlah),
+            jenis_tagihan=jenis_tagihan,
+            status='Belum Lunas'
         )
-        db.session.add(item)
+        db.session.add(new_tagihan)
+        db.session.commit()
+        flash("Tagihan berhasil ditambahkan.", "success")
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error tambah tagihan: {e}")
+        flash("Terjadi kesalahan sistem.", "error")
+    return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
+
+@app.route('/tu/tagihan/lunas', methods=['POST'])
+def tu_tagihan_lunas():
+    if session.get('role') not in ['Tata Usaha', 'Admin']:
+        return 'Unauthorized', 403
+    try:
+        t_id = request.form.get('id')
+        tagihan = TagihanKuliah.query.get(t_id)
+        if tagihan:
+            tagihan.status = 'Lunas'
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error tagihan lunas: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+    return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
+
+@app.route('/tu/jadwal', methods=['POST'])
+def tu_jadwal():
+    if session.get('role') not in ['Tata Usaha', 'Admin']:
+        return 'Unauthorized', 403
+    try:
+        new_jadwal = JadwalKuliah(
+            hari=request.form['hari'],
+            jam=request.form['jam'],
+            mata_kuliah=request.form['mata_kuliah'],
+            dosen=request.form['dosen'],
+            ruangan=request.form['ruangan']
+        )
+        db.session.add(new_jadwal)
         db.session.commit()
     except Exception as e:
-        print(f"Error requesting surat: {e}")
-    return redirect(url_for('irma_dashboard', open='modal-permohonan-surat'))
+        db.session.rollback()
+        print(f"Error tambah jadwal: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+    return redirect(url_for('ramadhan_dashboard', open='modal-kelola-jadwal'))
 
+@app.route('/tu/akun/update', methods=['POST'])
+def tu_akun_update():
+    if session.get('role') not in ['Tata Usaha', 'Admin']:
+        return 'Unauthorized', 403
+    try:
+        user_id = request.form.get('id')
+        status = request.form.get('status_akademik')
+        user = User.query.get(user_id)
+        if user and status in ['Aktif', 'Cuti', 'Keluar', 'Lulus']:
+            user.status_akademik = status
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error update status akademik: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+    return redirect(url_for('ramadhan_dashboard', open='modal-manajemen-sivitas'))
+
+@app.route('/tu/tracer/verify', methods=['POST'])
+def tu_tracer_verify():
+    if session.get('role') not in ['Tata Usaha', 'Admin']:
+        return 'Unauthorized', 403
+    try:
+        t_id = request.form.get('id')
+        tracer = TracerStudy.query.get(t_id)
+        if tracer:
+            tracer.status = 'Diverifikasi'
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error tracer verify: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+    return redirect(url_for('ramadhan_dashboard', open='modal-cek-alumni'))
+
+@app.route('/tu/akun/reset_password', methods=['POST'])
+def tu_akun_reset_password():
+    if session.get('role') not in ['Tata Usaha', 'Admin']:
+        return 'Unauthorized', 403
+    try:
+        user_id = request.form.get('id')
+        user = User.query.get(user_id)
+        if user:
+            from werkzeug.security import generate_password_hash
+            user.password_hash = generate_password_hash("stiesam123")
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error reset password: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+    return redirect(url_for('ramadhan_dashboard', open='modal-manajemen-sivitas'))
+
+
+# ============================================================================
+# DOSEN ROUTES
+# ============================================================================
 
 @app.route('/dosen')
 def dosen_dashboard():
@@ -8510,21 +7760,30 @@ def dosen_dashboard():
             krs_class = KRSMahasiswa.query.filter_by(mata_kuliah=jadwal.mata_kuliah, status='Disetujui Dosen').all()
             
             student_data = []
-            for student_krs in krs_class:
-                # Calculate presence percentage
+            if krs_class:
+                npm_list = [k.npm for k in krs_class]
+                users = User.query.filter(User.username.in_(npm_list)).all()
+                user_map = {u.username: u for u in users}
+
                 total_sessions = JurnalMengajar.query.filter_by(jadwal_id=jadwal.id).count()
-                if total_sessions == 0:
-                    attendance_pct = 100 # No sessions yet, default ok
-                else:
-                    present_count = KehadiranKelas.query.filter_by(jadwal_id=jadwal.id, npm=student_krs.npm, status='Hadir').count()
-                    attendance_pct = (present_count / total_sessions) * 100
+                all_kehadiran = KehadiranKelas.query.filter_by(jadwal_id=jadwal.id, status='Hadir').all()
+                hadir_map = {}
+                for k in all_kehadiran:
+                    hadir_map[k.npm] = hadir_map.get(k.npm, 0) + 1
                     
-                user_obj = User.query.filter_by(username=student_krs.npm).first()
-                student_data.append({
-                    'npm': student_krs.npm,
-                    'nama': user_obj.nama if user_obj else 'Unknown',
-                    'attendance_pct': attendance_pct
-                })
+                for student_krs in krs_class:
+                    if total_sessions == 0:
+                        attendance_pct = 100
+                    else:
+                        present_count = hadir_map.get(student_krs.npm, 0)
+                        attendance_pct = (present_count / total_sessions) * 100
+
+                    user_obj = user_map.get(student_krs.npm)
+                    student_data.append({
+                        'npm': student_krs.npm,
+                        'nama': user_obj.nama if user_obj else 'Unknown',
+                        'attendance_pct': attendance_pct
+                    })
                 
             kelas_list.append({
                 'jadwal': jadwal,
@@ -8532,41 +7791,56 @@ def dosen_dashboard():
                 'students': student_data
             })
             
-        # 4. Mahasiswa Perwalian (Details, IPK, Transkrip)
-        for npm in unique_npms:
-            user = User.query.filter_by(username=npm).first()
-            if user:
-                nilai_list = NilaiMahasiswa.query.filter_by(npm=npm).all()
-                total_sks = 0
-                total_bobot = 0
-                for n in nilai_list:
-                    nilai_angka = 4.0
-                    if n.nilai_huruf == 'A': nilai_angka = 4.0
-                    elif n.nilai_huruf == 'A-': nilai_angka = 3.7
-                    elif n.nilai_huruf == 'B+': nilai_angka = 3.3
-                    elif n.nilai_huruf == 'B': nilai_angka = 3.0
-                    elif n.nilai_huruf == 'B-': nilai_angka = 2.7
-                    elif n.nilai_huruf == 'C+': nilai_angka = 2.3
-                    elif n.nilai_huruf == 'C': nilai_angka = 2.0
-                    elif n.nilai_huruf == 'D': nilai_angka = 1.0
-                    else: nilai_angka = 0.0
-                    total_sks += n.sks
-                    total_bobot += (n.sks * nilai_angka)
+        # 4. Mahasiswa Perwalian (Details, IPK, Transkrip) - OPTIMIZED O(1) Queries
+        if unique_npms:
+            npm_list = list(unique_npms)
+            users = User.query.filter(User.username.in_(npm_list)).all()
+            all_nilai = NilaiMahasiswa.query.filter(NilaiMahasiswa.npm.in_(npm_list)).all()
+            all_arsip = LaciArsip.query.filter(LaciArsip.npm.in_(npm_list)).all()
+
+            user_map = {u.username: u for u in users}
+            nilai_map = {}
+            for n in all_nilai:
+                nilai_map.setdefault(n.npm, []).append(n)
+            arsip_map = {}
+            for a in all_arsip:
+                arsip_map.setdefault(a.npm, []).append(a)
                 
-                ipk = (total_bobot / total_sks) if total_sks > 0 else 0
-                
-                arsip = LaciArsip.query.filter_by(npm=npm).all()
-                
-                mahasiswa_perwalian.append({
-                    'npm': npm,
-                    'nama': user.nama,
-                    'status': user.status_akademik,
-                    'ipk': ipk,
-                    'transkrip': nilai_list,
-                    'arsip': arsip
-                })
+            for npm in unique_npms:
+                user = user_map.get(npm)
+                if user:
+                    nilai_list = nilai_map.get(npm, [])
+                    total_sks = 0
+                    total_bobot = 0
+                    for n in nilai_list:
+                        nilai_angka = 4.0
+                        if n.nilai_huruf == 'A': nilai_angka = 4.0
+                        elif n.nilai_huruf == 'A-': nilai_angka = 3.7
+                        elif n.nilai_huruf == 'B+': nilai_angka = 3.3
+                        elif n.nilai_huruf == 'B': nilai_angka = 3.0
+                        elif n.nilai_huruf == 'B-': nilai_angka = 2.7
+                        elif n.nilai_huruf == 'C+': nilai_angka = 2.3
+                        elif n.nilai_huruf == 'C': nilai_angka = 2.0
+                        elif n.nilai_huruf == 'D': nilai_angka = 1.0
+                        else: nilai_angka = 0.0
+                        total_sks += n.sks
+                        total_bobot += (n.sks * nilai_angka)
+
+                    ipk = (total_bobot / total_sks) if total_sks > 0 else 0
+                    arsip = arsip_map.get(npm, [])
+
+                    mahasiswa_perwalian.append({
+                        'npm': npm,
+                        'nama': user.nama,
+                        'status': user.status_akademik,
+                        'ipk': ipk,
+                        'transkrip': nilai_list,
+                        'arsip': arsip
+                    })
     except Exception as e:
+        db.session.rollback()
         print(f"Error loading Dosen Dashboard: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
 
     # DOSEN THEME
     dosen_theme = {
@@ -8984,352 +8258,6 @@ def dosen_dashboard():
                                   is_admin=session.get('is_admin', False),
                                   settings=get_settings())
 
-def manifest():
-    return jsonify({
-        "name": "Sekolah Tinggi Ilmu Ekonomi STIESAM",
-        "short_name": "STIESAM",
-        "description": "Aplikasi Sekolah Tinggi Ilmu Ekonomi STIESAM Samarinda",
-        "start_url": "/",
-        "id": "/",
-        "scope": "/",
-        "display": "standalone",
-        "orientation": "portrait",
-        "background_color": "#0b1026",
-        "theme_color": "#FFD700",
-        "categories": ["education"],
-        "prefer_related_applications": False,
-        "icons": [
-            {
-                "src": "/static/logo-stiesam.png",
-                "sizes": "192x192",
-                "type": "image/png",
-                "purpose": "any maskable"
-            },
-            {
-                "src": "/static/logo-stiesam.png",
-                "sizes": "512x512",
-                "type": "image/png",
-                "purpose": "any maskable"
-            }
-        ]
-    })
-
-@app.route('/sw.js')
-def service_worker():
-    sw_code = """
-const CACHE_NAME = 'al-hijrah-v1';
-const ASSETS_TO_CACHE = [
-    '/',
-    '/static/logo-stiesam.png',
-    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-    'https://cdn.tailwindcss.com'
-];
-
-self.addEventListener('install', (event) => {
-    self.skipWaiting();
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(ASSETS_TO_CACHE);
-        })
-    );
-});
-
-self.addEventListener('activate', (event) => {
-    event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames.map((cacheName) => {
-                    if (cacheName !== CACHE_NAME) {
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        })
-    );
-    return self.clients.claim();
-});
-
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        fetch(event.request).then((networkResponse) => {
-             if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-                 return networkResponse;
-             }
-             const responseToCache = networkResponse.clone();
-             caches.open(CACHE_NAME).then((cache) => {
-                 cache.put(event.request, responseToCache);
-             });
-             return networkResponse;
-        }).catch(() => {
-            return caches.match(event.request);
-        })
-    );
-});
-"""
-    return Response(sw_code, mimetype='application/javascript')
-
-@app.route('/donate/update', methods=['POST'])
-def donate_update():
-    if not session.get('is_admin'):
-        return redirect(url_for('index'))
-    
-    keys = ['infaq_rekening_masjid', 'infaq_rekening_qurban', 'infaq_rekening_zakat']
-    for k in keys:
-        val = request.form.get(k)
-        if val:
-            s = AppSettings.query.get(k)
-            if s: s.value = val
-            else: db.session.add(AppSettings(key=k, value=val))
-            
-    if 'qris_image' in request.files:
-        file = request.files['qris_image']
-        if file and allowed_file(file.filename):
-            saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
-            s = AppSettings.query.get('infaq_qris_image')
-            if s: s.value = saved_filename
-            else: db.session.add(AppSettings(key='infaq_qris_image', value=saved_filename))
-            
-    db.session.commit()
-    return redirect(request.referrer)
-
-
-@app.route('/tu/surat/acc', methods=['POST'])
-def tu_surat_acc():
-    if not session.get('is_admin'):
-        return 'Unauthorized', 403
-    try:
-        surat_id = request.form.get('id')
-        surat = SuratOtomatis.query.get(surat_id)
-        if surat:
-            surat.status = 'Disetujui'
-            surat.qr_code = f"QR-{surat.npm}-{surat.jenis_surat}"
-            
-            # PDF Generation
-            import uuid
-            from reportlab.pdfgen import canvas
-            filename = f"surat_{surat.npm}_{uuid.uuid4().hex[:8]}.pdf"
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            
-            c = canvas.Canvas(filepath)
-            c.drawString(100, 800, "KAMPUS STIE SAMARINDA")
-            c.drawString(100, 780, f"Dokumen: {surat.jenis_surat}")
-            c.drawString(100, 760, f"Diberikan kepada NPM: {surat.npm}")
-            c.drawString(100, 740, f"Keterangan: {surat.keterangan}")
-            c.drawString(100, 700, f"Disetujui secara elektronik: {surat.qr_code}")
-            c.save()
-            
-            arsip = LaciArsip(
-                npm=surat.npm,
-                nama_dokumen=f"Dokumen Resmi - {surat.jenis_surat}",
-                file_path=filename,
-                ukuran="Digital PDF"
-            )
-            db.session.add(arsip)
-            db.session.commit()
-    except Exception as e:
-        print(f"Error updating surat: {e}")
-    return redirect(url_for('ramadhan_dashboard', open='modal-pabrik-surat'))
-
-@app.route('/tu/pmb/verifikasi', methods=['POST'])
-def tu_pmb_verifikasi():
-    if not session.get('is_admin'):
-        return 'Unauthorized', 403
-    try:
-        pmb_id = request.form.get('id')
-        pmb = PendaftaranPMB.query.get(pmb_id)
-        if pmb:
-            pmb.status = 'Diterima'
-            # Terstruktur: Tahun + 01 + Urutan
-            year_prefix = str(datetime.date.today().year)[-2:]
-            count = User.query.filter_by(role='Mahasiswa').count()
-            new_npm = f"{year_prefix}01{str(count+1).zfill(4)}"
-            pmb.npm_generated = new_npm
-            new_user = User(username=new_npm, password_hash=generate_password_hash("mahasiswa123"), role='Mahasiswa', nama=pmb.nama, status_akademik='Aktif')
-            db.session.add(new_user)
-            db.session.commit()
-    except Exception as e:
-        print(f"Error PMB verifikasi: {e}")
-    return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pmb'))
-
-@app.route('/tu/arsip/search', methods=['GET'])
-def tu_arsip_search():
-    npm = request.args.get('npm')
-    if not npm:
-        return jsonify({'error': 'NPM kosong'})
-    
-    try:
-        user = User.query.filter_by(username=npm).first()
-        if not user:
-            return jsonify({'error': 'Mahasiswa tidak ditemukan'})
-        
-        tagihan_raw = TagihanKuliah.query.filter_by(npm=npm).all()
-        tagihan = [{'jenis_tagihan': t.jenis_tagihan, 'status': t.status} for t in tagihan_raw]
-        
-        dok_raw = LaciArsip.query.filter_by(npm=npm).all()
-        dokumen = [{'nama_dokumen': d.nama_dokumen, 'file_path': d.file_path} for d in dok_raw]
-        
-        return jsonify({
-            'user': {
-                'nama': user.nama,
-                'username': user.username,
-                'status_akademik': user.status_akademik
-            },
-            'tagihan': tagihan,
-            'dokumen': dokumen
-        })
-    except Exception as e:
-        print(f"Error arsip search: {e}")
-        return jsonify({'error': 'Terjadi kesalahan sistem'})
-
-@app.route('/tu/publikasi/update', methods=['POST'])
-def tu_publikasi_update():
-    if session.get('role') not in ['Tata Usaha', 'Admin']:
-        return 'Unauthorized', 403
-    try:
-        keys = ['profil_deskripsi', 'profil_visi', 'profil_misi', 
-                'berita_label', 'berita_judul', 'berita_waktu', 'berita_isi',
-                'jurnal_kategori', 'jurnal_volume', 'jurnal_judul', 'jurnal_penulis']
-        
-        for k in keys:
-            val = request.form.get(k)
-            if val is not None:
-                s = AppSettings.query.get(k)
-                if s: s.value = val
-                else: db.session.add(AppSettings(key=k, value=val))
-                
-        if 'profil_gambar' in request.files:
-            file = request.files['profil_gambar']
-            if file and allowed_file(file.filename):
-                saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
-                s = AppSettings.query.get('profil_gambar')
-                if s: s.value = saved_filename
-                else: db.session.add(AppSettings(key='profil_gambar', value=saved_filename))
-                
-        if 'berita_gambar' in request.files:
-            file = request.files['berita_gambar']
-            if file and allowed_file(file.filename):
-                saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
-                s = AppSettings.query.get('berita_gambar')
-                if s: s.value = saved_filename
-                else: db.session.add(AppSettings(key='berita_gambar', value=saved_filename))
-                
-        db.session.commit()
-        flash("Pembaruan publikasi informasi berhasil disimpan.", "success")
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error updating publikasi: {e}")
-        flash("Terjadi kesalahan sistem saat menyimpan publikasi informasi. Perubahan dibatalkan.", "error")
-    return redirect(url_for('ramadhan_dashboard', open='modal-publikasi-informasi'))
-
-@app.route('/tu/tagihan/tambah', methods=['POST'])
-def tu_tagihan_tambah():
-    if not session.get('is_admin'):
-        return 'Unauthorized', 403
-    try:
-        npm = request.form.get('npm', '').strip()
-        jumlah = request.form.get('jumlah', '').strip()
-        jenis_tagihan = request.form.get('jenis_tagihan')
-
-        if not npm.isdigit() or not jumlah.isdigit():
-            flash("Format input tidak valid. Pastikan NPM dan Nominal hanya berisi angka presisi tanpa karakter asing.", "error")
-            return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
-
-        user = User.query.filter_by(username=npm).first()
-        if not user:
-            flash(f"Error: NPM {npm} tidak ditemukan dalam sistem.", "error")
-            return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
-
-        new_tagihan = TagihanKuliah(
-            npm=npm,
-            jumlah=int(jumlah),
-            jenis_tagihan=jenis_tagihan,
-            status='Belum Lunas'
-        )
-        db.session.add(new_tagihan)
-        db.session.commit()
-        flash("Tagihan berhasil ditambahkan.", "success")
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error tambah tagihan: {e}")
-        flash("Terjadi kesalahan sistem.", "error")
-    return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
-
-@app.route('/tu/tagihan/lunas', methods=['POST'])
-def tu_tagihan_lunas():
-    if not session.get('is_admin'):
-        return 'Unauthorized', 403
-    try:
-        t_id = request.form.get('id')
-        tagihan = TagihanKuliah.query.get(t_id)
-        if tagihan:
-            tagihan.status = 'Lunas'
-            db.session.commit()
-    except Exception as e:
-        print(f"Error tagihan lunas: {e}")
-    return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
-
-@app.route('/tu/jadwal', methods=['POST'])
-def tu_jadwal():
-    if not session.get('is_admin'):
-        return 'Unauthorized', 403
-    try:
-        new_jadwal = JadwalKuliah(
-            hari=request.form['hari'],
-            jam=request.form['jam'],
-            mata_kuliah=request.form['mata_kuliah'],
-            dosen=request.form['dosen'],
-            ruangan=request.form['ruangan']
-        )
-        db.session.add(new_jadwal)
-        db.session.commit()
-    except Exception as e:
-        print(f"Error tambah jadwal: {e}")
-    return redirect(url_for('ramadhan_dashboard', open='modal-kelola-jadwal'))
-
-@app.route('/tu/akun/update', methods=['POST'])
-def tu_akun_update():
-    if not session.get('is_admin'):
-        return 'Unauthorized', 403
-    try:
-        user_id = request.form.get('id')
-        status = request.form.get('status_akademik')
-        user = User.query.get(user_id)
-        if user and status in ['Aktif', 'Cuti', 'Keluar', 'Lulus']:
-            user.status_akademik = status
-            db.session.commit()
-    except Exception as e:
-        print(f"Error update status akademik: {e}")
-    return redirect(url_for('ramadhan_dashboard', open='modal-manajemen-sivitas'))
-
-@app.route('/tu/tracer/verify', methods=['POST'])
-def tu_tracer_verify():
-    if not session.get('is_admin') and session.get('role') != 'Tata Usaha':
-        return 'Unauthorized', 403
-    try:
-        t_id = request.form.get('id')
-        tracer = TracerStudy.query.get(t_id)
-        if tracer:
-            tracer.status = 'Diverifikasi'
-            db.session.commit()
-    except Exception as e:
-        print(f"Error tracer verify: {e}")
-    return redirect(url_for('ramadhan_dashboard', open='modal-cek-alumni'))
-
-@app.route('/tu/akun/reset_password', methods=['POST'])
-def tu_akun_reset_password():
-    if not session.get('is_admin'):
-        return 'Unauthorized', 403
-    try:
-        user_id = request.form.get('id')
-        user = User.query.get(user_id)
-        if user:
-            from werkzeug.security import generate_password_hash
-            user.password_hash = generate_password_hash("stiesam123")
-            db.session.commit()
-    except Exception as e:
-        print(f"Error reset password: {e}")
-    return redirect(url_for('ramadhan_dashboard', open='modal-manajemen-sivitas'))
-
 @app.route('/dosen/krs/action', methods=['POST'])
 @csrf.exempt
 def dosen_krs_action():
@@ -9342,7 +8270,9 @@ def dosen_krs_action():
             db.session.commit()
             return jsonify({'success': True})
     except Exception as e:
+        db.session.rollback()
         print(f"Error updating KRS status: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return jsonify({'success': False}), 400
 
 @app.route('/dosen/nilai/submit', methods=['POST'])
@@ -9390,7 +8320,9 @@ def dosen_nilai_submit():
                 
             db.session.commit()
     except Exception as e:
+        db.session.rollback()
         print(f"Error submitting nilai: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('dosen_dashboard', open='modal-masukan-nilai'))
 
 @app.route('/dosen/presensi/submit', methods=['POST'])
@@ -9423,27 +8355,1320 @@ def dosen_presensi_submit():
                 
         db.session.commit()
     except Exception as e:
+        db.session.rollback()
         print(f"Error submitting presensi: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('dosen_dashboard', open='modal-presensi-jurnal'))
 
-@app.route('/seed-admin')
-def seed_admin():
+
+# ============================================================================
+# MAHASISWA ROUTES
+# ============================================================================
+
+@app.route('/mahasiswa/tagihan/upload', methods=['POST'])
+def mahasiswa_tagihan_upload():
     try:
-        admin_exists = User.query.filter_by(role='Tata Usaha').first()
-        if not admin_exists:
-            new_admin = User(
-                username='adminstiesam',
-                password_hash=generate_password_hash('stiesamadmin123'),
-                role='Tata Usaha',
-                nama='Administrator STIESAM',
-                status_akademik='Aktif'
-            )
-            db.session.add(new_admin)
-            db.session.commit()
-            return "Akun administrator Tata Usaha berhasil dibuat."
-        return "Akun administrator Tata Usaha sudah ada."
+        t_id = request.form.get('tagihan_id')
+        tagihan = TagihanKuliah.query.get(t_id)
+        if tagihan and 'bukti_transfer' in request.files:
+            file = request.files['bukti_transfer']
+            if file and allowed_file(file.filename):
+                saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
+                tagihan.bukti_transfer = saved_filename
+                tagihan.status = 'Menunggu Konfirmasi'
+                db.session.commit()
     except Exception as e:
-        return f"Error: {e}"
+        db.session.rollback()
+        print(f"Error uploading bukti transfer: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+    return redirect(url_for('irma_dashboard', open='modal-pusat-tagihan'))
+
+@app.route('/mahasiswa/krs/add', methods=['POST'])
+def mahasiswa_krs_add():
+    npm = session.get('npm') or session.get('username') or '2401234'
+    try:
+        tagihan_list = TagihanKuliah.query.filter_by(npm=npm).all()
+        has_unpaid = any(t.status != 'Lunas' for t in tagihan_list)
+        if has_unpaid:
+            return redirect(url_for('irma_dashboard', open='modal-rencana-studi'))
+
+        jadwal_ids = request.form.getlist('jadwal_ids')
+        for j_id in jadwal_ids:
+            jadwal = JadwalKuliah.query.get(j_id)
+            if jadwal:
+                # Prevent duplicate entries for same matkul
+                existing = KRSMahasiswa.query.filter_by(npm=npm, mata_kuliah=jadwal.mata_kuliah).first()
+                if not existing:
+                    new_krs = KRSMahasiswa(
+                        npm=npm,
+                        mata_kuliah=jadwal.mata_kuliah,
+                        dosen=jadwal.dosen,
+                        sks=3,
+                        status='Menunggu Acc Dosen'
+                    )
+                    db.session.add(new_krs)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error submitting KRS: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+    return redirect(url_for('irma_dashboard', open='modal-rencana-studi'))
+
+@app.route('/mahasiswa/surat/request', methods=['POST'])
+def mahasiswa_surat_request():
+    npm = session.get('npm') or session.get('username') or '2401234'
+    try:
+        item = SuratOtomatis(
+            npm=npm,
+            jenis_surat=request.form['jenis_surat'],
+            keterangan=request.form['keterangan']
+        )
+        db.session.add(item)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error requesting surat: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+    return redirect(url_for('irma_dashboard', open='modal-permohonan-surat'))
+
+
+# ============================================================================
+# LEGACY ZONA WARISAN (Masjid, Ramadhan, Irma, Therapy)
+# ============================================================================
+
+@app.route('/therapy/log', methods=['POST'])
+def therapy_log():
+    try:
+        log = EpilepsiLog(
+            date=request.form['date'],
+            time=request.form['time'],
+            trigger=request.form['trigger'],
+            notes=request.form['notes']
+        )
+        db.session.add(log)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error logging therapy: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+    return redirect(url_for('index', open='modal-terapi-log'))
+
+@app.route('/finance', methods=['GET', 'POST'])
+def finance():
+    if request.method == 'POST':
+        if 'delete_id' in request.form:
+            Finance.query.filter_by(id=request.form['delete_id']).delete()
+        else:
+            item = Finance(
+                date=request.form['date'],
+                type=request.form['type'],
+                category=request.form['category'],
+                description=request.form['description'],
+                amount=int(request.form['amount'])
+            )
+            db.session.add(item)
+        db.session.commit()
+        return redirect(url_for('finance'))
+
+    items = Finance.query.order_by(Finance.date.desc()).all()
+
+    total_in = db.session.query(func.sum(Finance.amount)).filter_by(type='Pemasukan').scalar() or 0
+    total_out = db.session.query(func.sum(Finance.amount)).filter_by(type='Pengeluaran').scalar() or 0
+    balance = total_in - total_out
+
+    content = """
+    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-gray-800">Laporan Kas</h3>
+            {% if is_admin %}
+            <button onclick="document.getElementById('modal-add').classList.remove('hidden')" class="bg-sky-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-sky-600 transition">+ Input</button>
+            {% endif %}
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 mb-6">
+            <div class="bg-white p-5 rounded-3xl shadow-sm border border-sky-100 relative overflow-hidden">
+                <div class="absolute right-0 top-0 p-4 opacity-10"><i class="fas fa-wallet text-6xl text-sky-500"></i></div>
+                <p class="text-sm text-gray-500 font-medium mb-1">Saldo Akhir</p>
+                <h2 class="text-3xl font-bold text-sky-600">Rp {{ "{:,.0f}".format(balance) }}</h2>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
+                    <p class="text-xs text-gray-400 mb-1">Pemasukan</p>
+                    <h3 class="text-lg font-bold text-green-500">Rp {{ "{:,.0f}".format(total_in) }}</h3>
+                </div>
+                <div class="bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
+                    <p class="text-xs text-gray-400 mb-1">Pengeluaran</p>
+                    <h3 class="text-lg font-bold text-red-500">Rp {{ "{:,.0f}".format(total_out) }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+            <div class="bg-gray-50 px-5 py-3 border-b border-gray-100">
+                <h4 class="font-bold text-gray-700 text-sm">Riwayat Transaksi</h4>
+            </div>
+            <div class="divide-y divide-gray-100">
+                {% for item in items %}
+                <div class="p-4 flex justify-between items-start hover:bg-gray-50 transition">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ 'bg-green-100 text-green-600' if item['type'] == 'Pemasukan' else 'bg-red-100 text-red-600' }}">{{ item['category'] }}</span>
+                            <span class="text-xs text-gray-400">{{ item['date'] }}</span>
+                        </div>
+                        <p class="text-sm font-medium text-gray-800">{{ item['description'] }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-bold {{ 'text-green-600' if item['type'] == 'Pemasukan' else 'text-red-500' }}">
+                            {{ "+" if item['type'] == 'Pemasukan' else "-" }} {{ "{:,.0f}".format(item['amount']) }}
+                        </p>
+                        {% if is_admin %}
+                        <form method="POST" class="inline-block mt-1">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                            <input type="hidden" name="delete_id" value="{{ item['id'] }}">
+                            <button class="text-gray-300 hover:text-red-500 text-xs" onclick="return confirm('Hapus?')"><i class="fas fa-trash"></i></button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="p-8 text-center text-gray-400 text-sm">Belum ada data transaksi.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    {% if is_admin %}
+    <div id="modal-add" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="document.getElementById('modal-add').classList.add('hidden')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold">Input Kas Baru</h3>
+                <button onclick="document.getElementById('modal-add').classList.add('hidden')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500">&times;</button>
+            </div>
+            <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Tanggal</label>
+                        <input type="date" name="date" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Jenis</label>
+                            <select name="type" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
+                                <option value="Pemasukan">Pemasukan</option>
+                                <option value="Pengeluaran">Pengeluaran</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Kategori</label>
+                            <select name="category" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
+                                <option value="Infaq Jumat">Infaq Jumat</option>
+                                <option value="Operasional">Operasional</option>
+                                <option value="Pembangunan">Pembangunan</option>
+                                <option value="Sosial">Sosial</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Keterangan</label>
+                        <input type="text" name="description" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Contoh: Bayar Listrik" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Nominal (Rp)</label>
+                        <input type="number" name="amount" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
+                    </div>
+                    <button type="submit" class="w-full bg-sky-500 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-sky-600 transition mt-4">Simpan Data</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='finance', content=render_template_string(content, items=items, total_in=total_in, total_out=total_out, balance=balance, is_admin=session.get('is_admin', False)), is_admin=session.get('is_admin', False), settings=get_settings())
+
+@app.route('/agenda', methods=['GET', 'POST'])
+def agenda():
+    if request.method == 'POST':
+        if 'delete_id' in request.form:
+            Agenda.query.filter_by(id=request.form['delete_id']).delete()
+        else:
+            item = Agenda(
+                date=request.form['date'],
+                time=request.form['time'],
+                title=request.form['title'],
+                speaker=request.form['speaker'],
+                type=request.form['type']
+            )
+            db.session.add(item)
+        db.session.commit()
+        return redirect(url_for('agenda'))
+
+    items = Agenda.query.order_by(Agenda.date.asc(), Agenda.time.asc()).all()
+
+#     conn.close()
+
+    content = """
+    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-gray-800">Jadwal Imam & Kajian</h3>
+            {% if is_admin %}
+            <button onclick="document.getElementById('modal-agenda').classList.remove('hidden')" class="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-blue-600 transition">+ Tambah</button>
+            {% endif %}
+        </div>
+
+        <div class="space-y-4">
+            {% for item in items %}
+            <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex gap-4 relative">
+                {% if is_admin %}
+                <form method="POST" class="absolute top-2 right-2">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <input type="hidden" name="delete_id" value="{{ item['id'] }}">
+                    <button class="text-gray-300 hover:text-red-500" onclick="return confirm('Hapus?')">&times;</button>
+                </form>
+                {% endif %}
+                <div class="flex-shrink-0 flex flex-col items-center justify-center bg-blue-50 w-16 h-16 rounded-2xl text-blue-600">
+                    <span class="text-xs font-bold uppercase">{{ item['date'][5:7] }}/{{ item['date'][8:] }}</span>
+                    <span class="text-xs">{{ item['time'] }}</span>
+                </div>
+                <div>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ 'bg-amber-100 text-amber-700' if item['type'] == 'Jumat' else 'bg-blue-100 text-blue-700' }} mb-1 inline-block">{{ item['type'] }}</span>
+                    <h4 class="font-bold text-gray-800 leading-tight mb-1">{{ item['title'] }}</h4>
+                    <p class="text-xs text-gray-500"><i class="fas fa-user-circle mr-1"></i> {{ item['speaker'] }}</p>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center py-10 text-gray-400">Belum ada agenda terjadwal.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Modal -->
+    {% if is_admin %}
+    <div id="modal-agenda" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="document.getElementById('modal-agenda').classList.add('hidden')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out]">
+            <h3 class="text-lg font-bold mb-6">Tambah Agenda</h3>
+            <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Tanggal</label>
+                            <input type="date" name="date" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Jam</label>
+                            <input type="time" name="time" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Jenis</label>
+                        <select name="type" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
+                            <option value="Jumat">Sholat Jumat</option>
+                            <option value="Kajian">Kajian Rutin</option>
+                            <option value="PHBI">PHBI</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Judul / Tema</label>
+                        <input type="text" name="title" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Ustadz / Imam</label>
+                        <input type="text" name="speaker" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg mt-4">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='agenda', content=render_template_string(content, items=items, is_admin=session.get('is_admin', False)), is_admin=session.get('is_admin', False), settings=get_settings())
+
+@app.route('/booking', methods=['GET', 'POST'])
+def booking():
+    if request.method == 'POST':
+        if 'status_update' in request.form:
+             booking = Booking.query.get(request.form['booking_id'])
+             if booking:
+                 booking.status = request.form['status']
+        else:
+             item = Booking(
+                 name=request.form['name'],
+                 date=request.form['date'],
+                 purpose=request.form['purpose'],
+                 type=request.form['type'],
+                 contact=request.form['contact']
+             )
+             db.session.add(item)
+        db.session.commit()
+        return redirect(url_for('booking'))
+
+    items = Booking.query.order_by(Booking.created_at.desc()).all()
+
+#     conn.close()
+
+    content = """
+    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
+        <h3 class="text-xl font-bold text-gray-800 mb-2">Peminjaman Fasilitas</h3>
+        <p class="text-sm text-gray-500 mb-6">Ajukan peminjaman ambulan atau area masjid.</p>
+
+        <form method="POST" class="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 mb-8">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Nama Peminjam</label>
+                    <input type="text" name="name" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
+                </div>
+                <div>
+                     <label class="block text-xs font-bold text-gray-500 mb-1">No. HP / WA</label>
+                    <input type="text" name="contact" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Tanggal</label>
+                        <input type="date" name="date" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Fasilitas</label>
+                        <select name="type" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
+                            <option value="Ambulan">Ambulan</option>
+                            <option value="Area Masjid">Area Masjid</option>
+                            <option value="Peralatan">Peralatan</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Keperluan</label>
+                    <textarea name="purpose" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" rows="2" required></textarea>
+                </div>
+                <button type="submit" class="w-full bg-orange-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-orange-600 transition">Ajukan</button>
+            </div>
+        </form>
+
+        <h4 class="font-bold text-gray-800 mb-4 border-l-4 border-orange-500 pl-2">Status Pengajuan</h4>
+        <div class="space-y-3">
+            {% for item in items %}
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
+                <div class="flex justify-between items-start mb-2">
+                    <h5 class="font-bold text-gray-800">{{ item['name'] }}</h5>
+                    <span class="text-[10px] font-bold px-2 py-1 rounded-lg {{ 'bg-yellow-100 text-yellow-700' if item['status'] == 'Pending' else ('bg-green-100 text-green-700' if item['status'] == 'Approved' else 'bg-red-100 text-red-700') }}">
+                        {{ item['status'] }}
+                    </span>
+                </div>
+                <p class="text-xs text-gray-500 mb-1"><i class="fas fa-tag mr-1 text-orange-400"></i> {{ item['type'] }} • {{ item['date'] }}</p>
+                <p class="text-xs text-gray-600 italic">"{{ item['purpose'] }}"</p>
+
+                {% if item['status'] == 'Pending' and is_admin %}
+                <div class="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                     <form method="POST" class="flex-1">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <input type="hidden" name="status_update" value="1">
+                        <input type="hidden" name="booking_id" value="{{ item['id'] }}">
+                        <input type="hidden" name="status" value="Approved">
+                        <button class="w-full bg-green-50 text-green-600 text-xs font-bold py-2 rounded-lg hover:bg-green-100">Setujui</button>
+                    </form>
+                    <form method="POST" class="flex-1">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <input type="hidden" name="status_update" value="1">
+                        <input type="hidden" name="booking_id" value="{{ item['id'] }}">
+                        <input type="hidden" name="status" value="Rejected">
+                        <button class="w-full bg-red-50 text-red-600 text-xs font-bold py-2 rounded-lg hover:bg-red-100">Tolak</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <p class="text-center text-gray-400 text-sm">Belum ada pengajuan.</p>
+            {% endfor %}
+        </div>
+    </div>
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='booking', content=render_template_string(content, items=items, is_admin=session.get('is_admin', False)), is_admin=session.get('is_admin', False), settings=get_settings())
+
+@app.route('/zakat', methods=['GET', 'POST'])
+def zakat():
+    if request.method == 'POST':
+         item = Zakat(
+             donor_name=request.form['donor_name'],
+             type=request.form['type'],
+             amount=request.form['amount'],
+             notes=request.form['notes'],
+             status='Pending'
+         )
+         db.session.add(item)
+         db.session.commit()
+         return redirect(url_for('zakat'))
+
+    items = Zakat.query.order_by(Zakat.created_at.desc()).limit(50).all()
+
+    # Calculate totals (Python side for safety with String column)
+    fitrah_items = Zakat.query.filter_by(type='Zakat Fitrah').all()
+    total_zakat_fitrah = sum(int(float(i.amount)) for i in fitrah_items if i.amount.replace('.','').isdigit())
+
+    total_sapi = Zakat.query.filter_by(type='Qurban Sapi').count()
+    total_kambing = Zakat.query.filter_by(type='Qurban Kambing').count()
+
+    content = """
+    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-gray-800">Zakat & Qurban</h3>
+            <div class="flex gap-2">
+                <button onclick="triggerZakatWA()" class="bg-[#25D366] text-white px-3 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-green-600 transition flex items-center gap-1">
+                    <i class="fab fa-whatsapp text-sm"></i> <span class="hidden md:inline">Konfirmasi Admin</span>
+                </button>
+                <button onclick="document.getElementById('modal-zakat').classList.remove('hidden')" class="bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-green-600 transition">+ Input</button>
+            </div>
+        </div>
+        <script>
+            function triggerZakatWA() {
+                const now = new Date();
+                const h = now.getHours();
+                let time = "Malam";
+                if (h >= 0 && h < 11) time = "Pagi";
+                else if (h >= 11 && h < 15) time = "Siang";
+                else if (h >= 15 && h < 18) time = "Sore";
+
+                const msg = `Assalamualaikum Pak, selamat ${time}, saya ingin berqurban atau melakukan zakat Pak, terima kasih 🙏`;
+                window.location.href = "https://wa.me/6282330890500?text=" + encodeURIComponent(msg);
+            }
+        </script>
+
+        <div class="grid grid-cols-2 gap-4 mb-8">
+            <div class="bg-white p-4 rounded-3xl shadow-sm border border-green-50 text-center">
+                <p class="text-xs text-gray-400 mb-1">Zakat Fitrah</p>
+                <h3 class="text-lg font-bold text-green-600">Rp {{ "{:,.0f}".format(total_zakat_fitrah) }}</h3>
+            </div>
+            <div class="bg-white p-4 rounded-3xl shadow-sm border border-green-50 text-center">
+                <p class="text-xs text-gray-400 mb-1">Hewan Qurban</p>
+                <h3 class="text-sm font-bold text-gray-800">{{ total_sapi }} Sapi <br> {{ total_kambing }} Kambing</h3>
+            </div>
+        </div>
+
+        <h4 class="font-bold text-gray-800 mb-4 pl-2 border-l-4 border-green-500">Data Terbaru</h4>
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="divide-y divide-gray-100">
+                {% for item in items %}
+                <div class="p-4 flex justify-between items-start">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <h5 class="font-bold text-gray-800 text-sm">{{ item['donor_name'] }}</h5>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ 'bg-yellow-100 text-yellow-600' if item['status'] == 'Pending' else ('bg-green-100 text-green-600' if item['status'] == 'Approved' else 'bg-red-100 text-red-600') }}">{{ item['status'] }}</span>
+                        </div>
+                        <p class="text-xs text-gray-500">{{ item['type'] }} • {{ item['notes'] }}</p>
+
+                        {% if is_admin and item['status'] == 'Pending' %}
+                        <div class="flex gap-2 mt-2">
+                            <form action="/zakat/status" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                                <input type="hidden" name="id" value="{{ item['id'] }}">
+                                <input type="hidden" name="status" value="Approved">
+                                <button class="bg-green-500 text-white text-[10px] px-2 py-1 rounded hover:bg-green-600">Approve</button>
+                            </form>
+                            <form action="/zakat/status" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                                <input type="hidden" name="id" value="{{ item['id'] }}">
+                                <input type="hidden" name="status" value="Rejected">
+                                <button class="bg-red-500 text-white text-[10px] px-2 py-1 rounded hover:bg-red-600">Tolak</button>
+                            </form>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="font-bold text-green-600 text-sm text-right">
+                        {{ "Rp {:,.0f}".format(item['amount']|int) if item['amount'].isdigit() else item['amount'] }}
+                    </div>
+                </div>
+                {% else %}
+                <div class="p-6 text-center text-gray-400">Belum ada data.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal-zakat" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="document.getElementById('modal-zakat').classList.add('hidden')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out]">
+            <h3 class="text-lg font-bold mb-6">Input Data</h3>
+            <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Nama</label>
+                        <input type="text" name="donor_name" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Jenis</label>
+                        <select name="type" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
+                            <option value="Zakat Fitrah">Zakat Fitrah</option>
+                            <option value="Zakat Mal">Zakat Mal</option>
+                            <option value="Qurban Sapi">Qurban Sapi</option>
+                            <option value="Qurban Kambing">Qurban Kambing</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Jumlah / Nominal</label>
+                        <input type="text" name="amount" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" placeholder="Ex: 50000 atau 1 Ekor" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Catatan</label>
+                        <input type="text" name="notes" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" placeholder="Ex: Hamba Allah">
+                    </div>
+                    <button type="submit" class="w-full bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg mt-4">Simpan Data</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='zakat', content=render_template_string(content, items=items, total_zakat_fitrah=total_zakat_fitrah, total_sapi=total_sapi, total_kambing=total_kambing, is_admin=session.get('is_admin', False)), is_admin=session.get('is_admin', False), settings=get_settings())
+
+@app.route('/zakat/status', methods=['POST'])
+def zakat_status():
+    if not session.get('is_admin'):
+        return redirect(url_for('zakat'))
+
+    try:
+        item = Zakat.query.get(request.form['id'])
+        if item:
+            item.status = request.form['status']
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating zakat status: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+    return redirect(url_for('zakat'))
+
+@app.route('/gallery-dakwah', methods=['GET', 'POST'])
+def gallery_dakwah():
+    is_admin = session.get('is_admin', False)
+    is_gallery_admin = session.get('is_gallery_admin', False)
+    can_edit = is_admin or is_gallery_admin
+
+    if request.method == 'POST' and can_edit:
+        if 'delete_id' in request.form:
+             GalleryDakwah.query.filter_by(id=request.form['delete_id']).delete()
+        elif 'image' in request.files:
+            file = request.files['image']
+            if file and allowed_file(file.filename):
+                saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
+                item = GalleryDakwah(
+                    title=request.form['title'],
+                    image=saved_filename,
+                    description=request.form['description'],
+                    date=str(datetime.date.today())
+                )
+                db.session.add(item)
+        db.session.commit()
+        return redirect(url_for('gallery_dakwah'))
+
+    items = GalleryDakwah.query.order_by(GalleryDakwah.created_at.desc()).all()
+
+#     conn.close()
+
+    content = """
+    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-gray-800">Galeri Dakwah</h3>
+            {% if can_edit %}
+            <button onclick="document.getElementById('modal-upload').classList.remove('hidden')" class="bg-purple-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-purple-600 transition">+ Foto</button>
+            {% endif %}
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            {% for item in items %}
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden relative group">
+                <div class="aspect-square bg-gray-200 relative cursor-pointer" onclick='openGalleryModal({{ url_for("uploaded_file", filename=item["image"])|tojson }}, {{ item["title"]|tojson }}, {{ item["description"]|tojson }})'>
+                    <img src="/uploads/{{ item['image'] }}" class="w-full h-full object-cover" alt="{{ item['title'] }}">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-3">
+                        <p class="text-white text-xs font-bold leading-tight line-clamp-2">{{ item['title'] }}</p>
+                    </div>
+                </div>
+                {% if can_edit %}
+                <form method="POST" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <input type="hidden" name="delete_id" value="{{ item['id'] }}">
+                    <button class="bg-red-500 text-white w-6 h-6 rounded-full text-xs shadow-md" onclick="return confirm('Hapus?')">&times;</button>
+                </form>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="col-span-2 text-center py-10 text-gray-400">Belum ada dokumentasi.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Modal Upload -->
+    {% if can_edit %}
+    <div id="modal-upload" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="document.getElementById('modal-upload').classList.add('hidden')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out]">
+            <h3 class="text-lg font-bold mb-6">Upload Foto</h3>
+            <form method="POST" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Judul</label>
+                        <input type="text" name="title" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Deskripsi</label>
+                        <input type="text" name="description" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Foto</label>
+                        <input type="file" name="image" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm" required>
+                    </div>
+                    <button type="submit" class="w-full bg-purple-500 text-white font-bold py-4 rounded-xl shadow-lg mt-4">Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- GALLERY MODAL FULLSCREEN -->
+    <div id="modal-gallery-view" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/90 backdrop-blur-sm animate-[fadeIn_0.3s_ease-out]" onclick="closeGalleryModal()">
+        <div class="relative max-w-6xl w-[90%] h-[85vh] bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row" onclick="event.stopPropagation()">
+            <!-- Image Side -->
+            <div class="flex-1 bg-black flex items-center justify-center relative h-1/2 md:h-full">
+                <img id="gallery-modal-img" src="" class="max-w-full max-h-full object-contain">
+                <button onclick="closeGalleryModal()" class="absolute top-4 left-4 bg-black/50 text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/70 md:hidden">&times;</button>
+            </div>
+            <!-- Info Side -->
+            <div class="w-full md:w-96 bg-white p-8 flex flex-col justify-center h-1/2 md:h-full relative overflow-y-auto">
+                <button onclick="closeGalleryModal()" class="hidden md:flex absolute top-6 right-6 bg-gray-100 text-gray-500 w-10 h-10 rounded-full items-center justify-center hover:bg-gray-200 transition">&times;</button>
+                <h3 id="gallery-modal-title" class="text-3xl font-bold text-gray-800 mb-4 font-sans leading-tight"></h3>
+                <div class="w-12 h-1 bg-purple-500 rounded-full mb-6"></div>
+                <p id="gallery-modal-desc" class="text-gray-600 leading-relaxed text-lg"></p>
+                <div class="mt-auto pt-8">
+                     <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Galeri Dakwah</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function openGalleryModal(imgSrc, title, desc) {
+            document.getElementById('gallery-modal-img').src = imgSrc;
+            document.getElementById('gallery-modal-title').innerText = title;
+            document.getElementById('gallery-modal-desc').innerText = desc || 'Tidak ada deskripsi.';
+            document.getElementById('modal-gallery-view').classList.remove('hidden');
+        }
+        function closeGalleryModal() {
+            document.getElementById('modal-gallery-view').classList.add('hidden');
+        }
+    </script>
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='gallery', content=render_template_string(content, items=items, can_edit=can_edit), is_admin=session.get('is_admin', False), settings=get_settings())
+
+@app.route('/suggestion', methods=['GET', 'POST'])
+def suggestion():
+    if request.method == 'POST':
+         try:
+             item = Suggestion(
+                 content=request.form['content'],
+                 date=str(datetime.date.today())
+             )
+             db.session.add(item)
+             db.session.commit()
+         except Exception as e:
+             db.session.rollback()
+             print(f"Error saving suggestion: {e}")
+             flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+             db.session.rollback()
+         return redirect(url_for('suggestion', success=1))
+
+    items = Suggestion.query.order_by(Suggestion.created_at.desc()).limit(10).all()
+
+    content = """
+    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
+        <h3 class="text-xl font-bold text-gray-800 mb-4">Kotak Saran Digital</h3>
+
+        {% if request.args.get('success') %}
+        <div class="bg-green-100 text-green-700 p-3 rounded-xl mb-4 text-center font-bold text-sm border border-green-200 animate-pulse">
+            Terima kasih, saran Anda telah terkirim!
+        </div>
+        {% endif %}
+
+        <form action="/suggestion" method="POST" class="bg-white p-6 rounded-3xl shadow-lg border border-pink-50 mb-8">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-500 mb-2">Kritik & Saran Anda</label>
+                <textarea name="content" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm min-h-[120px]" placeholder="Silakan tulis masukan Anda..." required></textarea>
+            </div>
+            <button type="submit" class="w-full bg-pink-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-pink-600 transition">Kirim</button>
+        </form>
+
+        {% if is_admin %}
+        <h6 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Laporan Masuk (Admin)</h6>
+        <div class="space-y-3">
+            {% for item in items %}
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-[10px] text-gray-400">{{ item['date'] }}</span>
+                    <span class="bg-gray-100 text-gray-500 text-[10px] px-2 py-0.5 rounded-full">{{ item['status'] }}</span>
+                </div>
+                <p class="text-sm text-gray-700">{{ item['content'] }}</p>
+            </div>
+            {% else %}
+            <p class="text-center text-gray-400 text-sm">Belum ada saran.</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='suggestion', content=render_template_string(content, items=items, is_admin=session.get('is_admin', False)), is_admin=session.get('is_admin', False), settings=get_settings())
+
+@app.route('/fitur_masjid')
+def fitur_masjid():
+    rendered_content = render_template_string(FITUR_MASJID_HTML)
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=rendered_content, is_admin=session.get('is_admin', False), settings=get_settings())
+
+@app.route('/prayer-times')
+def prayer_times_api():
+    now = datetime.datetime.now()
+    pt = PrayTimes()
+    times = pt.get_prayer_times(now.year, now.month, now.day, LAT, LNG, TZ)
+    return jsonify(times)
+
+@app.route('/donate', methods=['GET', 'POST'])
+def donate():
+    is_admin = session.get('is_admin', False)
+
+    if request.method == 'POST' and is_admin:
+        key = request.form.get('key')
+        val = request.form.get('value')
+
+        if 'qris_image' in request.files:
+            file = request.files['qris_image']
+            if file and allowed_file(file.filename):
+                saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
+
+                # Update setting
+                s = AppSettings.query.get('infaq_qris_image')
+                if s: s.value = saved_filename
+                else: db.session.add(AppSettings(key='infaq_qris_image', value=saved_filename))
+
+        if key and val:
+             s = AppSettings.query.get(key)
+             if s: s.value = val
+             else: db.session.add(AppSettings(key=key, value=val))
+
+        db.session.commit()
+        return redirect(url_for('donate', source=request.args.get('source')))
+
+    # Fetch settings
+    settings = get_settings()
+    acc_no = settings.get('infaq_rekening', '7123456789 (BSI - Masjid Al Hijrah)')
+    qris_img = settings.get('infaq_qris_image', '')
+    qris_url = f"/uploads/{qris_img}" if qris_img else "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=MasjidAlHijrahInfaq"
+
+    source = request.args.get('source')
+
+    # Theme Logic
+    theme = {}
+    if source == 'ramadhan':
+        theme = {
+            'nav_bg': 'glass-gold bg-[#0b1026]',
+            'icon_bg': 'bg-[#FFD700]/20',
+            'icon_text': 'text-[#FFD700]',
+            'title_text': 'text-[#FFD700]',
+            'link_hover': 'hover:text-[#FFD700]',
+            'link_active': 'text-[#FFD700] font-bold',
+            'btn_primary': 'bg-[#FFD700] text-[#0b1026] hover:bg-white',
+            'bottom_nav_bg': 'bg-[#0b1026] border-t border-[#FFD700]/20',
+            'bottom_active': 'text-[#FFD700]',
+            'bottom_btn_bg': 'bg-[#FFD700]',
+            'bottom_btn_text': 'text-[#0b1026]',
+            'bottom_text_inactive': 'text-gray-400'
+        }
+        bg_class = "bg-[#0b1026] text-white"
+        card_class = "bg-[#151e3f] border-[#FFD700]/30"
+        text_highlight = "text-[#FFD700]"
+        btn_action = "bg-[#FFD700] text-[#0b1026]"
+    elif source == 'irma':
+        theme = {
+            'nav_bg': 'bg-[#F0F9FF]/90 backdrop-blur-md border-b border-[#0284C7]/20',
+            'icon_bg': 'bg-[#0284C7]/20',
+            'icon_text': 'text-[#0284C7]',
+            'title_text': 'text-[#0284C7]',
+            'link_hover': 'hover:text-[#7DD3FC]',
+            'link_active': 'text-[#7DD3FC] font-bold',
+            'btn_primary': 'bg-[#0284C7] text-white hover:bg-[#7DD3FC]',
+            'bottom_nav_bg': 'bg-[#0284C7]',
+            'bottom_active': 'text-[#7DD3FC]',
+            'bottom_btn_bg': 'bg-[#7DD3FC]',
+            'bottom_btn_text': 'text-white',
+            'bottom_text_inactive': 'text-[#F0F9FF]'
+        }
+        bg_class = "bg-[#F0F9FF] text-gray-800"
+        card_class = "bg-white border-[#0284C7]/30"
+        text_highlight = "text-[#0284C7]"
+        btn_action = "bg-[#0284C7] text-white"
+    else:
+        # Default Home
+        bg_class = "bg-[#F8FAFC] text-gray-800"
+        card_class = "bg-white border-sky-50"
+        text_highlight = "text-sky-600"
+        btn_action = "bg-sky-500 text-white"
+
+    content = f"""
+    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8 text-center min-h-screen flex flex-col items-center justify-center {bg_class}">
+        <div class="{card_class} p-8 rounded-[40px] shadow-2xl border max-w-md w-full relative overflow-hidden">
+             <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-current to-transparent opacity-50 {text_highlight}"></div>
+             <h2 class="text-2xl font-bold mb-2 {text_highlight}">Infaq Digital</h2>
+             <p class="text-sm opacity-70 mb-6">Scan QRIS menggunakan E-Wallet apa saja</p>
+
+             <div class="bg-white p-4 rounded-2xl shadow-inner border border-gray-100 inline-block mb-6 relative group">
+                <img src="{qris_url}" alt="QRIS" class="w-48 h-48 mx-auto object-contain">
+                <a href="{qris_url}" download="QRIS_Masjid.png" class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl text-white font-bold backdrop-blur-sm">
+                    <i class="fas fa-download mr-2"></i> Download
+                </a>
+             </div>
+
+             <div class="flex gap-2 justify-center mb-6 max-w-xs mx-auto w-full">
+                <a href="{qris_url}" download="QRIS_Masjid.png" class="flex-1 bg-gray-100 text-gray-700 px-3 py-3 rounded-xl text-xs font-bold hover:bg-gray-200 text-center transition"><i class="fas fa-download mr-1"></i> Download QRIS</a>
+                <button onclick="triggerInfaqWA()" class="flex-1 bg-[#25D366] text-white px-3 py-3 rounded-xl text-xs font-bold hover:bg-green-600 transition shadow-lg shadow-green-200"><i class="fab fa-whatsapp mr-1"></i> Konfirmasi WA</button>
+             </div>
+
+             <div class="mb-4 max-w-xs mx-auto">
+                 <label class="block text-[10px] font-bold text-gray-400 mb-1 text-left">Keperluan (untuk Konfirmasi WA)</label>
+                 <select id="infaq-type-select" class="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                     <option value="Masjid">Masjid</option>
+                     <option value="Qurban">Qurban</option>
+                     <option value="Zakat">Zakat</option>
+                     <option value="Infaq">Infaq</option>
+                 </select>
+             </div>
+
+             <div class="mb-6">
+                <p class="text-xs font-bold uppercase tracking-widest opacity-50 mb-1">Nomor Rekening</p>
+                <div class="bg-gray-50/50 p-3 rounded-xl border border-dashed border-gray-300 flex items-center justify-between gap-2">
+                    <span id="donate-rek-text" class="font-mono font-bold text-lg select-all text-gray-800">{acc_no}</span>
+                    <button onclick="copyText('donate-rek-text')" class="p-2 rounded-lg hover:bg-gray-200 transition text-gray-500"><i class="fas fa-copy"></i></button>
+                </div>
+             </div>
+             <script>window.addEventListener('load', function() {{ if(typeof formatBankDisplay === 'function') formatBankDisplay('donate-rek-text'); }});</script>
+
+             {{% if is_admin %}}
+             <div class="border-t border-gray-200/50 pt-6 mt-6 text-left">
+                <h4 class="text-xs font-bold text-red-500 uppercase mb-3"><i class="fas fa-cog"></i> Admin Settings</h4>
+                <form method="POST" enctype="multipart/form-data" class="space-y-3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div>
+                        <label class="text-[10px] font-bold opacity-70">Update No. Rekening</label>
+                        <input type="hidden" name="key" value="infaq_rekening">
+                        <div class="flex gap-2">
+                            <input type="text" name="value" value="{acc_no}" class="w-full text-xs p-2 rounded-lg border border-gray-300 text-black">
+                            <button class="bg-blue-500 text-white px-3 rounded-lg text-xs">Save</button>
+                        </div>
+                    </div>
+                </form>
+                <form method="POST" enctype="multipart/form-data" class="mt-3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <label class="text-[10px] font-bold opacity-70 block mb-1">Update QRIS Image</label>
+                    <div class="flex gap-2">
+                        <input type="file" name="qris_image" class="w-full text-xs text-gray-500">
+                        <button class="bg-blue-500 text-white px-3 rounded-lg text-xs">Upload</button>
+                    </div>
+                </form>
+             </div>
+             {{% endif %}}
+
+             <div class="flex justify-center gap-3 opacity-60 grayscale hover:grayscale-0 transition-all mt-4">
+                <i class="fas fa-wallet text-2xl"></i>
+                <i class="fas fa-university text-2xl"></i>
+                <i class="fas fa-mobile-alt text-2xl"></i>
+             </div>
+        </div>
+        <br>
+        <a href="/" class="opacity-50 text-sm font-medium hover:opacity-100 transition">Kembali ke Beranda</a>
+        </div>
+    </div>
+    """
+
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML + (RAMADHAN_STYLES if source=='ramadhan' else (IRMA_STYLES if source=='irma' else '')), active_page='donate', theme=theme, content=render_template_string(content, is_admin=is_admin, settings=get_settings()), is_admin=is_admin)
+
+@app.route('/emergency')
+def emergency():
+    return redirect("https://wa.me/6281241865310?text=Halo%20Takmir%20Masjid,%20Ada%20Keadaan%20Darurat!")
+
+@app.route('/api/yasin', methods=['GET'])
+@limiter.limit("10 per minute")
+@cache.cached(timeout=86400)
+def api_yasin():
+    try:
+        url = "https://equran.id/api/v2/surat/36"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+            return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/ramadhan')
+
+# --- RAMADHAN ROUTES ---
+
+@app.route('/ramadhan')
+def ramadhan_dashboard():
+    surat_list = []
+    pmb_list = []
+    tagihan_list = []
+    jadwal_list = []
+    akun_list = []
+    arsip_list = []
+    tracer_list = []
+    verified_alumni_list = []
+
+    try:
+        surat_list = SuratOtomatis.query.order_by(SuratOtomatis.id.desc()).all()
+        pmb_list = PendaftaranPMB.query.order_by(PendaftaranPMB.id.desc()).all()
+        tagihan_list = TagihanKuliah.query.order_by(TagihanKuliah.id.desc()).all()
+        jadwal_list = JadwalKuliah.query.order_by(JadwalKuliah.id.desc()).all()
+        akun_list = User.query.order_by(User.id.desc()).all()
+        arsip_list = LaciArsip.query.order_by(LaciArsip.id.desc()).all()
+        tracer_list = TracerStudy.query.order_by(TracerStudy.id.desc()).all()
+        verified_alumni_list = TracerStudy.query.filter_by(status='Diverifikasi').order_by(TracerStudy.id.desc()).all()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error fetching TU Dashboard data: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+
+    # Render CONTENT first
+    rendered_content = render_template_string(RAMADHAN_DASHBOARD_HTML,
+                                              surat_list=surat_list,
+                                              pmb_list=pmb_list,
+                                              tagihan_list=tagihan_list,
+                                              jadwal_list=jadwal_list,
+                                              akun_list=akun_list,
+                                              arsip_list=arsip_list,
+                                              tracer_list=tracer_list,
+                                              verified_alumni_list=verified_alumni_list,
+                                              open_modal=request.args.get('open'),
+                                              is_admin=session.get('is_admin', False),
+                                              settings=get_settings())
+
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML + RAMADHAN_STYLES,
+                                  active_page='ramadhan',
+                                  content=rendered_content,
+                                  hide_nav=True,
+                                  full_width=True,
+                                  is_admin=session.get('is_admin', False),
+                                  settings=get_settings())
+
+@app.route('/ramadhan/kas', methods=['POST'])
+def ramadhan_kas_action():
+    try:
+        item = RamadhanKas(
+            date=request.form['date'],
+            type=request.form['type'],
+            category=request.form['category'],
+            description=request.form['description'],
+            amount=int(request.form['amount'])
+        )
+        db.session.add(item)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error saving kas: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+    return redirect(url_for('ramadhan_dashboard', open='modal-kas-ramadhan'))
+
+@app.route('/ramadhan/tarawih', methods=['POST'])
+def ramadhan_tarawih_action():
+    try:
+        night = request.form['night_index']
+        item = TarawihSchedule.query.filter_by(night_index=night).first()
+        if item:
+            item.imam = request.form['imam']
+            item.penceramah = request.form['penceramah']
+            item.judul = request.form['judul']
+        else:
+            item = TarawihSchedule(
+                night_index=night,
+                imam=request.form['imam'],
+                penceramah=request.form['penceramah'],
+                judul=request.form['judul']
+            )
+            db.session.add(item)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error saving tarawih: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+    return redirect(url_for('ramadhan_dashboard', open='modal-tarawih'))
+
+@app.route('/irma')
+@app.route('/mahasiswa')
+def irma_dashboard():
+    # Initialize Defaults
+    is_admin = False
+    schedule_list = []
+    kas_list = []
+    kas_summary = {'income': 0, 'out': 0, 'balance': 0}
+    gallery_list = []
+    proker_list = []
+    curhat_list = []
+    members_list = []
+    check_status = None
+    settings_data = {}
+
+    # NEW MAHASISWA LOGIC
+    user = None
+    tagihan_list = []
+    krs_list = []
+    nilai_list = []
+    jadwal_list = []
+    surat_list = []
+    arsip_list = []
+    has_unpaid = False
+
+    npm = session.get('npm') or session.get('username') or '2401234' # Fallback for mock view
+
+    try:
+        is_admin = session.get('is_admin', False)
+        settings_data = get_settings()
+
+        # Fetch User Session Data
+        user = User.query.filter_by(username=npm).first()
+
+        if npm:
+            tagihan_list = TagihanKuliah.query.filter_by(npm=npm).order_by(TagihanKuliah.id.desc()).all()
+            has_unpaid = any(t.status != 'Lunas' for t in tagihan_list)
+
+            krs_list = KRSMahasiswa.query.filter_by(npm=npm).order_by(KRSMahasiswa.id.desc()).all()
+            nilai_list = NilaiMahasiswa.query.filter_by(npm=npm).order_by(NilaiMahasiswa.semester.desc(), NilaiMahasiswa.id.desc()).all()
+
+            jadwal_list = JadwalKuliah.query.order_by(JadwalKuliah.id.desc()).all()
+
+            surat_list = SuratOtomatis.query.filter_by(npm=npm).order_by(SuratOtomatis.id.desc()).all()
+            arsip_list = LaciArsip.query.filter_by(npm=npm).order_by(LaciArsip.id.desc()).all()
+
+        # 1. Schedule List (Legacy)
+        try:
+            schedule_list = IrmaSchedule.query.order_by(IrmaSchedule.date.desc(), IrmaSchedule.id.desc()).all()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error fetching Schedule: {e}")
+            flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+
+        # 2. Kas (Finance - Legacy)
+        try:
+            kas_list = IrmaKas.query.order_by(IrmaKas.date.desc()).all()
+            fin_in = db.session.query(func.sum(IrmaKas.amount)).filter_by(type='Pemasukan').scalar() or 0
+            fin_out = db.session.query(func.sum(IrmaKas.amount)).filter_by(type='Pengeluaran').scalar() or 0
+            kas_summary = {'income': fin_in, 'out': fin_out, 'balance': fin_in - fin_out}
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error fetching Kas: {e}")
+            flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+
+        # 3. Gallery (Mading - Legacy)
+        try:
+            gallery_list = IrmaGallery.query.order_by(IrmaGallery.created_at.desc()).all()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error fetching Gallery: {e}")
+            flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+
+        # 4. Proker (Events - Legacy)
+        try:
+            proker_list = IrmaProker.query.order_by(IrmaProker.date.asc()).all()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error fetching Proker: {e}")
+            flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+
+        # 5. Curhat (Q&A - Legacy)
+        try:
+            curhat_list = IrmaCurhat.query.order_by(IrmaCurhat.created_at.desc()).all()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error fetching Curhat: {e}")
+            flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+
+        # 6. Members (Legacy)
+        try:
+            if is_admin:
+                members_list = IrmaMember.query.order_by(IrmaMember.joined_at.desc()).all()
+
+            check_wa = request.args.get('check_wa')
+            if check_wa:
+                check_status = IrmaMember.query.filter_by(wa_number=check_wa).first()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error fetching Members: {e}")
+            flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+
+    except Exception as e:
+        print(f"Critical Error in Dashboard: {e}")
+
+    # IRMA THEME
+    irma_theme = {
+        'nav_bg': 'bg-[#F0F9FF]/90 backdrop-blur-md border-b border-[#0284C7]/20',
+        'icon_bg': 'bg-[#0284C7]/20',
+        'icon_text': 'text-[#0284C7]',
+        'title_text': 'text-[#0284C7]',
+        'link_hover': 'hover:text-[#7DD3FC]',
+        'link_active': 'text-[#7DD3FC] font-bold',
+        'btn_primary': 'bg-[#0284C7] text-white hover:bg-[#7DD3FC]',
+        'bottom_nav_bg': 'bg-[#0284C7]',
+        'bottom_active': 'text-[#7DD3FC]',
+        'bottom_btn_bg': 'bg-[#7DD3FC]',
+        'bottom_btn_text': 'text-white',
+        'bottom_text_inactive': 'text-[#F0F9FF]'
+    }
+
+    open_modal = request.args.get('open')
+
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML + IRMA_STYLES,
+                                  active_page='irma',
+                                  theme=irma_theme,
+                                  content=render_template_string(IRMA_DASHBOARD_HTML,
+                                                                 user=user,
+                                                                 tagihan_list=tagihan_list,
+                                                                 krs_list=krs_list,
+                                                                 nilai_list=nilai_list,
+                                                                 jadwal_list=jadwal_list,
+                                                                 surat_list=surat_list,
+                                                                 arsip_list=arsip_list,
+                                                                 has_unpaid=has_unpaid,
+                                                                 schedule_list=schedule_list,
+                                                                 kas_list=kas_list,
+                                                                 kas_summary=kas_summary,
+                                                                 gallery_list=gallery_list,
+                                                                 proker_list=proker_list,
+                                                                 curhat_list=curhat_list,
+                                                                 members_list=members_list,
+                                                                 check_status=check_status,
+                                                                 open_modal=open_modal,
+                                                                 is_admin=is_admin, settings=settings_data),
+                                  full_width=True,
+                                  is_admin=is_admin,
+                                  settings=settings_data)
+
+@app.route('/irma/schedule', methods=['POST'])
+def irma_schedule():
+    if 'delete_id' in request.form:
+        IrmaSchedule.query.filter_by(id=request.form['delete_id']).delete()
+    else:
+        item = IrmaSchedule(
+            name=request.form['name'],
+            role=request.form['role'],
+            date=request.form['date']
+        )
+        db.session.add(item)
+    db.session.commit()
+    return redirect(url_for('irma_dashboard', open='modal-duty'))
+
+@app.route('/irma/join', methods=['GET', 'POST'])
+def irma_join():
+    if request.method == 'GET':
+        return redirect(url_for('irma_dashboard', open='modal-join', check_wa=request.args.get('check_wa')))
+
+    action = request.form.get('action')
+    if action in ['approve', 'reject']:
+        member = IrmaMember.query.get(request.form['member_id'])
+        if member:
+            member.status = 'Approved' if action == 'approve' else 'Rejected'
+    else:
+        item = IrmaMember(
+            name=request.form['name'],
+            age=request.form['age'],
+            hobbies=request.form['hobbies'],
+            instagram=request.form['instagram'],
+            wa_number=request.form['wa_number']
+        )
+        db.session.add(item)
+    db.session.commit()
+    return redirect(url_for('irma_dashboard', open='modal-join'))
+
+@app.route('/irma/kas', methods=['POST'])
+def irma_kas():
+    item = IrmaKas(
+        date=request.form['date'],
+        type=request.form['type'],
+        description=request.form['description'],
+        amount=int(request.form['amount'])
+    )
+    db.session.add(item)
+    db.session.commit()
+    return redirect(url_for('irma_dashboard', open='modal-finance'))
+
+@app.route('/irma/gallery', methods=['POST'])
+def irma_gallery():
+    try:
+        title = request.form.get('title', '')[:255]
+        creator = request.form.get('creator', '')[:255]
+        content = request.form.get('content', '')
+        caption = content
+        post_type = 'Text'
+
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and file.filename != '':
+                if allowed_file(file.filename):
+                    saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
+                    content = saved_filename
+                    post_type = 'Image'
+
+        # Ensure fallback for caption
+        if caption is None: caption = ""
+
+        item = IrmaGallery(title=title, creator=creator, content_type=post_type, content=content, caption=caption)
+        db.session.add(item)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error uploading gallery: {e}")
+        flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+        db.session.rollback()
+
+    return redirect(url_for('irma_dashboard', open='modal-wall'))
+
+@app.route('/irma/proker', methods=['POST'])
+def irma_proker():
+    item = IrmaProker(
+        title=request.form['title'],
+        status=request.form['status'],
+        description=request.form['description'],
+        date=request.form['date']
+    )
+    db.session.add(item)
+    db.session.commit()
+    return redirect(url_for('irma_dashboard', open='modal-events'))
+
+@app.route('/irma/curhat', methods=['POST'])
+def irma_curhat():
+    if 'answer' in request.form:
+        item = IrmaCurhat.query.get(request.form['answer_id'])
+        if item:
+            item.answer = request.form['answer']
+            item.answered_at = datetime.datetime.now()
+    else:
+        item = IrmaCurhat(question=request.form['question'])
+        db.session.add(item)
+    db.session.commit()
+    return redirect(url_for('irma_dashboard', open='modal-qa'))
 
 if __name__ == '__main__':
     with app.app_context():
