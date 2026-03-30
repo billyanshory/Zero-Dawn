@@ -5691,6 +5691,15 @@ def api_pmb_register():
         if not all([nama, foto_ijazah, foto_ktp, bukti_transfer]):
             return jsonify({'success': False, 'error': 'Semua field dan file harus diisi.'})
             
+        if not foto_ijazah or foto_ijazah.filename == '':
+            return jsonify({'success': False, 'error': 'Berkas foto_ijazah wajib diunggah dan tidak boleh kosong.'})
+
+        if not foto_ktp or foto_ktp.filename == '':
+            return jsonify({'success': False, 'error': 'Berkas foto_ktp wajib diunggah dan tidak boleh kosong.'})
+
+        if not bukti_transfer or bukti_transfer.filename == '':
+            return jsonify({'success': False, 'error': 'Berkas bukti_transfer wajib diunggah dan tidak boleh kosong.'})
+
         ijazah_filename = ""
         ktp_filename = ""
         bukti_filename = ""
@@ -5770,6 +5779,11 @@ def api_pmb_check():
 
 @app.before_request
 def global_gatekeeper():
+    if request.path == '/api/pmb/register' and request.method == 'POST':
+        max_size = app.config.get('MAX_CONTENT_LENGTH', 20 * 1024 * 1024)
+        if request.content_length and request.content_length > max_size:
+            return jsonify({'success': False, 'error': 'Ukuran file melebihi batas 20MB.'}), 413
+
     if request.endpoint in ['index', 'login', 'logout', 'static']:
         return
         
@@ -5806,6 +5820,7 @@ def login():
     
     user = User.query.filter_by(username=username).first()
     if user and check_password_hash(user.password_hash, password):
+        session['user_id'] = user.id
         session['username'] = user.username
         session['npm'] = user.username
         session['nama'] = user.nama
@@ -9393,6 +9408,25 @@ def dosen_presensi_submit():
     except Exception as e:
         print(f"Error submitting presensi: {e}")
     return redirect(url_for('dosen_dashboard', open='modal-presensi-jurnal'))
+
+@app.route('/seed-admin')
+def seed_admin():
+    try:
+        admin_exists = User.query.filter_by(role='Tata Usaha').first()
+        if not admin_exists:
+            new_admin = User(
+                username='adminstiesam',
+                password_hash=generate_password_hash('stiesamadmin123'),
+                role='Tata Usaha',
+                nama='Administrator STIESAM',
+                status_akademik='Aktif'
+            )
+            db.session.add(new_admin)
+            db.session.commit()
+            return "Akun administrator Tata Usaha berhasil dibuat."
+        return "Akun administrator Tata Usaha sudah ada."
+    except Exception as e:
+        return f"Error: {e}"
 
 if __name__ == '__main__':
     with app.app_context():
