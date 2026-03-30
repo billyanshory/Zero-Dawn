@@ -1583,6 +1583,13 @@ BASE_LAYOUT = """
         }
 
         // GLOBAL MODAL UTILS
+        document.addEventListener('DOMContentLoaded', () => {
+            const openModalParam = '{{ request.args.get("open", "") }}';
+            if (openModalParam) {
+                openModal(openModalParam);
+            }
+        });
+
         function openModal(id) {
             const el = document.getElementById(id);
             if(el) {
@@ -3672,12 +3679,13 @@ HOME_HTML = """
 
             </div>
 
+            </div>
+
             <!-- Sticky Footer / Action -->
-            <div class="p-6 border-t border-gray-100 bg-white rounded-b-3xl flex-shrink-0">
+            <div class="p-6 border-t border-gray-100 bg-white rounded-b-3xl flex-shrink-0 sticky bottom-0 z-20 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)]">
                 <button type="submit" class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-200 hover:from-orange-600 hover:to-orange-700 transition transform hover:-translate-y-0.5"><i class="fas fa-paper-plane mr-2"></i>Kirim Data Tracer Study</button>
             </div>
             </form>
-            
         </div>
     </div>
 
@@ -7383,6 +7391,13 @@ RAMADHAN_DASHBOARD_HTML = """
         document.getElementById(id).classList.remove('hidden');
         history.pushState({modal: id}, null, "");
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const openModalParam = '{{ request.args.get("open", "") }}';
+        if (openModalParam) {
+            openModal(openModalParam);
+        }
+    });
     function closeModal(id) {
         if (history.state && history.state.modal === id) {
             history.back();
