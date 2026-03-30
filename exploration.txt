@@ -1,0 +1,102 @@
+--- Functions ---
+Line 345: def get_settings():
+Line 355: def gregorian_to_hijri(date_obj):
+Line 406: def allowed_file(filename):
+Line 409: def is_safe_file(file_storage):
+Line 422: def compress_image(file_storage, upload_folder):
+Line 479: def seed_ramadhan_schedule():
+Line 529: def get_imsakiyah_schedule():
+Line 584: def model_getitem(self, key):
+Line 651: def manifest():
+Line 704: def handle_file_size_error(e):
+Line 718: def handle_kampus_error(e):
+Line 729: def handle_general_error(e):
+Line 748: def global_gatekeeper():
+Line 771: def login():
+Line 796: def logout():
+Line 802: def seed_admin():
+Line 827: def api_pmb_register():
+Line 878: def api_tracer_submit():
+Line 904: def api_pmb_check():
+Line 929: def index():
+Line 944: def uploaded_file(filename):
+Line 948: def service_worker():
+Line 1007: def donate_update():
+Line 1031: def tu_surat_acc():
+Line 1070: def tu_pmb_verifikasi():
+Line 1093: def tu_arsip_search():
+Line 1125: def tu_publikasi_update():
+Line 1165: def tu_tagihan_tambah():
+Line 1198: def tu_tagihan_lunas():
+Line 1214: def tu_jadwal():
+Line 1234: def tu_akun_update():
+Line 1251: def tu_tracer_verify():
+Line 1267: def tu_akun_reset_password():
+Line 1289: def dosen_dashboard():
+Line 1851: def dosen_krs_action():
+Line 1868: def dosen_nilai_submit():
+Line 1918: def dosen_presensi_submit():
+Line 1957: def mahasiswa_tagihan_upload():
+Line 1975: def mahasiswa_krs_add():
+Line 2006: def mahasiswa_surat_request():
+Line 2028: def therapy_log():
+Line 2045: def fitur_masjid():
+Line 2050: def prayer_times_api():
+Line 2057: def donate():
+Line 2217: def emergency():
+Line 2223: def api_yasin():
+Line 2234: def ramadhan_dashboard():
+Line 2282: def irma_dashboard():
+--- Classes ---
+Line 85: class EpilepsiLog(db.Model):
+Line 93: class SuratOtomatis(db.Model):
+Line 103: class PendaftaranPMB(db.Model):
+Line 113: class TagihanKuliah(db.Model):
+Line 122: class JadwalKuliah(db.Model):
+Line 131: class User(db.Model):
+Line 140: class LaciArsip(db.Model):
+Line 148: class AppSettings(db.Model):
+Line 152: class KRSMahasiswa(db.Model):
+Line 161: class NilaiMahasiswa(db.Model):
+Line 170: class KehadiranKelas(db.Model):
+Line 178: class JurnalMengajar(db.Model):
+Line 185: class StatusNilai(db.Model):
+Line 191: class TracerStudy(db.Model):
+Line 208: class PrayTimes:
+Line 710: class KampusSTIEException(Exception):
+--- Routes ---
+Line 769: @app.route('/login', methods=['POST'])
+Line 795: @app.route('/logout')
+Line 801: @app.route('/seed-admin')
+Line 825: @app.route('/api/pmb/register', methods=['POST'])
+Line 876: @app.route('/api/tracer/submit', methods=['POST'])
+Line 903: @app.route('/api/pmb/check', methods=['GET'])
+Line 927: @app.route('/')
+Line 943: @app.route('/uploads/<filename>')
+Line 947: @app.route('/sw.js')
+Line 1006: @app.route('/donate/update', methods=['POST'])
+Line 1030: @app.route('/tu/surat/acc', methods=['POST'])
+Line 1069: @app.route('/tu/pmb/verifikasi', methods=['POST'])
+Line 1092: @app.route('/tu/arsip/search', methods=['GET'])
+Line 1124: @app.route('/tu/publikasi/update', methods=['POST'])
+Line 1164: @app.route('/tu/tagihan/tambah', methods=['POST'])
+Line 1197: @app.route('/tu/tagihan/lunas', methods=['POST'])
+Line 1213: @app.route('/tu/jadwal', methods=['POST'])
+Line 1233: @app.route('/tu/akun/update', methods=['POST'])
+Line 1250: @app.route('/tu/tracer/verify', methods=['POST'])
+Line 1266: @app.route('/tu/akun/reset_password', methods=['POST'])
+Line 1288: @app.route('/dosen')
+Line 1849: @app.route('/dosen/krs/action', methods=['POST'])
+Line 1866: @app.route('/dosen/nilai/submit', methods=['POST'])
+Line 1916: @app.route('/dosen/presensi/submit', methods=['POST'])
+Line 1956: @app.route('/mahasiswa/tagihan/upload', methods=['POST'])
+Line 1974: @app.route('/mahasiswa/krs/add', methods=['POST'])
+Line 2005: @app.route('/mahasiswa/surat/request', methods=['POST'])
+Line 2027: @app.route('/therapy/log', methods=['POST'])
+Line 2044: @app.route('/fitur_masjid')
+Line 2049: @app.route('/prayer-times')
+Line 2056: @app.route('/donate', methods=['GET', 'POST'])
+Line 2216: @app.route('/emergency')
+Line 2220: @app.route('/api/yasin', methods=['GET'])
+Line 2233: @app.route('/tu_dashboard')
+Line 2281: @app.route('/mahasiswa')
