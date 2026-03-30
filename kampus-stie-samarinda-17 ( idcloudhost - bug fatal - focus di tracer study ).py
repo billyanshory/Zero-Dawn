@@ -44,7 +44,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Removed duplicated ENGINE_OPTIONS here because we will append it safely.
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_size': 20, 'max_overflow': 100, 'pool_recycle': 280, 'pool_timeout': 30}
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4', 'pdf'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'txt', 'csv'}
 
 db = SQLAlchemy(app)
 
@@ -587,6 +587,11 @@ def allowed_file(filename):
 
 def is_safe_file(file_storage):
     """Deep inspection of file mime types and signatures."""
+    # Skip strict signature check for non-image documents where filetype might return None
+    ext = file_storage.filename.rsplit('.', 1)[1].lower() if '.' in file_storage.filename else ''
+    if ext in {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'txt', 'csv'}:
+        return True
+
     kind = filetype.guess(file_storage.read(2048))
     file_storage.seek(0) # Reset pointer
     if kind is None:
@@ -599,8 +604,9 @@ def compress_image(file_storage, upload_folder):
         raise ValueError("Invalid file content signature detected.")
     filename = secure_filename(file_storage.filename)
     
-    # Skip compression for video or pdf
-    if filename.lower().endswith('.mp4') or filename.lower().endswith('.pdf'):
+    # Skip compression for video or documents
+    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+    if ext in {'mp4', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'txt', 'csv'}:
         save_path = os.path.join(upload_folder, filename)
         file_storage.save(save_path)
         return filename
@@ -3178,15 +3184,15 @@ HOME_HTML = """
                         <input type="text" name="nama" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Upload Scan Ijazah Terakhir (JPG/PNG)</label>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Upload Scan Ijazah Terakhir (JPG/PNG/PDF/DOC/ZIP/etc)</label>
                         <input type="file" name="foto_ijazah" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Upload Scan KTP (JPG/PNG)</label>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Upload Scan KTP (JPG/PNG/PDF/DOC/ZIP/etc)</label>
                         <input type="file" name="foto_ktp" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Upload Bukti Transfer Pendaftaran (JPG/PNG)</label>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Upload Bukti Transfer Pendaftaran (JPG/PNG/PDF/DOC/ZIP/etc)</label>
                         <input type="file" name="bukti_transfer" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                     </div>
                     
@@ -3676,10 +3682,6 @@ HOME_HTML = """
                         <input type="text" name="kontak" required placeholder="Untuk keperluan verifikasi alumni" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
                     </div>
                 </div>
-
-            </div>
-
-            </div>
             
             <!-- Sticky Footer / Action -->
             <div class="p-6 border-t border-gray-100 bg-white rounded-b-3xl flex-shrink-0 sticky bottom-0 z-20 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)]">
