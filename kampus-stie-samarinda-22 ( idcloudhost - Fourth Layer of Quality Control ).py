@@ -48,7 +48,7 @@ cache = Cache(app, config={'CACHE_TYPE': 'RedisCache', 'CACHE_REDIS_URL': os.env
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20MB Limit
 
 import logging
-from logging.handlers import RotatingFileHandler
+from logging.handlers import RotatingFileHandler, SMTPHandler
 
 if not os.path.exists('error.log'):
     open('error.log', 'w').close()
@@ -56,16 +56,42 @@ error_handler = RotatingFileHandler('error.log', maxBytes=100000, backupCount=3)
 error_handler.setLevel(logging.ERROR)
 app.logger.addHandler(error_handler)
 
+mail_server = os.environ.get('MAIL_SERVER')
+if mail_server:
+    auth = None
+    mail_username = os.environ.get('MAIL_USERNAME')
+    mail_password = os.environ.get('MAIL_PASSWORD')
+    if mail_username and mail_password:
+        auth = (mail_username, mail_password)
+    secure = None
+    if os.environ.get('MAIL_USE_TLS'):
+        secure = ()
+    mail_handler = SMTPHandler(
+        mailhost=(mail_server, int(os.environ.get('MAIL_PORT', 25))),
+        fromaddr='no-reply@stiesam.ac.id',
+        toaddrs=[os.environ.get('ADMIN_EMAIL', 'admin@stiesam.ac.id')],
+        subject='Kesalahan Kritis Sistem STIESAM',
+        credentials=auth,
+        secure=secure
+    )
+    mail_handler.setLevel(logging.ERROR)
+    app.logger.addHandler(mail_handler)
+
 secret = os.environ.get("SECRET_KEY")
 if not secret:
     raise RuntimeError("KUNCI RAHASIA (SECRET_KEY) TIDAK DITEMUKAN. OPERASI DIBATALKAN UNTUK KEAMANAN.")
 app.secret_key = secret
 app.config['UPLOAD_FOLDER'] = 'uploads'
-app.permanent_session_lifetime = datetime.timedelta(days=30)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
+app.permanent_session_lifetime = datetime.timedelta(minutes=30)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///test.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Removed duplicated ENGINE_OPTIONS here because we will append it safely.
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {}
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_size': 10,
+    'max_overflow': 20,
+    'pool_pre_ping': True,
+    'pool_recycle': 3600
+}
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'txt', 'csv'}
 
@@ -424,23 +450,26 @@ def global_gatekeeper():
             flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
 
 @app.route('/login', methods=['POST'])
-@limiter.limit("5 per minute")
+@limiter.limit("3 per minute")
 def login():
     username = request.form.get('username')
     password = request.form.get('password')
+    remember = request.form.get('remember') == 'on'
     
     user = User.query.filter_by(username=username).first()
     if user and check_password_hash(user.password_hash, password):
 
-        login_user(user)
+        login_user(user, remember=remember)
         session['user_id'] = user.id
         session['username'] = user.username
         session['npm'] = user.username
         session['nama'] = user.nama
         session['role'] = user.role
-        session.permanent = True
+        if remember:
+            session.permanent = True
+        else:
+            session.permanent = False
 
-        
         if user.role in ['Tata Usaha', 'Admin']:
             session['is_admin'] = True
             return redirect(url_for('ramadhan_dashboard'))
@@ -475,6 +504,8 @@ def seed_admin():
             )
             db.session.add(new_admin)
             db.session.commit()
+            cache.clear()
+
             return "Akun administrator Tata Usaha berhasil dibuat."
         return "Akun administrator Tata Usaha sudah ada."
     except Exception as e:
@@ -533,6 +564,8 @@ def api_pmb_register():
         )
         db.session.add(new_pmb)
         db.session.commit()
+        cache.clear()
+
         return jsonify({'success': True, 'message': 'Pendaftaran berhasil dikirim. Silakan cek status secara berkala.'})
     except Exception as e:
         db.session.rollback()
@@ -566,6 +599,8 @@ def api_tracer_submit():
         )
         db.session.add(new_tracer)
         db.session.commit()
+        cache.clear()
+
         flash("Data Tracer Study berhasil dikirim! Terima kasih atas partisipasi Anda.", "success")
     except Exception as e:
         db.session.rollback()
@@ -585,6 +620,8 @@ def api_notifications_poll():
     for n in notifs:
         n.is_read = True
     db.session.commit()
+    cache.clear()
+
     return jsonify(res)
 
 @app.route('/api/pmb/check', methods=['GET'])
@@ -711,9 +748,12 @@ def donate_update():
             else: db.session.add(AppSettings(key='infaq_qris_image', value=saved_filename))
             
     db.session.commit()
+    cache.clear()
+
     return redirect(request.referrer)
 
 @app.route('/tu/surat/acc', methods=['POST'])
+@limiter.limit("10 per minute")
 def tu_surat_acc():
     if session.get('role') not in ['Tata Usaha', 'Admin']:
         return 'Unauthorized', 403
@@ -746,6 +786,8 @@ def tu_surat_acc():
             )
             db.session.add(arsip)
             db.session.commit()
+        cache.clear()
+
     except Exception as e:
         db.session.rollback()
         print(f"Error updating surat: {e}")
@@ -753,6 +795,7 @@ def tu_surat_acc():
     return redirect(url_for('ramadhan_dashboard', open='modal-pabrik-surat'))
 
 @app.route('/tu/pmb/verifikasi', methods=['POST'])
+@limiter.limit("10 per minute")
 def tu_pmb_verifikasi():
     if session.get('role') not in ['Tata Usaha', 'Admin']:
         return 'Unauthorized', 403
@@ -771,6 +814,8 @@ def tu_pmb_verifikasi():
             db.session.add(Notification(npm=new_npm, message="Selamat, pendaftaran Anda disetujui. Akun berhasil dibuat."))
 
             db.session.commit()
+        cache.clear()
+
     except Exception as e:
         db.session.rollback()
         print(f"Error PMB verifikasi: {e}")
@@ -778,6 +823,7 @@ def tu_pmb_verifikasi():
     return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pmb'))
 
 @app.route('/tu/arsip/search', methods=['GET'])
+@limiter.limit("10 per minute")
 @cache.cached(timeout=60, query_string=True)
 def tu_arsip_search():
     npm = request.args.get('npm')
@@ -811,6 +857,7 @@ def tu_arsip_search():
         return jsonify({'error': 'Terjadi kesalahan sistem'})
 
 @app.route('/tu/publikasi/update', methods=['POST'])
+@limiter.limit("10 per minute")
 def tu_publikasi_update():
     if session.get('role') not in ['Tata Usaha', 'Admin']:
         return 'Unauthorized', 403
@@ -843,6 +890,8 @@ def tu_publikasi_update():
                 else: db.session.add(AppSettings(key='berita_gambar', value=saved_filename))
                 
         db.session.commit()
+        cache.clear()
+
         flash("Pembaruan publikasi informasi berhasil disimpan.", "success")
     except Exception as e:
         db.session.rollback()
@@ -851,6 +900,7 @@ def tu_publikasi_update():
     return redirect(url_for('ramadhan_dashboard', open='modal-publikasi-informasi'))
 
 @app.route('/tu/tagihan/tambah', methods=['POST'])
+@limiter.limit("10 per minute")
 def tu_tagihan_tambah():
     if session.get('role') not in ['Tata Usaha', 'Admin']:
         return 'Unauthorized', 403
@@ -876,6 +926,8 @@ def tu_tagihan_tambah():
         )
         db.session.add(new_tagihan)
         db.session.commit()
+        cache.clear()
+
         flash("Tagihan berhasil ditambahkan.", "success")
     except Exception as e:
         db.session.rollback()
@@ -884,6 +936,7 @@ def tu_tagihan_tambah():
     return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
 
 @app.route('/tu/tagihan/lunas', methods=['POST'])
+@limiter.limit("10 per minute")
 def tu_tagihan_lunas():
     if session.get('role') not in ['Tata Usaha', 'Admin']:
         return 'Unauthorized', 403
@@ -895,6 +948,8 @@ def tu_tagihan_lunas():
             db.session.add(Notification(npm=tagihan.npm, message=f"Pembayaran {tagihan.jenis_tagihan} telah dikonfirmasi LUNAS."))
 
             db.session.commit()
+        cache.clear()
+
     except Exception as e:
         db.session.rollback()
         print(f"Error tagihan lunas: {e}")
@@ -902,6 +957,7 @@ def tu_tagihan_lunas():
     return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
 
 @app.route('/tu/jadwal', methods=['POST'])
+@limiter.limit("10 per minute")
 def tu_jadwal():
     if session.get('role') not in ['Tata Usaha', 'Admin']:
         return 'Unauthorized', 403
@@ -915,6 +971,8 @@ def tu_jadwal():
         )
         db.session.add(new_jadwal)
         db.session.commit()
+        cache.clear()
+
     except Exception as e:
         db.session.rollback()
         print(f"Error tambah jadwal: {e}")
@@ -922,6 +980,7 @@ def tu_jadwal():
     return redirect(url_for('ramadhan_dashboard', open='modal-kelola-jadwal'))
 
 @app.route('/tu/akun/update', methods=['POST'])
+@limiter.limit("10 per minute")
 def tu_akun_update():
     if session.get('role') not in ['Tata Usaha', 'Admin']:
         return 'Unauthorized', 403
@@ -932,6 +991,8 @@ def tu_akun_update():
         if user and status in ['Aktif', 'Cuti', 'Keluar', 'Lulus']:
             user.status_akademik = status
             db.session.commit()
+        cache.clear()
+
     except Exception as e:
         db.session.rollback()
         print(f"Error update status akademik: {e}")
@@ -939,6 +1000,7 @@ def tu_akun_update():
     return redirect(url_for('ramadhan_dashboard', open='modal-manajemen-sivitas'))
 
 @app.route('/tu/tracer/verify', methods=['POST'])
+@limiter.limit("10 per minute")
 def tu_tracer_verify():
     if session.get('role') not in ['Tata Usaha', 'Admin']:
         return 'Unauthorized', 403
@@ -948,6 +1010,8 @@ def tu_tracer_verify():
         if tracer:
             tracer.status = 'Diverifikasi'
             db.session.commit()
+        cache.clear()
+
     except Exception as e:
         db.session.rollback()
         print(f"Error tracer verify: {e}")
@@ -955,6 +1019,7 @@ def tu_tracer_verify():
     return redirect(url_for('ramadhan_dashboard', open='modal-cek-alumni'))
 
 @app.route('/tu/akun/reset_password', methods=['POST'])
+@limiter.limit("10 per minute")
 def tu_akun_reset_password():
     if session.get('role') not in ['Tata Usaha', 'Admin']:
         return 'Unauthorized', 403
@@ -965,6 +1030,8 @@ def tu_akun_reset_password():
             from werkzeug.security import generate_password_hash
             user.password_hash = generate_password_hash("stiesam123")
             db.session.commit()
+        cache.clear()
+
     except Exception as e:
         db.session.rollback()
         print(f"Error reset password: {e}")
@@ -980,6 +1047,7 @@ def tu_akun_reset_password():
 # RUTE DOSEN
 # ============================================================================
 @app.route('/dosen')
+@cache.cached(timeout=300, query_string=True)
 def dosen_dashboard():
     # Data Retrieval
     dosen_name = session.get('nama', 'Dosen Pengampu')
@@ -1394,7 +1462,7 @@ def dosen_dashboard():
     }, full_width=True)
 
 @app.route('/dosen/krs/action', methods=['POST'])
-@csrf.exempt
+@limiter.limit("10 per minute")
 def dosen_krs_action():
     try:
         krs_id = request.form.get('id')
@@ -1403,6 +1471,8 @@ def dosen_krs_action():
         if krs and status in ['Disetujui Dosen', 'Ditolak Dosen']:
             krs.status = status
             db.session.commit()
+            cache.clear()
+
             return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
@@ -1411,7 +1481,7 @@ def dosen_krs_action():
     return jsonify({'success': False}), 400
 
 @app.route('/dosen/nilai/submit', methods=['POST'])
-@csrf.exempt
+@limiter.limit("10 per minute")
 def dosen_nilai_submit():
     try:
         jadwal_id = request.form.get('jadwal_id')
@@ -1454,6 +1524,8 @@ def dosen_nilai_submit():
                 status_nilai.is_published = True
                 
             db.session.commit()
+        cache.clear()
+
     except Exception as e:
         db.session.rollback()
         print(f"Error submitting nilai: {e}")
@@ -1461,7 +1533,7 @@ def dosen_nilai_submit():
     return redirect(url_for('dosen_dashboard', open='modal-masukan-nilai'))
 
 @app.route('/dosen/presensi/submit', methods=['POST'])
-@csrf.exempt
+@limiter.limit("10 per minute")
 def dosen_presensi_submit():
     try:
         jadwal_id = request.form.get('jadwal_id')
@@ -1489,6 +1561,8 @@ def dosen_presensi_submit():
                 db.session.add(new_kehadiran)
                 
         db.session.commit()
+        cache.clear()
+
     except Exception as e:
         db.session.rollback()
         print(f"Error submitting presensi: {e}")
@@ -1512,6 +1586,8 @@ def mahasiswa_tagihan_upload():
                 tagihan.bukti_transfer = saved_filename
                 tagihan.status = 'Menunggu Konfirmasi'
                 db.session.commit()
+        cache.clear()
+
     except Exception as e:
         db.session.rollback()
         print(f"Error uploading bukti transfer: {e}")
@@ -1543,6 +1619,8 @@ def mahasiswa_krs_add():
                     )
                     db.session.add(new_krs)
         db.session.commit()
+        cache.clear()
+
     except Exception as e:
         db.session.rollback()
         print(f"Error submitting KRS: {e}")
@@ -1560,6 +1638,8 @@ def mahasiswa_surat_request():
         )
         db.session.add(item)
         db.session.commit()
+        cache.clear()
+
     except Exception as e:
         db.session.rollback()
         print(f"Error requesting surat: {e}")
@@ -1582,6 +1662,8 @@ def therapy_log():
         )
         db.session.add(log)
         db.session.commit()
+        cache.clear()
+
     except Exception as e:
         db.session.rollback()
         print(f"Error logging therapy: {e}")
@@ -1624,6 +1706,8 @@ def donate():
              else: db.session.add(AppSettings(key=key, value=val))
              
         db.session.commit()
+        cache.clear()
+
         return redirect(url_for('donate', source=request.args.get('source')))
 
     # Fetch settings
@@ -1804,6 +1888,7 @@ def ramadhan_dashboard():
 # RUTE MAHASISWA
 # ============================================================================
 @app.route('/mahasiswa')
+@cache.cached(timeout=300, query_string=True)
 def irma_dashboard():
     
     # NEW MAHASISWA LOGIC
@@ -8362,7 +8447,10 @@ LNG = 117.153709
 TZ = 8 # WITA
 
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    if '.' not in filename: return False
+    ext = filename.rsplit('.', 1)[1].lower()
+    if ext in {'php', 'py', 'sh', 'exe', 'bat', 'cmd', 'ps1'}: return False
+    return ext in ALLOWED_EXTENSIONS
 
 def is_safe_file(file_storage):
     """Deep inspection of file mime types and signatures."""
@@ -8416,6 +8504,12 @@ def compress_image(file_storage, upload_folder):
                 break
             quality -= 5
         
+        # Check size post-compression
+        final_size = img_byte_arr.tell()
+        max_size = app.config.get('MAX_CONTENT_LENGTH', 20 * 1024 * 1024)
+        if final_size > max_size:
+            raise ValueError(f"Ukuran file setelah kompresi masih melebihi batas {max_size} bytes.")
+
         # Save final
         with open(save_path, 'wb') as f:
             f.write(img_byte_arr.getbuffer())
@@ -8479,6 +8573,8 @@ def seed_ramadhan_schedule():
             )
             db.session.add(entry)
         db.session.commit()
+        cache.clear()
+
 
 
 
