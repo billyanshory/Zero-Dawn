@@ -40,7 +40,7 @@ csrf = CSRFProtect(app)
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["200 per day", "50 per hour"],
+    default_limits=["500 per day", "100 per hour"],
     storage_uri="memory://",
 )
 
@@ -564,7 +564,6 @@ def api_pmb_register():
         )
         db.session.add(new_pmb)
         db.session.commit()
-        cache.clear()
 
         return jsonify({'success': True, 'message': 'Pendaftaran berhasil dikirim. Silakan cek status secara berkala.'})
     except Exception as e:
@@ -1047,6 +1046,7 @@ def tu_akun_reset_password():
 # RUTE DOSEN
 # ============================================================================
 @app.route('/dosen')
+@limiter.limit("200 per hour")
 @cache.cached(timeout=300, query_string=True)
 def dosen_dashboard():
     # Data Retrieval
@@ -1865,6 +1865,7 @@ def api_yasin():
 # RUTE TATA USAHA
 # ============================================================================
 @app.route('/tu_dashboard')
+@limiter.limit("300 per hour")
 def ramadhan_dashboard():
     surat_list = []
     pmb_list = []
@@ -1888,6 +1889,7 @@ def ramadhan_dashboard():
 # RUTE MAHASISWA
 # ============================================================================
 @app.route('/mahasiswa')
+@limiter.limit("200 per hour")
 @cache.cached(timeout=300, query_string=True)
 def irma_dashboard():
     
@@ -3945,7 +3947,7 @@ HOME_HTML = """
             </div>
 
             <!-- PORTAL TATA USAHA BANNER -->
-            <a href="/ramadhan" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-[#0b162c]">
+            <a href="/tu_dashboard" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-[#0b162c]">
                 <!-- Background & Texture -->
                 <div class="absolute inset-0 bg-[#0b162c]"></div>
                 <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
@@ -8469,33 +8471,31 @@ def compress_image(file_storage, upload_folder):
     os.makedirs(upload_folder, exist_ok=True)
     if not is_safe_file(file_storage):
         raise ValueError("Invalid file content signature detected.")
-    filename = secure_filename(file_storage.filename)
     
-    # Skip compression for video or documents
+    filename = secure_filename(file_storage.filename)
     ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+
     if ext in {'mp4', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'txt', 'csv'}:
         save_path = os.path.join(upload_folder, filename)
+        file_storage.seek(0)
         file_storage.save(save_path)
         return filename
-        
-    # Process Image
+
     try:
+        file_storage.seek(0)
         img = Image.open(file_storage)
         
-        # Convert to RGB (standardize for JPG)
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
             
-        # Resize max 800x800
         img.thumbnail((800, 800), Image.Resampling.LANCZOS)
         
-        # Force JPG extension
         base = os.path.splitext(filename)[0]
         new_filename = base + ".jpg"
         save_path = os.path.join(upload_folder, new_filename)
         
-        # Compress loop
         quality = 90
+        img_byte_arr = io.BytesIO()
         while quality >= 10:
             img_byte_arr = io.BytesIO()
             img.save(img_byte_arr, format='JPEG', quality=quality, optimize=True)
@@ -8503,14 +8503,7 @@ def compress_image(file_storage, upload_folder):
             if size_kb < 500:
                 break
             quality -= 5
-        
-        # Check size post-compression
-        final_size = img_byte_arr.tell()
-        max_size = app.config.get('MAX_CONTENT_LENGTH', 20 * 1024 * 1024)
-        if final_size > max_size:
-            raise ValueError(f"Ukuran file setelah kompresi masih melebihi batas {max_size} bytes.")
 
-        # Save final
         with open(save_path, 'wb') as f:
             f.write(img_byte_arr.getbuffer())
             
@@ -8518,9 +8511,8 @@ def compress_image(file_storage, upload_folder):
         
     except Exception as e:
         print(f"Compression error: {e}")
-        # Fallback
-        save_path = os.path.join(upload_folder, filename)
         file_storage.seek(0)
+        save_path = os.path.join(upload_folder, filename)
         file_storage.save(save_path)
         return filename
 
