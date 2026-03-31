@@ -40,7 +40,7 @@ csrf = CSRFProtect(app)
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["500 per day", "100 per hour"],
+    default_limits=["2000 per day", "500 per hour"],
     storage_uri="memory://",
 )
 
@@ -450,7 +450,7 @@ def global_gatekeeper():
             flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
 
 @app.route('/login', methods=['POST'])
-@limiter.limit("3 per minute")
+@limiter.limit("9 per 30 minutes", error_message="mohon maaf anda mencoba terlalu banyak percobaan login masuk tunggu tiga puluh menit lagi untuk percobaan berikutnya.")
 def login():
     username = request.form.get('username')
     password = request.form.get('password')
@@ -794,9 +794,10 @@ def tu_surat_acc():
     return redirect(url_for('ramadhan_dashboard', open='modal-pabrik-surat'))
 
 @app.route('/tu/pmb/verifikasi', methods=['POST'])
+@login_required
 @limiter.limit("10 per minute")
 def tu_pmb_verifikasi():
-    if session.get('role') not in ['Tata Usaha', 'Admin']:
+    if current_user.role not in ['Tata Usaha', 'Admin']:
         return 'Unauthorized', 403
     try:
         pmb_id = request.form.get('id')
