@@ -879,25 +879,57 @@ def tu_pmb_verifikasi():
             pmb = PendaftaranPMB.query.get(item_id)
             if pmb:
                 pmb.status = 'Diterima'
-                # Terstruktur: Tahun + 01 + Urutan
-                year_prefix = str(datetime.date.today().year)[-2:]
-                count = User.query.filter_by(role='Mahasiswa').count()
-                new_npm = f"{year_prefix}01{str(count+1).zfill(4)}"
-                pmb.npm_generated = new_npm
-                new_user = User(username=new_npm, password_hash=generate_password_hash("mahasiswa123"), role='Mahasiswa', nama=pmb.nama, status_akademik='Aktif')
+
+                # Fetch custom parameters if provided
+                npm_manual = request.form.get('npm_manual')
+                password_awal = request.form.get('password_awal')
+
+                # Default logic for NPM
+                if not npm_manual:
+                    year_prefix = str(datetime.date.today().year)[-2:]
+                    count = User.query.filter_by(role='Mahasiswa').count()
+                    npm_manual = f"{year_prefix}01{str(count+1).zfill(4)}"
+
+                if not password_awal:
+                    password_awal = "mahasiswa123"
+
+                pmb.npm_generated = npm_manual
+
+                # Create user
+                new_user = User(
+                    username=npm_manual,
+                    password_hash=generate_password_hash(password_awal),
+                    role='Mahasiswa',
+                    nama=pmb.nama,
+                    status_akademik='Aktif'
+                )
                 db.session.add(new_user)
-                db.session.add(Notification(npm=new_npm, message="Selamat, pendaftaran Anda disetujui. Akun berhasil dibuat."))
+
+                # Send explicit notification with credentials
+                msg = f"Selamat, pendaftaran Anda disetujui. NPM Anda adalah {npm_manual}, ID login Anda adalah NPM tersebut, dan password awal adalah {password_awal}. Silakan login dan ubah password segera."
+                db.session.add(Notification(npm=npm_manual, message=msg))
                 db.session.commit()
-                flash("Verifikasi PMB berhasil.", "success")
+                flash(f"Verifikasi PMB berhasil. Akun Mahasiswa ({npm_manual}) dibuat.", "success")
                 
         elif verifikasi_type == 'dosen_mhs':
             user = User.query.get(item_id)
             if user and user.status_akademik == 'Menunggu Verifikasi':
                 user.status_akademik = 'Aktif'
-                # Generate NIDN if needed logic can be here, for now use username
-                db.session.add(Notification(npm=user.username, message=f"Selamat, akun {user.role} Anda telah diaktifkan."))
+
+                username_manual = request.form.get('username_manual')
+                password_awal = request.form.get('password_awal')
+
+                if username_manual and username_manual.strip():
+                    user.username = username_manual.strip()
+                if password_awal and password_awal.strip():
+                    user.password_hash = generate_password_hash(password_awal.strip())
+                else:
+                    password_awal = "(Tidak Diubah)"
+
+                msg = f"Selamat, akun {user.role} Anda telah diaktifkan. Username Anda adalah {user.username}, dan password awal adalah {password_awal}."
+                db.session.add(Notification(npm=user.username, message=msg))
                 db.session.commit()
-                flash(f"Verifikasi akun {user.role} berhasil.", "success")
+                flash(f"Verifikasi akun {user.role} berhasil. ({user.username})", "success")
         
         cache.clear()
 
@@ -1122,6 +1154,36 @@ def tu_akun_reset_password():
         db.session.rollback()
         print(f"Error reset password: {e}")
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+    return redirect(url_for('ramadhan_dashboard', open='modal-manajemen-sivitas'))
+
+@app.route('/tu/akun/delete', methods=['POST'])
+@limiter.limit("10 per minute")
+def tu_akun_delete():
+    if session.get('role') not in ['Tata Usaha', 'Admin']:
+        return 'Unauthorized', 403
+    try:
+        user_id = request.form.get('id')
+        user = db.session.get(User, user_id)
+        if user:
+            # We explicitly handle related records to prevent orphaned data
+            username = user.username
+            if username:
+                KRSMahasiswa.query.filter_by(npm=username).delete()
+                NilaiMahasiswa.query.filter_by(npm=username).delete()
+                TagihanKuliah.query.filter_by(npm=username).delete()
+                LaciArsip.query.filter_by(npm=username).delete()
+                SuratOtomatis.query.filter_by(npm=username).delete()
+                KehadiranKelas.query.filter_by(npm=username).delete()
+                Notification.query.filter_by(npm=username).delete()
+
+            db.session.delete(user)
+            db.session.commit()
+            flash("Akun pengguna dan seluruh relasi data terkait telah dihapus permanen.", "success")
+        cache.clear()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error delete user: {e}")
+        flash(f"Terjadi kesalahan sistem saat menghapus pengguna: {e}", "error")
     return redirect(url_for('ramadhan_dashboard', open='modal-manajemen-sivitas'))
 
 
@@ -1613,6 +1675,9 @@ def dosen_nilai_submit():
                         db.session.add(new_nilai)
                     else:
                         existing_nilai.nilai_huruf = val
+
+                    # Notify student
+                    db.session.add(Notification(npm=npm, message=f"Nilai akhir untuk mata kuliah {mata_kuliah} telah dirilis."))
             
             # Freeze grades
             if not status_nilai:
@@ -1663,6 +1728,10 @@ def dosen_presensi_submit():
                     status=val
                 )
                 db.session.add(new_kehadiran)
+                if val == 'Hadir':
+                    db.session.add(Notification(npm=npm, message=f"Presensi {tanggal} dicatat: Hadir."))
+                else:
+                    db.session.add(Notification(npm=npm, message=f"Presensi {tanggal} dicatat: {val}."))
                 
         db.session.commit()
         cache.clear()
@@ -1707,7 +1776,7 @@ def mahasiswa_krs_add():
         tagihan_list = TagihanKuliah.query.filter_by(npm=npm).all()
         has_unpaid = any(t.status != 'Lunas' for t in tagihan_list)
         if has_unpaid:
-            flash("Anda belum melunasi tagihan. KRS dikunci.", "error")
+            flash("KRS ditolak. Anda belum melunasi tagihan. Silakan lakukan pembayaran terlebih dahulu.", "error")
             return redirect(url_for('irma_dashboard', open='modal-pusat-tagihan'))
 
         jadwal_ids = request.form.getlist('jadwal_ids')
@@ -1725,7 +1794,10 @@ def mahasiswa_krs_add():
                         status='Menunggu Acc Dosen'
                     )
                     db.session.add(new_krs)
+                else:
+                    flash(f"Mata kuliah {jadwal.mata_kuliah} sudah ada di KRS Anda.", "error")
         db.session.commit()
+        flash("KRS berhasil diajukan dan menunggu persetujuan dosen wali.", "success")
         cache.clear()
 
     except Exception as e:
@@ -2016,7 +2088,7 @@ def irma_dashboard():
     
     is_admin = session.get('is_admin', False)
     settings_data = get_settings()
-    user, tagihan_list, krs_list, nilai_list, jadwal_list, surat_list, arsip_list, has_unpaid = _fetch_mahasiswa_data(npm, is_admin)
+    user, tagihan_list, krs_list, nilai_list, jadwal_list, surat_list, arsip_list, has_unpaid, pmb_docs = _fetch_mahasiswa_data(npm, is_admin)
 
     
     # IRMA THEME
@@ -2039,7 +2111,7 @@ def irma_dashboard():
 
     return render_page(IRMA_DASHBOARD_HTML, 'irma', theme=irma_theme, content_kwargs={
         'user': user, 'tagihan_list': tagihan_list, 'krs_list': krs_list, 'nilai_list': nilai_list,
-        'jadwal_list': jadwal_list, 'surat_list': surat_list, 'arsip_list': arsip_list, 'has_unpaid': has_unpaid
+        'jadwal_list': jadwal_list, 'surat_list': surat_list, 'arsip_list': arsip_list, 'has_unpaid': has_unpaid, 'pmb_docs': pmb_docs
     }, full_width=True)
 
 # ============================================================================
@@ -2342,76 +2414,155 @@ BASE_LAYOUT = """
             </div>
             
             <div class="p-6">
-                <!-- Tabs -->
+                <!-- Portal Tabs -->
                 <div class="flex p-1 bg-gray-100 rounded-xl mb-6">
-                    <button onclick="switchLoginTab('login-form-content')" id="tab-btn-login" class="flex-1 py-2 text-sm font-bold rounded-lg bg-white shadow-sm text-sky-600 transition">Login</button>
-                    <button onclick="switchLoginTab('register-form-content')" id="tab-btn-register" class="flex-1 py-2 text-sm font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition">Daftar Akun Baru</button>
+                    <button onclick="switchPortalTab('portal-tu')" id="tab-btn-tu" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-sky-600 transition">Tata Usaha</button>
+                    <button onclick="switchPortalTab('portal-mhs')" id="tab-btn-mhs" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition">Mahasiswa</button>
+                    <button onclick="switchPortalTab('portal-dsn')" id="tab-btn-dsn" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition">Dosen</button>
                 </div>
 
-                <!-- Login Form -->
-                <div id="login-form-content" class="login-tab-content">
+                <!-- Tata Usaha Portal -->
+                <div id="portal-tu" class="portal-tab-content block">
                     <form action="/login" method="POST" class="space-y-4">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Username / NPM</label>
-                            <input type="text" name="username" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Username Tata Usaha</label>
+                            <input type="text" name="username" value="tatausaha" required readonly class="w-full bg-gray-200 border border-gray-300 rounded-xl p-3 text-sm text-gray-600 focus:outline-none cursor-not-allowed">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
                             <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
                         </div>
-                        <div class="flex items-center gap-2 mb-2">
-                            <input type="checkbox" name="remember" id="remember-me" class="accent-sky-500 w-4 h-4">
-                            <label for="remember-me" class="text-xs text-gray-600 font-medium cursor-pointer">Ingat Saya</label>
-                        </div>
-                        <button type="submit" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl hover:bg-sky-600 transition shadow-md">Masuk</button>
+                        <button type="submit" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl hover:bg-sky-600 transition shadow-md">Masuk Tata Usaha</button>
                     </form>
                 </div>
 
-                <!-- Register Form -->
-                <div id="register-form-content" class="login-tab-content hidden">
-                    <form action="/api/register_user" method="POST" class="space-y-4">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Nama Lengkap</label>
-                            <input type="text" name="nama" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Username (NPM / NIDN)</label>
-                            <input type="text" name="username" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Email Kampus</label>
-                            <input type="email" name="email" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
-                            <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Daftar Sebagai</label>
-                            <select name="role" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                                <option value="Mahasiswa">Calon Mahasiswa</option>
-                                <option value="Dosen">Calon Dosen</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="w-full bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition shadow-md">Kirim Permohonan Akun</button>
-                    </form>
+                <!-- Mahasiswa Portal -->
+                <div id="portal-mhs" class="portal-tab-content hidden">
+                    <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
+                        <h4 class="font-bold text-gray-700 text-sm">Login Mahasiswa</h4>
+                        <button onclick="toggleRegister('mhs-login-section', 'mhs-register-section')" class="text-xs text-sky-500 font-bold hover:underline">Daftar Akun?</button>
+                    </div>
+
+                    <div id="mhs-login-section" class="block">
+                        <form action="/login" method="POST" class="space-y-4">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">NPM Mahasiswa</label>
+                                <input type="text" name="username" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
+                                <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            </div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <input type="checkbox" name="remember" id="remember-me-mhs" class="accent-sky-500 w-4 h-4">
+                                <label for="remember-me-mhs" class="text-xs text-gray-600 font-medium cursor-pointer">Ingat Saya</label>
+                            </div>
+                            <button type="submit" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl hover:bg-sky-600 transition shadow-md">Masuk Mahasiswa</button>
+                        </form>
+                    </div>
+
+                    <div id="mhs-register-section" class="hidden">
+                        <form action="/api/register_user" method="POST" class="space-y-4">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="role" value="Mahasiswa">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Nama Lengkap</label>
+                                <input type="text" name="nama" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">NPM Pendaftaran</label>
+                                <input type="text" name="username" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
+                                <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            </div>
+                            <button type="submit" class="w-full bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition shadow-md">Daftar Akun Mahasiswa</button>
+                            <button type="button" onclick="toggleRegister('mhs-register-section', 'mhs-login-section')" class="w-full mt-2 text-xs font-bold text-gray-500 hover:text-gray-700">Kembali ke Login</button>
+                        </form>
+                    </div>
                 </div>
+
+                <!-- Dosen Portal -->
+                <div id="portal-dsn" class="portal-tab-content hidden">
+                    <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
+                        <h4 class="font-bold text-gray-700 text-sm">Login Dosen</h4>
+                        <button onclick="toggleRegister('dsn-login-section', 'dsn-register-section')" class="text-xs text-sky-500 font-bold hover:underline">Daftar Akun?</button>
+                    </div>
+
+                    <div id="dsn-login-section" class="block">
+                        <form action="/login" method="POST" class="space-y-4">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">NIDN / Username Dosen</label>
+                                <input type="text" name="username" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
+                                <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            </div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <input type="checkbox" name="remember" id="remember-me-dsn" class="accent-sky-500 w-4 h-4">
+                                <label for="remember-me-dsn" class="text-xs text-gray-600 font-medium cursor-pointer">Ingat Saya</label>
+                            </div>
+                            <button type="submit" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl hover:bg-sky-600 transition shadow-md">Masuk Dosen</button>
+                        </form>
+                    </div>
+
+                    <div id="dsn-register-section" class="hidden">
+                        <form action="/api/register_user" method="POST" class="space-y-4">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="role" value="Dosen">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Nama Lengkap & Gelar</label>
+                                <input type="text" name="nama" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">NIDN</label>
+                                <input type="text" name="username" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
+                                <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            </div>
+                            <button type="submit" class="w-full bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition shadow-md">Daftar Akun Dosen</button>
+                            <button type="button" onclick="toggleRegister('dsn-register-section', 'dsn-login-section')" class="w-full mt-2 text-xs font-bold text-gray-500 hover:text-gray-700">Kembali ke Login</button>
+                        </form>
+                    </div>
+                </div>
+
             </div>
             
             <script>
-                function switchLoginTab(tab) {
-                    document.querySelectorAll('.login-tab-content').forEach(el => el.classList.add('hidden'));
-                    document.getElementById(tab).classList.remove('hidden');
+                function switchPortalTab(tabId) {
+                    document.querySelectorAll('.portal-tab-content').forEach(el => {
+                        el.classList.remove('block');
+                        el.classList.add('hidden');
+                    });
+                    document.getElementById(tabId).classList.remove('hidden');
+                    document.getElementById(tabId).classList.add('block');
                     
-                    if(tab === 'login-form-content') {
-                        document.getElementById('tab-btn-login').className = "flex-1 py-2 text-sm font-bold rounded-lg bg-white shadow-sm text-sky-600 transition";
-                        document.getElementById('tab-btn-register').className = "flex-1 py-2 text-sm font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition";
-                    } else {
-                        document.getElementById('tab-btn-register').className = "flex-1 py-2 text-sm font-bold rounded-lg bg-white shadow-sm text-sky-600 transition";
-                        document.getElementById('tab-btn-login').className = "flex-1 py-2 text-sm font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition";
-                    }
+                    const activeClass = "flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-sky-600 transition".split(" ");
+                    const inactiveClass = "flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition".split(" ");
+
+                    ['tab-btn-tu', 'tab-btn-mhs', 'tab-btn-dsn'].forEach(id => {
+                        const btn = document.getElementById(id);
+                        btn.className = "";
+                        if (tabId === id.replace('tab-btn-', 'portal-')) {
+                            btn.classList.add(...activeClass);
+                        } else {
+                            btn.classList.add(...inactiveClass);
+                        }
+                    });
+                }
+
+                function toggleRegister(hideId, showId) {
+                    document.getElementById(hideId).classList.remove('block');
+                    document.getElementById(hideId).classList.add('hidden');
+                    document.getElementById(showId).classList.remove('hidden');
+                    document.getElementById(showId).classList.add('block');
                 }
             </script>
         </div>
@@ -7220,12 +7371,28 @@ RAMADHAN_DASHBOARD_HTML = """
                             {% endif %}
                         </div>
                         {% if item['status'] == 'Pending' %}
-                        <form action="/tu/pmb/verifikasi" method="POST">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="type" value="pmb">
-                            <input type="hidden" name="id" value="{{ item['id'] }}">
-                            <button type="submit" class="w-full bg-gold text-midnight font-bold py-2 rounded-lg hover:bg-white transition">Verifikasi & Buat Akun</button>
-                        </form>
+                        <div id="verifikasi-pmb-form-{{ item['id'] }}" class="hidden mt-3 pt-3 border-t border-white/10">
+                            <form action="/tu/pmb/verifikasi" method="POST" class="space-y-3">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="type" value="pmb">
+                                <input type="hidden" name="id" value="{{ item['id'] }}">
+
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1">NPM Baru (Kosongkan utk Auto-Generate)</label>
+                                    <input type="text" name="npm_manual" placeholder="Contoh: 2401001" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-gold">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1">Password Awal Akun</label>
+                                    <input type="text" name="password_awal" value="mahasiswa123" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-gold">
+                                </div>
+
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="document.getElementById('verifikasi-pmb-form-{{ item['id'] }}').classList.add('hidden'); document.getElementById('verifikasi-pmb-btn-{{ item['id'] }}').classList.remove('hidden');" class="flex-1 bg-gray-500/20 text-gray-400 font-bold py-2 rounded-lg hover:bg-gray-500/40 transition">Batal</button>
+                                    <button type="submit" class="flex-1 bg-gold text-midnight font-bold py-2 rounded-lg hover:bg-white transition">Verifikasi & Buat Akun</button>
+                                </div>
+                            </form>
+                        </div>
+                        <button id="verifikasi-pmb-btn-{{ item['id'] }}" onclick="document.getElementById('verifikasi-pmb-form-{{ item['id'] }}').classList.remove('hidden'); this.classList.add('hidden');" class="w-full bg-gold text-midnight font-bold py-2 rounded-lg hover:bg-white transition">Verifikasi Pendaftar</button>
                         {% else %}
                         <a href="https://wa.me/?text=Selamat! Anda telah diterima. NPM: {{ item['npm_generated'] }}" target="_blank" class="block w-full text-center bg-green-500 text-white font-bold py-2 rounded-lg hover:bg-green-600 transition"><i class="fab fa-whatsapp"></i> Kirim Akses</a>
                         {% endif %}
@@ -7243,12 +7410,29 @@ RAMADHAN_DASHBOARD_HTML = """
                         <p class="font-bold text-white">{{ user['nama'] }}</p>
                         <p class="text-sm text-gray-400 mb-2">Username/Identitas: {{ user['username'] }}</p>
                         <p class="text-xs font-bold text-gold mb-4">Mendaftar Sebagai: {{ user['role'] }}</p>
-                        <form action="/tu/pmb/verifikasi" method="POST">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="type" value="dosen_mhs">
-                            <input type="hidden" name="id" value="{{ user['id'] }}">
-                            <button type="submit" class="w-full bg-gold text-midnight font-bold py-2 rounded-lg hover:bg-white transition">Verifikasi & Aktifkan Akun</button>
-                        </form>
+
+                        <div id="verifikasi-dosen-form-{{ user['id'] }}" class="hidden mt-3 pt-3 border-t border-white/10">
+                            <form action="/tu/pmb/verifikasi" method="POST" class="space-y-3">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="type" value="dosen_mhs">
+                                <input type="hidden" name="id" value="{{ user['id'] }}">
+
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1">Username/NIDN Baru (Opsional)</label>
+                                    <input type="text" name="username_manual" value="{{ user['username'] }}" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-gold">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1">Password Awal (Kosongkan jk tdk diubah)</label>
+                                    <input type="text" name="password_awal" placeholder="Contoh: dosen123" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-gold">
+                                </div>
+
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="document.getElementById('verifikasi-dosen-form-{{ user['id'] }}').classList.add('hidden'); document.getElementById('verifikasi-dosen-btn-{{ user['id'] }}').classList.remove('hidden');" class="flex-1 bg-gray-500/20 text-gray-400 font-bold py-2 rounded-lg hover:bg-gray-500/40 transition">Batal</button>
+                                    <button type="submit" class="flex-1 bg-gold text-midnight font-bold py-2 rounded-lg hover:bg-white transition">Aktifkan Akun</button>
+                                </div>
+                            </form>
+                        </div>
+                        <button id="verifikasi-dosen-btn-{{ user['id'] }}" onclick="document.getElementById('verifikasi-dosen-form-{{ user['id'] }}').classList.remove('hidden'); this.classList.add('hidden');" class="w-full bg-gold text-midnight font-bold py-2 rounded-lg hover:bg-white transition">Verifikasi & Aktifkan</button>
                     </div>
                     {% else %}
                     <p class="text-gray-500">Belum ada pendaftar Dosen/Sivitas yang menunggu verifikasi.</p>
@@ -7372,6 +7556,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <p class="text-gray-500 text-center">Tidak ada tagihan tercatat.</p>
                 {% endfor %}
             </div>
+
         </div>
     </div>
 
@@ -7441,6 +7626,22 @@ RAMADHAN_DASHBOARD_HTML = """
                 {% else %}
                 <div class="bg-white/5 p-6 rounded-2xl border border-white/10 text-center">
                     <p class="text-gray-400 text-sm">Belum ada data Tracer Study dari alumni.</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            <h4 class="text-[#075985] font-bold mb-3 border-l-4 border-[#7DD3FC] pl-2 mt-6">Dokumen Pendaftaran Awal (PMB)</h4>
+            <div class="grid grid-cols-2 gap-4">
+                {% for doc in pmb_docs %}
+                <a href="/uploads/{{ doc['file_path'] }}" target="_blank" class="bg-white p-4 rounded-2xl shadow-sm border border-[#0284C7]/20 flex flex-col items-center justify-center text-center hover:bg-gray-50 transition-colors group">
+                    <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                        <i class="fas fa-image text-xl"></i>
+                    </div>
+                    <span class="text-xs font-bold text-gray-700">{{ doc['nama_dokumen'] }}</span>
+                </a>
+                {% else %}
+                <div class="col-span-2 bg-white p-6 rounded-2xl text-center border border-[#0284C7]/20">
+                    <p class="text-gray-400 text-sm">Belum ada dokumen pendaftaran awal.</p>
                 </div>
                 {% endfor %}
             </div>
@@ -7531,6 +7732,7 @@ RAMADHAN_DASHBOARD_HTML = """
                             <th class="p-3 text-xs font-bold uppercase">Role</th>
                             <th class="p-3 text-xs font-bold uppercase">Status</th>
                             <th class="p-3 text-xs font-bold uppercase">Aksi</th>
+                            <th class="p-3 text-xs font-bold uppercase text-right">Hapus</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-white/5">
@@ -7566,9 +7768,16 @@ RAMADHAN_DASHBOARD_HTML = """
                                     </form>
                                 </div>
                             </td>
+                            <td class="p-3 text-right">
+                                <form action="/tu/akun/delete" method="POST" onsubmit="return confirm('Peringatan: Menghapus akun ini akan menghapus semua data yang berkaitan secara permanen. Anda yakin?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="id" value="{{ item['id'] }}">
+                                    <button type="submit" class="text-red-500 hover:text-red-400 bg-red-500/10 p-2 rounded-full transition" title="Hapus Permanen"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="4" class="p-3 text-center text-gray-500">Tidak ada data pengguna</td></tr>
+                        <tr><td colspan="5" class="p-3 text-center text-gray-500">Tidak ada data pengguna</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -8305,12 +8514,12 @@ IRMA_DASHBOARD_HTML = """
             </div>
 
             <h4 class="text-[#075985] font-bold mb-3 border-l-4 border-[#7DD3FC] pl-2">Laci Arsip Pribadi (Sinkron TU)</h4>
-            <div class="space-y-3">
+            <div class="space-y-3 mb-6">
                 {% for a in arsip_list %}
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-[#0284C7]/20 flex justify-between items-center group hover:bg-gray-50 transition-colors">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-full bg-[#0284C7]/10 text-[#0284C7] flex items-center justify-center text-lg">
-                            <i class="fas fa-file-pdf"></i>
+                            <i class="fas fa-file-alt"></i>
                         </div>
                         <div>
                             <p class="font-bold text-gray-800 text-sm">{{ a['nama_dokumen'] }}</p>
@@ -8438,7 +8647,9 @@ def _fetch_mahasiswa_data(npm, is_admin):
     jadwal_list = []
     surat_list = []
     arsip_list = []
+    pmb_docs = []
     has_unpaid = False
+
     try:
         user = User.query.filter_by(username=npm).first()
         if npm:
@@ -8449,9 +8660,20 @@ def _fetch_mahasiswa_data(npm, is_admin):
             jadwal_list = JadwalKuliah.query.order_by(JadwalKuliah.id.desc()).all()
             surat_list = SuratOtomatis.query.filter_by(npm=npm).order_by(SuratOtomatis.id.desc()).all()
             arsip_list = LaciArsip.query.filter_by(npm=npm).order_by(LaciArsip.id.desc()).all()
+
+            # Fetch verified PMB documents for this student
+            pmb = PendaftaranPMB.query.filter_by(npm_generated=npm).first()
+            if pmb:
+                if pmb.foto_ijazah:
+                    pmb_docs.append({'nama_dokumen': 'Scan Ijazah (Awal Masuk)', 'file_path': pmb.foto_ijazah})
+                if pmb.foto_ktp:
+                    pmb_docs.append({'nama_dokumen': 'Scan KTP (Awal Masuk)', 'file_path': pmb.foto_ktp})
+                if pmb.bukti_transfer:
+                    pmb_docs.append({'nama_dokumen': 'Bukti Transfer PMB (Awal Masuk)', 'file_path': pmb.bukti_transfer})
+
     except Exception as e:
         print(f"Error fetch mhs: {e}")
-    return user, tagihan_list, krs_list, nilai_list, jadwal_list, surat_list, arsip_list, has_unpaid
+    return user, tagihan_list, krs_list, nilai_list, jadwal_list, surat_list, arsip_list, has_unpaid, pmb_docs
 
 
 def _fetch_tu_data():
