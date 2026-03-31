@@ -434,6 +434,14 @@ def global_gatekeeper():
         if request.content_length and request.content_length > max_size:
             return jsonify({'success': False, 'error': 'Ukuran file melebihi batas 20MB.'}), 413
 
+    if request.path == '/login' and request.method == 'POST':
+        username = request.form.get('username', '')
+        client_ip = get_remote_address()
+        cache_key = f"failed_login_{client_ip}_{username}"
+        attempts = cache.get(cache_key) or 0
+        if attempts >= 9:
+            return "mohon maaf anda mencoba terlalu banyak percobaan login masuk tunggu tiga puluh menit lagi untuk percobaan berikutnya.", 429
+
     # Allow public endpoints and API endpoints
     if request.endpoint in ['index', 'login', 'logout', 'static', 'api_pmb_register', 'api_pmb_check', 'service_worker', 'manifest', 'fitur_masjid', 'donate', 'emergency', 'prayer_times_api', 'api_yasin', 'therapy_log']:
         return
@@ -470,7 +478,7 @@ def global_gatekeeper():
             return redirect(url_for('index', open='modal-login'))
 
 @app.route('/login', methods=['POST'])
-@limiter.limit("9 per 30 minutes", error_message="mohon maaf anda mencoba terlalu banyak percobaan login masuk tunggu tiga puluh menit lagi untuk percobaan berikutnya.")
+@limiter.limit("9 per 30 minutes", error_message="mohon maaf anda mencoba terlalu banyak percobaan login masuk tunggu tiga puluh menit lagi untuk percobaan berikutnya.", exempt_when=lambda: request.method == 'POST' and _is_valid_login())
 def login():
     username = request.form.get('username')
     password = request.form.get('password')
@@ -488,6 +496,10 @@ def login():
         user = User.query.filter_by(username=username).first()
 
     if user and check_password_hash(user.password_hash, password):
+        client_ip = get_remote_address()
+        cache_key = f"failed_login_{client_ip}_{username}"
+        cache.delete(cache_key)
+
         # Update session manually since login_user is an object but we need dict values too
         login_user(user, remember=remember)
         session['user_id'] = user.id
@@ -497,6 +509,7 @@ def login():
         session['role'] = user.role
         if remember:
             session.permanent = True
+            app.permanent_session_lifetime = datetime.timedelta(days=30)
         else:
             session.permanent = False
             
@@ -508,8 +521,21 @@ def login():
         elif user.role == 'Mahasiswa':
             return redirect(url_for('irma_dashboard'))
             
+    client_ip = get_remote_address()
+    cache_key = f"failed_login_{client_ip}_{username}"
+    attempts = cache.get(cache_key) or 0
+    cache.set(cache_key, attempts + 1, timeout=1800)
+
     flash('Kredensial tidak valid', 'error')
     return redirect(request.referrer or url_for('index'))
+
+def _is_valid_login():
+    username = request.form.get('username')
+    password = request.form.get('password')
+    if username == 'tatausaha' and password == 'stiesamtu':
+        return True
+    user = User.query.filter_by(username=username).first()
+    return user and check_password_hash(user.password_hash, password)
 
 @app.route('/logout')
 def logout():
@@ -2433,6 +2459,10 @@ BASE_LAYOUT = """
                             <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
                             <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
                         </div>
+                        <div class="flex items-center mt-2 mb-4">
+                            <input type="checkbox" id="remember-tu" name="remember" class="w-4 h-4 text-sky-500 bg-gray-50 border-gray-300 rounded focus:ring-sky-500">
+                            <label for="remember-tu" class="ml-2 text-xs font-medium text-gray-500">Ingat Saya</label>
+                        </div>
                         <button type="submit" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl hover:bg-sky-600 transition shadow-md">Masuk Tata Usaha</button>
                     </form>
                 </div>
@@ -2456,7 +2486,7 @@ BASE_LAYOUT = """
                                 <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
                             </div>
                             <div class="flex items-center gap-2 mb-2">
-                                <input type="checkbox" name="remember" id="remember-me-mhs" class="accent-sky-500 w-4 h-4">
+                                <input type="checkbox" name="remember" id="remember-me-mhs" class="accent-sky-500 w-4 h-4 text-sky-500 bg-gray-50 border-gray-300 rounded focus:ring-sky-500">
                                 <label for="remember-me-mhs" class="text-xs text-gray-600 font-medium cursor-pointer">Ingat Saya</label>
                             </div>
                             <button type="submit" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl hover:bg-sky-600 transition shadow-md">Masuk Mahasiswa</button>
@@ -2504,7 +2534,7 @@ BASE_LAYOUT = """
                                 <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
                             </div>
                             <div class="flex items-center gap-2 mb-2">
-                                <input type="checkbox" name="remember" id="remember-me-dsn" class="accent-sky-500 w-4 h-4">
+                                <input type="checkbox" name="remember" id="remember-me-dsn" class="accent-sky-500 w-4 h-4 text-sky-500 bg-gray-50 border-gray-300 rounded focus:ring-sky-500">
                                 <label for="remember-me-dsn" class="text-xs text-gray-600 font-medium cursor-pointer">Ingat Saya</label>
                             </div>
                             <button type="submit" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl hover:bg-sky-600 transition shadow-md">Masuk Dosen</button>
@@ -7645,6 +7675,33 @@ RAMADHAN_DASHBOARD_HTML = """
                 </div>
                 {% endfor %}
             </div>
+
+            <h4 class="text-[#075985] font-bold mb-3 border-l-4 border-[#7DD3FC] pl-2">Dokumen Pendaftaran Awal</h4>
+            <div class="space-y-3">
+                {% for doc in pmb_docs %}
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-[#0284C7]/20 flex justify-between items-center group hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-[#0284C7]/10 text-[#0284C7] flex items-center justify-center text-lg">
+                            <i class="fas fa-file-image"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-gray-800 text-sm">{{ doc['nama_dokumen'] }}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <a href="/uploads/{{ doc['file_path'] }}" target="_blank" class="text-xs bg-sky-100 text-[#0284C7] px-3 py-1.5 rounded-lg font-bold hover:bg-[#7DD3FC] hover:text-white transition-colors">Lihat Dokumen</a>
+                        <a href="/uploads/{{ doc['file_path'] }}" download class="w-8 h-8 flex items-center justify-center text-[#0284C7] bg-sky-100 hover:text-white hover:bg-[#7DD3FC] rounded-lg transition-colors">
+                            <i class="fas fa-download"></i>
+                        </a>
+                    </div>
+                </div>
+                {% else %}
+                <div class="bg-white p-6 rounded-2xl text-center border border-[#0284C7]/20">
+                    <p class="text-gray-400 text-sm">Tidak ada dokumen pendaftaran awal.</p>
+                </div>
+                {% endfor %}
+            </div>
+
         </div>
     </div>
 
@@ -7744,7 +7801,7 @@ RAMADHAN_DASHBOARD_HTML = """
                             </td>
                             <td class="p-3 text-xs text-gray-300">{{ item['role'] }}</td>
                             <td class="p-3">
-                                <span class="px-2 py-1 rounded text-[10px] font-bold {{ 'bg-green-500/20 text-green-400' if item['status_akademik'] == 'Aktif' else 'bg-red-500/20 text-red-400' }}">{{ item['status_akademik'] }}</span>
+                                <span class="px-2 py-1 rounded text-[10px] font-bold {{ 'bg-green-100 text-green-700' if item['status_akademik'] == 'Aktif' else ('bg-orange-100 text-orange-700' if item['status_akademik'] == 'Cuti' else ('bg-red-100 text-red-700' if item['status_akademik'] == 'Keluar' else ('bg-blue-100 text-blue-700' if item['status_akademik'] == 'Lulus' else 'bg-gray-100 text-gray-700'))) }}">{{ item['status_akademik'] }}</span>
                             </td>
                             <td class="p-3 text-xs">
                                 <div class="flex flex-col gap-2">
