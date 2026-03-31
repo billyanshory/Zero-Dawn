@@ -434,7 +434,8 @@ def global_gatekeeper():
         if request.content_length and request.content_length > max_size:
             return jsonify({'success': False, 'error': 'Ukuran file melebihi batas 20MB.'}), 413
 
-    if request.endpoint in ['index', 'login', 'logout', 'static']:
+    # Allow public endpoints and API endpoints
+    if request.endpoint in ['index', 'login', 'logout', 'static', 'api_pmb_register', 'api_pmb_check', 'service_worker', 'manifest', 'fitur_masjid', 'donate', 'emergency', 'prayer_times_api', 'api_yasin', 'therapy_log']:
         return
         
     user_id = session.get('user_id')
@@ -444,10 +445,29 @@ def global_gatekeeper():
             if user and user.status_akademik != 'Aktif':
                 session.clear()
                 return "Akses Ditolak: Status Akademik Anda tidak Aktif.", 403
+
+            # Portal enforcement logic
+            role = user.role
+            path = request.path
+            if path.startswith('/tu_dashboard') or path.startswith('/tu/'):
+                if role not in ['Tata Usaha', 'Admin']:
+                    return redirect(url_for('index', open='modal-login'))
+            elif path.startswith('/dosen'):
+                if role != 'Dosen':
+                    return redirect(url_for('index', open='modal-login'))
+            elif path.startswith('/mahasiswa') or path == '/mahasiswa':
+                if role != 'Mahasiswa':
+                    return redirect(url_for('index', open='modal-login'))
+
         except Exception as e:
             db.session.rollback()
             print(f"Error in gatekeeper: {e}")
             flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
+    else:
+        # Not logged in, redirect to index with login modal
+        path = request.path
+        if path.startswith('/tu_dashboard') or path.startswith('/tu/') or path.startswith('/dosen') or path.startswith('/mahasiswa'):
+            return redirect(url_for('index', open='modal-login'))
 
 @app.route('/login', methods=['POST'])
 @limiter.limit("9 per 30 minutes", error_message="mohon maaf anda mencoba terlalu banyak percobaan login masuk tunggu tiga puluh menit lagi untuk percobaan berikutnya.")
@@ -456,9 +476,19 @@ def login():
     password = request.form.get('password')
     remember = request.form.get('remember') == 'on'
     
-    user = User.query.filter_by(username=username).first()
-    if user and check_password_hash(user.password_hash, password):
+    # Handle hardcoded Tata Usaha login per request
+    if username == 'tatausaha' and password == 'stiesamtu':
+        # Find or create Tata Usaha user
+        user = User.query.filter_by(username='tatausaha').first()
+        if not user:
+            user = User(username='tatausaha', password_hash=generate_password_hash('stiesamtu'), role='Tata Usaha', nama='Tata Usaha Utama', status_akademik='Aktif')
+            db.session.add(user)
+            db.session.commit()
+    else:
+        user = User.query.filter_by(username=username).first()
 
+    if user and check_password_hash(user.password_hash, password):
+        # Update session manually since login_user is an object but we need dict values too
         login_user(user, remember=remember)
         session['user_id'] = user.id
         session['username'] = user.username
@@ -515,6 +545,46 @@ def seed_admin():
 # ============================================================================
 # PUBLIC & API ROUTES
 # ============================================================================
+
+
+@app.route('/api/register_user', methods=['POST'])
+@limiter.limit('3 per minute')
+def api_register_user():
+    try:
+        nama = request.form.get('nama')
+        username = request.form.get('username')
+        password = request.form.get('password')
+        role = request.form.get('role')
+
+        if not all([nama, username, password, role]):
+            flash("Semua field harus diisi.", "error")
+            return redirect(url_for('index', open='modal-login'))
+
+        if role not in ['Mahasiswa', 'Dosen']:
+            flash("Role tidak valid.", "error")
+            return redirect(url_for('index', open='modal-login'))
+
+        if User.query.filter_by(username=username).first():
+            flash("Username sudah digunakan. Silakan pilih username lain.", "error")
+            return redirect(url_for('index', open='modal-login'))
+
+        new_user = User(
+            username=username,
+            password_hash=generate_password_hash(password),
+            role=role,
+            nama=nama,
+            status_akademik='Menunggu Verifikasi'
+        )
+        db.session.add(new_user)
+        db.session.commit()
+
+        flash("Permohonan akun berhasil dikirim. Menunggu verifikasi dari Tata Usaha.", "success")
+        return redirect(url_for('index', open='modal-login'))
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error in User Register: {e}")
+        flash("Terjadi kesalahan sistem saat mendaftar.", "error")
+        return redirect(url_for('index', open='modal-login'))
 
 @app.route('/api/pmb/register', methods=['POST'])
 @limiter.limit('3 per minute')
@@ -597,6 +667,7 @@ def api_tracer_submit():
             kontak=request.form.get('kontak')
         )
         db.session.add(new_tracer)
+        db.session.add(Notification(npm='tatausaha', message=f"Data Tracer Study baru dari NPM {request.form.get('npm')}."))
         db.session.commit()
         cache.clear()
 
@@ -784,6 +855,7 @@ def tu_surat_acc():
                 ukuran="Digital PDF"
             )
             db.session.add(arsip)
+            db.session.add(Notification(npm=surat.npm, message=f"Surat {surat.jenis_surat} telah disetujui. Silakan cek arsip digital Anda."))
             db.session.commit()
         cache.clear()
 
@@ -800,25 +872,38 @@ def tu_pmb_verifikasi():
     if current_user.role not in ['Tata Usaha', 'Admin']:
         return 'Unauthorized', 403
     try:
-        pmb_id = request.form.get('id')
-        pmb = PendaftaranPMB.query.get(pmb_id)
-        if pmb:
-            pmb.status = 'Diterima'
-            # Terstruktur: Tahun + 01 + Urutan
-            year_prefix = str(datetime.date.today().year)[-2:]
-            count = User.query.filter_by(role='Mahasiswa').count()
-            new_npm = f"{year_prefix}01{str(count+1).zfill(4)}"
-            pmb.npm_generated = new_npm
-            new_user = User(username=new_npm, password_hash=generate_password_hash("mahasiswa123"), role='Mahasiswa', nama=pmb.nama, status_akademik='Aktif')
-            db.session.add(new_user)
-            db.session.add(Notification(npm=new_npm, message="Selamat, pendaftaran Anda disetujui. Akun berhasil dibuat."))
+        verifikasi_type = request.form.get('type')
+        item_id = request.form.get('id')
 
-            db.session.commit()
+        if verifikasi_type == 'pmb':
+            pmb = PendaftaranPMB.query.get(item_id)
+            if pmb:
+                pmb.status = 'Diterima'
+                # Terstruktur: Tahun + 01 + Urutan
+                year_prefix = str(datetime.date.today().year)[-2:]
+                count = User.query.filter_by(role='Mahasiswa').count()
+                new_npm = f"{year_prefix}01{str(count+1).zfill(4)}"
+                pmb.npm_generated = new_npm
+                new_user = User(username=new_npm, password_hash=generate_password_hash("mahasiswa123"), role='Mahasiswa', nama=pmb.nama, status_akademik='Aktif')
+                db.session.add(new_user)
+                db.session.add(Notification(npm=new_npm, message="Selamat, pendaftaran Anda disetujui. Akun berhasil dibuat."))
+                db.session.commit()
+                flash("Verifikasi PMB berhasil.", "success")
+
+        elif verifikasi_type == 'dosen_mhs':
+            user = User.query.get(item_id)
+            if user and user.status_akademik == 'Menunggu Verifikasi':
+                user.status_akademik = 'Aktif'
+                # Generate NIDN if needed logic can be here, for now use username
+                db.session.add(Notification(npm=user.username, message=f"Selamat, akun {user.role} Anda telah diaktifkan."))
+                db.session.commit()
+                flash(f"Verifikasi akun {user.role} berhasil.", "success")
+
         cache.clear()
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error PMB verifikasi: {e}")
+        print(f"Error PMB/Dosen verifikasi: {e}")
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pmb'))
 
@@ -946,7 +1031,6 @@ def tu_tagihan_lunas():
         if tagihan:
             tagihan.status = 'Lunas'
             db.session.add(Notification(npm=tagihan.npm, message=f"Pembayaran {tagihan.jenis_tagihan} telah dikonfirmasi LUNAS."))
-
             db.session.commit()
         cache.clear()
 
@@ -970,6 +1054,8 @@ def tu_jadwal():
             ruangan=request.form['ruangan']
         )
         db.session.add(new_jadwal)
+        db.session.flush() # To get new_jadwal.id
+        db.session.add(StatusNilai(jadwal_id=new_jadwal.id, is_published=False))
         db.session.commit()
         cache.clear()
 
@@ -1471,6 +1557,7 @@ def dosen_krs_action():
         krs = db.session.get(KRSMahasiswa, krs_id)
         if krs and status in ['Disetujui Dosen', 'Ditolak Dosen']:
             krs.status = status
+            db.session.add(Notification(npm=krs.npm, message=f"KRS {krs.mata_kuliah} telah {status}."))
             db.session.commit()
             cache.clear()
 
@@ -1493,13 +1580,23 @@ def dosen_nilai_submit():
             # Check if already published
             status_nilai = StatusNilai.query.filter_by(jadwal_id=jadwal_id).first()
             if status_nilai and status_nilai.is_published:
+                flash("Nilai sudah dipublikasikan dan dikunci.", "error")
                 return redirect(url_for('dosen_dashboard', open='modal-masukan-nilai'))
+
+            # Calculate total sessions for attendance pct check
+            total_sessions = JurnalMengajar.query.filter_by(jadwal_id=jadwal_id).count()
                 
             # Parse student grades
             for key, val in request.form.items():
                 if key.startswith('nilai_') and val:
                     npm = key.replace('nilai_', '')
                     
+                    hadir = KehadiranKelas.query.filter_by(jadwal_id=jadwal_id, npm=npm, status='Hadir').count()
+                    attendance_pct = (hadir / total_sessions * 100) if total_sessions > 0 else 100
+
+                    if attendance_pct < 75:
+                        val = 'E' # Force E if attendance is below 75%
+
                     # Prevent duplicate logic or overwrite existing if needed. We assume one grade per semester per class.
                     # As a simplistic approach: we just add a new record. In a real scenario, we might want to update.
                     semester_aktif = get_settings().get('semester_aktif', 'Gasal 2024/2025')
@@ -1526,6 +1623,7 @@ def dosen_nilai_submit():
                 
             db.session.commit()
         cache.clear()
+        flash("Nilai berhasil disimpan dan dipublikasikan.", "success")
 
     except Exception as e:
         db.session.rollback()
@@ -1540,6 +1638,11 @@ def dosen_presensi_submit():
         jadwal_id = request.form.get('jadwal_id')
         materi = request.form.get('materi')
         tanggal = str(datetime.date.today())
+
+        status_nilai = StatusNilai.query.filter_by(jadwal_id=jadwal_id).first()
+        if status_nilai and status_nilai.is_published:
+            flash("Gagal. Presensi dikunci karena nilai telah dipublikasikan.", "error")
+            return redirect(url_for('dosen_dashboard', open='modal-presensi-jurnal'))
         
         # Insert Jurnal
         new_jurnal = JurnalMengajar(
@@ -1563,6 +1666,7 @@ def dosen_presensi_submit():
                 
         db.session.commit()
         cache.clear()
+        flash("Presensi dan jurnal berhasil disimpan.", "success")
 
     except Exception as e:
         db.session.rollback()
@@ -1586,6 +1690,7 @@ def mahasiswa_tagihan_upload():
                 saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
                 tagihan.bukti_transfer = saved_filename
                 tagihan.status = 'Menunggu Konfirmasi'
+                db.session.add(Notification(npm='tatausaha', message=f"Bukti transfer diunggah oleh NPM {tagihan.npm} untuk {tagihan.jenis_tagihan}."))
                 db.session.commit()
         cache.clear()
 
@@ -1602,7 +1707,8 @@ def mahasiswa_krs_add():
         tagihan_list = TagihanKuliah.query.filter_by(npm=npm).all()
         has_unpaid = any(t.status != 'Lunas' for t in tagihan_list)
         if has_unpaid:
-            return redirect(url_for('irma_dashboard', open='modal-rencana-studi'))
+            flash("Anda belum melunasi tagihan. KRS dikunci.", "error")
+            return redirect(url_for('irma_dashboard', open='modal-pusat-tagihan'))
 
         jadwal_ids = request.form.getlist('jadwal_ids')
         for j_id in jadwal_ids:
@@ -1638,6 +1744,7 @@ def mahasiswa_surat_request():
             keterangan=request.form['keterangan']
         )
         db.session.add(item)
+        db.session.add(Notification(npm='tatausaha', message=f"Permohonan surat baru dari NPM {npm}."))
         db.session.commit()
         cache.clear()
 
@@ -1876,14 +1983,15 @@ def ramadhan_dashboard():
     arsip_list = []
     tracer_list = []
     verified_alumni_list = []
+    pending_users = []
     
-    surat_list, pmb_list, tagihan_list, jadwal_list, akun_list, arsip_list, tracer_list, verified_alumni_list = _fetch_tu_data()
+    surat_list, pmb_list, tagihan_list, jadwal_list, akun_list, arsip_list, tracer_list, verified_alumni_list, pending_users = _fetch_tu_data()
         
     # Render CONTENT first
     return render_page(RAMADHAN_DASHBOARD_HTML, 'ramadhan', content_kwargs={
         'surat_list': surat_list, 'pmb_list': pmb_list, 'tagihan_list': tagihan_list,
         'jadwal_list': jadwal_list, 'akun_list': akun_list, 'arsip_list': arsip_list,
-        'tracer_list': tracer_list, 'verified_alumni_list': verified_alumni_list
+        'tracer_list': tracer_list, 'verified_alumni_list': verified_alumni_list, 'pending_users': pending_users
     }, hide_nav=True, full_width=True)
 
 # ============================================================================
@@ -2222,6 +2330,93 @@ BASE_LAYOUT = """
 
     <!-- NEW MODALS FROM BOTTOM NAV -->
     
+    <!-- MODAL LOGIN -->
+    <div id="modal-login" class="fixed inset-0 z-[250] hidden bg-black/60 backdrop-blur-sm flex justify-center items-center p-4">
+        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-[slideUp_0.3s_ease-out] relative">
+            <button onclick="closeModal('modal-login')" class="absolute top-4 right-4 bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center z-10">&times;</button>
+
+            <div class="bg-gradient-to-br from-sky-600 to-sky-800 p-6 text-center text-white relative">
+                <div class="absolute inset-0 bg-white/5 mix-blend-overlay"></div>
+                <img src="/static/logo-stiesam.png" alt="Logo" class="h-12 w-12 mx-auto mb-2 object-contain bg-white rounded-full p-1 relative z-10">
+                <h3 class="font-bold tracking-widest text-lg relative z-10">Please log in to access this page.</h3>
+            </div>
+
+            <div class="p-6">
+                <!-- Tabs -->
+                <div class="flex p-1 bg-gray-100 rounded-xl mb-6">
+                    <button onclick="switchLoginTab('login-form-content')" id="tab-btn-login" class="flex-1 py-2 text-sm font-bold rounded-lg bg-white shadow-sm text-sky-600 transition">Login</button>
+                    <button onclick="switchLoginTab('register-form-content')" id="tab-btn-register" class="flex-1 py-2 text-sm font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition">Daftar Akun Baru</button>
+                </div>
+
+                <!-- Login Form -->
+                <div id="login-form-content" class="login-tab-content">
+                    <form action="/login" method="POST" class="space-y-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Username / NPM</label>
+                            <input type="text" name="username" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
+                            <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <input type="checkbox" name="remember" id="remember-me" class="accent-sky-500 w-4 h-4">
+                            <label for="remember-me" class="text-xs text-gray-600 font-medium cursor-pointer">Ingat Saya</label>
+                        </div>
+                        <button type="submit" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl hover:bg-sky-600 transition shadow-md">Masuk</button>
+                    </form>
+                </div>
+
+                <!-- Register Form -->
+                <div id="register-form-content" class="login-tab-content hidden">
+                    <form action="/api/register_user" method="POST" class="space-y-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Nama Lengkap</label>
+                            <input type="text" name="nama" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Username (NPM / NIDN)</label>
+                            <input type="text" name="username" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Email Kampus</label>
+                            <input type="email" name="email" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
+                            <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Daftar Sebagai</label>
+                            <select name="role" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                                <option value="Mahasiswa">Calon Mahasiswa</option>
+                                <option value="Dosen">Calon Dosen</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="w-full bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition shadow-md">Kirim Permohonan Akun</button>
+                    </form>
+                </div>
+            </div>
+
+            <script>
+                function switchLoginTab(tab) {
+                    document.querySelectorAll('.login-tab-content').forEach(el => el.classList.add('hidden'));
+                    document.getElementById(tab).classList.remove('hidden');
+
+                    if(tab === 'login-form-content') {
+                        document.getElementById('tab-btn-login').className = "flex-1 py-2 text-sm font-bold rounded-lg bg-white shadow-sm text-sky-600 transition";
+                        document.getElementById('tab-btn-register').className = "flex-1 py-2 text-sm font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition";
+                    } else {
+                        document.getElementById('tab-btn-register').className = "flex-1 py-2 text-sm font-bold rounded-lg bg-white shadow-sm text-sky-600 transition";
+                        document.getElementById('tab-btn-login').className = "flex-1 py-2 text-sm font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition";
+                    }
+                }
+            </script>
+        </div>
+    </div>
+
     <!-- MODAL LOGO ZOOM -->
     <div id="modal-logo-zoom" class="fixed inset-0 z-[200] hidden bg-white/30 backdrop-blur-md flex justify-center items-center" onclick="document.getElementById('modal-logo-zoom').classList.add('hidden'); if(history.state && history.state.modal === 'modal-logo-zoom') { history.replaceState(null, '', window.location.pathname); }">
         <div class="relative w-full max-w-sm flex justify-center items-center p-6 animate-[popupFadeIn_0.5s_ease-out]" onclick="event.stopPropagation()">
@@ -6876,7 +7071,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-gold mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
                     <i class="fas fa-id-card text-2xl"></i>
                 </div>
-                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Verifikasi PMB</span>
+                <span class="font-bold text-sm text-center text-gray-200 group-hover:text-gold transition-colors">Verifikasi PMB & Dosen</span>
             </button>
 
             <button onclick="openModal('modal-laci-arsip')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
@@ -6998,40 +7193,83 @@ RAMADHAN_DASHBOARD_HTML = """
     <div id="modal-verifikasi-pmb" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
             <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-                <h3 class="text-xl font-bold text-gold font-sans">Verifikasi PMB Digital</h3>
+                <h3 class="text-xl font-bold text-gold font-sans">Verifikasi PMB & Akun Dosen/Mahasiswa</h3>
                 <button onclick="closeModal('modal-verifikasi-pmb')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
+
+            <!-- Tabs -->
+            <div class="flex p-1 bg-white/10 rounded-xl mb-6">
+                <button onclick="switchVerifikasiTab('pmb-content')" id="tab-btn-pmb" class="flex-1 py-2 text-sm font-bold rounded-lg bg-gold shadow-sm text-midnight transition">Calon Mahasiswa Baru (PMB)</button>
+                <button onclick="switchVerifikasiTab('dosen-content')" id="tab-btn-dosen" class="flex-1 py-2 text-sm font-bold rounded-lg text-gray-300 hover:bg-white/5 transition">Calon Dosen/Sivitas</button>
+            </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {% for item in pmb_list %}
-                <div class="bg-white/5 border border-white/10 p-4 rounded-xl">
-                    <p class="font-bold text-white mb-2">{{ item['nama'] }}</p>
-                    <div class="flex gap-2 mb-4">
-                        {% if item['foto_ijazah'] %}
-                        <a href="/uploads/{{ item['foto_ijazah'] }}" target="_blank" class="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">Lihat Ijazah</a>
-                        {% endif %}
-                        {% if item['foto_ktp'] %}
-                        <a href="/uploads/{{ item['foto_ktp'] }}" target="_blank" class="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded">Lihat KTP</a>
-                        {% endif %}
-                        {% if item['bukti_transfer'] %}
-                        <a href="/uploads/{{ item['bukti_transfer'] }}" target="_blank" class="text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded">Lihat Transfer</a>
+            <div id="pmb-content" class="verifikasi-tab-content">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for item in pmb_list %}
+                    <div class="bg-white/5 border border-white/10 p-4 rounded-xl">
+                        <p class="font-bold text-white mb-2">{{ item['nama'] }}</p>
+                        <div class="flex gap-2 mb-4">
+                            {% if item['foto_ijazah'] %}
+                            <a href="/uploads/{{ item['foto_ijazah'] }}" target="_blank" class="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">Lihat Ijazah</a>
+                            {% endif %}
+                            {% if item['foto_ktp'] %}
+                            <a href="/uploads/{{ item['foto_ktp'] }}" target="_blank" class="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded">Lihat KTP</a>
+                            {% endif %}
+                            {% if item['bukti_transfer'] %}
+                            <a href="/uploads/{{ item['bukti_transfer'] }}" target="_blank" class="text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded">Lihat Transfer</a>
+                            {% endif %}
+                        </div>
+                        {% if item['status'] == 'Pending' %}
+                        <form action="/tu/pmb/verifikasi" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="type" value="pmb">
+                            <input type="hidden" name="id" value="{{ item['id'] }}">
+                            <button type="submit" class="w-full bg-gold text-midnight font-bold py-2 rounded-lg hover:bg-white transition">Verifikasi & Buat Akun</button>
+                        </form>
+                        {% else %}
+                        <a href="https://wa.me/?text=Selamat! Anda telah diterima. NPM: {{ item['npm_generated'] }}" target="_blank" class="block w-full text-center bg-green-500 text-white font-bold py-2 rounded-lg hover:bg-green-600 transition"><i class="fab fa-whatsapp"></i> Kirim Akses</a>
                         {% endif %}
                     </div>
-                    {% if item['status'] == 'Pending' %}
-                    <form action="/tu/pmb/verifikasi" method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                        <input type="hidden" name="id" value="{{ item['id'] }}">
-                        <button type="submit" class="w-full bg-gold text-midnight font-bold py-2 rounded-lg hover:bg-white transition">Verifikasi & Buat Akun</button>
-                    </form>
                     {% else %}
-                    <a href="https://wa.me/?text=Selamat! Anda telah diterima. NPM: {{ item['npm_generated'] }}" target="_blank" class="block w-full text-center bg-green-500 text-white font-bold py-2 rounded-lg hover:bg-green-600 transition"><i class="fab fa-whatsapp"></i> Kirim Akses</a>
-                    {% endif %}
+                    <p class="text-gray-500">Belum ada pendaftar PMB.</p>
+                    {% endfor %}
                 </div>
-                {% else %}
-                <p class="text-gray-500">Belum ada pendaftar.</p>
-                {% endfor %}
             </div>
+
+            <div id="dosen-content" class="verifikasi-tab-content hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for user in pending_users %}
+                    <div class="bg-white/5 border border-white/10 p-4 rounded-xl">
+                        <p class="font-bold text-white">{{ user['nama'] }}</p>
+                        <p class="text-sm text-gray-400 mb-2">Username/Identitas: {{ user['username'] }}</p>
+                        <p class="text-xs font-bold text-gold mb-4">Mendaftar Sebagai: {{ user['role'] }}</p>
+                        <form action="/tu/pmb/verifikasi" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="type" value="dosen_mhs">
+                            <input type="hidden" name="id" value="{{ user['id'] }}">
+                            <button type="submit" class="w-full bg-gold text-midnight font-bold py-2 rounded-lg hover:bg-white transition">Verifikasi & Aktifkan Akun</button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <p class="text-gray-500">Belum ada pendaftar Dosen/Sivitas yang menunggu verifikasi.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <script>
+                function switchVerifikasiTab(tab) {
+                    document.querySelectorAll('.verifikasi-tab-content').forEach(el => el.classList.add('hidden'));
+                    document.getElementById(tab).classList.remove('hidden');
+
+                    if(tab === 'pmb-content') {
+                        document.getElementById('tab-btn-pmb').className = "flex-1 py-2 text-sm font-bold rounded-lg bg-gold shadow-sm text-midnight transition";
+                        document.getElementById('tab-btn-dosen').className = "flex-1 py-2 text-sm font-bold rounded-lg text-gray-300 hover:bg-white/5 transition";
+                    } else {
+                        document.getElementById('tab-btn-dosen').className = "flex-1 py-2 text-sm font-bold rounded-lg bg-gold shadow-sm text-midnight transition";
+                        document.getElementById('tab-btn-pmb').className = "flex-1 py-2 text-sm font-bold rounded-lg text-gray-300 hover:bg-white/5 transition";
+                    }
+                }
+            </script>
         </div>
     </div>
 
@@ -8136,7 +8374,7 @@ def _fetch_dosen_data(dosen_name):
             mata_kuliah_list = [j.mata_kuliah for j in jadwal_dosen]
             all_status_nilai = StatusNilai.query.filter(StatusNilai.jadwal_id.in_(jadwal_ids)).all()
             status_nilai_map = {sn.jadwal_id: sn for sn in all_status_nilai}
-            all_krs_class = KRSMahasiswa.query.filter(KRSMahasiswa.mata_kuliah.in_(mata_kuliah_list), KRSMahasiswa.status=='Disetujui Dosen').all()
+            all_krs_class = KRSMahasiswa.query.filter(KRSMahasiswa.mata_kuliah.in_(mata_kuliah_list), KRSMahasiswa.dosen==dosen_name, KRSMahasiswa.status=='Disetujui Dosen').all()
             krs_class_map = {}
             all_npm_class = set()
             for krs in all_krs_class:
@@ -8218,6 +8456,7 @@ def _fetch_mahasiswa_data(npm, is_admin):
 
 def _fetch_tu_data():
     try:
+        pending_users = User.query.filter_by(status_akademik='Menunggu Verifikasi').order_by(User.id.desc()).all()
         return (
             SuratOtomatis.query.order_by(SuratOtomatis.id.desc()).all(),
             PendaftaranPMB.query.order_by(PendaftaranPMB.id.desc()).all(),
@@ -8226,11 +8465,12 @@ def _fetch_tu_data():
             User.query.order_by(User.id.desc()).all(),
             LaciArsip.query.order_by(LaciArsip.id.desc()).all(),
             TracerStudy.query.order_by(TracerStudy.id.desc()).all(),
-            TracerStudy.query.filter_by(status='Diverifikasi').order_by(TracerStudy.id.desc()).all()
+            TracerStudy.query.filter_by(status='Diverifikasi').order_by(TracerStudy.id.desc()).all(),
+            pending_users
         )
     except Exception as e:
         print(e)
-        return [], [], [], [], [], [], [], []
+        return [], [], [], [], [], [], [], [], []
 
 def render_page(template, active_page, theme=None, content_kwargs=None, hide_nav=False, full_width=False):
     if content_kwargs is None:
