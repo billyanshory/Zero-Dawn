@@ -7788,6 +7788,26 @@ RAMADHAN_DASHBOARD_HTML = """
                 <button onclick="closeModal('modal-manajemen-sivitas')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
             
+            <div class="flex gap-2 mb-6">
+                <button onclick="filterSivitas('Tata Usaha')" class="bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fas fa-user-shield"></i> TU</button>
+                <button onclick="filterSivitas('Mahasiswa')" class="bg-green-500/20 text-green-400 hover:bg-green-500/40 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fas fa-user-graduate"></i> Mahasiswa</button>
+                <button onclick="filterSivitas('Dosen')" class="bg-purple-500/20 text-purple-400 hover:bg-purple-500/40 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fas fa-chalkboard-teacher"></i> Dosen</button>
+                <button onclick="filterSivitas('all')" class="bg-gray-500/20 text-gray-400 hover:bg-gray-500/40 px-4 py-2 rounded-xl text-xs font-bold transition ml-auto">Semua</button>
+            </div>
+
+            <script>
+                function filterSivitas(role) {
+                    const rows = document.querySelectorAll('.sivitas-row');
+                    rows.forEach(row => {
+                        if(role === 'all' || row.dataset.role === role) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                }
+            </script>
+
             <div class="overflow-x-auto rounded-xl border border-white/10">
                 <table class="w-full text-left border-collapse min-w-[600px]">
                     <thead class="bg-gold/10 text-gold">
@@ -7802,19 +7822,17 @@ RAMADHAN_DASHBOARD_HTML = """
                     </thead>
                     <tbody class="divide-y divide-white/5">
                         {% for item in akun_list %}
-                        <tr class="hover:bg-white/5 transition">
+                        <tr class="hover:bg-white/5 transition sivitas-row" data-role="{{ item['role'] }}">
                             <td class="p-3">
                                 <p class="font-bold text-white">{{ item['nama'] }}</p>
                                 <p class="text-[10px] text-gray-400">{{ item['username'] }}</p>
                             </td>
                             <td class="p-3 text-xs text-gray-300">{{ item['role'] }}</td>
                             <td class="p-3 text-xs text-gray-300">
-                                {% if item['role'] == 'Mahasiswa' %}mahasiswa123
-                                {% elif item['role'] == 'Dosen' %}dosen123
-                                {% else %}-{% endif %}
+                                <span class="truncate max-w-[100px] block" title="{{ item['password_hash'] }}">{{ item['password_hash'] }}</span>
                             </td>
                             <td class="p-3">
-                                <span class="px-2 py-1 rounded text-[10px] font-bold {{ 'bg-green-100 text-green-700' if item['status_akademik'] == 'Aktif' else ('bg-orange-100 text-orange-700' if item['status_akademik'] == 'Cuti' else ('bg-red-100 text-red-700' if item['status_akademik'] == 'Keluar' else ('bg-blue-100 text-blue-700' if item['status_akademik'] == 'Lulus' else 'bg-gray-100 text-gray-700'))) }}">{{ item['status_akademik'] }}</span>
+                                <span class="px-3 py-1 rounded-full border shadow-sm text-[10px] font-bold tracking-widest uppercase {{ 'bg-green-900/50 text-green-400 border-green-500/30' if item['status_akademik'] == 'Aktif' else ('bg-orange-900/50 text-orange-400 border-orange-500/30' if item['status_akademik'] == 'Cuti' else ('bg-red-900/50 text-red-400 border-red-500/30' if item['status_akademik'] == 'Keluar' else ('bg-blue-900/50 text-blue-400 border-blue-500/30' if item['status_akademik'] == 'Lulus' else 'bg-gray-800 text-gray-400 border-gray-600'))) }}">{{ item['status_akademik'] }}</span>
                             </td>
                             <td class="p-3 text-xs">
                                 <div class="flex flex-col gap-2">
@@ -8733,17 +8751,25 @@ def _fetch_mahasiswa_data(npm, is_admin):
             nilai_list = NilaiMahasiswa.query.filter_by(npm=npm).order_by(NilaiMahasiswa.semester.desc(), NilaiMahasiswa.id.desc()).all()
             jadwal_list = JadwalKuliah.query.order_by(JadwalKuliah.id.desc()).all()
             surat_list = SuratOtomatis.query.filter_by(npm=npm).order_by(SuratOtomatis.id.desc()).all()
-            arsip_list = LaciArsip.query.filter_by(npm=npm).order_by(LaciArsip.id.desc()).all()
+            arsip_list_raw = LaciArsip.query.filter_by(npm=npm).order_by(LaciArsip.id.desc()).all()
+            arsip_list = [{'id': a.id, 'nama_dokumen': a.nama_dokumen, 'file_path': a.file_path, 'ukuran': a.ukuran, 'tanggal': a.tanggal} for a in arsip_list_raw]
             
             # Fetch verified PMB documents for this student
             pmb = PendaftaranPMB.query.filter_by(npm_generated=npm).first()
             if pmb:
+                existing_files = {a.file_path for a in arsip_list_raw}
                 if pmb.foto_ijazah:
                     pmb_docs.append({'nama_dokumen': 'Scan Ijazah (Awal Masuk)', 'file_path': pmb.foto_ijazah})
+                    if pmb.foto_ijazah not in existing_files:
+                        arsip_list.append({'id': 'pmb-ijazah', 'nama_dokumen': 'Arsip Ijazah PMB (Riwayat)', 'file_path': pmb.foto_ijazah, 'ukuran': 'Berkas PMB', 'tanggal': pmb.created_at.strftime('%Y-%m-%d') if pmb.created_at else ''})
                 if pmb.foto_ktp:
                     pmb_docs.append({'nama_dokumen': 'Scan KTP (Awal Masuk)', 'file_path': pmb.foto_ktp})
+                    if pmb.foto_ktp not in existing_files:
+                        arsip_list.append({'id': 'pmb-ktp', 'nama_dokumen': 'Arsip KTP PMB (Riwayat)', 'file_path': pmb.foto_ktp, 'ukuran': 'Berkas PMB', 'tanggal': pmb.created_at.strftime('%Y-%m-%d') if pmb.created_at else ''})
                 if pmb.bukti_transfer:
                     pmb_docs.append({'nama_dokumen': 'Bukti Transfer PMB (Awal Masuk)', 'file_path': pmb.bukti_transfer})
+                    if pmb.bukti_transfer not in existing_files:
+                        arsip_list.append({'id': 'pmb-transfer', 'nama_dokumen': 'Arsip Bukti Transfer PMB (Riwayat)', 'file_path': pmb.bukti_transfer, 'ukuran': 'Berkas PMB', 'tanggal': pmb.created_at.strftime('%Y-%m-%d') if pmb.created_at else ''})
 
     except Exception as e:
         print(f"Error fetch mhs: {e}")
