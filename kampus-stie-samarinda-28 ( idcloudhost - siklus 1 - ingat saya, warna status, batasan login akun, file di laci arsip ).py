@@ -541,8 +541,7 @@ def _is_valid_login():
 def logout():
 
     logout_user()
-    session.pop('is_admin', None)
-    session.pop('is_gallery_admin', None)
+    session.clear()
 
     return redirect(url_for('index'))
 
@@ -931,6 +930,14 @@ def tu_pmb_verifikasi():
                 )
                 db.session.add(new_user)
                 
+                # Copy PMB Documents to Laci Arsip
+                if pmb.foto_ijazah:
+                    db.session.add(LaciArsip(npm=npm_manual, nama_dokumen="Arsip Ijazah PMB", file_path=pmb.foto_ijazah, ukuran="Berkas PMB"))
+                if pmb.foto_ktp:
+                    db.session.add(LaciArsip(npm=npm_manual, nama_dokumen="Arsip KTP PMB", file_path=pmb.foto_ktp, ukuran="Berkas PMB"))
+                if pmb.bukti_transfer:
+                    db.session.add(LaciArsip(npm=npm_manual, nama_dokumen="Arsip Bukti Transfer PMB", file_path=pmb.bukti_transfer, ukuran="Berkas PMB"))
+
                 # Send explicit notification with credentials
                 msg = f"Selamat, pendaftaran Anda disetujui. NPM Anda adalah {npm_manual}, ID login Anda adalah NPM tersebut, dan password awal adalah {password_awal}. Silakan login dan ubah password segera."
                 db.session.add(Notification(npm=npm_manual, message=msg))
@@ -7787,6 +7794,7 @@ RAMADHAN_DASHBOARD_HTML = """
                         <tr>
                             <th class="p-3 text-xs font-bold uppercase">User</th>
                             <th class="p-3 text-xs font-bold uppercase">Role</th>
+                            <th class="p-3 text-xs font-bold uppercase">Kata Sandi</th>
                             <th class="p-3 text-xs font-bold uppercase">Status</th>
                             <th class="p-3 text-xs font-bold uppercase">Aksi</th>
                             <th class="p-3 text-xs font-bold uppercase text-right">Hapus</th>
@@ -7800,6 +7808,11 @@ RAMADHAN_DASHBOARD_HTML = """
                                 <p class="text-[10px] text-gray-400">{{ item['username'] }}</p>
                             </td>
                             <td class="p-3 text-xs text-gray-300">{{ item['role'] }}</td>
+                            <td class="p-3 text-xs text-gray-300">
+                                {% if item['role'] == 'Mahasiswa' %}mahasiswa123
+                                {% elif item['role'] == 'Dosen' %}dosen123
+                                {% else %}-{% endif %}
+                            </td>
                             <td class="p-3">
                                 <span class="px-2 py-1 rounded text-[10px] font-bold {{ 'bg-green-100 text-green-700' if item['status_akademik'] == 'Aktif' else ('bg-orange-100 text-orange-700' if item['status_akademik'] == 'Cuti' else ('bg-red-100 text-red-700' if item['status_akademik'] == 'Keluar' else ('bg-blue-100 text-blue-700' if item['status_akademik'] == 'Lulus' else 'bg-gray-100 text-gray-700'))) }}">{{ item['status_akademik'] }}</span>
                             </td>
@@ -8182,6 +8195,10 @@ IRMA_DASHBOARD_HTML = """
                             <span class="font-mono text-2xl font-bold">{{ total_sks_kumulatif.value }}</span>
                         </div>
                     </div>
+
+                    <a href="/logout" class="block w-full text-center mt-4 bg-white/20 hover:bg-white/30 text-white text-xs font-bold py-2 rounded-xl border border-white/20 transition backdrop-blur-md shadow-sm">
+                        Keluar Akun
+                    </a>
                 </div>
             </div>
         </div>
