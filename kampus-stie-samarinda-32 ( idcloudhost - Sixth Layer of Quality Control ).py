@@ -1,24 +1,6 @@
-import os
-import datetime
-import math
-import time
-import json
-import csv
-import urllib.request
-import pymysql
-import io
-from reportlab.pdfgen import canvas
-from PIL import Image
-from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify, session, flash
-from werkzeug.utils import secure_filename
-from werkzeug.security import check_password_hash, generate_password_hash
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import func, text
-from flask_wtf.csrf import CSRFProtect
-from flask_limiter import Limiter
-from flask_caching import Cache
-from flask_limiter.util import get_remote_address
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from functools import wraps
+
+
 from sqlalchemy.orm import joinedload
 from dotenv import load_dotenv
 import filetype
@@ -28,6 +10,14 @@ load_dotenv()
 
 # --- KONFIGURASI FLASK ---
 app = Flask(__name__)
+
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
+
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -109,27 +99,12 @@ db = SQLAlchemy(app)
 
 # Template HTML dimuat dari variabel global di bawah ini
 # --- BASE_LAYOUT ---
-# --- BASE_LAYOUT EVACUATED ---
-
 # --- FITUR_MASJID_HTML ---
-# --- FITUR_MASJID_HTML EVACUATED ---
-
 # --- HOME_HTML ---
-# --- HOME_HTML EVACUATED ---
-
 # --- RAMADHAN_DASHBOARD_HTML ---
-# --- RAMADHAN_DASHBOARD_HTML EVACUATED ---
-
 # --- RAMADHAN_STYLES ---
-# --- RAMADHAN_STYLES EVACUATED ---
-
 # --- IRMA_STYLES ---
-# --- IRMA_STYLES EVACUATED ---
-
 # --- IRMA_DASHBOARD_HTML ---
-# --- IRMA_DASHBOARD_HTML EVACUATED ---
-
-
 # ============================================================================
 # ZONA PANGKALAN DATA (Database Models)
 # ============================================================================
@@ -147,7 +122,7 @@ class EpilepsiLog(db.Model):
 
 class SuratOtomatis(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False)
+    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False, index=True)
     jenis_surat = db.Column(db.String(255), nullable=False)
     keterangan = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(50), default='Menunggu Acc')
@@ -197,7 +172,7 @@ class User(db.Model, UserMixin):
 
 class LaciArsip(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False)
+    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False, index=True)
     nama_dokumen = db.Column(db.String(255), nullable=False)
     file_path = db.Column(db.String(255), nullable=False)
     ukuran = db.Column(db.String(50))
@@ -209,7 +184,7 @@ class AppSettings(db.Model):
 
 class KRSMahasiswa(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False)
+    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False, index=True)
     mata_kuliah = db.Column(db.String(255), nullable=False)
     dosen = db.Column(db.String(255), nullable=False)
     sks = db.Column(db.Integer, default=3)
@@ -218,7 +193,7 @@ class KRSMahasiswa(db.Model):
 
 class NilaiMahasiswa(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False)
+    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False, index=True)
     mata_kuliah = db.Column(db.String(255), nullable=False)
     sks = db.Column(db.Integer, nullable=False)
     nilai_huruf = db.Column(db.String(5), nullable=False)
@@ -228,7 +203,7 @@ class NilaiMahasiswa(db.Model):
 class KehadiranKelas(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     jadwal_id = db.Column(db.Integer, nullable=False)
-    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False)
+    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False, index=True)
     tanggal = db.Column(db.Date, default=datetime.date.today, nullable=False)
     status = db.Column(db.String(50), default='Hadir')
     created_at = db.Column(db.DateTime, server_default=func.now())
@@ -242,6 +217,7 @@ class JurnalMengajar(db.Model):
 
 class StatusNilai(db.Model):
     __table_args__ = (db.UniqueConstraint('jadwal_id', name='uq_status_nilai_jadwal'),)
+
     id = db.Column(db.Integer, primary_key=True)
     jadwal_id = db.Column(db.Integer, nullable=False)
     is_published = db.Column(db.Boolean, default=False)
@@ -258,7 +234,7 @@ class Notification(db.Model):
 class TracerStudy(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nama_lengkap = db.Column(db.String(255), nullable=False)
-    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False, index=True)
+    npm = db.Column(db.String(255), nullable=False, index=True)
     tahun_lulus = db.Column(db.String(10), nullable=False)
     program_studi = db.Column(db.String(255), nullable=False)
     status_pekerjaan = db.Column(db.String(255), nullable=False)
@@ -313,27 +289,20 @@ def manifest():
         ]
     })
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # ============================================================================
 # AUTH & SECURITY ROUTES
 # ============================================================================
+
+
+def require_role(roles):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if session.get('role') not in roles:
+                return 'Unauthorized', 403
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 @app.errorhandler(RequestEntityTooLarge)
 def handle_file_size_error(e):
@@ -360,6 +329,17 @@ def handle_kampus_error(e):
     flash(f"Informasi Sistem: {e.message}", "error")
     return redirect(request.referrer or url_for('index'))
 
+
+@app.errorhandler(404)
+def page_not_found(e):
+    app.logger.error(f"404 Error: {request.url}", exc_info=True)
+    return "Halaman tidak ditemukan.", 404
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    app.logger.error(f"CSRF Error: {e.description}", exc_info=True)
+    return "Terjadi kesalahan keamanan. Silakan muat ulang halaman.", 400
+
 @app.errorhandler(Exception)
 def handle_general_error(e):
     from werkzeug.exceptions import HTTPException
@@ -372,7 +352,7 @@ def handle_general_error(e):
     except:
         pass
         
-    print(f"Global Error Captured: {e}")
+
     app.logger.error(f"Global Error Captured: {str(e)}", exc_info=True)
     if request.path.startswith('/api/'):
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -721,18 +701,28 @@ def uploaded_file(filename):
     if user.role in ['Tata Usaha', 'Admin']:
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
     
+    # Check LaciArsip ownership
     arsip = LaciArsip.query.filter_by(file_path=filename, npm=user.username).first()
     if arsip:
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
         
+    # Check PendaftaranPMB ownership
     pmb = PendaftaranPMB.query.filter_by(npm_generated=user.username).first()
     if pmb and filename in [pmb.foto_ijazah, pmb.foto_ktp, pmb.bukti_transfer]:
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
         
+    # Check foto_profil
     if user.foto_profil == filename:
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
         
-    if filename in [s.value for s in AppSettings.query.all()]:
+    # Check public app settings
+    for s in AppSettings.query.all():
+        if filename == s.value:
+            return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
+
+    # Check TagihanKuliah ownership
+    tagihan = TagihanKuliah.query.filter_by(bukti_transfer=filename, npm=user.username).first()
+    if tagihan:
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
 
     return 'Unauthorized', 403
@@ -797,9 +787,9 @@ self.addEventListener('fetch', (event) => {
 # ============================================================================
 
 @app.route('/donate/update', methods=['POST'])
+@login_required
+@require_role(['Tata Usaha', 'Admin'])
 def donate_update():
-    if session.get('role') not in ['Tata Usaha', 'Admin']:
-        return redirect(url_for('index'))
     
     keys = ['infaq_rekening_masjid', 'infaq_rekening_qurban', 'infaq_rekening_zakat']
     for k in keys:
@@ -824,9 +814,9 @@ def donate_update():
 
 @app.route('/tu/surat/acc', methods=['POST'])
 @limiter.limit("10 per minute")
+@login_required
+@require_role(['Tata Usaha', 'Admin'])
 def tu_surat_acc():
-    if session.get('role') not in ['Tata Usaha', 'Admin']:
-        return 'Unauthorized', 403
     try:
         surat_id = request.form.get('id')
         surat = SuratOtomatis.query.get(surat_id)
@@ -887,8 +877,12 @@ def tu_pmb_verifikasi():
                 # Default logic for NPM
                 if not npm_manual:
                     year_prefix = str(datetime.date.today().year)[-2:]
-                    count = User.query.filter_by(role='Mahasiswa').count()
-                    npm_manual = f"{year_prefix}01{str(count+1).zfill(4)}"
+                    max_user = User.query.filter(User.username.like(f"{year_prefix}01%")).order_by(User.username.desc()).with_for_update().first()
+                    if max_user and max_user.username.isdigit():
+                        next_id = int(max_user.username[-4:]) + 1
+                    else:
+                        next_id = 1
+                    npm_manual = f"{year_prefix}01{str(next_id).zfill(4)}"
                     
                 if not password_awal:
                     password_awal = os.environ.get('DEFAULT_MHS_PASSWORD', 'mahasiswa123')
@@ -983,9 +977,9 @@ def tu_arsip_search():
 
 @app.route('/tu/publikasi/update', methods=['POST'])
 @limiter.limit("10 per minute")
+@login_required
+@require_role(['Tata Usaha', 'Admin'])
 def tu_publikasi_update():
-    if session.get('role') not in ['Tata Usaha', 'Admin']:
-        return 'Unauthorized', 403
     try:
         keys = ['profil_deskripsi', 'profil_visi', 'profil_misi', 
                 'berita_label', 'berita_judul', 'berita_waktu', 'berita_isi',
@@ -1026,9 +1020,9 @@ def tu_publikasi_update():
 
 @app.route('/tu/tagihan/tambah', methods=['POST'])
 @limiter.limit("10 per minute")
+@login_required
+@require_role(['Tata Usaha', 'Admin'])
 def tu_tagihan_tambah():
-    if session.get('role') not in ['Tata Usaha', 'Admin']:
-        return 'Unauthorized', 403
     try:
         npm = request.form.get('npm', '').strip()
         jumlah = request.form.get('jumlah', '').strip()
@@ -1062,9 +1056,9 @@ def tu_tagihan_tambah():
 
 @app.route('/tu/tagihan/lunas', methods=['POST'])
 @limiter.limit("10 per minute")
+@login_required
+@require_role(['Tata Usaha', 'Admin'])
 def tu_tagihan_lunas():
-    if session.get('role') not in ['Tata Usaha', 'Admin']:
-        return 'Unauthorized', 403
     try:
         t_id = request.form.get('id')
         tagihan = TagihanKuliah.query.get(t_id)
@@ -1082,9 +1076,9 @@ def tu_tagihan_lunas():
 
 @app.route('/tu/jadwal', methods=['POST'])
 @limiter.limit("10 per minute")
+@login_required
+@require_role(['Tata Usaha', 'Admin'])
 def tu_jadwal():
-    if session.get('role') not in ['Tata Usaha', 'Admin']:
-        return 'Unauthorized', 403
     try:
         new_jadwal = JadwalKuliah(
             hari=request.form['hari'],
@@ -1107,9 +1101,9 @@ def tu_jadwal():
 
 @app.route('/tu/akun/update', methods=['POST'])
 @limiter.limit("10 per minute")
+@login_required
+@require_role(['Tata Usaha', 'Admin'])
 def tu_akun_update():
-    if session.get('role') not in ['Tata Usaha', 'Admin']:
-        return 'Unauthorized', 403
     try:
         user_id = request.form.get('id')
         status = request.form.get('status_akademik')
@@ -1127,9 +1121,9 @@ def tu_akun_update():
 
 @app.route('/tu/tracer/verify', methods=['POST'])
 @limiter.limit("10 per minute")
+@login_required
+@require_role(['Tata Usaha', 'Admin'])
 def tu_tracer_verify():
-    if session.get('role') not in ['Tata Usaha', 'Admin']:
-        return 'Unauthorized', 403
     try:
         t_id = request.form.get('id')
         tracer = TracerStudy.query.get(t_id)
@@ -1146,9 +1140,9 @@ def tu_tracer_verify():
 
 @app.route('/tu/akun/reset_password', methods=['POST'])
 @limiter.limit("10 per minute")
+@login_required
+@require_role(['Tata Usaha', 'Admin'])
 def tu_akun_reset_password():
-    if session.get('role') not in ['Tata Usaha', 'Admin']:
-        return 'Unauthorized', 403
     try:
         user_id = request.form.get('id')
         user = User.query.get(user_id)
@@ -1165,9 +1159,9 @@ def tu_akun_reset_password():
 
 @app.route('/tu/akun/delete', methods=['POST'])
 @limiter.limit("10 per minute")
+@login_required
+@require_role(['Tata Usaha', 'Admin'])
 def tu_akun_delete():
-    if session.get('role') not in ['Tata Usaha', 'Admin']:
-        return 'Unauthorized', 403
     try:
         user_id = request.form.get('id')
         user = db.session.get(User, user_id)
@@ -1631,9 +1625,9 @@ def dosen_dashboard():
 
 @app.route('/mahasiswa/update_foto', methods=['POST'])
 @limiter.limit("10 per minute")
+@login_required
+@require_role(['Mahasiswa'])
 def mahasiswa_update_foto():
-    if session.get('role') != 'Mahasiswa':
-        return 'Unauthorized', 403
     try:
         foto = request.files.get('foto_profil')
         user_id = session.get('user_id')
@@ -1657,9 +1651,9 @@ def mahasiswa_update_foto():
 
 @app.route('/dosen/update_foto', methods=['POST'])
 @limiter.limit("10 per minute")
+@login_required
+@require_role(['Dosen'])
 def dosen_update_foto():
-    if session.get('role') != 'Dosen':
-        return 'Unauthorized', 403
     try:
         foto = request.files.get('foto_profil')
         user_id = session.get('user_id')
@@ -1845,9 +1839,9 @@ def mahasiswa_tagihan_upload():
 
 @app.route('/mahasiswa/update_password', methods=['POST'])
 @limiter.limit("10 per minute")
+@login_required
+@require_role(['Mahasiswa'])
 def mahasiswa_update_password():
-    if session.get('role') != 'Mahasiswa':
-        return 'Unauthorized', 403
     try:
         old_password = request.form.get('old_password')
         new_password = request.form.get('new_password')
@@ -2093,7 +2087,7 @@ def donate():
                 <p class="text-xs font-bold uppercase tracking-widest opacity-50 mb-1">Nomor Rekening</p>
                 <div class="bg-gray-50/50 p-3 rounded-xl border border-dashed border-gray-300 flex items-center justify-between gap-2">
                     <span id="donate-rek-text" class="font-mono font-bold text-lg select-all text-gray-800">{acc_no}</span>
-                    <button onclick="copyText('donate-rek-text')" class="p-2 rounded-lg hover:bg-gray-200 transition text-gray-500"><i class="fas fa-copy"></i></button>
+                    <button aria-label="Salin" onclick="copyText('donate-rek-text')" class="p-2 rounded-lg hover:bg-gray-200 transition text-gray-500"><i class="fas fa-copy"></i></button>
                 </div>
              </div>
              <script>window.addEventListener('load', function() {{ if(typeof formatBankDisplay === 'function') formatBankDisplay('donate-rek-text'); }});</script>
@@ -2410,17 +2404,20 @@ BASE_LAYOUT = """
     <title>Sekolah Tinggi Ilmu Ekonomi STIESAM</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     {{ styles|safe }}
+
 <script>
     document.addEventListener('submit', function(e) {
         if(e.target.tagName === 'FORM') {
             const btn = e.target.querySelector('button[type="submit"]');
             if(btn) {
                 btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Memproses...';
             }
         }
     });
 </script>
+
 </head>
 <body class="text-gray-800 antialiased {{ 'ramadhan-mode' if hide_nav else '' }}">
     {% set t_nav_bg = theme.nav_bg if theme and theme.nav_bg else 'glass-nav' %}
@@ -2781,7 +2778,7 @@ BASE_LAYOUT = """
                             <p class="font-mono text-sm font-bold text-gray-800" id="va-bsi">900123456789</p>
                         </div>
                     </div>
-                    <button onclick="copyText('va-bsi')" class="text-sky-500 hover:text-sky-700 bg-sky-50 p-2 rounded-lg"><i class="fas fa-copy"></i></button>
+                    <button aria-label="Salin" onclick="copyText('va-bsi')" class="text-sky-500 hover:text-sky-700 bg-sky-50 p-2 rounded-lg"><i class="fas fa-copy"></i></button>
                 </div>
                 
                 <div class="border border-gray-200 rounded-xl p-4 flex items-center justify-between">
@@ -2792,7 +2789,7 @@ BASE_LAYOUT = """
                             <p class="font-mono text-sm font-bold text-gray-800" id="va-kaltim">112233445566</p>
                         </div>
                     </div>
-                    <button onclick="copyText('va-kaltim')" class="text-sky-500 hover:text-sky-700 bg-sky-50 p-2 rounded-lg"><i class="fas fa-copy"></i></button>
+                    <button aria-label="Salin" onclick="copyText('va-kaltim')" class="text-sky-500 hover:text-sky-700 bg-sky-50 p-2 rounded-lg"><i class="fas fa-copy"></i></button>
                 </div>
             </div>
             
@@ -2916,7 +2913,7 @@ BASE_LAYOUT = """
                         <p class="text-[10px] text-sky-600 font-bold uppercase infaq-label">Rekening Masjid</p>
                         <p class="font-mono font-bold text-gray-800 text-sm infaq-text" id="rek-masjid-text">{{ settings.get('infaq_rekening_masjid', '7123456789 (BSI)') if settings else 'Loading...' }}</p>
                     </div>
-                    <button onclick="copyText('rek-masjid-text')" class="text-sky-500 hover:text-sky-700 infaq-icon"><i class="fas fa-copy"></i></button>
+                    <button aria-label="Salin" onclick="copyText('rek-masjid-text')" class="text-sky-500 hover:text-sky-700 infaq-icon"><i class="fas fa-copy"></i></button>
                 </div>
             </div>
 
@@ -2933,7 +2930,7 @@ BASE_LAYOUT = """
                         <p class="text-[10px] text-orange-600 font-bold uppercase infaq-label">Rekening Qurban</p>
                         <p class="font-mono font-bold text-gray-800 text-sm infaq-text" id="rek-qurban-text">{{ settings.get('infaq_rekening_qurban', 'Hubungi Panitia') if settings else '...' }}</p>
                     </div>
-                    <button onclick="copyText('rek-qurban-text')" class="text-orange-500 hover:text-orange-700 infaq-icon"><i class="fas fa-copy"></i></button>
+                    <button aria-label="Salin" onclick="copyText('rek-qurban-text')" class="text-orange-500 hover:text-orange-700 infaq-icon"><i class="fas fa-copy"></i></button>
                 </div>
             </div>
 
@@ -2950,7 +2947,7 @@ BASE_LAYOUT = """
                         <p class="text-[10px] text-blue-600 font-bold uppercase infaq-label">Rekening Zakat</p>
                         <p class="font-mono font-bold text-gray-800 text-sm infaq-text" id="rek-zakat-text">{{ settings.get('infaq_rekening_zakat', 'Hubungi Panitia') if settings else '...' }}</p>
                     </div>
-                    <button onclick="copyText('rek-zakat-text')" class="text-blue-500 hover:text-blue-700 infaq-icon"><i class="fas fa-copy"></i></button>
+                    <button aria-label="Salin" onclick="copyText('rek-zakat-text')" class="text-blue-500 hover:text-blue-700 infaq-icon"><i class="fas fa-copy"></i></button>
                 </div>
             </div>
 
@@ -4847,7 +4844,7 @@ HOME_HTML = """
                 
                 <div class="flex gap-2 mb-6">
                     <input type="text" id="cek-nama" placeholder="Ketik Nama Lengkap..." class="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <button onclick="cekStatusPMB()" class="bg-indigo-600 text-white px-6 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition"><i class="fas fa-search"></i></button>
+                    <button aria-label="Cari" onclick="cekStatusPMB()" class="bg-indigo-600 text-white px-6 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition"><i class="fas fa-search"></i></button>
                 </div>
                 
                 <div id="cek-status-result" class="text-left bg-gray-50 p-4 rounded-2xl border border-gray-100 hidden">
@@ -7457,7 +7454,7 @@ RAMADHAN_DASHBOARD_HTML = """
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
             <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
                 <h3 class="text-xl font-bold text-gold font-sans">Surat Otomatis</h3>
-                <button onclick="closeModal('modal-pabrik-surat')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+                <button aria-label="Tutup Modal" onclick="closeModal('modal-pabrik-surat')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
             
             <h4 class="text-sm font-bold text-gray-400 mb-3">Daftar Antrean Permohonan</h4>
@@ -7505,7 +7502,7 @@ RAMADHAN_DASHBOARD_HTML = """
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
             <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
                 <h3 class="text-xl font-bold text-gold font-sans">Verifikasi PMB & Akun Dosen/Mahasiswa</h3>
-                <button onclick="closeModal('modal-verifikasi-pmb')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+                <button aria-label="Tutup Modal" onclick="closeModal('modal-verifikasi-pmb')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
 
             <!-- Tabs -->
@@ -7543,7 +7540,7 @@ RAMADHAN_DASHBOARD_HTML = """
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-400 mb-1">Password Awal Akun</label>
-                                    <input type="text" name="password_awal" value="mahasiswa123" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-gold">
+                                    <input type="text" name="password_awal" placeholder="Default password aman" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-gold">
                                 </div>
 
                                 <div class="flex gap-2">
@@ -7583,7 +7580,7 @@ RAMADHAN_DASHBOARD_HTML = """
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-400 mb-1">Password Awal (Kosongkan jk tdk diubah)</label>
-                                    <input type="text" name="password_awal" placeholder="Contoh: dosen123" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-gold">
+                                    <input type="text" name="password_awal" placeholder="Default password aman" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-gold">
                                 </div>
 
                                 <div class="flex gap-2">
@@ -7975,7 +7972,7 @@ RAMADHAN_DASHBOARD_HTML = """
                                         </select>
                                         <button type="submit" class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Simpan</button>
                                     </form>
-                                    <form action="/tu/akun/reset_password" method="POST" onsubmit="return confirm('Reset password ke stiesam123?');">
+                                    <form action="/tu/akun/reset_password" method="POST" onsubmit="return confirm('Reset password?');">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                                         <input type="hidden" name="id" value="{{ item['id'] }}">
@@ -7987,7 +7984,7 @@ RAMADHAN_DASHBOARD_HTML = """
                                 <form action="/tu/akun/delete" method="POST" onsubmit="return confirm('Peringatan: Menghapus akun ini akan menghapus semua data yang berkaitan secara permanen. Anda yakin?');">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="id" value="{{ item['id'] }}">
-                                    <button type="submit" class="text-red-500 hover:text-red-400 bg-red-500/10 p-2 rounded-full transition" title="Hapus Permanen"><i class="fas fa-trash"></i></button>
+                                    <button aria-label="Hapus" type="submit" class="text-red-500 hover:text-red-400 bg-red-500/10 p-2 rounded-full transition" title="Hapus Permanen"><i class="fas fa-trash"></i></button>
                                 </form>
                             </td>
                         </tr>
@@ -8930,7 +8927,7 @@ def _fetch_tu_data():
             pending_users
         )
     except Exception as e:
-        print(e)
+        app.logger.error(e, exc_info=True)
         return [], [], [], [], [], [], [], [], []
 
 def render_page(template, active_page, theme=None, content_kwargs=None, hide_nav=False, full_width=False):
@@ -9052,47 +9049,20 @@ class PrayTimes:
         return f"{hours:02d}:{minutes:02d}"
 
 
-# --- DATA SUMBER HUKUM (DALIL) ---
+# === ZONA MASJID HYBRID ===
+
+
 
 # --- DATABASE SETUP ---
-DB_NAME = 'masjid.db'
+
 
 # --- DATABASE MODELS ---
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 def get_settings():
     try:
         settings = {item.key: item.value for item in AppSettings.query.all()}
     except Exception as e:
-        app.logger.critical('Database settings tidak dapat dimuat!')
+        app.logger.error(f"Database settings tidak dapat dimuat: {e}", exc_info=True)
         settings = {}
     return settings
 
@@ -9212,7 +9182,7 @@ def compress_image(file_storage, upload_folder):
         return new_filename
         
     except Exception as e:
-        print(f"Compression error: {e}")
+        app.logger.warning(f"Compression error: {e}")
         file_storage.seek(0)
         save_path = os.path.join(upload_folder, filename)
         file_storage.save(save_path)
@@ -9221,55 +9191,54 @@ def compress_image(file_storage, upload_folder):
 # --- RAMADHAN HELPER FUNCTIONS ---
 
 def seed_ramadhan_schedule():
-    if TarawihSchedule.query.count() == 0:
-        schedule_data = [
-            (1, "Ustadz M. Faisal Bulqiah", "Ustadz M. Faisal Bulqiah"),
-            (2, "Ustadz H. Bunyamin LC MA", "Ustadz H. Bunyamin LC MA"),
-            (3, "Ustadz H. Sutanil fadlan M. Al Hafidz", "Ustadz H. Sutanil fadlan M. Al Hafidz"),
-            (4, "Ustadz Fathurrahman Al Hafidz", "Ustadz Fathurrahman Al Hafidz"),
-            (5, "Ustadz H. Abdul Syakur LC MA", "Ustadz H. Abdul Syakur LC MA"),
-            (6, "Ustadz Ibnu Mulkan M.Pd", "Ustadz Ibnu Mulkan M.Pd"),
-            (7, "KH Muhammad Mansur", "KH Muhammad Mansur"),
-            (8, "Ustadz Mahyudin S. Ag M.Pd", "Ustadz Mahyudin S. Ag M.Pd"),
-            (9, "Ustadz Dr Ahmad Nur Zahrani M.Ag", "Ustadz Dr Ahmad Nur Zahrani M.Ag"),
-            (10, "Ustadz Wahyu Utami L.C M. Pd", "Ustadz Wahyu Utami L.C M. Pd"),
-            (11, "Ustadz Prof Dr Abdul Majid MA", "Ustadz Prof Dr Abdul Majid MA"),
-            (12, "KH Azhar Qowiem M. Pd", "KH Azhar Qowiem M. Pd"),
-            (13, "Ustadz Fathur Rojak", "Ustadz Fathur Rojak"),
-            (14, "Ustadz Amirullah M.Ud", "Ustadz Amirullah M.Ud"),
-            (15, "Ustadz H. Dr. Akmad Haries M.Si", "Ustadz H. Dr. Akmad Haries M.Si"),
-            (16, "Ustadz Ahmad Nur Jamil", "Ustadz Ahmad Nur Jamil"),
-            (17, "Ustadz H. Susanto L.C", "Ustadz H. Susanto L.C"),
-            (18, "Ustadz Ahmad Husairi S. Pd", "Ustadz Ahmad Husairi S. Pd"),
-            (19, "Ustadz M. Faisal Bulqiah", "Ustadz M. Faisal Bulqiah"),
-            (20, "Ustadz Rivky Cahaya Hakiki", "Ustadz Rivky Cahaya Hakiki"),
-            (21, "Ustadz Imam Syafii", "Ustadz Imam Syafii"),
-            (22, "Ustadz Ahmad Subhi", "Ustadz Ahmad Subhi"),
-            (23, "Ustadz Ahmad Ihsan S.Pd", "Ustadz Ahmad Ihsan S.Pd"),
-            (24, "Ustadz Syahrial M.Ud", "Ustadz Syahrial M.Ud"),
-            (25, "Ustadz Rivky Cahaya Hakiki", "Ustadz Rivky Cahaya Hakiki"),
-            (26, "Ustadz H. Maraio L.C. M.Pd.I", "Ustadz H. Maraio L.C. M.Pd.I"),
-            (27, "Ustadz H. Darmaizar LC M.Ag", "Ustadz H. Darmaizar LC M.Ag"),
-            (28, "Ustadz Ahmad Jailani", "Ustadz Ahmad Jailani"),
-            (29, "Ustadz Robi Ar-Rasyid", "Ustadz Robi Ar-Rasyid"),
-            (30, "Ustadz Fathur Rojak", "Ustadz Fathur Rojak"),
-        ]
+    try:
+        if TarawihSchedule.query.count() == 0:
+            schedule_data = [
+                (1, "Ustadz M. Faisal Bulqiah", "Ustadz M. Faisal Bulqiah"),
+                (2, "Ustadz H. Bunyamin LC MA", "Ustadz H. Bunyamin LC MA"),
+                (3, "Ustadz H. Sutanil fadlan M. Al Hafidz", "Ustadz H. Sutanil fadlan M. Al Hafidz"),
+                (4, "Ustadz Fathurrahman Al Hafidz", "Ustadz Fathurrahman Al Hafidz"),
+                (5, "Ustadz H. Abdul Syakur LC MA", "Ustadz H. Abdul Syakur LC MA"),
+                (6, "Ustadz Ibnu Mulkan M.Pd", "Ustadz Ibnu Mulkan M.Pd"),
+                (7, "KH Muhammad Mansur", "KH Muhammad Mansur"),
+                (8, "Ustadz Mahyudin S. Ag M.Pd", "Ustadz Mahyudin S. Ag M.Pd"),
+                (9, "Ustadz Dr Ahmad Nur Zahrani M.Ag", "Ustadz Dr Ahmad Nur Zahrani M.Ag"),
+                (10, "Ustadz Wahyu Utami L.C M. Pd", "Ustadz Wahyu Utami L.C M. Pd"),
+                (11, "Ustadz Prof Dr Abdul Majid MA", "Ustadz Prof Dr Abdul Majid MA"),
+                (12, "KH Azhar Qowiem M. Pd", "KH Azhar Qowiem M. Pd"),
+                (13, "Ustadz Fathur Rojak", "Ustadz Fathur Rojak"),
+                (14, "Ustadz Amirullah M.Ud", "Ustadz Amirullah M.Ud"),
+                (15, "Ustadz H. Dr. Akmad Haries M.Si", "Ustadz H. Dr. Akmad Haries M.Si"),
+                (16, "Ustadz Ahmad Nur Jamil", "Ustadz Ahmad Nur Jamil"),
+                (17, "Ustadz H. Susanto L.C", "Ustadz H. Susanto L.C"),
+                (18, "Ustadz Ahmad Husairi S. Pd", "Ustadz Ahmad Husairi S. Pd"),
+                (19, "Ustadz M. Faisal Bulqiah", "Ustadz M. Faisal Bulqiah"),
+                (20, "Ustadz Rivky Cahaya Hakiki", "Ustadz Rivky Cahaya Hakiki"),
+                (21, "Ustadz Imam Syafii", "Ustadz Imam Syafii"),
+                (22, "Ustadz Ahmad Subhi", "Ustadz Ahmad Subhi"),
+                (23, "Ustadz Ahmad Ihsan S.Pd", "Ustadz Ahmad Ihsan S.Pd"),
+                (24, "Ustadz Syahrial M.Ud", "Ustadz Syahrial M.Ud"),
+                (25, "Ustadz Rivky Cahaya Hakiki", "Ustadz Rivky Cahaya Hakiki"),
+                (26, "Ustadz H. Maraio L.C. M.Pd.I", "Ustadz H. Maraio L.C. M.Pd.I"),
+                (27, "Ustadz H. Darmaizar LC M.Ag", "Ustadz H. Darmaizar LC M.Ag"),
+                (28, "Ustadz Ahmad Jailani", "Ustadz Ahmad Jailani"),
+                (29, "Ustadz Robi Ar-Rasyid", "Ustadz Robi Ar-Rasyid"),
+                (30, "Ustadz Fathur Rojak", "Ustadz Fathur Rojak"),
+            ]
 
-        for night, imam, penceramah in schedule_data:
-            entry = TarawihSchedule(
-                night_index=night, 
-                date=f"Ramadhan {night}", 
-                imam=imam, 
-                penceramah=penceramah, 
-                judul="-"
-            )
-            db.session.add(entry)
-        db.session.commit()
-        cache.clear()
-
-
-
-
+            for night, imam, penceramah in schedule_data:
+                entry = TarawihSchedule(
+                    night_index=night,
+                    date=f"Ramadhan {night}",
+                    imam=imam,
+                    penceramah=penceramah,
+                    judul="-"
+                )
+                db.session.add(entry)
+            db.session.commit()
+            cache.clear()
+    except Exception as e:
+        app.logger.warning(f"Could not seed Ramadhan schedule (model might not exist): {e}")
 
 @cache.cached(timeout=86400, key_prefix='imsakiyah_schedule')
 def get_imsakiyah_schedule():
@@ -9281,7 +9250,7 @@ def get_imsakiyah_schedule():
         all_days = []
         
         for m in months:
-            url = f"http://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month={m}&year=2026"
+            url = f"https://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month={m}&year=2026"
             with urllib.request.urlopen(url) as response:
                 data = json.loads(response.read().decode())
                 if 'data' in data:
