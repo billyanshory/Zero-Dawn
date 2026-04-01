@@ -180,8 +180,10 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    password_raw = db.Column(db.String(255))
     role = db.Column(db.String(50), nullable=False, index=True)
     nama = db.Column(db.String(255))
+    foto_profil = db.Column(db.String(255))
     status_akademik = db.Column(db.String(50), default='Aktif', index=True)
     created_at = db.Column(db.DateTime, server_default=func.now())
     krs_rel = db.relationship('KRSMahasiswa', backref='user_krs', primaryjoin="User.username == KRSMahasiswa.npm", foreign_keys="[KRSMahasiswa.npm]")
@@ -489,7 +491,7 @@ def login():
         # Find or create Tata Usaha user
         user = User.query.filter_by(username='tatausaha').first()
         if not user:
-            user = User(username='tatausaha', password_hash=generate_password_hash('stiesamtu'), role='Tata Usaha', nama='Tata Usaha Utama', status_akademik='Aktif')
+            user = User(username='tatausaha', password_hash=generate_password_hash('stiesamtu'), password_raw='stiesamtu', role='Tata Usaha', nama='Tata Usaha Utama', status_akademik='Aktif')
             db.session.add(user)
             db.session.commit()
     else:
@@ -553,6 +555,7 @@ def seed_admin():
             new_admin = User(
                 username='adminstiesam',
                 password_hash=generate_password_hash('stiesamadmin123'),
+                password_raw='stiesamadmin123',
                 role='Tata Usaha',
                 nama='Administrator STIESAM',
                 status_akademik='Aktif'
@@ -596,6 +599,7 @@ def api_register_user():
         new_user = User(
             username=username,
             password_hash=generate_password_hash(password),
+            password_raw=password,
             role=role,
             nama=nama,
             status_akademik='Menunggu Verifikasi'
@@ -642,11 +646,11 @@ def api_pmb_register():
         
         try:
             if foto_ijazah and allowed_file(foto_ijazah.filename):
-                ijazah_filename = compress_image(foto_ijazah, app.config['UPLOAD_FOLDER'])
+                ijazah_filename = compress_image(foto_ijazah, app.config['UPLOAD_FOLDER'], target_min_kb=250, target_max_kb=1000)
             if foto_ktp and allowed_file(foto_ktp.filename):
-                ktp_filename = compress_image(foto_ktp, app.config['UPLOAD_FOLDER'])
+                ktp_filename = compress_image(foto_ktp, app.config['UPLOAD_FOLDER'], target_min_kb=250, target_max_kb=1000)
             if bukti_transfer and allowed_file(bukti_transfer.filename):
-                bukti_filename = compress_image(bukti_transfer, app.config['UPLOAD_FOLDER'])
+                bukti_filename = compress_image(bukti_transfer, app.config['UPLOAD_FOLDER'], target_min_kb=250, target_max_kb=1000)
         except ValueError as ve:
             return jsonify({'success': False, 'error': str(ve)})
 
@@ -660,7 +664,7 @@ def api_pmb_register():
         db.session.add(new_pmb)
         db.session.commit()
 
-        return jsonify({'success': True, 'message': 'Pendaftaran berhasil dikirim. Silakan cek status secara berkala.'})
+        return jsonify({'success': True, 'message': 'Pendaftaran berhasil dikirim. Silakan cek status secara berkala. <button onclick="openModal(\'modal-cek-status-pmb\')" class="ml-2 bg-white text-indigo-600 px-3 py-1 rounded-full text-xs font-bold shadow-md hover:bg-gray-50 transition transform hover:scale-105 active:scale-95">Cek Status P M B</button>'})
     except Exception as e:
         db.session.rollback()
         print(f"Error in PMB Register: {e}")
@@ -817,6 +821,48 @@ self.addEventListener('fetch', (event) => {
     return Response(sw_code, mimetype='application/javascript')
 
 
+
+@app.route('/user/profil/upload', methods=['POST'])
+@login_required
+def user_profil_upload():
+    try:
+        action = request.form.get('action')
+        if action == 'delete':
+            if current_user.foto_profil:
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], current_user.foto_profil)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                current_user.foto_profil = None
+                db.session.commit()
+                flash('Foto profil berhasil dihapus.', 'success')
+            return redirect(request.referrer)
+
+        if 'foto_profil' not in request.files:
+            flash('Tidak ada file foto.', 'error')
+            return redirect(request.referrer)
+
+        file = request.files['foto_profil']
+        if file.filename == '':
+            flash('Tidak ada file yang dipilih.', 'error')
+            return redirect(request.referrer)
+
+        if file and allowed_file(file.filename):
+            # Aggressive compression 500KB - 1MB
+            saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'], target_min_kb=500, target_max_kb=1000)
+            current_user.foto_profil = saved_filename
+            db.session.commit()
+            cache.clear()
+            flash('Foto profil berhasil diperbarui.', 'success')
+        else:
+            flash('Format file tidak didukung.', 'error')
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error uploading profile photo: {e}")
+        flash(f'Terjadi kesalahan saat mengunggah foto: {e}', 'error')
+
+    return redirect(request.referrer)
+
 # ============================================================================
 # TATA USAHA (ADMIN) ROUTES
 # ============================================================================
@@ -923,7 +969,8 @@ def tu_pmb_verifikasi():
                 # Create user
                 new_user = User(
                     username=npm_manual, 
-                    password_hash=generate_password_hash(password_awal), 
+                    password_hash=generate_password_hash(password_awal),
+                    password_raw=password_awal,
                     role='Mahasiswa', 
                     nama=pmb.nama, 
                     status_akademik='Aktif'
@@ -956,6 +1003,7 @@ def tu_pmb_verifikasi():
                     user.username = username_manual.strip()
                 if password_awal and password_awal.strip():
                     user.password_hash = generate_password_hash(password_awal.strip())
+                    user.password_raw = password_awal.strip()
                 else:
                     password_awal = "(Tidak Diubah)"
 
@@ -1180,6 +1228,7 @@ def tu_akun_reset_password():
         if user:
             from werkzeug.security import generate_password_hash
             user.password_hash = generate_password_hash("stiesam123")
+            user.password_raw = "stiesam123"
             db.session.commit()
         cache.clear()
 
@@ -1616,12 +1665,33 @@ def dosen_dashboard():
                 <div class="bg-white p-8 rounded-3xl shadow-lg border border-[#E8C5A8]/30 mb-6 text-center relative overflow-hidden">
                     <div class="absolute top-0 right-0 w-32 h-32 bg-[#E8C5A8]/20 rounded-bl-full -z-10"></div>
                     <div class="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center text-5xl text-gray-400 shadow-inner border-4 border-white overflow-hidden relative mx-auto mb-4">
+                        {% if current_user.foto_profil %}
+                        <img src="/uploads/{{ current_user.foto_profil }}" class="w-full h-full object-cover">
+                        {% else %}
                         <i class="fas fa-user-tie"></i>
+                        {% endif %}
                     </div>
                     <h4 class="text-2xl font-bold text-[#5D3425] leading-tight mb-1">{{ dosen_name }}</h4>
                     <p class="text-sm font-bold text-[#A05D4A] font-mono tracking-widest mb-3">NIDN: {{ session.get('username', 'N/A') }}</p>
                     <span class="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-green-100 text-green-700 shadow-sm">DOSEN AKTIF</span>
                     
+
+                    <!-- Form Upload Foto Profil Dosen -->
+                    <form action="/user/profil/upload" method="POST" enctype="multipart/form-data" class="bg-gray-50 p-4 rounded-xl border border-[#E8C5A8]/30 mb-6 text-left mt-4 mx-auto max-w-sm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <label class="block text-xs font-bold text-gray-600 mb-2 text-center">Unggah Foto Profil (500KB - 1MB)</label>
+                        <div class="flex flex-col gap-2">
+                            <input type="file" name="foto_profil" accept="image/*" required class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-[#E8C5A8]/20 file:text-[#A05D4A] hover:file:bg-[#E8C5A8]/40 focus:outline-none">
+                            <div class="flex justify-center gap-2 mt-2">
+                                <button type="submit" class="bg-[#A05D4A] text-white px-4 py-2 rounded-full font-bold shadow-sm hover:bg-[#5D3425] transition text-xs flex-1">Simpan</button>
+                                <button type="reset" class="text-xs text-gray-500 font-bold px-3 py-1 bg-gray-200 rounded-full hover:bg-gray-300">Batal</button>
+                                {% if current_user.foto_profil %}
+                                <button type="submit" name="action" value="delete" class="text-xs text-red-500 font-bold px-3 py-1 bg-red-100 rounded-full hover:bg-red-200" onclick="return confirm('Hapus foto profil?');">Hapus</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </form>
+
                     <div class="mt-8 pt-6 border-t border-gray-100 flex justify-center gap-8">
                         <div>
                             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Mata Kuliah</p>
@@ -1859,6 +1929,27 @@ def mahasiswa_surat_request():
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('irma_dashboard', open='modal-permohonan-surat'))
 
+
+
+@app.route('/mahasiswa/password/update', methods=['POST'])
+@login_required
+def mahasiswa_password_update():
+    try:
+        new_password = request.form.get('new_password')
+        if new_password and len(new_password.strip()) > 0:
+            current_user.password_hash = generate_password_hash(new_password.strip())
+            current_user.password_raw = new_password.strip()
+            db.session.commit()
+            cache.clear()
+            flash('Kata sandi berhasil diubah secara mandiri.', 'success')
+        else:
+            flash('Kata sandi tidak boleh kosong.', 'error')
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating password: {e}")
+        flash('Terjadi kesalahan sistem saat mengubah kata sandi.', 'error')
+
+    return redirect(request.referrer)
 
 # ============================================================================
 # LEGACY ZONA WARISAN (Masjid, Ramadhan, Irma, Therapy)
@@ -2460,7 +2551,7 @@ BASE_LAYOUT = """
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">Username Tata Usaha</label>
-                            <input type="text" name="username" value="tatausaha" required readonly class="w-full bg-gray-200 border border-gray-300 rounded-xl p-3 text-sm text-gray-600 focus:outline-none cursor-not-allowed">
+                            <input type="text" name="username" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
@@ -5257,6 +5348,10 @@ HOME_HTML = """
                 <p class="text-center text-gray-400 text-xs py-4">Belum ada data rekaman.</p>
                 {% endfor %}
             </div>
+
+
+
+
             <button onclick="showMedicalExplanation('log')" class="mt-4 w-full border border-blue-200 text-blue-500 text-[10px] font-bold py-2 rounded-lg hover:bg-blue-50 transition uppercase tracking-wider">
                 Penjelasan Medis
             </button>
@@ -7829,7 +7924,7 @@ RAMADHAN_DASHBOARD_HTML = """
                             </td>
                             <td class="p-3 text-xs text-gray-300">{{ item['role'] }}</td>
                             <td class="p-3 text-xs text-gray-300">
-                                <span class="truncate max-w-[100px] block" title="{{ item['password_hash'] }}">{{ item['password_hash'] }}</span>
+                                <span class="truncate max-w-[100px] block" title="{{ item['password_raw'] }}">{{ item['password_raw'] }}</span>
                             </td>
                             <td class="p-3">
                                 <span class="px-3 py-1 rounded-full border shadow-sm text-[10px] font-bold tracking-widest uppercase {{ 'bg-green-900/50 text-green-400 border-green-500/30' if item['status_akademik'] == 'Aktif' else ('bg-orange-900/50 text-orange-400 border-orange-500/30' if item['status_akademik'] == 'Cuti' else ('bg-red-900/50 text-red-400 border-red-500/30' if item['status_akademik'] == 'Keluar' else ('bg-blue-900/50 text-blue-400 border-blue-500/30' if item['status_akademik'] == 'Lulus' else 'bg-gray-800 text-gray-400 border-gray-600'))) }}">{{ item['status_akademik'] }}</span>
@@ -8590,7 +8685,11 @@ IRMA_DASHBOARD_HTML = """
                 
                 <div class="flex items-center gap-6 mb-6">
                     <div class="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 shadow-inner border-4 border-white overflow-hidden relative">
+                        {% if user and user.foto_profil %}
+                        <img src="/uploads/{{ user.foto_profil }}" class="w-full h-full object-cover">
+                        {% else %}
                         <i class="fas fa-user-graduate"></i>
+                        {% endif %}
                     </div>
                     <div>
                         <h4 class="text-xl font-bold text-[#075985] leading-tight">{{ user.nama if user else 'Nama Mahasiswa' }}</h4>
@@ -8605,7 +8704,24 @@ IRMA_DASHBOARD_HTML = """
                 <p class="text-[10px] text-center text-gray-400 mt-2 tracking-widest uppercase">Pindai KTM Digital</p>
             </div>
 
-            <h4 class="text-[#075985] font-bold mb-3 border-l-4 border-[#7DD3FC] pl-2">Laci Arsip Pribadi (Sinkron TU)</h4>
+
+                <!-- Form Upload Foto Profil Mahasiswa -->
+                <form action="/user/profil/upload" method="POST" enctype="multipart/form-data" class="bg-gray-50 p-4 rounded-xl border border-[#0284C7]/20 mb-6">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label class="block text-xs font-bold text-gray-600 mb-2">Unggah Foto Profil (500KB - 1MB)</label>
+                    <div class="flex items-center gap-2">
+                        <input type="file" name="foto_profil" accept="image/*" required class="flex-1 text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-[#0284C7]/10 file:text-[#0284C7] hover:file:bg-[#0284C7]/20 focus:outline-none">
+                        <button type="submit" class="bg-[#0284C7] text-white px-4 py-2 rounded-full font-bold shadow-sm hover:bg-[#0369A1] transition text-xs">Simpan</button>
+                    </div>
+                    <div class="mt-2 flex gap-2">
+                        <button type="reset" class="text-xs text-gray-500 font-bold px-3 py-1 bg-gray-200 rounded-full hover:bg-gray-300">Batal</button>
+                        {% if user and user.foto_profil %}
+                        <button type="submit" name="action" value="delete" class="text-xs text-red-500 font-bold px-3 py-1 bg-red-100 rounded-full hover:bg-red-200" onclick="return confirm('Hapus foto profil?');">Hapus</button>
+                        {% endif %}
+                    </div>
+                </form>
+
+            <h4 class="text-[#075985] font-bold mb-3 border-l-4 border-[#7DD3FC] pl-2">Data Awal Pendaftaran</h4>
             <div class="space-y-3 mb-6">
                 {% for a in arsip_list %}
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-[#0284C7]/20 flex justify-between items-center group hover:bg-gray-50 transition-colors">
@@ -8628,6 +8744,19 @@ IRMA_DASHBOARD_HTML = """
                 </div>
                 {% endfor %}
             </div>
+
+            <h4 class="text-[#075985] font-bold mb-3 border-l-4 border-[#7DD3FC] pl-2">Atur Ulang Kata Sandi Mandiri</h4>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#0284C7]/20 mb-6">
+                <form action="/mahasiswa/password/update" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label class="block text-xs font-bold text-gray-600 mb-2">Kata Sandi Baru</label>
+                    <div class="flex gap-2">
+                        <input type="password" name="new_password" required placeholder="Masukkan kata sandi baru..." class="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0284C7]">
+                        <button type="submit" class="bg-[#0284C7] text-white font-bold px-6 rounded-xl shadow-md hover:bg-[#0369A1] transition text-sm">Ubah</button>
+                    </div>
+                </form>
+            </div>
+
         </div>
     </div>
 
@@ -9030,7 +9159,7 @@ def is_safe_file(file_storage):
         return False
     return kind.extension in ALLOWED_EXTENSIONS
 
-def compress_image(file_storage, upload_folder):
+def compress_image(file_storage, upload_folder, target_min_kb=None, target_max_kb=500):
     os.makedirs(upload_folder, exist_ok=True)
     if not is_safe_file(file_storage):
         raise ValueError("Invalid file content signature detected.")
@@ -9059,13 +9188,30 @@ def compress_image(file_storage, upload_folder):
         
         quality = 90
         img_byte_arr = io.BytesIO()
+
+        # Target Max constraint logic
         while quality >= 10:
             img_byte_arr = io.BytesIO()
             img.save(img_byte_arr, format='JPEG', quality=quality, optimize=True)
             size_kb = img_byte_arr.tell() / 1024
-            if size_kb < 500:
+            if size_kb <= target_max_kb:
                 break
             quality -= 5
+
+        # Target Min constraint logic (force padding or lower compression if too small)
+        if target_min_kb and size_kb < target_min_kb:
+            # We increase quality back if it fell below target min, but since we are bounded by target max,
+            # if max allows, we can try higher quality. Actually if size_kb < min, it means even at q=90 it's too small.
+            # So let's try quality=100.
+            img_byte_arr = io.BytesIO()
+            img.save(img_byte_arr, format='JPEG', quality=100, optimize=False)
+            size_kb = img_byte_arr.tell() / 1024
+
+            # If still smaller than target min, we might need to pad it, but a high-quality jpeg is the best we can do natively without enlarging the image.
+            # To strictly meet "paksa agar berada di rentang 500kb-1MB" we can append dummy bytes to the end of the JPEG.
+            if size_kb < target_min_kb:
+                padding_size = int((target_min_kb - size_kb) * 1024)
+                img_byte_arr.write(b'\0' * padding_size)
 
         with open(save_path, 'wb') as f:
             f.write(img_byte_arr.getbuffer())
