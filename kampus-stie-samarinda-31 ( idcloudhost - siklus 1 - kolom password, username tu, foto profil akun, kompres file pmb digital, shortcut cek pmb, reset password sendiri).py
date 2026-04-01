@@ -41,7 +41,7 @@ limiter = Limiter(
     get_remote_address,
     app=app,
     default_limits=["2000 per day", "500 per hour"],
-    storage_uri="memory://",
+    storage_uri=os.environ.get('REDIS_URL', 'redis://localhost:6379/1'),
 )
 
 cache = Cache(app, config={'CACHE_TYPE': 'RedisCache', 'CACHE_REDIS_URL': os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), 'CACHE_DEFAULT_TIMEOUT': 86400})
@@ -81,7 +81,10 @@ secret = os.environ.get("SECRET_KEY")
 if not secret:
     raise RuntimeError("KUNCI RAHASIA (SECRET_KEY) TIDAK DITEMUKAN. OPERASI DIBATALKAN UNTUK KEAMANAN.")
 app.secret_key = secret
-app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.permanent_session_lifetime = datetime.timedelta(minutes=30)
 
 db_url = os.environ.get("DATABASE_URL")
@@ -95,7 +98,8 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 10,
     'max_overflow': 20,
     'pool_pre_ping': True,
-    'pool_recycle': 3600
+    'pool_recycle': 3600,
+    'connect_args': {'charset': 'utf8mb4'}
 }
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'txt', 'csv'}
@@ -103,9 +107,7 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4', 'pdf', 
 db = SQLAlchemy(app)
 
 
-# --- STYLES_HTML ---
-# --- STYLES_HTML EVACUATED ---
-
+# Template HTML dimuat dari variabel global di bawah ini
 # --- BASE_LAYOUT ---
 # --- BASE_LAYOUT EVACUATED ---
 
@@ -135,7 +137,7 @@ db = SQLAlchemy(app)
 # --- DATABASE MODELS (Zona Model) ---
 class EpilepsiLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.String(255), nullable=False)
+    date = db.Column(db.Date, default=datetime.date.today, nullable=False)
     time = db.Column(db.String(255), nullable=False)
     trigger = db.Column(db.String(255), nullable=False)
     notes = db.Column(db.Text)
@@ -145,11 +147,11 @@ class EpilepsiLog(db.Model):
 
 class SuratOtomatis(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    npm = db.Column(db.String(255), nullable=False)
+    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False)
     jenis_surat = db.Column(db.String(255), nullable=False)
     keterangan = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(50), default='Menunggu Acc')
-    tanggal = db.Column(db.String(255), default=lambda: str(datetime.date.today()))
+    tanggal = db.Column(db.Date, default=datetime.date.today)
     qr_code = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, server_default=func.now())
 
@@ -165,7 +167,7 @@ class PendaftaranPMB(db.Model):
 
 class TagihanKuliah(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    npm = db.Column(db.String(255), nullable=False, index=True)
+    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False, index=True)
     jenis_tagihan = db.Column(db.String(255), nullable=False)
     jumlah = db.Column(db.Integer, nullable=False)
     bukti_transfer = db.Column(db.String(255))
@@ -195,11 +197,11 @@ class User(db.Model, UserMixin):
 
 class LaciArsip(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    npm = db.Column(db.String(255), nullable=False)
+    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False)
     nama_dokumen = db.Column(db.String(255), nullable=False)
     file_path = db.Column(db.String(255), nullable=False)
     ukuran = db.Column(db.String(50))
-    tanggal = db.Column(db.String(255), default=lambda: str(datetime.date.today()))
+    tanggal = db.Column(db.Date, default=datetime.date.today)
 
 class AppSettings(db.Model):
     key = db.Column(db.String(255), primary_key=True)
@@ -207,7 +209,7 @@ class AppSettings(db.Model):
 
 class KRSMahasiswa(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    npm = db.Column(db.String(255), nullable=False)
+    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False)
     mata_kuliah = db.Column(db.String(255), nullable=False)
     dosen = db.Column(db.String(255), nullable=False)
     sks = db.Column(db.Integer, default=3)
@@ -216,7 +218,7 @@ class KRSMahasiswa(db.Model):
 
 class NilaiMahasiswa(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    npm = db.Column(db.String(255), nullable=False)
+    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False)
     mata_kuliah = db.Column(db.String(255), nullable=False)
     sks = db.Column(db.Integer, nullable=False)
     nilai_huruf = db.Column(db.String(5), nullable=False)
@@ -226,19 +228,20 @@ class NilaiMahasiswa(db.Model):
 class KehadiranKelas(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     jadwal_id = db.Column(db.Integer, nullable=False)
-    npm = db.Column(db.String(255), nullable=False)
-    tanggal = db.Column(db.String(255), nullable=False)
+    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False)
+    tanggal = db.Column(db.Date, default=datetime.date.today, nullable=False)
     status = db.Column(db.String(50), default='Hadir')
     created_at = db.Column(db.DateTime, server_default=func.now())
 
 class JurnalMengajar(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     jadwal_id = db.Column(db.Integer, nullable=False)
-    tanggal = db.Column(db.String(255), nullable=False)
+    tanggal = db.Column(db.Date, default=datetime.date.today, nullable=False)
     materi = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now())
 
 class StatusNilai(db.Model):
+    __table_args__ = (db.UniqueConstraint('jadwal_id', name='uq_status_nilai_jadwal'),)
     id = db.Column(db.Integer, primary_key=True)
     jadwal_id = db.Column(db.Integer, nullable=False)
     is_published = db.Column(db.Boolean, default=False)
@@ -247,7 +250,7 @@ class StatusNilai(db.Model):
 
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    npm = db.Column(db.String(255), index=True)
+    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), index=True)
     message = db.Column(db.String(255))
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, server_default=func.now())
@@ -255,7 +258,7 @@ class Notification(db.Model):
 class TracerStudy(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nama_lengkap = db.Column(db.String(255), nullable=False)
-    npm = db.Column(db.String(255), nullable=False, index=True)
+    npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False, index=True)
     tahun_lulus = db.Column(db.String(10), nullable=False)
     program_studi = db.Column(db.String(255), nullable=False)
     status_pekerjaan = db.Column(db.String(255), nullable=False)
@@ -475,7 +478,7 @@ def global_gatekeeper():
 
         except Exception as e:
             db.session.rollback()
-            print(f"Error in gatekeeper: {e}")
+            app.logger.error(f"Error in gatekeeper: {e}", exc_info=True)
             flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     else:
         # Not logged in, redirect to index with login modal
@@ -491,11 +494,11 @@ def login():
     remember = request.form.get('remember') == 'on'
     
     # Handle hardcoded Tata Usaha login per request
-    if username == 'tatausaha' and password == 'stiesamtu':
+    if username == os.environ.get('TU_USERNAME', 'tatausaha') and password == os.environ.get('TU_PASSWORD', 'stiesamtu'):
         # Find or create Tata Usaha user
-        user = User.query.filter_by(username='tatausaha').first()
+        user = User.query.filter_by(username=os.environ.get('TU_USERNAME', 'tatausaha')).first()
         if not user:
-            user = User(username='tatausaha', password_hash=generate_password_hash('stiesamtu'), role='Tata Usaha', nama='Tata Usaha Utama', status_akademik='Aktif')
+            user = User(username=os.environ.get('TU_USERNAME', 'tatausaha'), password_hash=generate_password_hash(os.environ.get('TU_PASSWORD', 'stiesamtu')), role='Tata Usaha', nama='Tata Usaha Utama', status_akademik='Aktif')
             db.session.add(user)
             db.session.commit()
     else:
@@ -553,12 +556,15 @@ def logout():
 
 @app.route('/seed-admin')
 def seed_admin():
+    seed_token = os.environ.get('SEED_TOKEN')
+    if seed_token and request.args.get('token') != seed_token:
+        return 'Unauthorized', 403
     try:
         admin_exists = User.query.filter_by(role='Tata Usaha').first()
         if not admin_exists:
             new_admin = User(
                 username='adminstiesam',
-                password_hash=generate_password_hash('stiesamadmin123'),
+                password_hash=generate_password_hash(os.environ.get('ADMIN_PASSWORD', 'stiesamadmin123')),
                 role='Tata Usaha',
                 nama='Administrator STIESAM',
                 status_akademik='Aktif'
@@ -613,7 +619,7 @@ def api_register_user():
         return redirect(url_for('index', open='modal-login'))
     except Exception as e:
         db.session.rollback()
-        print(f"Error in User Register: {e}")
+        app.logger.error(f"Error in User Register: {e}", exc_info=True)
         flash("Terjadi kesalahan sistem saat mendaftar.", "error")
         return redirect(url_for('index', open='modal-login'))
 
@@ -669,7 +675,7 @@ def api_pmb_register():
         return jsonify({'success': True, 'message': 'Pendaftaran berhasil dikirim. Silakan cek status secara berkala.'})
     except Exception as e:
         db.session.rollback()
-        print(f"Error in PMB Register: {e}")
+        app.logger.error(f"Error in PMB Register: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
         return jsonify({'success': False, 'error': 'Terjadi kesalahan sistem saat memproses formulir.'})
 
@@ -705,7 +711,7 @@ def api_tracer_submit():
         flash("Data Tracer Study berhasil dikirim! Terima kasih atas partisipasi Anda.", "success")
     except Exception as e:
         db.session.rollback()
-        print(f"Error submitting Tracer Study: {e}")
+        app.logger.error(f"Error submitting Tracer Study: {e}", exc_info=True)
         flash("Terjadi kesalahan sistem saat mengirim data. Mohon coba lagi atau hubungi admin.", "error")
     return redirect(request.referrer or url_for('index'))
 
@@ -745,7 +751,7 @@ def api_pmb_check():
         })
     except Exception as e:
         db.session.rollback()
-        print(f"Error checking PMB status: {e}")
+        app.logger.error(f"Error checking PMB status: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
         return jsonify({'error': 'Terjadi kesalahan sistem.'})
 
@@ -765,13 +771,32 @@ def index():
     return render_page(HOME_HTML, 'home', content_kwargs={'epilepsi_logs': epilepsi_logs, 'verified_alumni_list': verified_alumni_list})
 
 @app.route('/uploads/<filename>')
+@login_required
 def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
+    user = current_user
+    if user.role in ['Tata Usaha', 'Admin']:
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
+
+    arsip = LaciArsip.query.filter_by(file_path=filename, npm=user.username).first()
+    if arsip:
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
+
+    pmb = PendaftaranPMB.query.filter_by(npm_generated=user.username).first()
+    if pmb and filename in [pmb.foto_ijazah, pmb.foto_ktp, pmb.bukti_transfer]:
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
+
+    if user.foto_profil == filename:
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
+
+    if filename in [s.value for s in AppSettings.query.all()]:
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
+
+    return 'Unauthorized', 403
 
 @app.route('/sw.js')
 def service_worker():
     sw_code = """
-const CACHE_NAME = 'al-hijrah-v1';
+const CACHE_NAME = 'stiesam-v1';
 const ASSETS_TO_CACHE = [
     '/',
     '/static/logo-stiesam.png',
@@ -892,7 +917,7 @@ def tu_surat_acc():
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error updating surat: {e}")
+        app.logger.error(f"Error updating surat: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('ramadhan_dashboard', open='modal-pabrik-surat'))
 
@@ -922,7 +947,7 @@ def tu_pmb_verifikasi():
                     npm_manual = f"{year_prefix}01{str(count+1).zfill(4)}"
                     
                 if not password_awal:
-                    password_awal = "mahasiswa123"
+                    password_awal = os.environ.get('DEFAULT_MHS_PASSWORD', 'mahasiswa123')
 
                 pmb.npm_generated = npm_manual
                 
@@ -974,7 +999,7 @@ def tu_pmb_verifikasi():
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error PMB/Dosen verifikasi: {e}")
+        app.logger.error(f"Error PMB/Dosen verifikasi: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pmb'))
 
@@ -1008,7 +1033,7 @@ def tu_arsip_search():
         })
     except Exception as e:
         db.session.rollback()
-        print(f"Error arsip search: {e}")
+        app.logger.error(f"Error arsip search: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
         return jsonify({'error': 'Terjadi kesalahan sistem'})
 
@@ -1051,7 +1076,7 @@ def tu_publikasi_update():
         flash("Pembaruan publikasi informasi berhasil disimpan.", "success")
     except Exception as e:
         db.session.rollback()
-        print(f"Error updating publikasi: {e}")
+        app.logger.error(f"Error updating publikasi: {e}", exc_info=True)
         flash("Terjadi kesalahan sistem saat menyimpan publikasi informasi. Perubahan dibatalkan.", "error")
     return redirect(url_for('ramadhan_dashboard', open='modal-publikasi-informasi'))
 
@@ -1087,7 +1112,7 @@ def tu_tagihan_tambah():
         flash("Tagihan berhasil ditambahkan.", "success")
     except Exception as e:
         db.session.rollback()
-        print(f"Error tambah tagihan: {e}")
+        app.logger.error(f"Error tambah tagihan: {e}", exc_info=True)
         flash("Terjadi kesalahan sistem.", "error")
     return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
 
@@ -1107,7 +1132,7 @@ def tu_tagihan_lunas():
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error tagihan lunas: {e}")
+        app.logger.error(f"Error tagihan lunas: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
 
@@ -1132,7 +1157,7 @@ def tu_jadwal():
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error tambah jadwal: {e}")
+        app.logger.error(f"Error tambah jadwal: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('ramadhan_dashboard', open='modal-kelola-jadwal'))
 
@@ -1152,7 +1177,7 @@ def tu_akun_update():
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error update status akademik: {e}")
+        app.logger.error(f"Error update status akademik: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('ramadhan_dashboard', open='modal-manajemen-sivitas'))
 
@@ -1171,7 +1196,7 @@ def tu_tracer_verify():
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error tracer verify: {e}")
+        app.logger.error(f"Error tracer verify: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('ramadhan_dashboard', open='modal-cek-alumni'))
 
@@ -1184,14 +1209,13 @@ def tu_akun_reset_password():
         user_id = request.form.get('id')
         user = User.query.get(user_id)
         if user:
-            from werkzeug.security import generate_password_hash
-            user.password_hash = generate_password_hash("stiesam123")
+            user.password_hash = generate_password_hash(os.environ.get('DEFAULT_RESET_PASSWORD', 'stiesam123'))
             db.session.commit()
         cache.clear()
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error reset password: {e}")
+        app.logger.error(f"Error reset password: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('ramadhan_dashboard', open='modal-manajemen-sivitas'))
 
@@ -1221,7 +1245,7 @@ def tu_akun_delete():
         cache.clear()
     except Exception as e:
         db.session.rollback()
-        print(f"Error delete user: {e}")
+        app.logger.error(f"Error delete user: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat menghapus pengguna: {e}", "error")
     return redirect(url_for('ramadhan_dashboard', open='modal-manajemen-sivitas'))
 
@@ -1235,7 +1259,7 @@ def tu_akun_delete():
 # ============================================================================
 @app.route('/dosen')
 @limiter.limit("200 per hour")
-@cache.cached(timeout=300, query_string=True)
+@cache.cached(timeout=300, key_prefix=lambda: f"{request.path}_{session.get('user_id', 'none')}")
 def dosen_dashboard():
     # Data Retrieval
     dosen_name = session.get('nama', 'Dosen Pengampu')
@@ -1682,7 +1706,7 @@ def mahasiswa_update_foto():
             
     except Exception as e:
         db.session.rollback()
-        print(f"Error update foto: {e}")
+        app.logger.error(f"Error update foto: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem: {e}", "error")
         
     return redirect(url_for('irma_dashboard', open='modal-profil-arsip'))
@@ -1708,7 +1732,7 @@ def dosen_update_foto():
             
     except Exception as e:
         db.session.rollback()
-        print(f"Error update foto: {e}")
+        app.logger.error(f"Error update foto: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem: {e}", "error")
         
     return redirect(url_for('dosen_dashboard', open='modal-profil-dosen'))
@@ -1729,7 +1753,7 @@ def dosen_krs_action():
             return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
-        print(f"Error updating KRS status: {e}")
+        app.logger.error(f"Error updating KRS status: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return jsonify({'success': False}), 400
 
@@ -1795,7 +1819,7 @@ def dosen_nilai_submit():
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error submitting nilai: {e}")
+        app.logger.error(f"Error submitting nilai: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('dosen_dashboard', open='modal-masukan-nilai'))
 
@@ -1842,7 +1866,7 @@ def dosen_presensi_submit():
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error submitting presensi: {e}")
+        app.logger.error(f"Error submitting presensi: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('dosen_dashboard', open='modal-presensi-jurnal'))
 
@@ -1856,6 +1880,9 @@ def mahasiswa_tagihan_upload():
     try:
         t_id = request.form.get('tagihan_id')
         tagihan = TagihanKuliah.query.get(t_id)
+        if tagihan:
+            if tagihan.npm != session.get('npm'):
+                return 'Unauthorized', 403
         if tagihan and 'bukti_transfer' in request.files:
             file = request.files['bukti_transfer']
             if file and allowed_file(file.filename):
@@ -1868,7 +1895,7 @@ def mahasiswa_tagihan_upload():
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error uploading bukti transfer: {e}")
+        app.logger.error(f"Error uploading bukti transfer: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('irma_dashboard', open='modal-pusat-tagihan'))
 
@@ -1898,13 +1925,15 @@ def mahasiswa_update_password():
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error update password mahasiswa: {e}")
+        app.logger.error(f"Error update password mahasiswa: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem: {e}", "error")
     return redirect(url_for('irma_dashboard', open='modal-profil-arsip'))
 
 @app.route('/mahasiswa/krs/add', methods=['POST'])
 def mahasiswa_krs_add():
-    npm = session.get('npm') or session.get('username') or '2401234'
+    npm = session.get('npm') or session.get('username')
+    if not npm:
+        return redirect(url_for('index', open='modal-login'))
     try:
         tagihan_list = TagihanKuliah.query.filter_by(npm=npm).all()
         has_unpaid = any(t.status != 'Lunas' for t in tagihan_list)
@@ -1912,8 +1941,15 @@ def mahasiswa_krs_add():
             flash("KRS ditolak. Anda belum melunasi tagihan. Silakan lakukan pembayaran terlebih dahulu.", "error")
             return redirect(url_for('irma_dashboard', open='modal-pusat-tagihan'))
 
+        current_krs = KRSMahasiswa.query.filter_by(npm=npm).all()
+        current_sks = sum(k.sks for k in current_krs if k.status != 'Ditolak Dosen')
+
         jadwal_ids = request.form.getlist('jadwal_ids')
         for j_id in jadwal_ids:
+            if current_sks + 3 > 24:
+                flash(f"Batas SKS per semester (24) terlampaui.", "error")
+                continue
+            current_sks += 3
             jadwal = JadwalKuliah.query.get(j_id)
             if jadwal:
                 # Prevent duplicate entries for same matkul
@@ -1935,13 +1971,15 @@ def mahasiswa_krs_add():
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error submitting KRS: {e}")
+        app.logger.error(f"Error submitting KRS: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('irma_dashboard', open='modal-rencana-studi'))
 
 @app.route('/mahasiswa/surat/request', methods=['POST'])
 def mahasiswa_surat_request():
-    npm = session.get('npm') or session.get('username') or '2401234'
+    npm = session.get('npm') or session.get('username')
+    if not npm:
+        return redirect(url_for('index', open='modal-login'))
     try:
         item = SuratOtomatis(
             npm=npm,
@@ -1955,7 +1993,7 @@ def mahasiswa_surat_request():
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error requesting surat: {e}")
+        app.logger.error(f"Error requesting surat: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('irma_dashboard', open='modal-permohonan-surat'))
 
@@ -1979,7 +2017,7 @@ def therapy_log():
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error logging therapy: {e}")
+        app.logger.error(f"Error logging therapy: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
     return redirect(url_for('index', open='modal-terapi-log'))
 
@@ -2204,7 +2242,7 @@ def ramadhan_dashboard():
 # ============================================================================
 @app.route('/mahasiswa')
 @limiter.limit("200 per hour")
-@cache.cached(timeout=300, query_string=True)
+@cache.cached(timeout=300, key_prefix=lambda: f"{request.path}_{session.get('user_id', 'none')}")
 def irma_dashboard():
     
     # NEW MAHASISWA LOGIC
@@ -2217,7 +2255,9 @@ def irma_dashboard():
     arsip_list = []
     has_unpaid = False
     
-    npm = session.get('npm') or session.get('username') or '2401234' # Fallback for mock view
+    npm = session.get('npm') or session.get('username')
+    if not npm:
+        return redirect(url_for('index', open='modal-login')) # Fallback for mock view
     
     is_admin = session.get('is_admin', False)
     settings_data = get_settings()
@@ -2426,6 +2466,17 @@ BASE_LAYOUT = """
     <title>Sekolah Tinggi Ilmu Ekonomi STIESAM</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     {{ styles|safe }}
+<script>
+    document.addEventListener('submit', function(e) {
+        if(e.target.tagName === 'FORM') {
+            const btn = e.target.querySelector('button[type="submit"]');
+            if(btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Memproses...';
+            }
+        }
+    });
+</script>
 </head>
 <body class="text-gray-800 antialiased {{ 'ramadhan-mode' if hide_nav else '' }}">
     {% set t_nav_bg = theme.nav_bg if theme and theme.nav_bg else 'glass-nav' %}
@@ -7632,7 +7683,7 @@ RAMADHAN_DASHBOARD_HTML = """
             
             <div class="flex gap-2 mb-6">
                 <input type="text" id="arsip-search-npm" placeholder="Ketik NPM Mahasiswa..." class="flex-1 bg-[#0b1026] border border-gold/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold">
-                <button onclick="searchArsip()" class="bg-blue-500 text-white px-6 rounded-xl font-bold hover:bg-blue-600 transition"><i class="fas fa-search"></i></button>
+                <button aria-label="Cari Arsip" onclick="searchArsip()" class="bg-blue-500 text-white px-6 rounded-xl font-bold hover:bg-blue-600 transition"><i class="fas fa-search"></i></button>
             </div>
             
             <div id="arsip-result" class="text-white">
@@ -8871,7 +8922,7 @@ def _fetch_dosen_data(dosen_name):
                     mahasiswa_perwalian.append({'npm': npm, 'nama': user.nama, 'status': user.status_akademik, 'ipk': ipk, 'transkrip': nilai_list, 'arsip': arsip_map.get(npm, [])})
     except Exception as e:
         db.session.rollback()
-        print(f"Error loading Dosen Dashboard: {e}")
+        app.logger.error(f"Error loading Dosen Dashboard: {e}", exc_info=True)
     return jadwal_dosen, krs_perwalian, kelas_list, mahasiswa_perwalian
 
 
@@ -8916,7 +8967,7 @@ def _fetch_mahasiswa_data(npm, is_admin):
                         arsip_list.append({'id': 'pmb-transfer', 'nama_dokumen': 'Arsip Bukti Transfer PMB (Riwayat)', 'file_path': pmb.bukti_transfer, 'ukuran': 'Berkas PMB', 'tanggal': pmb.created_at.strftime('%Y-%m-%d') if pmb.created_at else ''})
 
     except Exception as e:
-        print(f"Error fetch mhs: {e}")
+        app.logger.error(f"Error fetch mhs: {e}", exc_info=True)
     return user, tagihan_list, krs_list, nilai_list, jadwal_list, surat_list, arsip_list, has_unpaid, pmb_docs
 
 
@@ -9058,7 +9109,6 @@ class PrayTimes:
 
 
 # --- DATA SUMBER HUKUM (DALIL) ---
-# --- DATA SUMBER HUKUM (DALIL) ---
 
 # --- DATABASE SETUP ---
 DB_NAME = 'masjid.db'
@@ -9097,7 +9147,8 @@ DB_NAME = 'masjid.db'
 def get_settings():
     try:
         settings = {item.key: item.value for item in AppSettings.query.all()}
-    except:
+    except Exception as e:
+        app.logger.critical('Database settings tidak dapat dimuat!')
         settings = {}
     return settings
 
@@ -9225,8 +9276,6 @@ def compress_image(file_storage, upload_folder):
 
 # --- RAMADHAN HELPER FUNCTIONS ---
 
-# --- RAMADHAN HELPER FUNCTIONS ---
-
 def seed_ramadhan_schedule():
     if TarawihSchedule.query.count() == 0:
         schedule_data = [
@@ -9325,7 +9374,7 @@ def get_imsakiyah_schedule():
                 
     except Exception as e:
         db.session.rollback()
-        print(f"Error fetching Imsakiyah API: {e}")
+        app.logger.error(f"Error fetching Imsakiyah API: {e}", exc_info=True)
         flash(f"Terjadi kesalahan sistem saat memproses permintaan: {e}", "error")
         # Fallback empty or local calculation if needed, but user requested API specifically.
         
