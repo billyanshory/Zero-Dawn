@@ -38,7 +38,7 @@ def add_security_headers(response):
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-    response.headers['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:;"
+    response.headers['Content-Security-Policy'] = "default-src 'self' https: data:; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:;"
     return response
 
 
@@ -157,8 +157,12 @@ class SuratOtomatis(db.Model):
     created_at = db.Column(db.DateTime, server_default=func.now())
 
 class PendaftaranPMB(db.Model):
+    __table_args__ = (db.UniqueConstraint('email', 'nomor_hp', name='uq_pmb_email_hp'),)
     id = db.Column(db.Integer, primary_key=True)
     nama = db.Column(db.String(255), nullable=False)
+    email = db.Column(db.String(255), nullable=False, default='-')
+    nomor_hp = db.Column(db.String(50), nullable=False, default='-')
+    token = db.Column(db.String(100), unique=True)
     foto_ijazah = db.Column(db.String(255))
     foto_ktp = db.Column(db.String(255))
     bukti_transfer = db.Column(db.String(255))
@@ -167,9 +171,11 @@ class PendaftaranPMB(db.Model):
     created_at = db.Column(db.DateTime, server_default=func.now())
 
 class TagihanKuliah(db.Model):
+    __table_args__ = (db.UniqueConstraint('npm', 'jenis_tagihan', 'semester_aktif', name='uq_tagihan_semester'),)
     id = db.Column(db.Integer, primary_key=True)
     npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False, index=True)
     jenis_tagihan = db.Column(db.String(255), nullable=False)
+    semester_aktif = db.Column(db.String(50), nullable=False, default='Gasal 2024/2025')
     jumlah = db.Column(db.Integer, nullable=False)
     bukti_transfer = db.Column(db.String(255))
     status = db.Column(db.String(50), default='Belum Lunas', index=True)
@@ -177,6 +183,7 @@ class TagihanKuliah(db.Model):
 
 class JadwalKuliah(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    semester_aktif = db.Column(db.String(50), nullable=False, default='Gasal 2024/2025')
     hari = db.Column(db.String(50), nullable=False)
     jam = db.Column(db.String(50), nullable=False)
     mata_kuliah = db.Column(db.String(255), nullable=False)
@@ -188,6 +195,7 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    must_change_password = db.Column(db.Boolean, default=False)
     role = db.Column(db.String(50), nullable=False, index=True)
     nama = db.Column(db.String(255))
     status_akademik = db.Column(db.String(50), default='Aktif', index=True)
@@ -229,7 +237,7 @@ class NilaiMahasiswa(db.Model):
     created_at = db.Column(db.DateTime, server_default=func.now())
 
 class KehadiranKelas(db.Model):
-    __table_args__ = (db.Index('idx_jadwal_npm_status', 'jadwal_id', 'npm', 'status'),)
+    __table_args__ = (db.Index('idx_jadwal_npm_status', 'jadwal_id', 'npm', 'status'), db.UniqueConstraint('jadwal_id', 'npm', 'tanggal', name='uq_kehadiran_harian'))
 
     id = db.Column(db.Integer, primary_key=True)
     jadwal_id = db.Column(db.Integer, nullable=False)
@@ -479,6 +487,15 @@ def login():
         else:
             session.permanent = False
             
+        if getattr(user, 'must_change_password', False):
+            flash('Anda menggunakan password default. Harap segera mengganti password Anda.', 'error')
+            if user.role == 'Mahasiswa':
+                 return redirect(url_for('irma_dashboard', open='modal-profil-arsip'))
+            elif user.role == 'Dosen':
+                 return redirect(url_for('dosen_dashboard', open='modal-profil-dosen'))
+            else:
+                 return redirect(url_for('ramadhan_dashboard', open='modal-manajemen-sivitas'))
+
         if user.role in ['Tata Usaha', 'Admin']:
             session['is_admin'] = True
             return redirect(url_for('ramadhan_dashboard'))
@@ -514,7 +531,7 @@ def logout():
 @app.route('/seed-admin')
 def seed_admin():
     seed_token = os.environ.get('SEED_TOKEN')
-    if seed_token and request.args.get('token') != seed_token:
+    if not seed_token or request.args.get('token') != seed_token:
         return 'Unauthorized', 403
     try:
         admin_exists = User.query.filter_by(role='Tata Usaha').first()
@@ -528,7 +545,7 @@ def seed_admin():
             )
             db.session.add(new_admin)
             db.session.commit()
-            cache.delete('imsakiyah_schedule')
+            pass
 
             return "Akun administrator Tata Usaha berhasil dibuat."
         return "Akun administrator Tata Usaha sudah ada."
@@ -584,12 +601,21 @@ def api_register_user():
 @limiter.limit('3 per minute')
 def api_pmb_register():
     try:
+        import uuid
         nama = request.form.get('nama')
+        email = request.form.get('email')
+        nomor_hp = request.form.get('nomor_hp')
+
+        # Fallback to unique values if not provided by frontend (to avoid unique constraint violations)
+        unique_suffix = str(uuid.uuid4())[:8]
+        if not email or email == '-': email = f"no-reply-{unique_suffix}@stiesam.ac.id"
+        if not nomor_hp or nomor_hp == '-': nomor_hp = f"0000-{unique_suffix}"
+
         foto_ijazah = request.files.get('foto_ijazah')
         foto_ktp = request.files.get('foto_ktp')
         bukti_transfer = request.files.get('bukti_transfer')
         
-        if not all([nama, foto_ijazah, foto_ktp, bukti_transfer]):
+        if not all([nama, email, nomor_hp, foto_ijazah, foto_ktp, bukti_transfer]):
             return jsonify({'success': False, 'error': 'Semua field dan file harus diisi.'})
             
         if not foto_ijazah or foto_ijazah.filename == '':
@@ -602,8 +628,8 @@ def api_pmb_register():
             return jsonify({'success': False, 'error': 'Berkas bukti_transfer wajib diunggah dan tidak boleh kosong.'})
             
         
-        if PendaftaranPMB.query.filter(func.lower(PendaftaranPMB.nama) == func.lower(nama)).first():
-            return jsonify({'success': False, 'error': 'Nama pendaftar sudah terdaftar. Jangan lakukan submit ganda.'})
+        if PendaftaranPMB.query.filter_by(email=email, nomor_hp=nomor_hp).first():
+            return jsonify({'success': False, 'error': 'Kombinasi Email dan Nomor HP ini sudah terdaftar. Jangan lakukan submit ganda.'})
 
         ijazah_filename = ""
         ktp_filename = ""
@@ -619,8 +645,12 @@ def api_pmb_register():
         except ValueError as ve:
             return jsonify({'success': False, 'error': str(ve)})
 
+        token_str = str(uuid.uuid4())
         new_pmb = PendaftaranPMB(
             nama=nama,
+            email=email,
+            nomor_hp=nomor_hp,
+            token=token_str,
             foto_ijazah=ijazah_filename,
             foto_ktp=ktp_filename,
             bukti_transfer=bukti_filename,
@@ -629,7 +659,7 @@ def api_pmb_register():
         db.session.add(new_pmb)
         db.session.commit()
 
-        return jsonify({'success': True, 'message': 'Pendaftaran berhasil dikirim. Silakan cek status secara berkala.'})
+        return jsonify({'success': True, 'message': 'Pendaftaran berhasil dikirim. Token Anda: ' + token_str})
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error in PMB Register: {e}", exc_info=True)
@@ -645,10 +675,29 @@ def api_tracer_submit():
         tahun_lulus = request.form.get('tahun_lulus')
         program_studi = request.form.get('program_studi')
         status_pekerjaan = request.form.get('status_pekerjaan')
-        
+        captcha = request.form.get('captcha_answer')
+
+        if str(captcha).strip() != '4':
+            flash("Validasi keamanan gagal. Jawaban CAPTCHA salah.", "error")
+            return redirect(request.referrer or url_for('index'))
+
         if not all([nama_lengkap, npm_input, tahun_lulus, program_studi, status_pekerjaan]):
             flash("Field yang diwajibkan harus diisi.", "error")
             return redirect(request.referrer or url_for('index'))
+
+        user = User.query.filter_by(username=npm_input).first()
+        if not user or user.status_akademik != 'Lulus':
+            flash('Validasi Alumni Gagal: NPM tidak ditemukan atau status belum Lulus.', 'error')
+            return redirect(request.referrer or url_for('index'))
+
+        current_year = datetime.date.today().year
+        try:
+            thn = int(tahun_lulus)
+            if thn < 1990 or thn > current_year:
+                raise ValueError
+        except:
+             flash('Tahun lulus tidak valid.', 'error')
+             return redirect(request.referrer or url_for('index'))
 
         if TracerStudy.query.filter_by(npm=npm_input).first():
             flash('NPM ini sudah mengisi tracer study.', 'error')
@@ -669,15 +718,15 @@ def api_tracer_submit():
             kontak=request.form.get('kontak')
         )
         db.session.add(new_tracer)
-        db.session.add(Notification(npm=os.environ.get('TU_USERNAME', 'tatausaha'), message=f"Data Tracer Study baru dari NPM {request.form.get('npm')}."))
+        db.session.add(Notification(npm=os.environ.get('TU_USERNAME', 'tatausaha'), message=f"Data Tracer Study baru dari NPM {npm_input}."))
         db.session.commit()
-        cache.delete('imsakiyah_schedule')
+        pass # no cache clear
 
         flash("Data Tracer Study berhasil dikirim! Terima kasih atas partisipasi Anda.", "success")
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error submitting Tracer Study: {e}", exc_info=True)
-        flash(GENERIC_ERROR_MSG, "error")
+        flash("Terjadi kesalahan sistem.", "error")
     return redirect(request.referrer or url_for('index'))
 
 
@@ -692,11 +741,13 @@ def api_notifications_poll():
     for n in notifs:
         n.is_read = True
     db.session.commit()
-    cache.delete('imsakiyah_schedule')
+    pass
 
     return jsonify(res)
 
 @app.route('/api/pmb/check', methods=['GET'])
+@login_required
+@require_role(['Tata Usaha', 'Admin'])
 def api_pmb_check():
     try:
         nama = request.args.get('nama')
@@ -719,6 +770,16 @@ def api_pmb_check():
         app.logger.error(f"Error checking PMB status: {e}", exc_info=True)
         flash(GENERIC_ERROR_MSG, "error")
         return jsonify({'error': 'Terjadi kesalahan sistem.'})
+
+@app.route('/verifikasi/surat/<s_id>', methods=['GET'])
+def verifikasi_surat(s_id):
+    surat = SuratOtomatis.query.filter_by(qr_code=s_id).first()
+    if not surat:
+        return "Surat tidak ditemukan atau palsu.", 404
+    # The SuratOtomatis model actually HAS `tanggal` as per memory & codebase: tanggal = db.Column(db.Date, default=datetime.date.today)
+    # But just in case, we will safeguard it.
+    tgl = getattr(surat, 'tanggal', surat.created_at)
+    return f"Surat Resmi STIESAM. Jenis: {surat.jenis_surat}. Atas Nama NPM: {surat.npm}. Diterbitkan pada {tgl}."
 
 @app.route('/')
 @cache.cached(timeout=30, query_string=True)
@@ -849,7 +910,7 @@ def donate_update():
             else: db.session.add(AppSettings(key='infaq_qris_image', value=saved_filename))
             
     db.session.commit()
-    cache.delete('imsakiyah_schedule')
+    pass
 
     return redirect(request.referrer)
 
@@ -863,22 +924,64 @@ def tu_surat_acc():
         surat = SuratOtomatis.query.get(surat_id)
         if surat:
             surat.status = 'Disetujui'
-            surat.qr_code = f"QR-{surat.npm}-{surat.jenis_surat}"
             
-            # PDF Generation
             import uuid
+            unique_str = uuid.uuid4().hex
+            verification_url = url_for('verifikasi_surat', s_id=unique_str, _external=True)
+            surat.qr_code = unique_str
+
             from reportlab.pdfgen import canvas
-            filename = f"surat_{surat.npm}_{uuid.uuid4().hex[:8]}.pdf"
+            import qrcode
+
+            qr = qrcode.QRCode(version=1, box_size=10, border=4)
+            qr.add_data(verification_url)
+            qr.make(fit=True)
+            qr_img = qr.make_image(fill_color="black", back_color="white")
+            qr_filename = f"qr_{unique_str}.png"
+            qr_path = os.path.join(app.config['UPLOAD_FOLDER'], qr_filename)
+            qr_img.save(qr_path)
+
+            filename = f"surat_{surat.npm}_{unique_str[:8]}.pdf"
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             
             c = canvas.Canvas(filepath)
-            c.drawString(100, 800, "KAMPUS STIE SAMARINDA")
-            c.drawString(100, 780, f"Dokumen: {surat.jenis_surat}")
-            c.drawString(100, 760, f"Diberikan kepada NPM: {surat.npm}")
-            c.drawString(100, 740, f"Keterangan: {surat.keterangan}")
-            c.drawString(100, 700, f"Disetujui secara elektronik: {surat.qr_code}")
+
+            logo_path = os.path.join(app.static_folder, 'logo-stiesam.png') if hasattr(app, 'static_folder') and app.static_folder else 'static/logo-stiesam.png'
+            if os.path.exists(logo_path):
+                c.drawImage(logo_path, 50, 750, width=50, height=50)
+
+            c.setFont("Helvetica-Bold", 16)
+            c.drawString(110, 780, "KAMPUS STIE SAMARINDA")
+            c.setFont("Helvetica", 12)
+            c.drawString(110, 760, "Jl. Pahlawan No.1, Samarinda, Kalimantan Timur")
+            c.line(50, 740, 550, 740)
+
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(200, 710, "SURAT KETERANGAN RESMI")
+            c.setFont("Helvetica", 12)
+            c.drawString(200, 690, f"Nomor: STIESAM/SK/{surat.id}/{datetime.date.today().year}")
+
+            c.drawString(50, 640, "Yang bertanda tangan di bawah ini menerangkan bahwa:")
+            c.drawString(50, 610, f"NPM             : {surat.npm}")
+            c.drawString(50, 580, f"Keperluan       : {surat.jenis_surat}")
+
+            text_y = 550
+            c.drawString(50, text_y, "Keterangan:")
+            lines = [surat.keterangan[i:i+60] for i in range(0, len(surat.keterangan), 60)]
+            for line in lines:
+                text_y -= 20
+                c.drawString(50, text_y, line)
+
+            text_y -= 40
+            c.drawString(50, text_y, "Surat ini sah dan ditandatangani secara elektronik. Pindai QR Code untuk verifikasi.")
+
+            c.drawImage(qr_path, 400, text_y - 120, width=100, height=100)
+
             c.save()
             
+            if os.path.exists(qr_path):
+                os.remove(qr_path)
+
             arsip = LaciArsip(
                 npm=surat.npm,
                 nama_dokumen=f"Dokumen Resmi - {surat.jenis_surat}",
@@ -888,7 +991,7 @@ def tu_surat_acc():
             db.session.add(arsip)
             db.session.add(Notification(npm=surat.npm, message=f"Surat {surat.jenis_surat} telah disetujui. Silakan cek arsip digital Anda."))
             db.session.commit()
-        cache.delete('imsakiyah_schedule')
+        cache.clear()
 
     except Exception as e:
         db.session.rollback()
@@ -902,19 +1005,49 @@ def tu_surat_acc():
 @require_role(['Tata Usaha', 'Admin'])
 def tu_pmb_verifikasi():
     try:
+        import smtplib
+        from email.mime.text import MIMEText
+
+        def send_email_notification(to_email, subject, body):
+            mail_server = os.environ.get('MAIL_SERVER')
+            mail_port = int(os.environ.get('MAIL_PORT', 587))
+            mail_username = os.environ.get('MAIL_USERNAME')
+            mail_password = os.environ.get('MAIL_PASSWORD')
+            use_tls = os.environ.get('MAIL_USE_TLS')
+
+            if not all([mail_server, mail_username, mail_password, to_email]):
+                return
+
+            msg = MIMEText(body)
+            msg['Subject'] = subject
+            msg['From'] = mail_username
+            msg['To'] = to_email
+
+            try:
+                server = smtplib.SMTP(mail_server, mail_port)
+                if use_tls:
+                    server.starttls()
+                server.login(mail_username, mail_password)
+                server.send_message(msg)
+                server.quit()
+            except Exception as e:
+                app.logger.error(f"Failed to send email to {to_email}: {e}")
+
         verifikasi_type = request.form.get('type')
         item_id = request.form.get('id')
         
         if verifikasi_type == 'pmb':
-            pmb = PendaftaranPMB.query.get(item_id)
+            pmb = PendaftaranPMB.query.with_for_update().get(item_id)
             if pmb:
                 pmb.status = 'Diterima'
                 
-                # Fetch custom parameters if provided
                 npm_manual = request.form.get('npm_manual')
-                password_awal = request.form.get('password_awal')
                 
-                # Default logic for NPM
+                password_awal = os.environ.get('DEFAULT_MHS_PASSWORD')
+                if not password_awal:
+                    import secrets
+                    password_awal = secrets.token_urlsafe(8)
+
                 if not npm_manual:
                     year_prefix = str(datetime.date.today().year)[-2:]
                     max_npm = db.session.query(func.max(User.username)).filter(
@@ -927,22 +1060,18 @@ def tu_pmb_verifikasi():
                         next_id = 1
                     npm_manual = f"{year_prefix}01{str(next_id).zfill(4)}"
                     
-                if not password_awal:
-                    password_awal = os.environ.get('DEFAULT_MHS_PASSWORD', 'mahasiswa123')
-
                 pmb.npm_generated = npm_manual
                 
-                # Create user
                 new_user = User(
                     username=npm_manual, 
                     password_hash=generate_password_hash(password_awal), 
                     role='Mahasiswa', 
                     nama=pmb.nama, 
-                    status_akademik='Aktif'
+                    status_akademik='Aktif',
+                    must_change_password=True
                 )
                 db.session.add(new_user)
                 
-                # Copy PMB Documents to Laci Arsip
                 if pmb.foto_ijazah:
                     db.session.add(LaciArsip(npm=npm_manual, nama_dokumen="Arsip Ijazah PMB", file_path=pmb.foto_ijazah, ukuran="Berkas PMB"))
                 if pmb.foto_ktp:
@@ -950,9 +1079,13 @@ def tu_pmb_verifikasi():
                 if pmb.bukti_transfer:
                     db.session.add(LaciArsip(npm=npm_manual, nama_dokumen="Arsip Bukti Transfer PMB", file_path=pmb.bukti_transfer, ukuran="Berkas PMB"))
 
-                # Send explicit notification with credentials
                 msg = f"Selamat, pendaftaran Anda disetujui. NPM/ID Login Anda adalah {npm_manual}. Silakan login dan ubah password segera."
                 db.session.add(Notification(npm=npm_manual, message=msg))
+
+                email_body = f"Halo {pmb.nama},\n\nSelamat! Pendaftaran Anda di STIESAM telah disetujui.\nNPM: {npm_manual}\nPassword Sementara: {password_awal}\n\nHarap login dan segera mengganti password Anda.\nTerima kasih."
+                if pmb.email and pmb.email != '-':
+                    send_email_notification(pmb.email, "Pendaftaran PMB STIESAM Disetujui", email_body)
+
                 db.session.commit()
                 flash(f"Verifikasi PMB berhasil. Akun Mahasiswa ({npm_manual}) dibuat.", "success")
                 
@@ -968,13 +1101,13 @@ def tu_pmb_verifikasi():
                     user.username = username_manual.strip()
                 if password_awal and password_awal.strip():
                     user.password_hash = generate_password_hash(password_awal.strip())
+                    user.must_change_password = True
 
                 msg = f"Selamat, akun {user.role} Anda telah diaktifkan. Username Anda adalah {user.username}."
                 db.session.add(Notification(npm=user.username, message=msg))
                 db.session.commit()
                 flash(f"Verifikasi akun {user.role} berhasil. ({user.username})", "success")
-        
-        cache.delete('imsakiyah_schedule')
+        cache.clear()
 
     except Exception as e:
         db.session.rollback()
@@ -984,7 +1117,8 @@ def tu_pmb_verifikasi():
 
 @app.route('/tu/arsip/search', methods=['GET'])
 @limiter.limit("10 per minute")
-@cache.cached(timeout=60, query_string=True)
+@login_required
+@require_role(['Tata Usaha', 'Admin'])
 def tu_arsip_search():
     npm = request.args.get('npm')
     if not npm:
@@ -1050,7 +1184,7 @@ def tu_publikasi_update():
                 else: db.session.add(AppSettings(key='berita_gambar', value=saved_filename))
                 
         db.session.commit()
-        cache.delete('imsakiyah_schedule')
+        pass
 
         flash("Pembaruan publikasi informasi berhasil disimpan.", "success")
     except Exception as e:
@@ -1086,7 +1220,7 @@ def tu_tagihan_tambah():
         )
         db.session.add(new_tagihan)
         db.session.commit()
-        cache.delete('imsakiyah_schedule')
+        pass
 
         flash("Tagihan berhasil ditambahkan.", "success")
     except Exception as e:
@@ -1104,10 +1238,14 @@ def tu_tagihan_lunas():
         t_id = request.form.get('id')
         tagihan = TagihanKuliah.query.get(t_id)
         if tagihan:
+            if tagihan.status == 'Lunas':
+                flash("Tagihan ini sudah lunas.", "error")
+                return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
             tagihan.status = 'Lunas'
             db.session.add(Notification(npm=tagihan.npm, message=f"Pembayaran {tagihan.jenis_tagihan} telah dikonfirmasi LUNAS."))
             db.session.commit()
-        cache.delete('imsakiyah_schedule')
+            flash("Tagihan berhasil dilunaskan.", "success")
+        cache.clear()
 
     except Exception as e:
         db.session.rollback()
@@ -1132,7 +1270,7 @@ def tu_jadwal():
         db.session.flush() # To get new_jadwal.id
         db.session.add(StatusNilai(jadwal_id=new_jadwal.id, is_published=False))
         db.session.commit()
-        cache.delete('imsakiyah_schedule')
+        cache.clear()
 
     except Exception as e:
         db.session.rollback()
@@ -1152,7 +1290,7 @@ def tu_akun_update():
         if user and status in ['Aktif', 'Cuti', 'Keluar', 'Lulus']:
             user.status_akademik = status
             db.session.commit()
-        cache.delete('imsakiyah_schedule')
+        cache.clear()
 
     except Exception as e:
         db.session.rollback()
@@ -1171,7 +1309,7 @@ def tu_tracer_verify():
         if tracer:
             tracer.status = 'Diverifikasi'
             db.session.commit()
-        cache.delete('imsakiyah_schedule')
+        cache.clear()
 
     except Exception as e:
         db.session.rollback()
@@ -1190,7 +1328,7 @@ def tu_akun_reset_password():
         if user:
             user.password_hash = generate_password_hash(os.environ.get('DEFAULT_RESET_PASSWORD', 'stiesam123'))
             db.session.commit()
-        cache.delete('imsakiyah_schedule')
+        cache.clear()
 
     except Exception as e:
         db.session.rollback()
@@ -1221,7 +1359,7 @@ def tu_akun_delete():
             db.session.delete(user)
             db.session.commit()
             flash("Akun pengguna dan seluruh relasi data terkait telah dihapus permanen.", "success")
-        cache.delete('imsakiyah_schedule')
+        pass
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error delete user: {e}", exc_info=True)
@@ -1678,7 +1816,7 @@ def mahasiswa_update_foto():
             saved_filename = compress_image(foto, app.config['UPLOAD_FOLDER'])
             user.foto_profil = saved_filename
             db.session.commit()
-            cache.delete('imsakiyah_schedule')
+            pass
             flash("Foto profil berhasil diperbarui.", "success")
         else:
             flash("File tidak valid.", "error")
@@ -1704,7 +1842,7 @@ def dosen_update_foto():
             saved_filename = compress_image(foto, app.config['UPLOAD_FOLDER'])
             user.foto_profil = saved_filename
             db.session.commit()
-            cache.delete('imsakiyah_schedule')
+            pass
             flash("Foto profil berhasil diperbarui.", "success")
         else:
             flash("File tidak valid.", "error")
@@ -1718,6 +1856,8 @@ def dosen_update_foto():
 
 @app.route('/dosen/krs/action', methods=['POST'])
 @limiter.limit("10 per minute")
+@login_required
+@require_role(['Dosen'])
 def dosen_krs_action():
     try:
         krs_id = request.form.get('id')
@@ -1727,7 +1867,7 @@ def dosen_krs_action():
             krs.status = status
             db.session.add(Notification(npm=krs.npm, message=f"KRS {krs.mata_kuliah} telah {status}."))
             db.session.commit()
-            cache.delete('imsakiyah_schedule')
+            pass
 
             return jsonify({'success': True})
     except Exception as e:
@@ -1738,6 +1878,8 @@ def dosen_krs_action():
 
 @app.route('/dosen/nilai/submit', methods=['POST'])
 @limiter.limit("10 per minute")
+@login_required
+@require_role(['Dosen'])
 def dosen_nilai_submit():
     try:
         jadwal_id = request.form.get('jadwal_id')
@@ -1745,6 +1887,9 @@ def dosen_nilai_submit():
         jadwal = db.session.get(JadwalKuliah, jadwal_id)
         
         if jadwal:
+            if jadwal.dosen != current_user.nama:
+                flash("Anda tidak berhak mengisi nilai untuk mata kuliah ini.", "error")
+                return redirect(url_for('dosen_dashboard', open='modal-masukan-nilai'))
             # Check if already published
             status_nilai = StatusNilai.query.filter_by(jadwal_id=jadwal_id).first()
             if status_nilai and status_nilai.is_published:
@@ -1793,7 +1938,7 @@ def dosen_nilai_submit():
                 status_nilai.is_published = True
                 
             db.session.commit()
-        cache.delete('imsakiyah_schedule')
+        pass
         flash("Nilai berhasil disimpan dan dipublikasikan.", "success")
 
     except Exception as e:
@@ -1804,11 +1949,18 @@ def dosen_nilai_submit():
 
 @app.route('/dosen/presensi/submit', methods=['POST'])
 @limiter.limit("10 per minute")
+@login_required
+@require_role(['Dosen'])
 def dosen_presensi_submit():
     try:
         jadwal_id = request.form.get('jadwal_id')
         materi = request.form.get('materi')
         tanggal = str(datetime.date.today())
+
+        jadwal = db.session.get(JadwalKuliah, jadwal_id)
+        if not jadwal or jadwal.dosen != current_user.nama:
+             flash("Anda tidak berhak mengisi presensi untuk jadwal ini.", "error")
+             return redirect(url_for('dosen_dashboard', open='modal-presensi-jurnal'))
 
         status_nilai = StatusNilai.query.filter_by(jadwal_id=jadwal_id).first()
         if status_nilai and status_nilai.is_published:
@@ -1840,7 +1992,7 @@ def dosen_presensi_submit():
                     db.session.add(Notification(npm=npm, message=f"Presensi {tanggal} dicatat: {val}."))
                 
         db.session.commit()
-        cache.delete('imsakiyah_schedule')
+        pass
         flash("Presensi dan jurnal berhasil disimpan.", "success")
 
     except Exception as e:
@@ -1855,6 +2007,8 @@ def dosen_presensi_submit():
 # ============================================================================
 
 @app.route('/mahasiswa/tagihan/upload', methods=['POST'])
+@login_required
+@require_role(['Mahasiswa'])
 def mahasiswa_tagihan_upload():
     try:
         t_id = request.form.get('tagihan_id')
@@ -1870,7 +2024,7 @@ def mahasiswa_tagihan_upload():
                 tagihan.status = 'Menunggu Konfirmasi'
                 db.session.add(Notification(npm=os.environ.get('TU_USERNAME', 'tatausaha'), message=f"Bukti transfer diunggah oleh NPM {tagihan.npm} untuk {tagihan.jenis_tagihan}."))
                 db.session.commit()
-        cache.delete('imsakiyah_schedule')
+        cache.clear()
 
     except Exception as e:
         db.session.rollback()
@@ -1896,8 +2050,9 @@ def mahasiswa_update_password():
         user = User.query.get(user_id)
         if user and check_password_hash(user.password_hash, old_password):
             user.password_hash = generate_password_hash(new_password)
+            user.must_change_password = False
             db.session.commit()
-            cache.delete('imsakiyah_schedule')
+            pass
             flash("Password berhasil diupdate.", "success")
         else:
             flash("Password lama salah.", "error")
@@ -1909,12 +2064,18 @@ def mahasiswa_update_password():
     return redirect(url_for('irma_dashboard', open='modal-profil-arsip'))
 
 @app.route('/mahasiswa/krs/add', methods=['POST'])
+@login_required
+@require_role(['Mahasiswa'])
 def mahasiswa_krs_add():
     npm = session.get('npm') or session.get('username')
     if not npm:
         return redirect(url_for('index', open='modal-login'))
     try:
         tagihan_list = TagihanKuliah.query.filter_by(npm=npm).all()
+        if not tagihan_list:
+             flash("KRS ditolak. Anda belum memiliki tagihan atau belum melunasi tagihan.", "error")
+             return redirect(url_for('irma_dashboard', open='modal-pusat-tagihan'))
+
         has_unpaid = any(t.status != 'Lunas' for t in tagihan_list)
         if has_unpaid:
             flash("KRS ditolak. Anda belum melunasi tagihan. Silakan lakukan pembayaran terlebih dahulu.", "error")
@@ -1924,14 +2085,15 @@ def mahasiswa_krs_add():
         current_sks = sum(k.sks for k in current_krs if k.status != 'Ditolak Dosen')
         
         jadwal_ids = request.form.getlist('jadwal_ids')
+        semester_aktif = get_settings().get('semester_aktif', 'Gasal 2024/2025')
+
         for j_id in jadwal_ids:
             if current_sks + 3 > 24:
                 flash(f"Batas SKS per semester (24) terlampaui.", "error")
                 continue
-            current_sks += 3
-            jadwal = JadwalKuliah.query.get(j_id)
+
+            jadwal = JadwalKuliah.query.filter_by(id=j_id, semester_aktif=semester_aktif).first()
             if jadwal:
-                # Prevent duplicate entries for same matkul
                 existing = KRSMahasiswa.query.filter_by(npm=npm, mata_kuliah=jadwal.mata_kuliah).first()
                 if not existing:
                     new_krs = KRSMahasiswa(
@@ -1942,11 +2104,14 @@ def mahasiswa_krs_add():
                         status='Menunggu Acc Dosen'
                     )
                     db.session.add(new_krs)
+                    current_sks += 3
                 else:
                     flash(f"Mata kuliah {jadwal.mata_kuliah} sudah ada di KRS Anda.", "error")
+            else:
+                flash("Jadwal tidak tersedia pada semester ini.", "error")
         db.session.commit()
         flash("KRS berhasil diajukan dan menunggu persetujuan dosen wali.", "success")
-        cache.delete('imsakiyah_schedule')
+        cache.clear()
 
     except Exception as e:
         db.session.rollback()
@@ -1955,20 +2120,33 @@ def mahasiswa_krs_add():
     return redirect(url_for('irma_dashboard', open='modal-rencana-studi'))
 
 @app.route('/mahasiswa/surat/request', methods=['POST'])
+@login_required
+@require_role(['Mahasiswa'])
 def mahasiswa_surat_request():
     npm = session.get('npm') or session.get('username')
     if not npm:
         return redirect(url_for('index', open='modal-login'))
     try:
+        jenis_surat = request.form['jenis_surat']
+        valid_surat = [
+            "Surat Keterangan Aktif Kuliah",
+            "Surat Pengantar Magang",
+            "Surat Pengantar Riset",
+            "Surat Cuti Akademik"
+        ]
+        if jenis_surat not in valid_surat:
+            flash("Jenis surat tidak valid.", "error")
+            return redirect(url_for('irma_dashboard', open='modal-permohonan-surat'))
+
         item = SuratOtomatis(
             npm=npm,
-            jenis_surat=request.form['jenis_surat'],
+            jenis_surat=jenis_surat,
             keterangan=request.form['keterangan']
         )
         db.session.add(item)
         db.session.add(Notification(npm=os.environ.get('TU_USERNAME', 'tatausaha'), message=f"Permohonan surat baru dari NPM {npm}."))
         db.session.commit()
-        cache.delete('imsakiyah_schedule')
+        cache.clear()
 
     except Exception as e:
         db.session.rollback()
@@ -1992,7 +2170,7 @@ def therapy_log():
         )
         db.session.add(log)
         db.session.commit()
-        cache.delete('imsakiyah_schedule')
+        cache.clear()
 
     except Exception as e:
         db.session.rollback()
@@ -2036,7 +2214,7 @@ def donate():
              else: db.session.add(AppSettings(key=key, value=val))
              
         db.session.commit()
-        cache.delete('imsakiyah_schedule')
+        pass
 
         return redirect(url_for('donate', source=request.args.get('source')))
 
@@ -5305,6 +5483,10 @@ HOME_HTML = """
                         <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">11. Saran Pengembangan Kurikulum</label>
                         <textarea name="saran" placeholder="Saran Anda untuk kampus tercinta..." class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm h-24 focus:outline-none focus:ring-2 focus:ring-orange-300"></textarea>
                     </div>
+                        <div class="mb-4">
+                            <label class="block text-xs font-bold text-gray-500 mb-2">Berapa hasil dari 2 + 2? (CAPTCHA)</label>
+                            <input type="text" name="captcha_answer" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
                     <!-- 12 -->
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">12. Nomor WhatsApp / Email Aktif</label>
@@ -9300,7 +9482,7 @@ def seed_ramadhan_schedule():
                 )
                 db.session.add(entry)
             db.session.commit()
-            cache.delete('imsakiyah_schedule')
+            pass
     except Exception as e:
         db.session.rollback()
         app.logger.warning(f"Could not seed Ramadhan schedule (model might not exist): {e}")
