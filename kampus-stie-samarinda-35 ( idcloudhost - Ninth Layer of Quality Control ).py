@@ -14,6 +14,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, text
+from sqlalchemy.exc import IntegrityError
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_caching import Cache
@@ -417,7 +418,7 @@ def global_gatekeeper():
             return "mohon maaf anda mencoba terlalu banyak percobaan login masuk tunggu tiga puluh menit lagi untuk percobaan berikutnya.", 429
 
     # Allow public endpoints and API endpoints
-    if request.endpoint in ['index', 'login', 'logout', 'static', 'api_pmb_register', 'api_pmb_check', 'service_worker', 'manifest', 'fitur_masjid', 'donate', 'emergency', 'prayer_times_api', 'api_yasin', 'therapy_log']:
+    if request.endpoint in ['index', 'login', 'logout', 'static', 'api_pmb_register', 'api_pmb_check', 'api_pmb_status', 'service_worker', 'manifest', 'fitur_masjid', 'donate', 'emergency', 'prayer_times_api', 'api_yasin', 'therapy_log']:
         return
         
     user_id = session.get('user_id')
@@ -676,8 +677,9 @@ def api_tracer_submit():
         program_studi = request.form.get('program_studi')
         status_pekerjaan = request.form.get('status_pekerjaan')
         captcha = request.form.get('captcha_answer')
+        expected_captcha = request.form.get('captcha_expected')
 
-        if str(captcha).strip() != '4':
+        if not expected_captcha or str(captcha).strip() != str(expected_captcha).strip():
             flash("Validasi keamanan gagal. Jawaban CAPTCHA salah.", "error")
             return redirect(request.referrer or url_for('index'))
             
@@ -688,6 +690,10 @@ def api_tracer_submit():
         user = User.query.filter_by(username=npm_input).first()
         if not user or user.status_akademik != 'Lulus':
             flash('Validasi Alumni Gagal: NPM tidak ditemukan atau status belum Lulus.', 'error')
+            return redirect(request.referrer or url_for('index'))
+
+        if user.nama.lower() != nama_lengkap.lower():
+            flash('Validasi Alumni Gagal: Nama lengkap tidak cocok dengan data pangkalan data.', 'error')
             return redirect(request.referrer or url_for('index'))
 
         current_year = datetime.date.today().year
@@ -720,7 +726,7 @@ def api_tracer_submit():
         db.session.add(new_tracer)
         db.session.add(Notification(npm=os.environ.get('TU_USERNAME', 'tatausaha'), message=f"Data Tracer Study baru dari NPM {npm_input}."))
         db.session.commit()
-        pass # no cache clear
+        cache.clear()
 
         flash("Data Tracer Study berhasil dikirim! Terima kasih atas partisipasi Anda.", "success")
     except Exception as e:
@@ -745,6 +751,29 @@ def api_notifications_poll():
 
     return jsonify(res)
 
+@app.route('/api/pmb/status', methods=['GET'])
+@limiter.limit("5 per minute")
+def api_pmb_status():
+    try:
+        nama = request.args.get('nama')
+        if not nama:
+            return jsonify({'error': 'Nama tidak boleh kosong'})
+
+        pmb = PendaftaranPMB.query.filter(func.lower(PendaftaranPMB.nama) == func.lower(nama)).order_by(PendaftaranPMB.id.desc()).first()
+
+        if not pmb:
+            return jsonify({'error': 'Data pendaftaran tidak ditemukan.'})
+
+        return jsonify({
+            'nama': pmb.nama,
+            'status': pmb.status,
+            'npm': '-'  # Jangan membocorkan NPM di rute publik
+        })
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error checking PMB status: {e}", exc_info=True)
+        return jsonify({'error': 'Terjadi kesalahan sistem.'})
+
 @app.route('/api/pmb/check', methods=['GET'])
 @login_required
 @require_role(['Tata Usaha', 'Admin'])
@@ -754,7 +783,6 @@ def api_pmb_check():
         if not nama:
             return jsonify({'error': 'Nama tidak boleh kosong'})
             
-        # Case insensitive exact match or like query
         pmb = PendaftaranPMB.query.filter(func.lower(PendaftaranPMB.nama) == func.lower(nama)).order_by(PendaftaranPMB.id.desc()).first()
         
         if not pmb:
@@ -767,7 +795,7 @@ def api_pmb_check():
         })
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Error checking PMB status: {e}", exc_info=True)
+        app.logger.error(f"Error checking PMB check: {e}", exc_info=True)
         flash(GENERIC_ERROR_MSG, "error")
         return jsonify({'error': 'Terjadi kesalahan sistem.'})
 
@@ -923,6 +951,16 @@ def tu_surat_acc():
         surat_id = request.form.get('id')
         surat = SuratOtomatis.query.get(surat_id)
         if surat:
+            valid_surat = [
+                "Surat Keterangan Aktif Kuliah",
+                "Surat Pengantar Magang",
+                "Surat Pengantar Riset",
+                "Surat Cuti Akademik"
+            ]
+            if surat.jenis_surat not in valid_surat:
+                flash("Jenis surat tidak valid.", "error")
+                return redirect(url_for('ramadhan_dashboard', open='modal-pabrik-surat'))
+
             surat.status = 'Disetujui'
             
             import uuid
@@ -961,11 +999,15 @@ def tu_surat_acc():
             c.setFont("Helvetica", 12)
             c.drawString(200, 690, f"Nomor: STIESAM/SK/{surat.id}/{datetime.date.today().year}")
             
+            user_obj = User.query.filter_by(username=surat.npm).first()
+            nama_lengkap = user_obj.nama if user_obj else "Mahasiswa"
+
             c.drawString(50, 640, "Yang bertanda tangan di bawah ini menerangkan bahwa:")
-            c.drawString(50, 610, f"NPM             : {surat.npm}")
-            c.drawString(50, 580, f"Keperluan       : {surat.jenis_surat}")
+            c.drawString(50, 610, f"Nama Lengkap    : {nama_lengkap}")
+            c.drawString(50, 580, f"NPM             : {surat.npm}")
+            c.drawString(50, 550, f"Keperluan       : {surat.jenis_surat}")
             
-            text_y = 550
+            text_y = 520
             c.drawString(50, text_y, "Keterangan:")
             lines = [surat.keterangan[i:i+60] for i in range(0, len(surat.keterangan), 60)]
             for line in lines:
@@ -1207,6 +1249,10 @@ def tu_tagihan_tambah():
             flash("Format input tidak valid. Pastikan NPM dan Nominal hanya berisi angka presisi tanpa karakter asing.", "error")
             return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
 
+        if int(jumlah) <= 0:
+            flash("Nominal tagihan harus lebih besar dari 0.", "error")
+            return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
+
         user = User.query.filter_by(username=npm).first()
         if not user:
             flash(f"Error: NPM {npm} tidak ditemukan dalam sistem.", "error")
@@ -1244,6 +1290,41 @@ def tu_tagihan_lunas():
             tagihan.status = 'Lunas'
             db.session.add(Notification(npm=tagihan.npm, message=f"Pembayaran {tagihan.jenis_tagihan} telah dikonfirmasi LUNAS."))
             db.session.commit()
+
+            # Send email
+            import smtplib
+            from email.mime.text import MIMEText
+
+            def send_email_notification(to_email, subject, body):
+                mail_server = os.environ.get('MAIL_SERVER')
+                mail_port = int(os.environ.get('MAIL_PORT', 587))
+                mail_username = os.environ.get('MAIL_USERNAME')
+                mail_password = os.environ.get('MAIL_PASSWORD')
+                use_tls = os.environ.get('MAIL_USE_TLS')
+
+                if not all([mail_server, mail_username, mail_password, to_email]):
+                    return
+
+                msg = MIMEText(body)
+                msg['Subject'] = subject
+                msg['From'] = mail_username
+                msg['To'] = to_email
+
+                try:
+                    server = smtplib.SMTP(mail_server, mail_port)
+                    if use_tls:
+                        server.starttls()
+                    server.login(mail_username, mail_password)
+                    server.send_message(msg)
+                    server.quit()
+                except Exception as e:
+                    app.logger.error(f"Failed to send email to {to_email}: {e}")
+
+            user_pmb = PendaftaranPMB.query.filter_by(npm_generated=tagihan.npm).first()
+            if user_pmb and user_pmb.email and user_pmb.email != '-':
+                email_body = f"Halo {user_pmb.nama},\n\nPembayaran {tagihan.jenis_tagihan} sebesar Rp {tagihan.jumlah} telah dikonfirmasi LUNAS.\n\nTerima kasih."
+                send_email_notification(user_pmb.email, "Konfirmasi Pembayaran Lunas STIESAM", email_body)
+
             flash("Tagihan berhasil dilunaskan.", "success")
         cache.clear()
 
@@ -1863,7 +1944,7 @@ def dosen_krs_action():
         krs_id = request.form.get('id')
         status = request.form.get('status')
         krs = db.session.get(KRSMahasiswa, krs_id)
-        if krs and status in ['Disetujui Dosen', 'Ditolak Dosen']:
+        if krs and krs.dosen == current_user.nama and status in ['Disetujui Dosen', 'Ditolak Dosen']:
             krs.status = status
             db.session.add(Notification(npm=krs.npm, message=f"KRS {krs.mata_kuliah} telah {status}."))
             db.session.commit()
@@ -1907,6 +1988,11 @@ def dosen_nilai_submit():
                     hadir = KehadiranKelas.query.filter_by(jadwal_id=jadwal_id, npm=npm, status='Hadir').count()
                     attendance_pct = (hadir / total_sessions * 100) if total_sessions > 0 else 100
                     
+                    # Validasi npm terdaftar di KRS
+                    krs_check = KRSMahasiswa.query.filter_by(npm=npm, mata_kuliah=mata_kuliah, status='Disetujui Dosen').first()
+                    if not krs_check:
+                        continue
+
                     if attendance_pct < 75:
                         val = 'E' # Force E if attendance is below 75%
                     
@@ -1967,33 +2053,37 @@ def dosen_presensi_submit():
             flash("Gagal. Presensi dikunci karena nilai telah dipublikasikan.", "error")
             return redirect(url_for('dosen_dashboard', open='modal-presensi-jurnal'))
         
-        # Insert Jurnal
-        new_jurnal = JurnalMengajar(
-            jadwal_id=jadwal_id,
-            tanggal=tanggal,
-            materi=materi
-        )
-        db.session.add(new_jurnal)
-        
-        # Insert Kehadiran
-        for key, val in request.form.items():
-            if key.startswith('kehadiran_'):
-                npm = key.replace('kehadiran_', '')
-                new_kehadiran = KehadiranKelas(
-                    jadwal_id=jadwal_id,
-                    npm=npm,
-                    tanggal=tanggal,
-                    status=val
-                )
-                db.session.add(new_kehadiran)
-                if val == 'Hadir':
-                    db.session.add(Notification(npm=npm, message=f"Presensi {tanggal} dicatat: Hadir."))
-                else:
-                    db.session.add(Notification(npm=npm, message=f"Presensi {tanggal} dicatat: {val}."))
-                
-        db.session.commit()
-        pass
-        flash("Presensi dan jurnal berhasil disimpan.", "success")
+        try:
+            # Insert Jurnal
+            new_jurnal = JurnalMengajar(
+                jadwal_id=jadwal_id,
+                tanggal=tanggal,
+                materi=materi
+            )
+            db.session.add(new_jurnal)
+
+            # Insert Kehadiran
+            for key, val in request.form.items():
+                if key.startswith('kehadiran_'):
+                    npm = key.replace('kehadiran_', '')
+                    new_kehadiran = KehadiranKelas(
+                        jadwal_id=jadwal_id,
+                        npm=npm,
+                        tanggal=tanggal,
+                        status=val
+                    )
+                    db.session.add(new_kehadiran)
+                    if val == 'Hadir':
+                        db.session.add(Notification(npm=npm, message=f"Presensi {tanggal} dicatat: Hadir."))
+                    else:
+                        db.session.add(Notification(npm=npm, message=f"Presensi {tanggal} dicatat: {val}."))
+
+            db.session.commit()
+            flash("Presensi dan jurnal berhasil disimpan.", "success")
+        except IntegrityError:
+            db.session.rollback()
+            flash("Gagal menyimpan presensi. Presensi untuk tanggal ini sudah pernah diisi.", "error")
+            return redirect(url_for('dosen_dashboard', open='modal-presensi-jurnal'))
 
     except Exception as e:
         db.session.rollback()
@@ -5080,7 +5170,7 @@ HOME_HTML = """
                         resBox.innerHTML = '<p class="text-center text-gray-500 text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>Mencari...</p>';
                         
                         try {
-                            const res = await fetch('/api/pmb/check?nama=' + encodeURIComponent(nama));
+                            const res = await fetch('/api/pmb/status?nama=' + encodeURIComponent(nama));
                             const data = await res.json();
                             
                             if(data.error) {
@@ -5484,9 +5574,20 @@ HOME_HTML = """
                         <textarea name="saran" placeholder="Saran Anda untuk kampus tercinta..." class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm h-24 focus:outline-none focus:ring-2 focus:ring-orange-300"></textarea>
                     </div>
                         <div class="mb-4">
-                            <label class="block text-xs font-bold text-gray-500 mb-2">Berapa hasil dari 2 + 2? (CAPTCHA)</label>
-                            <input type="text" name="captcha_answer" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            <label class="block text-xs font-bold text-gray-500 mb-2" id="captcha-question">Berapa hasil dari ...?</label>
+                            <input type="hidden" name="captcha_expected" id="captcha-expected" value="">
+                            <input type="text" name="captcha_answer" required placeholder="Masukkan angka jawaban" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
                         </div>
+                        <script>
+                            function generateCaptcha() {
+                                const num1 = Math.floor(Math.random() * 10) + 1;
+                                const num2 = Math.floor(Math.random() * 10) + 1;
+                                document.getElementById('captcha-question').innerText = `Berapa hasil dari ${num1} + ${num2}? (CAPTCHA)`;
+                                document.getElementById('captcha-expected').value = num1 + num2;
+                            }
+                            // Generate on modal open or script load
+                            generateCaptcha();
+                        </script>
                     <!-- 12 -->
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">12. Nomor WhatsApp / Email Aktif</label>
@@ -9105,7 +9206,7 @@ def _fetch_mahasiswa_data(npm, is_admin):
         user = User.query.filter_by(username=npm).first()
         if npm:
             tagihan_list = TagihanKuliah.query.filter_by(npm=npm).order_by(TagihanKuliah.id.desc()).all()
-            has_unpaid = any(t.status != 'Lunas' for t in tagihan_list)
+            has_unpaid = True if not tagihan_list else any(t.status != 'Lunas' for t in tagihan_list)
             krs_list = KRSMahasiswa.query.filter_by(npm=npm).order_by(KRSMahasiswa.id.desc()).all()
             nilai_list = NilaiMahasiswa.query.filter_by(npm=npm).order_by(NilaiMahasiswa.semester.desc(), NilaiMahasiswa.id.desc()).all()
             jadwal_list = JadwalKuliah.query.order_by(JadwalKuliah.id.desc()).all()
