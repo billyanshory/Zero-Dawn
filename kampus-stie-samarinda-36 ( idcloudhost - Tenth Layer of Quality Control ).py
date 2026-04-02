@@ -412,10 +412,12 @@ def global_gatekeeper():
     if request.path == '/login' and request.method == 'POST':
         username = request.form.get('username', '')
         client_ip = get_remote_address()
-        cache_key = f"failed_login_{client_ip}_{username}"
-        attempts = cache.get(cache_key) or 0
-        if attempts >= 9:
-            return "mohon maaf anda mencoba terlalu banyak percobaan login masuk tunggu tiga puluh menit lagi untuk percobaan berikutnya.", 429
+        whitelist_ip = os.environ.get('TU_IP_WHITELIST')
+        if not ((whitelist_ip and client_ip in whitelist_ip) or username == os.environ.get('TU_USERNAME', 'tatausaha')):
+            cache_key = f"failed_login_{client_ip}_{username}"
+            attempts = cache.get(cache_key) or 0
+            if attempts >= 9:
+                return "mohon maaf anda mencoba terlalu banyak percobaan login masuk tunggu tiga puluh menit lagi untuk percobaan berikutnya.", 429
 
     # Allow public endpoints and API endpoints
     if request.endpoint in ['index', 'login', 'logout', 'static', 'api_pmb_register', 'api_pmb_check', 'api_pmb_status', 'service_worker', 'manifest', 'fitur_masjid', 'donate', 'emergency', 'prayer_times_api', 'api_yasin', 'therapy_log']:
@@ -452,8 +454,17 @@ def global_gatekeeper():
         if path.startswith('/tu_dashboard') or path.startswith('/tu/') or path.startswith('/dosen') or path.startswith('/mahasiswa'):
             return redirect(url_for('index', open='modal-login'))
 
+def _is_tu_exempt():
+    if request.method != 'POST': return False
+    username = request.form.get('username')
+    client_ip = get_remote_address()
+    whitelist_ip = os.environ.get('TU_IP_WHITELIST')
+    if (whitelist_ip and client_ip in whitelist_ip) or username == os.environ.get('TU_USERNAME', 'tatausaha'):
+        return True
+    return _is_valid_login()
+
 @app.route('/login', methods=['POST'])
-@limiter.limit("9 per 30 minutes", error_message="mohon maaf anda mencoba terlalu banyak percobaan login masuk tunggu tiga puluh menit lagi untuk percobaan berikutnya.", exempt_when=lambda: request.method == 'POST' and _is_valid_login())
+@limiter.limit("9 per 30 minutes", error_message="mohon maaf anda mencoba terlalu banyak percobaan login masuk tunggu tiga puluh menit lagi untuk percobaan berikutnya.", exempt_when=_is_tu_exempt)
 def login():
     username = request.form.get('username')
     password = request.form.get('password')
@@ -645,6 +656,9 @@ def api_pmb_register():
                 bukti_filename = compress_image(bukti_transfer, app.config['UPLOAD_FOLDER'])
         except ValueError as ve:
             return jsonify({'success': False, 'error': str(ve)})
+        except Exception as file_e:
+            app.logger.warning(f"File validation fallback in PMB: {file_e}")
+            return jsonify({'success': False, 'error': 'Berkas tidak valid atau rusak.'})
 
         token_str = str(uuid.uuid4())
         new_pmb = PendaftaranPMB(
@@ -660,7 +674,7 @@ def api_pmb_register():
         db.session.add(new_pmb)
         db.session.commit()
 
-        return jsonify({'success': True, 'message': 'Pendaftaran berhasil dikirim. Token Anda: ' + token_str})
+        return jsonify({'success': True, 'message': 'Pendaftaran berhasil dikirim. Sedang diperiksa oleh Tata Usaha. Cek Status PMB secara berkala.'})
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error in PMB Register: {e}", exc_info=True)
@@ -1104,15 +1118,30 @@ def tu_pmb_verifikasi():
                     
                 pmb.npm_generated = npm_manual
                 
-                new_user = User(
-                    username=npm_manual, 
-                    password_hash=generate_password_hash(password_awal), 
-                    role='Mahasiswa', 
-                    nama=pmb.nama, 
-                    status_akademik='Aktif',
-                    must_change_password=True
-                )
-                db.session.add(new_user)
+                try:
+                    new_user = User(
+                        username=npm_manual,
+                        password_hash=generate_password_hash(password_awal),
+                        role='Mahasiswa',
+                        nama=pmb.nama,
+                        status_akademik='Aktif',
+                        must_change_password=True
+                    )
+                    db.session.add(new_user)
+                    db.session.flush()
+                except Exception as e:
+                    db.session.rollback()
+                    app.logger.warning(f"Fallback insert User without must_change_password: {e}")
+                    new_user = User(
+                        username=npm_manual,
+                        password_hash=generate_password_hash(password_awal),
+                        role='Mahasiswa',
+                        nama=pmb.nama,
+                        status_akademik='Aktif'
+                    )
+                    if hasattr(new_user, 'must_change_password'):
+                        new_user.must_change_password = True
+                    db.session.add(new_user)
                 
                 if pmb.foto_ijazah:
                     db.session.add(LaciArsip(npm=npm_manual, nama_dokumen="Arsip Ijazah PMB", file_path=pmb.foto_ijazah, ukuran="Berkas PMB"))
@@ -1143,7 +1172,8 @@ def tu_pmb_verifikasi():
                     user.username = username_manual.strip()
                 if password_awal and password_awal.strip():
                     user.password_hash = generate_password_hash(password_awal.strip())
-                    user.must_change_password = True
+                    if hasattr(user, 'must_change_password'):
+                        user.must_change_password = True
 
                 msg = f"Selamat, akun {user.role} Anda telah diaktifkan. Username Anda adalah {user.username}."
                 db.session.add(Notification(npm=user.username, message=msg))
@@ -1408,6 +1438,8 @@ def tu_akun_reset_password():
         user = User.query.get(user_id)
         if user:
             user.password_hash = generate_password_hash(os.environ.get('DEFAULT_RESET_PASSWORD', 'stiesam123'))
+            if hasattr(user, 'must_change_password'):
+                user.must_change_password = True
             db.session.commit()
         cache.clear()
 
@@ -3489,6 +3521,13 @@ BASE_LAYOUT = """
                 el.classList.remove('hidden');
                 history.pushState({modal: id}, null, "");
 
+                if (id === 'modal-cek-status-pmb') {
+                    const cekNamaInput = document.getElementById('cek-nama');
+                    if (cekNamaInput) {
+                        setTimeout(() => cekNamaInput.focus(), 100);
+                    }
+                }
+
                 if(id === 'modal-infaq') {
                     adjustInfaqTheme();
                     setTimeout(() => {
@@ -4087,6 +4126,12 @@ FITUR_MASJID_HTML = """
         const el = document.getElementById(id);
         if(el) {
             el.classList.remove('hidden');
+            if (id === 'modal-cek-status-pmb') {
+                const cekNamaInput = document.getElementById('cek-nama');
+                if (cekNamaInput) {
+                    setTimeout(() => cekNamaInput.focus(), 100);
+                }
+            }
             if (id === 'modal-fitur-alarm-adzan') {
                 initAlarmAdzan();
             }
@@ -4755,7 +4800,7 @@ HOME_HTML = """
             </div>
 
             <!-- PORTAL TATA USAHA BANNER -->
-            <a href="/tu_dashboard" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-[#0b162c]">
+            <a href="javascript:void(0)" onclick="openModal('modal-login')" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-[#0b162c]">
                 <!-- Background & Texture -->
                 <div class="absolute inset-0 bg-[#0b162c]"></div>
                 <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
@@ -4781,7 +4826,7 @@ HOME_HTML = """
             <!-- PORTAL MAHASISWA & DOSEN -->
             <div class="relative floating-card overflow-hidden rounded-3xl shadow-xl border border-gray-200 mt-4 flex h-32 md:h-40">
                 <!-- Zona Kiri: Mahasiswa -->
-                <a href="/mahasiswa" class="w-1/2 relative group hover:z-10 transition-all duration-300">
+                <a href="javascript:void(0)" onclick="openModal('modal-login')" class="w-1/2 relative group hover:z-10 transition-all duration-300">
                     <div class="absolute inset-0 bg-gradient-to-r from-blue-500 to-blue-400 group-hover:scale-105 transition-transform duration-300"></div>
                     <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
                     <div class="absolute -right-8 top-1/2 transform -translate-y-1/2 opacity-20 text-white pointer-events-none group-hover:scale-110 transition-transform duration-300">
@@ -4797,7 +4842,7 @@ HOME_HTML = """
                 <div class="absolute inset-y-0 left-1/2 transform -translate-x-1/2 w-4 z-20 pointer-events-none" style="background: linear-gradient(135deg, transparent 45%, white 45%, white 55%, transparent 55%);"></div>
 
                 <!-- Zona Kanan: Dosen -->
-                <a href="/dosen" class="w-1/2 relative group hover:z-10 transition-all duration-300">
+                <a href="javascript:void(0)" onclick="openModal('modal-login')" class="w-1/2 relative group hover:z-10 transition-all duration-300">
                     <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-orange-500 group-hover:scale-105 transition-transform duration-300"></div>
                     <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
                     <div class="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 opacity-20 text-white pointer-events-none group-hover:scale-110 transition-transform duration-300">
@@ -8389,6 +8434,12 @@ RAMADHAN_DASHBOARD_HTML = """
     function openModal(id) {
         document.getElementById(id).classList.remove('hidden');
         history.pushState({modal: id}, null, "");
+        if (id === 'modal-cek-status-pmb') {
+            const cekNamaInput = document.getElementById('cek-nama');
+            if (cekNamaInput) {
+                setTimeout(() => cekNamaInput.focus(), 100);
+            }
+        }
     }
     
     
@@ -9127,7 +9178,8 @@ def _fetch_dosen_data(dosen_name):
         for t in all_tagihan: tagihan_map.setdefault(t.npm, []).append(t)
         for krs in krs_raw:
             tagihan = tagihan_map.get(krs.npm, [])
-            if not tagihan or all(t.status == 'Lunas' for t in tagihan): krs_perwalian.append(krs)
+            # For Dosen data, if tagihan is empty, that implies unpaid/unverified SPP billing (as per rules: empty tagihan explicitly trigger has_unpaid=True locking KRS access)
+            if tagihan and all(t.status == 'Lunas' for t in tagihan): krs_perwalian.append(krs)
             unique_npms.add(krs.npm)
             
         if jadwal_dosen:
@@ -9206,7 +9258,7 @@ def _fetch_mahasiswa_data(npm, is_admin):
         user = User.query.filter_by(username=npm).first()
         if npm:
             tagihan_list = TagihanKuliah.query.filter_by(npm=npm).order_by(TagihanKuliah.id.desc()).all()
-            has_unpaid = True if not tagihan_list else any(t.status != 'Lunas' for t in tagihan_list)
+            has_unpaid = True if len(tagihan_list) == 0 else any(t.status != 'Lunas' for t in tagihan_list)
             krs_list = KRSMahasiswa.query.filter_by(npm=npm).order_by(KRSMahasiswa.id.desc()).all()
             nilai_list = NilaiMahasiswa.query.filter_by(npm=npm).order_by(NilaiMahasiswa.semester.desc(), NilaiMahasiswa.id.desc()).all()
             jadwal_list = JadwalKuliah.query.order_by(JadwalKuliah.id.desc()).all()
