@@ -412,9 +412,16 @@ def global_gatekeeper():
 
     if request.path == '/login' and request.method == 'POST':
         username = request.form.get('username', '')
+        password = request.form.get('password', '')
         client_ip = get_remote_address()
         whitelist_ip = os.environ.get('TU_IP_WHITELIST')
-        if not ((whitelist_ip and client_ip in whitelist_ip) or username == os.environ.get('TU_USERNAME', 'tatausaha')):
+        tu_user = os.environ.get('TU_USERNAME', 'tatausaha')
+        tu_pass = os.environ.get('TU_PASSWORD', 'stiesamtu')
+
+        # Pengecualian mutlak untuk Tata Usaha
+        if username == tu_user and password == tu_pass:
+            pass # Loloskan tanpa blokir
+        elif not ((whitelist_ip and client_ip in whitelist_ip) or username == tu_user):
             cache_key = f"failed_login_{client_ip}_{username}"
             attempts = cache.get(cache_key) or 0
             if attempts >= 9:
@@ -458,10 +465,19 @@ def global_gatekeeper():
 def _is_tu_exempt():
     if request.method != 'POST': return False
     username = request.form.get('username')
+    password = request.form.get('password')
+
+    tu_user = os.environ.get('TU_USERNAME', 'tatausaha')
+    tu_pass = os.environ.get('TU_PASSWORD', 'stiesamtu')
+
+    if username == tu_user and password == tu_pass:
+        return True
+
     client_ip = get_remote_address()
     whitelist_ip = os.environ.get('TU_IP_WHITELIST')
-    if (whitelist_ip and client_ip in whitelist_ip) or username == os.environ.get('TU_USERNAME', 'tatausaha'):
+    if (whitelist_ip and client_ip in whitelist_ip):
         return True
+
     return _is_valid_login()
 
 @app.route('/login', methods=['POST'])
@@ -471,15 +487,67 @@ def login():
     password = request.form.get('password')
     remember = request.form.get('remember') == 'on'
     
-    user = User.query.filter_by(username=username).first()
+    tu_user = os.environ.get('TU_USERNAME', 'tatausaha')
+    tu_pass = os.environ.get('TU_PASSWORD', 'stiesamtu')
 
-    # Handle hardcoded Tata Usaha login per request
-    if username == os.environ.get('TU_USERNAME', 'tatausaha') and password == os.environ.get('TU_PASSWORD', 'stiesamtu'):
-        # Find or create Tata Usaha user if doesn't exist
-        if not user:
-            user = User(username=os.environ.get('TU_USERNAME', 'tatausaha'), password_hash=generate_password_hash(os.environ.get('TU_PASSWORD', 'stiesamtu')), password_raw=os.environ.get('TU_PASSWORD', 'stiesamtu'), role='Tata Usaha', nama='Tata Usaha Utama', status_akademik='Aktif')
-            db.session.add(user)
-            db.session.commit()
+    # Prioritas Mutlak Tata Usaha
+    if username == tu_user and password == tu_pass:
+        app.logger.info("Mengeksekusi login Tata Usaha secara prioritas.")
+        try:
+            user = User.query.filter_by(username=username).first()
+            if not user:
+                user = User(
+                    username=tu_user,
+                    password_hash=generate_password_hash(tu_pass),
+                    password_raw=tu_pass,
+                    role='Tata Usaha',
+                    nama='Tata Usaha Utama',
+                    status_akademik='Aktif',
+                    must_change_password=False
+                )
+                db.session.add(user)
+                db.session.commit()
+                # Refresh instance
+                user = db.session.get(User, user.id)
+            else:
+                # Pastikan password dan data selalu fresh dan bersih
+                user.password_hash = generate_password_hash(tu_pass)
+                user.password_raw = tu_pass
+                user.role = 'Tata Usaha'
+                user.status_akademik = 'Aktif'
+                if hasattr(user, 'must_change_password'):
+                    user.must_change_password = False
+                db.session.commit()
+                # Refresh instance
+                user = db.session.get(User, user.id)
+
+            # Hapus Cache Limiter secara paksa
+            client_ip = get_remote_address()
+            cache_key = f"failed_login_{client_ip}_{username}"
+            cache.delete(cache_key)
+
+            # Login dan Set Sesi
+            login_user(user, remember=True)
+            session['user_id'] = user.id
+            session['username'] = user.username
+            session['npm'] = user.username
+            session['nama'] = user.nama
+            session['role'] = user.role
+            session['is_admin'] = True
+
+            session.permanent = True
+            app.permanent_session_lifetime = datetime.timedelta(days=30)
+
+            app.logger.info("Login Tata Usaha berhasil, dialihkan ke dashboard.")
+            return redirect(url_for('ramadhan_dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Kesalahan kritis pada login TU: {e}", exc_info=True)
+            flash("Sistem sedang mengalami gangguan saat menginisialisasi akses Tata Usaha.", "error")
+            return redirect(request.referrer or url_for('index'))
+
+    # Alur Normal Pengguna Lain
+    user = User.query.filter_by(username=username).first()
 
     if user and check_password_hash(user.password_hash, password):
         client_ip = get_remote_address()
@@ -527,7 +595,9 @@ def login():
 def _is_valid_login():
     username = request.form.get('username')
     password = request.form.get('password')
-    if username == os.environ.get('TU_USERNAME', 'tatausaha') and password == os.environ.get('TU_PASSWORD', 'stiesamtu'):
+    tu_user = os.environ.get('TU_USERNAME', 'tatausaha')
+    tu_pass = os.environ.get('TU_PASSWORD', 'stiesamtu')
+    if username == tu_user and password == tu_pass:
         return True
     user = User.query.filter_by(username=username).first()
     return user and check_password_hash(user.password_hash, password)
