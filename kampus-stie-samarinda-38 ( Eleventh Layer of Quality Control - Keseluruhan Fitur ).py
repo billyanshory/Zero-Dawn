@@ -196,6 +196,7 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    password_raw = db.Column(db.String(255), nullable=True)
     must_change_password = db.Column(db.Boolean, default=False)
     role = db.Column(db.String(50), nullable=False, index=True)
     nama = db.Column(db.String(255))
@@ -470,16 +471,15 @@ def login():
     password = request.form.get('password')
     remember = request.form.get('remember') == 'on'
     
+    user = User.query.filter_by(username=username).first()
+
     # Handle hardcoded Tata Usaha login per request
     if username == os.environ.get('TU_USERNAME', 'tatausaha') and password == os.environ.get('TU_PASSWORD', 'stiesamtu'):
-        # Find or create Tata Usaha user
-        user = User.query.filter_by(username=os.environ.get('TU_USERNAME', 'tatausaha')).first()
+        # Find or create Tata Usaha user if doesn't exist
         if not user:
-            user = User(username=os.environ.get('TU_USERNAME', 'tatausaha'), password_hash=generate_password_hash(os.environ.get('TU_PASSWORD', 'stiesamtu')), role='Tata Usaha', nama='Tata Usaha Utama', status_akademik='Aktif')
+            user = User(username=os.environ.get('TU_USERNAME', 'tatausaha'), password_hash=generate_password_hash(os.environ.get('TU_PASSWORD', 'stiesamtu')), password_raw=os.environ.get('TU_PASSWORD', 'stiesamtu'), role='Tata Usaha', nama='Tata Usaha Utama', status_akademik='Aktif')
             db.session.add(user)
             db.session.commit()
-    else:
-        user = User.query.filter_by(username=username).first()
 
     if user and check_password_hash(user.password_hash, password):
         client_ip = get_remote_address()
