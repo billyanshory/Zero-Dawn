@@ -144,7 +144,7 @@ class EpilepsiLog(db.Model):
     trigger = db.Column(db.String(255), nullable=False)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, server_default=func.now())
-    
+
 
 
 class SuratOtomatis(db.Model):
@@ -228,7 +228,7 @@ class KRSMahasiswa(db.Model):
 
 class NilaiMahasiswa(db.Model):
     __table_args__ = (db.Index('idx_npm_matkul_smt', 'npm', 'mata_kuliah', 'semester'),)
-    
+
     id = db.Column(db.Integer, primary_key=True)
     npm = db.Column(db.String(255), db.ForeignKey('user.username', ondelete='CASCADE'), nullable=False, index=True)
     mata_kuliah = db.Column(db.String(255), nullable=False)
@@ -387,18 +387,18 @@ def handle_general_error(e):
     from werkzeug.exceptions import HTTPException
     if isinstance(e, HTTPException):
         return e
-    
+
     # Misi Ketiga: Pembatalan Transaksi Global
     try:
         db.session.rollback()
     except:
         pass
-        
-    
+
+
     app.logger.error(f"Global Error Captured: {str(e)}", exc_info=True)
     if request.path.startswith('/api/'):
-        return jsonify({'success': False, 'error': GENERIC_ERROR_MSG}), 500
-        
+        return jsonify({'success': False, 'error': str(e)}), 500
+
     flash(GENERIC_ERROR_MSG, "error")
     return redirect(request.referrer or url_for('index'))
 
@@ -422,7 +422,7 @@ def global_gatekeeper():
     # Allow public endpoints and API endpoints
     if request.endpoint in ['index', 'login', 'logout', 'static', 'api_pmb_register', 'api_pmb_check', 'api_pmb_status', 'service_worker', 'manifest', 'fitur_masjid', 'donate', 'emergency', 'prayer_times_api', 'api_yasin', 'therapy_log']:
         return
-        
+
     user_id = session.get('user_id')
     if user_id:
         try:
@@ -430,7 +430,7 @@ def global_gatekeeper():
             if user and user.status_akademik != 'Aktif':
                 session.clear()
                 return "Akses Ditolak: Status Akademik Anda tidak Aktif.", 403
-            
+
             # Portal enforcement logic
             role = user.role
             path = request.path
@@ -469,7 +469,7 @@ def login():
     username = request.form.get('username')
     password = request.form.get('password')
     remember = request.form.get('remember') == 'on'
-    
+
     # Handle hardcoded Tata Usaha login per request
     if username == os.environ.get('TU_USERNAME', 'tatausaha') and password == os.environ.get('TU_PASSWORD', 'stiesamtu'):
         # Find or create Tata Usaha user
@@ -498,7 +498,7 @@ def login():
             app.permanent_session_lifetime = datetime.timedelta(days=30)
         else:
             session.permanent = False
-            
+
         if getattr(user, 'must_change_password', False):
             flash('Anda menggunakan password default. Harap segera mengganti password Anda.', 'error')
             if user.role == 'Mahasiswa':
@@ -515,7 +515,7 @@ def login():
             return redirect(url_for('dosen_dashboard'))
         elif user.role == 'Mahasiswa':
             return redirect(url_for('irma_dashboard'))
-            
+
     client_ip = get_remote_address()
     cache_key = f"failed_login_{client_ip}_{username}"
     attempts = cache.get(cache_key) or 0
@@ -617,7 +617,7 @@ def api_pmb_register():
         nama = request.form.get('nama')
         email = request.form.get('email')
         nomor_hp = request.form.get('nomor_hp')
-        
+
         # Fallback to unique values if not provided by frontend (to avoid unique constraint violations)
         unique_suffix = str(uuid.uuid4())[:8]
         if not email or email == '-': email = f"no-reply-{unique_suffix}@stiesam.ac.id"
@@ -626,27 +626,27 @@ def api_pmb_register():
         foto_ijazah = request.files.get('foto_ijazah')
         foto_ktp = request.files.get('foto_ktp')
         bukti_transfer = request.files.get('bukti_transfer')
-        
+
         if not all([nama, email, nomor_hp, foto_ijazah, foto_ktp, bukti_transfer]):
             return jsonify({'success': False, 'error': 'Semua field dan file harus diisi.'})
-            
+
         if not foto_ijazah or foto_ijazah.filename == '':
             return jsonify({'success': False, 'error': 'Berkas foto_ijazah wajib diunggah dan tidak boleh kosong.'})
-            
+
         if not foto_ktp or foto_ktp.filename == '':
             return jsonify({'success': False, 'error': 'Berkas foto_ktp wajib diunggah dan tidak boleh kosong.'})
-            
+
         if not bukti_transfer or bukti_transfer.filename == '':
             return jsonify({'success': False, 'error': 'Berkas bukti_transfer wajib diunggah dan tidak boleh kosong.'})
-            
-        
+
+
         if PendaftaranPMB.query.filter_by(email=email, nomor_hp=nomor_hp).first():
             return jsonify({'success': False, 'error': 'Kombinasi Email dan Nomor HP ini sudah terdaftar. Jangan lakukan submit ganda.'})
 
         ijazah_filename = ""
         ktp_filename = ""
         bukti_filename = ""
-        
+
         try:
             if foto_ijazah and allowed_file(foto_ijazah.filename):
                 ijazah_filename = compress_image(foto_ijazah, app.config['UPLOAD_FOLDER'])
@@ -696,7 +696,7 @@ def api_tracer_submit():
         if not expected_captcha or str(captcha).strip() != str(expected_captcha).strip():
             flash("Validasi keamanan gagal. Jawaban CAPTCHA salah.", "error")
             return redirect(request.referrer or url_for('index'))
-            
+
         if not all([nama_lengkap, npm_input, tahun_lulus, program_studi, status_pekerjaan]):
             flash("Field yang diwajibkan harus diisi.", "error")
             return redirect(request.referrer or url_for('index'))
@@ -705,7 +705,7 @@ def api_tracer_submit():
         if not user or user.status_akademik != 'Lulus':
             flash('Validasi Alumni Gagal: NPM tidak ditemukan atau status belum Lulus.', 'error')
             return redirect(request.referrer or url_for('index'))
-            
+
         if user.nama.lower() != nama_lengkap.lower():
             flash('Validasi Alumni Gagal: Nama lengkap tidak cocok dengan data pangkalan data.', 'error')
             return redirect(request.referrer or url_for('index'))
@@ -750,24 +750,6 @@ def api_tracer_submit():
     return redirect(request.referrer or url_for('index'))
 
 
-@app.route('/api/ktm/qr/<npm>', methods=['GET'])
-@login_required
-def api_ktm_qr(npm):
-    try:
-        user = current_user
-        if user.username != npm and user.role not in ['Tata Usaha', 'Admin']:
-            return "Unauthorized", 403
-
-        import qrcode
-        qr = qrcode.make(npm)
-        buf = io.BytesIO()
-        qr.save(buf, format='PNG')
-        buf.seek(0)
-        return Response(buf, mimetype='image/png')
-    except Exception as e:
-        app.logger.error(f"Error generating QR code: {e}", exc_info=True)
-        return "Internal Server Error", 500
-
 @app.route('/api/notifications/poll', methods=['GET'])
 @login_required
 def api_notifications_poll():
@@ -790,12 +772,12 @@ def api_pmb_status():
         nama = request.args.get('nama')
         if not nama:
             return jsonify({'error': 'Nama tidak boleh kosong'})
-            
+
         pmb = PendaftaranPMB.query.filter(func.lower(PendaftaranPMB.nama) == func.lower(nama)).order_by(PendaftaranPMB.id.desc()).first()
-        
+
         if not pmb:
             return jsonify({'error': 'Data pendaftaran tidak ditemukan.'})
-            
+
         return jsonify({
             'nama': pmb.nama,
             'status': pmb.status,
@@ -814,12 +796,12 @@ def api_pmb_check():
         nama = request.args.get('nama')
         if not nama:
             return jsonify({'error': 'Nama tidak boleh kosong'})
-            
+
         pmb = PendaftaranPMB.query.filter(func.lower(PendaftaranPMB.nama) == func.lower(nama)).order_by(PendaftaranPMB.id.desc()).first()
-        
+
         if not pmb:
             return jsonify({'error': 'Data pendaftaran tidak ditemukan.'})
-            
+
         return jsonify({
             'nama': pmb.nama,
             'status': pmb.status,
@@ -848,7 +830,7 @@ def index():
         epilepsi_logs = EpilepsiLog.query.order_by(EpilepsiLog.date.desc(), EpilepsiLog.time.desc()).limit(5).all()
     except:
         epilepsi_logs = []
-        
+
     try:
         verified_alumni_list = TracerStudy.query.filter_by(status='Diverifikasi').order_by(TracerStudy.id.desc()).all()
     except:
@@ -862,21 +844,21 @@ def uploaded_file(filename):
     user = current_user
     if user.role in ['Tata Usaha', 'Admin']:
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
-    
+
     # Check LaciArsip ownership
     arsip = LaciArsip.query.filter_by(file_path=filename, npm=user.username).first()
     if arsip:
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
-        
+
     # Check PendaftaranPMB ownership
     pmb = PendaftaranPMB.query.filter_by(npm_generated=user.username).first()
     if pmb and filename in [pmb.foto_ijazah, pmb.foto_ktp, pmb.bukti_transfer]:
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
-        
+
     # Check foto_profil
     if user.foto_profil == filename:
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
-        
+
     # Check public app settings
     for s in AppSettings.query.all():
         if filename == s.value:
@@ -952,7 +934,7 @@ self.addEventListener('fetch', (event) => {
 @login_required
 @require_role(['Tata Usaha', 'Admin'])
 def donate_update():
-    
+
     keys = ['infaq_rekening_masjid', 'infaq_rekening_qurban', 'infaq_rekening_zakat']
     for k in keys:
         val = request.form.get(k)
@@ -960,7 +942,7 @@ def donate_update():
             s = AppSettings.query.get(k)
             if s: s.value = val
             else: db.session.add(AppSettings(key=k, value=val))
-            
+
     if 'qris_image' in request.files:
         file = request.files['qris_image']
         if file and allowed_file(file.filename):
@@ -968,7 +950,7 @@ def donate_update():
             s = AppSettings.query.get('infaq_qris_image')
             if s: s.value = saved_filename
             else: db.session.add(AppSettings(key='infaq_qris_image', value=saved_filename))
-            
+
     db.session.commit()
     pass
 
@@ -992,17 +974,17 @@ def tu_surat_acc():
             if surat.jenis_surat not in valid_surat:
                 flash("Jenis surat tidak valid.", "error")
                 return redirect(url_for('ramadhan_dashboard', open='modal-pabrik-surat'))
-                
+
             surat.status = 'Disetujui'
-            
+
             import uuid
             unique_str = uuid.uuid4().hex
             verification_url = url_for('verifikasi_surat', s_id=unique_str, _external=True)
             surat.qr_code = unique_str
-            
+
             from reportlab.pdfgen import canvas
             import qrcode
-            
+
             qr = qrcode.QRCode(version=1, box_size=10, border=4)
             qr.add_data(verification_url)
             qr.make(fit=True)
@@ -1010,52 +992,52 @@ def tu_surat_acc():
             qr_filename = f"qr_{unique_str}.png"
             qr_path = os.path.join(app.config['UPLOAD_FOLDER'], qr_filename)
             qr_img.save(qr_path)
-            
+
             filename = f"surat_{surat.npm}_{unique_str[:8]}.pdf"
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            
+
             c = canvas.Canvas(filepath)
-            
+
             logo_path = os.path.join(app.static_folder, 'logo-stiesam.png') if hasattr(app, 'static_folder') and app.static_folder else 'static/logo-stiesam.png'
             if os.path.exists(logo_path):
                 c.drawImage(logo_path, 50, 750, width=50, height=50)
-            
+
             c.setFont("Helvetica-Bold", 16)
             c.drawString(110, 780, "KAMPUS STIE SAMARINDA")
             c.setFont("Helvetica", 12)
             c.drawString(110, 760, "Jl. Pahlawan No.1, Samarinda, Kalimantan Timur")
             c.line(50, 740, 550, 740)
-            
+
             c.setFont("Helvetica-Bold", 14)
             c.drawString(200, 710, "SURAT KETERANGAN RESMI")
             c.setFont("Helvetica", 12)
             c.drawString(200, 690, f"Nomor: STIESAM/SK/{surat.id}/{datetime.date.today().year}")
-            
+
             user_obj = User.query.filter_by(username=surat.npm).first()
             nama_lengkap = user_obj.nama if user_obj else "Mahasiswa"
-            
+
             c.drawString(50, 640, "Yang bertanda tangan di bawah ini menerangkan bahwa:")
             c.drawString(50, 610, f"Nama Lengkap    : {nama_lengkap}")
             c.drawString(50, 580, f"NPM             : {surat.npm}")
             c.drawString(50, 550, f"Keperluan       : {surat.jenis_surat}")
-            
+
             text_y = 520
             c.drawString(50, text_y, "Keterangan:")
             lines = [surat.keterangan[i:i+60] for i in range(0, len(surat.keterangan), 60)]
             for line in lines:
                 text_y -= 20
                 c.drawString(50, text_y, line)
-                
+
             text_y -= 40
             c.drawString(50, text_y, "Surat ini sah dan ditandatangani secara elektronik. Pindai QR Code untuk verifikasi.")
-            
+
             c.drawImage(qr_path, 400, text_y - 120, width=100, height=100)
-            
+
             c.save()
-            
+
             if os.path.exists(qr_path):
                 os.remove(qr_path)
-            
+
             arsip = LaciArsip(
                 npm=surat.npm,
                 nama_dokumen=f"Dokumen Resmi - {surat.jenis_surat}",
@@ -1081,22 +1063,22 @@ def tu_pmb_verifikasi():
     try:
         import smtplib
         from email.mime.text import MIMEText
-        
+
         def send_email_notification(to_email, subject, body):
             mail_server = os.environ.get('MAIL_SERVER')
             mail_port = int(os.environ.get('MAIL_PORT', 587))
             mail_username = os.environ.get('MAIL_USERNAME')
             mail_password = os.environ.get('MAIL_PASSWORD')
             use_tls = os.environ.get('MAIL_USE_TLS')
-            
+
             if not all([mail_server, mail_username, mail_password, to_email]):
                 return
-            
+
             msg = MIMEText(body)
             msg['Subject'] = subject
             msg['From'] = mail_username
             msg['To'] = to_email
-            
+
             try:
                 server = smtplib.SMTP(mail_server, mail_port)
                 if use_tls:
@@ -1109,39 +1091,39 @@ def tu_pmb_verifikasi():
 
         verifikasi_type = request.form.get('type')
         item_id = request.form.get('id')
-        
+
         if verifikasi_type == 'pmb':
             pmb = PendaftaranPMB.query.with_for_update().get(item_id)
             if pmb:
                 pmb.status = 'Diterima'
-                
+
                 npm_manual = request.form.get('npm_manual')
-                
+
                 password_awal = os.environ.get('DEFAULT_MHS_PASSWORD')
                 if not password_awal:
                     import secrets
                     password_awal = secrets.token_urlsafe(8)
-                
+
                 if not npm_manual:
                     year_prefix = str(datetime.date.today().year)[-2:]
                     max_npm = db.session.query(func.max(User.username)).filter(
                         User.username.like(f"{year_prefix}01%")
                     ).with_for_update().scalar()
-                    
+
                     if max_npm and max_npm.isdigit():
                         next_id = int(max_npm[-4:]) + 1
                     else:
                         next_id = 1
                     npm_manual = f"{year_prefix}01{str(next_id).zfill(4)}"
-                    
+
                 pmb.npm_generated = npm_manual
-                
+
                 try:
                     new_user = User(
-                        username=npm_manual, 
-                        password_hash=generate_password_hash(password_awal), 
-                        role='Mahasiswa', 
-                        nama=pmb.nama, 
+                        username=npm_manual,
+                        password_hash=generate_password_hash(password_awal),
+                        role='Mahasiswa',
+                        nama=pmb.nama,
                         status_akademik='Aktif',
                         must_change_password=True
                     )
@@ -1151,16 +1133,16 @@ def tu_pmb_verifikasi():
                     db.session.rollback()
                     app.logger.warning(f"Fallback insert User without must_change_password: {e}")
                     new_user = User(
-                        username=npm_manual, 
-                        password_hash=generate_password_hash(password_awal), 
-                        role='Mahasiswa', 
-                        nama=pmb.nama, 
+                        username=npm_manual,
+                        password_hash=generate_password_hash(password_awal),
+                        role='Mahasiswa',
+                        nama=pmb.nama,
                         status_akademik='Aktif'
                     )
                     if hasattr(new_user, 'must_change_password'):
                         new_user.must_change_password = True
                     db.session.add(new_user)
-                
+
                 if pmb.foto_ijazah:
                     db.session.add(LaciArsip(npm=npm_manual, nama_dokumen="Arsip Ijazah PMB", file_path=pmb.foto_ijazah, ukuran="Berkas PMB"))
                 if pmb.foto_ktp:
@@ -1170,22 +1152,22 @@ def tu_pmb_verifikasi():
 
                 msg = f"Selamat, pendaftaran Anda disetujui. NPM/ID Login Anda adalah {npm_manual}. Silakan login dan ubah password segera."
                 db.session.add(Notification(npm=npm_manual, message=msg))
-                
+
                 email_body = f"Halo {pmb.nama},\n\nSelamat! Pendaftaran Anda di STIESAM telah disetujui.\nNPM: {npm_manual}\nPassword Sementara: {password_awal}\n\nHarap login dan segera mengganti password Anda.\nTerima kasih."
                 if pmb.email and pmb.email != '-':
                     send_email_notification(pmb.email, "Pendaftaran PMB STIESAM Disetujui", email_body)
-                
+
                 db.session.commit()
                 flash(f"Verifikasi PMB berhasil. Akun Mahasiswa ({npm_manual}) dibuat.", "success")
-                
+
         elif verifikasi_type == 'dosen_mhs':
             user = User.query.get(item_id)
             if user and user.status_akademik == 'Menunggu Verifikasi':
                 user.status_akademik = 'Aktif'
-                
+
                 username_manual = request.form.get('username_manual')
                 password_awal = request.form.get('password_awal')
-                
+
                 if username_manual and username_manual.strip():
                     user.username = username_manual.strip()
                 if password_awal and password_awal.strip():
@@ -1213,18 +1195,18 @@ def tu_arsip_search():
     npm = request.args.get('npm')
     if not npm:
         return jsonify({'error': 'NPM kosong'})
-    
+
     try:
         user = User.query.filter_by(username=npm).first()
         if not user:
             return jsonify({'error': 'Mahasiswa tidak ditemukan'})
-        
+
         tagihan_raw = TagihanKuliah.query.filter_by(npm=npm).all()
         tagihan = [{'jenis_tagihan': t.jenis_tagihan, 'status': t.status} for t in tagihan_raw]
-        
+
         dok_raw = LaciArsip.query.filter_by(npm=npm).all()
         dokumen = [{'nama_dokumen': d.nama_dokumen, 'file_path': d.file_path} for d in dok_raw]
-        
+
         return jsonify({
             'user': {
                 'nama': user.nama,
@@ -1246,17 +1228,17 @@ def tu_arsip_search():
 @require_role(['Tata Usaha', 'Admin'])
 def tu_publikasi_update():
     try:
-        keys = ['profil_deskripsi', 'profil_visi', 'profil_misi', 
+        keys = ['profil_deskripsi', 'profil_visi', 'profil_misi',
                 'berita_label', 'berita_judul', 'berita_waktu', 'berita_isi',
                 'jurnal_kategori', 'jurnal_volume', 'jurnal_judul', 'jurnal_penulis']
-        
+
         for k in keys:
             val = request.form.get(k)
             if val is not None:
                 s = AppSettings.query.get(k)
                 if s: s.value = val
                 else: db.session.add(AppSettings(key=k, value=val))
-                
+
         if 'profil_gambar' in request.files:
             file = request.files['profil_gambar']
             if file and allowed_file(file.filename):
@@ -1264,7 +1246,7 @@ def tu_publikasi_update():
                 s = AppSettings.query.get('profil_gambar')
                 if s: s.value = saved_filename
                 else: db.session.add(AppSettings(key='profil_gambar', value=saved_filename))
-                
+
         if 'berita_gambar' in request.files:
             file = request.files['berita_gambar']
             if file and allowed_file(file.filename):
@@ -1272,7 +1254,7 @@ def tu_publikasi_update():
                 s = AppSettings.query.get('berita_gambar')
                 if s: s.value = saved_filename
                 else: db.session.add(AppSettings(key='berita_gambar', value=saved_filename))
-                
+
         db.session.commit()
         pass
 
@@ -1296,7 +1278,7 @@ def tu_tagihan_tambah():
         if not npm.isdigit() or not jumlah.isdigit():
             flash("Format input tidak valid. Pastikan NPM dan Nominal hanya berisi angka presisi tanpa karakter asing.", "error")
             return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
-            
+
         if int(jumlah) <= 0:
             flash("Nominal tagihan harus lebih besar dari 0.", "error")
             return redirect(url_for('ramadhan_dashboard', open='modal-verifikasi-pembayaran'))
@@ -1338,26 +1320,26 @@ def tu_tagihan_lunas():
             tagihan.status = 'Lunas'
             db.session.add(Notification(npm=tagihan.npm, message=f"Pembayaran {tagihan.jenis_tagihan} telah dikonfirmasi LUNAS."))
             db.session.commit()
-            
+
             # Send email
             import smtplib
             from email.mime.text import MIMEText
-            
+
             def send_email_notification(to_email, subject, body):
                 mail_server = os.environ.get('MAIL_SERVER')
                 mail_port = int(os.environ.get('MAIL_PORT', 587))
                 mail_username = os.environ.get('MAIL_USERNAME')
                 mail_password = os.environ.get('MAIL_PASSWORD')
                 use_tls = os.environ.get('MAIL_USE_TLS')
-                
+
                 if not all([mail_server, mail_username, mail_password, to_email]):
                     return
-                
+
                 msg = MIMEText(body)
                 msg['Subject'] = subject
                 msg['From'] = mail_username
                 msg['To'] = to_email
-                
+
                 try:
                     server = smtplib.SMTP(mail_server, mail_port)
                     if use_tls:
@@ -1367,12 +1349,12 @@ def tu_tagihan_lunas():
                     server.quit()
                 except Exception as e:
                     app.logger.error(f"Failed to send email to {to_email}: {e}")
-                    
+
             user_pmb = PendaftaranPMB.query.filter_by(npm_generated=tagihan.npm).first()
             if user_pmb and user_pmb.email and user_pmb.email != '-':
                 email_body = f"Halo {user_pmb.nama},\n\nPembayaran {tagihan.jenis_tagihan} sebesar Rp {tagihan.jumlah} telah dikonfirmasi LUNAS.\n\nTerima kasih."
                 send_email_notification(user_pmb.email, "Konfirmasi Pembayaran Lunas STIESAM", email_body)
-                
+
             flash("Tagihan berhasil dilunaskan.", "success")
         cache.clear()
 
@@ -1507,11 +1489,12 @@ def tu_akun_delete():
 # ============================================================================
 @app.route('/dosen')
 @limiter.limit("200 per hour")
+@cache.cached(timeout=300, key_prefix=lambda: f"{request.path}_{session.get('user_id', 'none')}")
 def dosen_dashboard():
     # Data Retrieval
     dosen_name = session.get('nama', 'Dosen Pengampu')
     user = User.query.get(session.get('user_id')) if session.get('user_id') else None
-    
+
     jadwal_dosen, krs_perwalian, kelas_list, mahasiswa_perwalian = _fetch_dosen_data(dosen_name)
 
     # DOSEN THEME
@@ -1529,7 +1512,7 @@ def dosen_dashboard():
         'bottom_btn_text': 'text-[#A05D4A]',
         'bottom_text_inactive': 'text-gray-400'
     }
-    
+
     dosen_html = '''
     <div class="pt-24 pb-32 px-5 md:px-8 bg-[#FDFBF7] min-h-screen">
         <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-10">
@@ -1595,7 +1578,7 @@ def dosen_dashboard():
                  <span class="font-bold text-sm text-gray-600 group-hover:text-[#A05D4A] text-center">Profil Dosen</span>
             </button>
         </div>
-        
+
         <!-- MODAL 1: PERSETUJUAN RENCANA STUDI -->
         <div id="modal-persetujuan-krs" class="hidden fixed inset-0 z-40 bg-[#FDFBF7] overflow-y-auto">
             <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
@@ -1631,7 +1614,7 @@ def dosen_dashboard():
                 // Assume standard CSRF setup if available in DOM
                 const csrfToken = document.querySelector('input[name="csrf_token"]') ? document.querySelector('input[name="csrf_token"]').value : '';
                 fd.append('csrf_token', csrfToken);
-                
+
                 try {
                     const res = await fetch('/dosen/krs/action', {
                         method: 'POST',
@@ -1657,7 +1640,7 @@ def dosen_dashboard():
                     <h3 class="text-xl font-bold text-[#A05D4A]">Masukan Nilai Akhir</h3>
                     <button onclick="closeModal('modal-masukan-nilai')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
                 </div>
-                
+
                 <div class="space-y-6">
                     {% for kelas in kelas_list %}
                     <div class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/50">
@@ -1670,12 +1653,12 @@ def dosen_dashboard():
                             <span class="bg-blue-100 text-blue-600 text-[10px] font-bold px-2 py-1 rounded-full"><i class="fas fa-lock"></i> Telah Dipublikasi</span>
                             {% endif %}
                         </div>
-                        
+
                         <form action="/dosen/nilai/submit" method="POST">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="jadwal_id" value="{{ kelas['jadwal']['id'] }}">
                             <input type="hidden" name="mata_kuliah" value="{{ kelas['jadwal']['mata_kuliah'] }}">
-                            
+
                             <table class="w-full text-left border-collapse mb-4">
                                 <thead class="bg-gray-50">
                                     <tr>
@@ -1721,7 +1704,7 @@ def dosen_dashboard():
                                     {% endfor %}
                                 </tbody>
                             </table>
-                            
+
                             {% if not kelas['is_published'] and kelas['students'] %}
                             <button type="submit" onclick="return confirm('Anda yakin ingin mempublikasikan nilai? Setelah publikasi, nilai akan dikunci permanen.');" class="w-full bg-[#A05D4A] text-white font-bold py-3 rounded-xl hover:bg-[#5D3425] transition shadow-md"><i class="fas fa-cloud-upload-alt mr-2"></i>Simpan & Publikasi</button>
                             {% endif %}
@@ -1760,7 +1743,7 @@ def dosen_dashboard():
                                 <span class="text-2xl font-mono font-bold text-[#5D3425]">{{ "%.2f"|format(m['ipk']) }}</span>
                             </div>
                         </div>
-                        
+
                         <details class="bg-gray-50 rounded-xl border border-gray-200 p-3 mb-2">
                             <summary class="text-xs font-bold text-[#A05D4A] cursor-pointer outline-none">Riwayat Transkrip Nilai</summary>
                             <div class="mt-3 space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-2">
@@ -1775,7 +1758,7 @@ def dosen_dashboard():
                                 {% endfor %}
                             </div>
                         </details>
-                        
+
                         <details class="bg-gray-50 rounded-xl border border-gray-200 p-3">
                             <summary class="text-xs font-bold text-[#A05D4A] cursor-pointer outline-none">Arsip Digital Mahasiswa</summary>
                             <div class="mt-3 space-y-2">
@@ -1837,7 +1820,7 @@ def dosen_dashboard():
                     <h3 class="text-xl font-bold text-[#A05D4A]">Presensi & Jurnal</h3>
                     <button onclick="closeModal('modal-presensi-jurnal')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
                 </div>
-                
+
                 <div class="space-y-6">
                     {% for kelas in kelas_list %}
                     <div class="bg-white p-6 rounded-3xl shadow-sm border border-[#E8C5A8]/50">
@@ -1845,17 +1828,17 @@ def dosen_dashboard():
                             <h4 class="font-bold text-[#A05D4A] text-lg">{{ kelas['jadwal']['mata_kuliah'] }}</h4>
                             <p class="text-xs text-gray-500">{{ kelas['jadwal']['hari'] }}, {{ kelas['jadwal']['jam'] }} • Ruang: {{ kelas['jadwal']['ruangan'] }}</p>
                         </div>
-                        
+
                         <form action="/dosen/presensi/submit" method="POST">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="jadwal_id" value="{{ kelas['jadwal']['id'] }}">
                             <input type="hidden" name="mata_kuliah" value="{{ kelas['jadwal']['mata_kuliah'] }}">
-                            
+
                             <div class="mb-4">
                                 <label class="block text-xs font-bold text-[#5D3425] mb-2">Jurnal Materi Perkuliahan Hari Ini</label>
                                 <textarea name="materi" required placeholder="Tuliskan materi yang diajarkan hari ini..." class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm h-20 focus:outline-none focus:ring-2 focus:ring-[#E8C5A8]"></textarea>
                             </div>
-                            
+
                             <label class="block text-xs font-bold text-[#5D3425] mb-2">Presensi Kehadiran Mahasiswa</label>
                             <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 max-h-48 overflow-y-auto custom-scrollbar">
                                 {% for s in kelas['students'] %}
@@ -1870,7 +1853,7 @@ def dosen_dashboard():
                                 <p class="text-xs text-gray-500 italic text-center py-2">Tidak ada mahasiswa.</p>
                                 {% endfor %}
                             </div>
-                            
+
                             {% if kelas['students'] %}
                             <button type="submit" class="w-full bg-[#A05D4A] text-white font-bold py-3 rounded-xl hover:bg-[#5D3425] transition shadow-md"><i class="fas fa-save mr-2"></i>Simpan Kehadiran & Jurnal</button>
                             {% endif %}
@@ -1890,7 +1873,7 @@ def dosen_dashboard():
                     <h3 class="text-xl font-bold text-[#A05D4A]">Profil & Portofolio</h3>
                     <button onclick="closeModal('modal-profil-dosen')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
                 </div>
-                
+
                 <div class="bg-white p-8 rounded-3xl shadow-lg border border-[#E8C5A8]/30 mb-6 text-center relative overflow-hidden">
                     <div class="absolute top-0 right-0 w-32 h-32 bg-[#E8C5A8]/20 rounded-bl-full -z-10"></div>
                     <div class="relative w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center text-5xl text-gray-400 shadow-inner border-4 border-white overflow-hidden mx-auto mb-4 group">
@@ -1910,7 +1893,7 @@ def dosen_dashboard():
                     <h4 class="text-2xl font-bold text-[#5D3425] leading-tight mb-1">{{ dosen_name }}</h4>
                     <p class="text-sm font-bold text-[#A05D4A] font-mono tracking-widest mb-3">NIDN: {{ session.get('username', 'N/A') }}</p>
                     <span class="inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-green-100 text-green-700 shadow-sm">DOSEN AKTIF</span>
-                    
+
                     <div class="mt-8 pt-6 border-t border-gray-100 flex justify-center gap-8">
                         <div>
                             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Mata Kuliah</p>
@@ -1941,7 +1924,7 @@ def mahasiswa_update_foto():
         foto = request.files.get('foto_profil')
         user_id = session.get('user_id')
         user = User.query.get(user_id)
-        
+
         if foto and allowed_file(foto.filename) and user:
             saved_filename = compress_image(foto, app.config['UPLOAD_FOLDER'])
             user.foto_profil = saved_filename
@@ -1950,12 +1933,12 @@ def mahasiswa_update_foto():
             flash("Foto profil berhasil diperbarui.", "success")
         else:
             flash("File tidak valid.", "error")
-            
+
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error update foto: {e}", exc_info=True)
         flash(GENERIC_ERROR_MSG, "error")
-        
+
     return redirect(url_for('irma_dashboard', open='modal-profil-arsip'))
 
 @app.route('/dosen/update_foto', methods=['POST'])
@@ -1967,7 +1950,7 @@ def dosen_update_foto():
         foto = request.files.get('foto_profil')
         user_id = session.get('user_id')
         user = User.query.get(user_id)
-        
+
         if foto and allowed_file(foto.filename) and user:
             saved_filename = compress_image(foto, app.config['UPLOAD_FOLDER'])
             user.foto_profil = saved_filename
@@ -1976,12 +1959,12 @@ def dosen_update_foto():
             flash("Foto profil berhasil diperbarui.", "success")
         else:
             flash("File tidak valid.", "error")
-            
+
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error update foto: {e}", exc_info=True)
         flash(GENERIC_ERROR_MSG, "error")
-        
+
     return redirect(url_for('dosen_dashboard', open='modal-profil-dosen'))
 
 @app.route('/dosen/krs/action', methods=['POST'])
@@ -2015,7 +1998,7 @@ def dosen_nilai_submit():
         jadwal_id = request.form.get('jadwal_id')
         mata_kuliah = request.form.get('mata_kuliah')
         jadwal = db.session.get(JadwalKuliah, jadwal_id)
-        
+
         if jadwal:
             if jadwal.dosen != current_user.nama:
                 flash("Anda tidak berhak mengisi nilai untuk mata kuliah ini.", "error")
@@ -2028,28 +2011,28 @@ def dosen_nilai_submit():
 
             # Calculate total sessions for attendance pct check
             total_sessions = JurnalMengajar.query.filter_by(jadwal_id=jadwal_id).count()
-                
+
             # Parse student grades
             for key, val in request.form.items():
                 if key.startswith('nilai_') and val:
                     npm = key.replace('nilai_', '')
-                    
+
                     hadir = KehadiranKelas.query.filter_by(jadwal_id=jadwal_id, npm=npm, status='Hadir').count()
                     attendance_pct = (hadir / total_sessions * 100) if total_sessions > 0 else 100
-                    
+
                     # Validasi npm terdaftar di KRS
                     krs_check = KRSMahasiswa.query.filter_by(npm=npm, mata_kuliah=mata_kuliah, status='Disetujui Dosen').first()
                     if not krs_check:
                         continue
-                        
+
                     if attendance_pct < 75:
                         val = 'E' # Force E if attendance is below 75%
-                    
+
                     # Prevent duplicate logic or overwrite existing if needed. We assume one grade per semester per class.
                     # As a simplistic approach: we just add a new record. In a real scenario, we might want to update.
                     semester_aktif = get_settings().get('semester_aktif', 'Gasal 2024/2025')
                     existing_nilai = NilaiMahasiswa.query.filter_by(npm=npm, mata_kuliah=mata_kuliah, semester=semester_aktif).first()
-                    
+
                     if not existing_nilai:
                         new_nilai = NilaiMahasiswa(
                             npm=npm,
@@ -2061,17 +2044,17 @@ def dosen_nilai_submit():
                         db.session.add(new_nilai)
                     else:
                         existing_nilai.nilai_huruf = val
-                    
+
                     # Notify student
                     db.session.add(Notification(npm=npm, message=f"Nilai akhir untuk mata kuliah {mata_kuliah} telah dirilis."))
-            
+
             # Freeze grades
             if not status_nilai:
                 status_nilai = StatusNilai(jadwal_id=jadwal_id, is_published=True)
                 db.session.add(status_nilai)
             else:
                 status_nilai.is_published = True
-                
+
             db.session.commit()
         pass
         flash("Nilai berhasil disimpan dan dipublikasikan.", "success")
@@ -2101,7 +2084,7 @@ def dosen_presensi_submit():
         if status_nilai and status_nilai.is_published:
             flash("Gagal. Presensi dikunci karena nilai telah dipublikasikan.", "error")
             return redirect(url_for('dosen_dashboard', open='modal-presensi-jurnal'))
-        
+
         try:
             # Insert Jurnal
             new_jurnal = JurnalMengajar(
@@ -2110,7 +2093,7 @@ def dosen_presensi_submit():
                 materi=materi
             )
             db.session.add(new_jurnal)
-            
+
             # Insert Kehadiran
             for key, val in request.form.items():
                 if key.startswith('kehadiran_'):
@@ -2126,7 +2109,7 @@ def dosen_presensi_submit():
                         db.session.add(Notification(npm=npm, message=f"Presensi {tanggal} dicatat: Hadir."))
                     else:
                         db.session.add(Notification(npm=npm, message=f"Presensi {tanggal} dicatat: {val}."))
-                    
+
             db.session.commit()
             flash("Presensi dan jurnal berhasil disimpan.", "success")
         except IntegrityError:
@@ -2214,7 +2197,7 @@ def mahasiswa_krs_add():
         if not tagihan_list:
              flash("KRS ditolak. Anda belum memiliki tagihan atau belum melunasi tagihan.", "error")
              return redirect(url_for('irma_dashboard', open='modal-pusat-tagihan'))
-        
+
         has_unpaid = any(t.status != 'Lunas' for t in tagihan_list)
         if has_unpaid:
             flash("KRS ditolak. Anda belum melunasi tagihan. Silakan lakukan pembayaran terlebih dahulu.", "error")
@@ -2222,15 +2205,15 @@ def mahasiswa_krs_add():
 
         current_krs = KRSMahasiswa.query.filter_by(npm=npm).all()
         current_sks = sum(k.sks for k in current_krs if k.status != 'Ditolak Dosen')
-        
+
         jadwal_ids = request.form.getlist('jadwal_ids')
         semester_aktif = get_settings().get('semester_aktif', 'Gasal 2024/2025')
-        
+
         for j_id in jadwal_ids:
             if current_sks + 3 > 24:
                 flash(f"Batas SKS per semester (24) terlampaui.", "error")
                 continue
-            
+
             jadwal = JadwalKuliah.query.filter_by(id=j_id, semester_aktif=semester_aktif).first()
             if jadwal:
                 existing = KRSMahasiswa.query.filter_by(npm=npm, mata_kuliah=jadwal.mata_kuliah).first()
@@ -2276,7 +2259,7 @@ def mahasiswa_surat_request():
         if jenis_surat not in valid_surat:
             flash("Jenis surat tidak valid.", "error")
             return redirect(url_for('irma_dashboard', open='modal-permohonan-surat'))
-            
+
         item = SuratOtomatis(
             npm=npm,
             jenis_surat=jenis_surat,
@@ -2332,26 +2315,26 @@ def prayer_times_api():
 @app.route('/donate', methods=['GET', 'POST'])
 def donate():
     is_admin = session.get('is_admin', False)
-    
+
     if request.method == 'POST' and is_admin:
         key = request.form.get('key')
         val = request.form.get('value')
-        
+
         if 'qris_image' in request.files:
             file = request.files['qris_image']
             if file and allowed_file(file.filename):
                 saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
-                
+
                 # Update setting
                 s = AppSettings.query.get('infaq_qris_image')
                 if s: s.value = saved_filename
                 else: db.session.add(AppSettings(key='infaq_qris_image', value=saved_filename))
-        
+
         if key and val:
              s = AppSettings.query.get(key)
              if s: s.value = val
              else: db.session.add(AppSettings(key=key, value=val))
-             
+
         db.session.commit()
         pass
 
@@ -2362,9 +2345,9 @@ def donate():
     acc_no = settings.get('infaq_rekening', '7123456789 (BSI - Masjid Al Hijrah)')
     qris_img = settings.get('infaq_qris_image', '')
     qris_url = f"/uploads/{qris_img}" if qris_img else "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=MasjidAlHijrahInfaq"
-    
+
     source = request.args.get('source')
-    
+
     # Theme Logic
     theme = {}
     if source == 'ramadhan':
@@ -2418,7 +2401,7 @@ def donate():
              <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-current to-transparent opacity-50 {text_highlight}"></div>
              <h2 class="text-2xl font-bold mb-2 {text_highlight}">Infaq Digital</h2>
              <p class="text-sm opacity-70 mb-6">Scan QRIS menggunakan E-Wallet apa saja</p>
-             
+
              <div class="bg-white p-4 rounded-2xl shadow-inner border border-gray-100 inline-block mb-6 relative group">
                 <img src="{qris_url}" alt="QRIS" class="w-48 h-48 mx-auto object-contain">
                 <a href="{qris_url}" download="QRIS_Masjid.png" class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl text-white font-bold backdrop-blur-sm">
@@ -2430,7 +2413,7 @@ def donate():
                 <a href="{qris_url}" download="QRIS_Masjid.png" class="flex-1 bg-gray-100 text-gray-700 px-3 py-3 rounded-xl text-xs font-bold hover:bg-gray-200 text-center transition"><i class="fas fa-download mr-1"></i> Download QRIS</a>
                 <button onclick="triggerInfaqWA()" class="flex-1 bg-[#25D366] text-white px-3 py-3 rounded-xl text-xs font-bold hover:bg-green-600 transition shadow-lg shadow-green-200"><i class="fab fa-whatsapp mr-1"></i> Konfirmasi WA</button>
              </div>
-             
+
              <div class="mb-4 max-w-xs mx-auto">
                  <label class="block text-[10px] font-bold text-gray-400 mb-1 text-left">Keperluan (untuk Konfirmasi WA)</label>
                  <select id="infaq-type-select" class="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
@@ -2440,7 +2423,7 @@ def donate():
                      <option value="Infaq">Infaq</option>
                  </select>
              </div>
-             
+
              <div class="mb-6">
                 <p class="text-xs font-bold uppercase tracking-widest opacity-50 mb-1">Nomor Rekening</p>
                 <div class="bg-gray-50/50 p-3 rounded-xl border border-dashed border-gray-300 flex items-center justify-between gap-2">
@@ -2449,7 +2432,7 @@ def donate():
                 </div>
              </div>
              <script>window.addEventListener('load', function() {{ if(typeof formatBankDisplay === 'function') formatBankDisplay('donate-rek-text'); }});</script>
-             
+
              {{% if is_admin %}}
              <div class="border-t border-gray-200/50 pt-6 mt-6 text-left">
                 <h4 class="text-xs font-bold text-red-500 uppercase mb-3"><i class="fas fa-cog"></i> Admin Settings</h4>
@@ -2476,7 +2459,7 @@ def donate():
                 </form>
              </div>
              {{% endif %}}
-             
+
              <div class="flex justify-center gap-3 opacity-60 grayscale hover:grayscale-0 transition-all mt-4">
                 <i class="fas fa-wallet text-2xl"></i>
                 <i class="fas fa-university text-2xl"></i>
@@ -2488,7 +2471,7 @@ def donate():
         </div>
     </div>
     """
-    
+
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML + (RAMADHAN_STYLES if source=='ramadhan' else (IRMA_STYLES if source=='irma' else '')), active_page='donate', theme=theme, content=render_template_string(content, is_admin=is_admin, settings=get_settings()), is_admin=is_admin)
 
 @app.route('/emergency')
@@ -2523,9 +2506,9 @@ def ramadhan_dashboard():
     tracer_list = []
     verified_alumni_list = []
     pending_users = []
-    
+
     surat_list, pmb_list, tagihan_list, jadwal_list, akun_list, arsip_list, tracer_list, verified_alumni_list, pending_users = _fetch_tu_data()
-        
+
     # Render CONTENT first
     return render_page(RAMADHAN_DASHBOARD_HTML, 'ramadhan', content_kwargs={
         'surat_list': surat_list, 'pmb_list': pmb_list, 'tagihan_list': tagihan_list,
@@ -2538,8 +2521,9 @@ def ramadhan_dashboard():
 # ============================================================================
 @app.route('/mahasiswa')
 @limiter.limit("200 per hour")
+@cache.cached(timeout=300, key_prefix=lambda: f"{request.path}_{session.get('user_id', 'none')}")
 def irma_dashboard():
-    
+
     # NEW MAHASISWA LOGIC
     user = None
     tagihan_list = []
@@ -2549,16 +2533,16 @@ def irma_dashboard():
     surat_list = []
     arsip_list = []
     has_unpaid = False
-    
+
     npm = session.get('npm') or session.get('username')
     if not npm:
         return redirect(url_for('index', open='modal-login')) # Fallback for mock view
-    
+
     is_admin = session.get('is_admin', False)
     settings_data = get_settings()
     user, tagihan_list, krs_list, nilai_list, jadwal_list, surat_list, arsip_list, has_unpaid, pmb_docs = _fetch_mahasiswa_data(npm, is_admin)
 
-    
+
     # IRMA THEME
     irma_theme = {
         'nav_bg': 'bg-[#F0F9FF]/90 backdrop-blur-md border-b border-[#0284C7]/20',
@@ -2633,7 +2617,7 @@ STYLES_HTML = """
         .card-hover:active { transform: scale(0.98); }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
 
-        
+
         /* Skeleton Loading */
         .skeleton {
             animation: skeleton-loading 1s linear infinite alternate;
@@ -2643,7 +2627,7 @@ STYLES_HTML = """
             0% { background-color: hsl(200, 20%, 80%); }
             100% { background-color: hsl(200, 20%, 95%); }
         }
-        
+
         /* Floating notification */
         @keyframes float-up {
             0% { transform: translateY(100%); opacity: 0; }
@@ -2666,7 +2650,7 @@ STYLES_HTML = """
         .border-gold { border-color: var(--gold); }
         .bg-gold { background-color: var(--gold); }
         .text-midnight { color: var(--midnight-blue); }
-        
+
         /* Floating Card */
         .floating-card {
             margin: 0 0.5rem;
@@ -2692,13 +2676,13 @@ STYLES_HTML = """
             border: 4px solid #0b1026; /* Dark Theme Border */
             z-index: 60;
         }
-        
+
         .dark-bottom-nav {
             background-color: #0b1026;
             border-top: 1px solid rgba(255, 215, 0, 0.2);
             border-radius: 20px 20px 0 0;
         }
-        
+
         /* Amalan Popup Animation */
         @keyframes popupFadeIn {
             from { opacity: 0; transform: scale(0.9); }
@@ -2724,7 +2708,7 @@ BASE_LAYOUT = """
     <link rel="icon" type="image/png" href="/static/logo-stiesam.png">
     <link rel="apple-touch-icon" href="/static/logo-stiesam.png">
     <script>
-        
+
     function showToast(msg, type='success') {
         const toast = document.createElement('div');
         toast.className = `fixed bottom-20 left-1/2 transform -translate-x-1/2 z-[1000] px-6 py-3 rounded-full text-white font-bold shadow-2xl toast-float backdrop-blur-md ${type==='error'?'bg-red-500/90':'bg-sky-500/90'}`;
@@ -2732,7 +2716,7 @@ BASE_LAYOUT = """
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 3000);
     }
-    
+
     // Polling Notification Script
     function pollNotifications() {
         fetch('/api/notifications/poll')
@@ -2753,7 +2737,7 @@ BASE_LAYOUT = """
             else if (h >= 11 && h <= 14) time = "Siang";
             else if (h >= 15 && h <= 18) time = "Sore";
             else time = "Malam"; // 19-23
-            
+
             const msg = `Assalamualaikum, Selamat ${time}, maaf mengganggu waktunya Pak ya... Saya butuh bantuan darurat.`;
             window.location.href = "https://wa.me/6282330890500?text=" + encodeURIComponent(msg);
         }
@@ -2831,7 +2815,7 @@ BASE_LAYOUT = """
     </header>
     {% endif %}
 
-    
+
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div id="flash-messages" class="fixed top-20 left-1/2 transform -translate-x-1/2 z-[999] w-full max-w-md px-4 pointer-events-none">
@@ -2883,18 +2867,18 @@ BASE_LAYOUT = """
     {% endif %}
 
     <!-- NEW MODALS FROM BOTTOM NAV -->
-    
+
     <!-- MODAL LOGIN -->
     <div id="modal-login" class="fixed inset-0 z-[250] hidden bg-black/60 backdrop-blur-sm flex justify-center items-center p-4">
         <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-[slideUp_0.3s_ease-out] relative">
             <button onclick="closeModal('modal-login')" class="absolute top-4 right-4 bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center z-10">&times;</button>
-            
+
             <div class="bg-gradient-to-br from-sky-600 to-sky-800 p-6 text-center text-white relative">
                 <div class="absolute inset-0 bg-white/5 mix-blend-overlay"></div>
                 <img src="/static/logo-stiesam.png" alt="Logo" class="h-12 w-12 mx-auto mb-2 object-contain bg-white rounded-full p-1 relative z-10">
-                <h3 class="font-bold tracking-widest text-lg relative z-10">Masuk ke Portal STIESAM</h3>
+                <h3 class="font-bold tracking-widest text-lg relative z-10">Please log in to access this page.</h3>
             </div>
-            
+
             <div class="p-6">
                 <!-- Portal Tabs -->
                 <div class="flex p-1 bg-gray-100 rounded-xl mb-6">
@@ -3020,7 +3004,7 @@ BASE_LAYOUT = """
                 </div>
 
             </div>
-            
+
             <script>
                 function switchPortalTab(tabId) {
                     document.querySelectorAll('.portal-tab-content').forEach(el => {
@@ -3029,10 +3013,10 @@ BASE_LAYOUT = """
                     });
                     document.getElementById(tabId).classList.remove('hidden');
                     document.getElementById(tabId).classList.add('block');
-                    
+
                     const activeClass = "flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-sky-600 transition".split(" ");
                     const inactiveClass = "flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition".split(" ");
-                    
+
                     ['tab-btn-tu', 'tab-btn-mhs', 'tab-btn-dsn'].forEach(id => {
                         const btn = document.getElementById(id);
                         btn.className = "";
@@ -3080,7 +3064,7 @@ BASE_LAYOUT = """
                 </div>
                 <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Pindai Untuk Kehadiran / Perpustakaan</p>
             </div>
-            
+
             <!-- Tambahan Form Ganti Password -->
             <h4 class="text-[#075985] font-bold mb-3 mt-8 border-l-4 border-[#7DD3FC] pl-2">Keamanan Akun</h4>
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-[#0284C7]/20">
@@ -3117,16 +3101,16 @@ BASE_LAYOUT = """
                 <h3 class="text-xl font-bold text-gray-800">Pembayaran SPP / UKT</h3>
                 <p class="text-xs text-gray-500">Semester Ganjil 2024/2025</p>
             </div>
-            
+
             <div class="bg-sky-50 border border-sky-100 rounded-2xl p-5 mb-6 text-center">
                 <p class="text-[10px] font-bold text-sky-600 uppercase tracking-widest mb-1">Total Tagihan Aktif</p>
                 <h2 class="text-3xl font-bold text-sky-800 mb-2">Rp 3.500.000</h2>
                 <span class="inline-block bg-red-100 text-red-600 px-3 py-1 rounded-full text-[10px] font-bold">Menunggu Pembayaran</span>
             </div>
-            
+
             <div class="space-y-4">
                 <h4 class="text-sm font-bold text-gray-800 pl-2 border-l-4 border-sky-400">Metode Pembayaran (Virtual Account)</h4>
-                
+
                 <div class="border border-gray-200 rounded-xl p-4 flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <img src="https://upload.wikimedia.org/wikipedia/commons/8/88/Bank_Syariah_Indonesia_logo.svg" alt="BSI" class="h-6 object-contain">
@@ -3137,7 +3121,7 @@ BASE_LAYOUT = """
                     </div>
                     <button aria-label="Salin" onclick="copyText('va-bsi')" class="text-sky-500 hover:text-sky-700 bg-sky-50 p-2 rounded-lg"><i class="fas fa-copy"></i></button>
                 </div>
-                
+
                 <div class="border border-gray-200 rounded-xl p-4 flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <img src="https://upload.wikimedia.org/wikipedia/commons/a/a0/Bank_Kaltimtara_logo.png" alt="Kaltimtara" class="h-6 object-contain">
@@ -3149,7 +3133,7 @@ BASE_LAYOUT = """
                     <button aria-label="Salin" onclick="copyText('va-kaltim')" class="text-sky-500 hover:text-sky-700 bg-sky-50 p-2 rounded-lg"><i class="fas fa-copy"></i></button>
                 </div>
             </div>
-            
+
             <button class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-sky-200 mt-6 hover:bg-sky-600 transition">Konfirmasi Pembayaran</button>
         </div>
     </div>
@@ -3161,7 +3145,7 @@ BASE_LAYOUT = """
                 <h3 class="text-xl font-bold text-gray-800"><i class="fas fa-bell text-sky-500 mr-2"></i>Notifikasi Akademik</h3>
                 <button onclick="closeModal('modal-notifications')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center">&times;</button>
             </div>
-            
+
             <div class="space-y-3">
                 <!-- Notif 1 -->
                 <div class="bg-red-50 p-4 rounded-xl border border-red-100 flex gap-3">
@@ -3205,9 +3189,9 @@ BASE_LAYOUT = """
                     document.getElementById('today-schedule-date').innerText = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                 </script>
             </div>
-            
+
             <div class="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent">
-                
+
                 <!-- Class 1 -->
                 <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
                     <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-sky-500 text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
@@ -3239,7 +3223,7 @@ BASE_LAYOUT = """
                 </div>
 
             </div>
-            
+
             <button onclick="closeModal('modal-today-schedule'); openModal('modal-jadwal-kuliah')" class="w-full mt-6 text-xs text-sky-600 font-bold hover:underline text-center">Lihat Jadwal Lengkap Keseluruhan</button>
         </div>
     </div>
@@ -3251,7 +3235,7 @@ BASE_LAYOUT = """
                 <h3 id="infaq-title" class="text-xl font-bold text-gray-800">Infaq Digital</h3>
                 <button onclick="closeModal('modal-infaq')" class="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center text-current hover:bg-black/10 transition">&times;</button>
             </div>
-            
+
             <!-- Tabs -->
             <div id="infaq-tabs" class="flex p-1 bg-gray-100 rounded-xl mb-6">
                 <button onclick="switchInfaqTab('masjid')" id="tab-btn-masjid" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-sky-600 transition">Masjid</button>
@@ -3332,7 +3316,7 @@ BASE_LAYOUT = """
                     <form action="/donate/update" method="POST" enctype="multipart/form-data" class="mt-2 space-y-2" onsubmit="combineBanks(event)">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                        
+
                         <div class="flex gap-1">
                             <select id="bank_masjid" class="w-1/3 text-[10px] p-2 border rounded bg-white infaq-input-text">
                                 <option value="">Bank...</option>
@@ -3380,7 +3364,7 @@ BASE_LAYOUT = """
             function switchInfaqTab(tab) {
                 document.querySelectorAll('.infaq-tab-content').forEach(el => el.classList.add('hidden'));
                 document.getElementById('infaq-content-'+tab).classList.remove('hidden');
-                
+
                 // Reset buttons
                 ['masjid', 'qurban', 'zakat'].forEach(t => {
                     const btn = document.getElementById('tab-btn-'+t);
@@ -3403,7 +3387,7 @@ BASE_LAYOUT = """
             function formatBankDisplay(id) {
                 const el = document.getElementById(id);
                 if(!el || el.dataset.formatted) return;
-                
+
                 const text = el.innerText;
                 const match = text.match(/(\\d{6,})/);
                 if (match) {
@@ -3413,7 +3397,7 @@ BASE_LAYOUT = """
                     if(parts[0]) html += `<span style="user-select: none; opacity: 0.8;">${parts[0]}</span>`;
                     html += `<span>${num}</span>`;
                     if(parts[1]) html += `<span style="user-select: none; opacity: 0.8;">${parts[1]}</span>`;
-                    
+
                     el.innerHTML = html;
                     el.dataset.formatted = 'true';
                 }
@@ -3440,7 +3424,7 @@ BASE_LAYOUT = """
                 const dd = String(today.getDate()).padStart(2, '0');
                 const mm = String(today.getMonth() + 1).padStart(2, '0');
                 const yyyy = today.getFullYear();
-                
+
                 // API Aladhan
                 const response = await fetch(`https://api.aladhan.com/v1/gToH?date=${dd}-${mm}-${yyyy}`);
                 const result = await response.json();
@@ -3459,7 +3443,7 @@ BASE_LAYOUT = """
                 const response = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
                 const result = await response.json();
                 const timings = result.data.timings;
-                
+
                 // Update grid if exists
                 if(document.getElementById('fajr-time')) {
                     document.getElementById('fajr-time').innerText = timings.Fajr;
@@ -3468,7 +3452,7 @@ BASE_LAYOUT = """
                     document.getElementById('maghrib-time').innerText = timings.Maghrib;
                     document.getElementById('isha-time').innerText = timings.Isha;
                 }
-                
+
                 // Countdown Logic
                 const now = new Date();
                 const prayers = [
@@ -3478,7 +3462,7 @@ BASE_LAYOUT = """
                     { name: 'Maghrib', time: timings.Maghrib },
                     { name: 'Isya', time: timings.Isha }
                 ];
-                
+
                 let nextPrayerName = null;
                 let targetTime = null;
 
@@ -3486,7 +3470,7 @@ BASE_LAYOUT = """
                     const [h, m] = p.time.split(':');
                     const pDate = new Date();
                     pDate.setHours(parseInt(h), parseInt(m), 0, 0);
-                    
+
                     if (pDate > now) {
                         nextPrayerName = p.name;
                         targetTime = pDate;
@@ -3502,16 +3486,16 @@ BASE_LAYOUT = """
                     targetTime.setDate(targetTime.getDate() + 1);
                     targetTime.setHours(parseInt(h), parseInt(m), 0, 0);
                 }
-                
+
                 if(document.getElementById('next-prayer-name')) {
                     document.getElementById('next-prayer-name').innerText = nextPrayerName;
-                    
+
                     const diff = targetTime - now;
                     const hours = Math.floor(diff / 3600000);
                     const minutes = Math.floor((diff % 3600000) / 60000);
                     const seconds = Math.floor((diff % 60000) / 1000);
-                    
-                    document.getElementById('countdown-timer').innerText = 
+
+                    document.getElementById('countdown-timer').innerText =
                         `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
                 }
 
@@ -3519,7 +3503,7 @@ BASE_LAYOUT = """
         }
 
         // GLOBAL MODAL UTILS
-        
+
         // Tampilkan kerangka loading saat transisi halaman (tanpa merombak struktur)
         window.addEventListener('beforeunload', function () {
             document.body.classList.add('skeleton-overlay');
@@ -3536,7 +3520,7 @@ BASE_LAYOUT = """
             if(el) {
                 el.classList.remove('hidden');
                 history.pushState({modal: id}, null, "");
-                
+
                 if (id === 'modal-cek-status-pmb') {
                     const cekNamaInput = document.getElementById('cek-nama');
                     if (cekNamaInput) {
@@ -3550,7 +3534,7 @@ BASE_LAYOUT = """
                         ['rek-masjid-text', 'rek-qurban-text', 'rek-zakat-text'].forEach(formatBankDisplay);
                     }, 50);
                 }
-                
+
                 // Call local init functions dynamically if they exist
                 if(id === 'modal-fitur-alarm-adzan' && typeof initAlarmAdzan === 'function') {
                     initAlarmAdzan();
@@ -3574,7 +3558,7 @@ BASE_LAYOUT = """
             const title = document.getElementById('infaq-title');
             const tabs = document.getElementById('infaq-tabs');
             const path = window.location.pathname;
-            
+
             // Elements to style
             const boxes = [document.getElementById('infaq-box-masjid'), document.getElementById('infaq-box-qurban'), document.getElementById('infaq-box-zakat')];
             const labels = document.querySelectorAll('.infaq-label');
@@ -3592,7 +3576,7 @@ BASE_LAYOUT = """
                 container.classList.add('bg-[#0b1026]', 'text-white');
                 title.classList.add('text-[#FFD700]');
                 tabs.classList.add('bg-white/10');
-                
+
                 boxes.forEach(box => {
                     box.className = "p-4 rounded-2xl border flex justify-between items-center transition-colors duration-500 bg-white/5 border-[#FFD700]/30";
                 });
@@ -3606,7 +3590,7 @@ BASE_LAYOUT = """
                 container.classList.add('bg-[#F0F9FF]', 'text-[#075985]');
                 title.classList.add('text-[#0284C7]');
                 tabs.classList.add('bg-[#BAE6FD]/20');
-                
+
                 boxes.forEach(box => {
                     box.className = "p-4 rounded-2xl border flex justify-between items-center transition-colors duration-500 bg-white border-[#BAE6FD]/30";
                 });
@@ -3620,12 +3604,12 @@ BASE_LAYOUT = """
                 container.classList.add('bg-white', 'text-gray-800');
                 title.classList.add('text-sky-600');
                 tabs.classList.add('bg-gray-100');
-                
+
                 // Reset boxes to distinct colors for Home
                 document.getElementById('infaq-box-masjid').className = "bg-sky-50 p-4 rounded-2xl border border-sky-100 flex justify-between items-center";
                 document.getElementById('infaq-box-qurban').className = "bg-orange-50 p-4 rounded-2xl border border-orange-100 flex justify-between items-center";
                 document.getElementById('infaq-box-zakat').className = "bg-blue-50 p-4 rounded-2xl border border-blue-100 flex justify-between items-center";
-                
+
                 // Helper to reset inner
                 const resetInner = (boxId, color) => {
                     const box = document.getElementById(boxId);
@@ -3635,7 +3619,7 @@ BASE_LAYOUT = """
                         box.querySelector('.infaq-icon').className = `hover:text-${color}-700 infaq-icon text-${color}-500`;
                     }
                 };
-                
+
                 resetInner('infaq-box-masjid', 'sky');
                 resetInner('infaq-box-qurban', 'orange');
                 resetInner('infaq-box-zakat', 'blue');
@@ -3660,9 +3644,9 @@ BASE_LAYOUT = """
             if (h >= 0 && h < 11) time = "Pagi";
             else if (h >= 11 && h < 15) time = "Siang";
             else if (h >= 15 && h < 18) time = "Sore";
-            
+
             const msg = `Assalamaulaikum Pak, selamat ${time}, ijin konfirmasi Pak, saya sudah mengtransfer sebesar / jumlah Rp... di nomor rekening ${type.toLowerCase()} untuk keperluan ${type} ke masjid langsung, terima kasih Pak 🙏`;
-            
+
             window.location.href = "https://wa.me/6282330890500?text=" + encodeURIComponent(msg);
         }
 
@@ -3680,7 +3664,7 @@ BASE_LAYOUT = """
             }
         }
 
-        
+
         // Tampilkan kerangka loading saat transisi halaman (tanpa merombak struktur)
         window.addEventListener('beforeunload', function () {
             document.body.classList.add('skeleton-overlay');
@@ -3707,7 +3691,7 @@ BASE_LAYOUT = """
                 // Fallback for when event didn't fire (iOS, or already installed, or browser blocked it)
                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
                 const isAndroid = /Android/.test(navigator.userAgent);
-                
+
                 if (isIOS) {
                     alert("Untuk menginstall di iOS:\\n1. Klik tombol Share (ikon panah ke atas/kotak)\\n2. Pilih 'Add to Home Screen' (Tambah ke Layar Utama)");
                 } else if (isAndroid) {
@@ -3736,7 +3720,7 @@ BASE_LAYOUT = """
             } else {
                  // Show all if not installed (Buttons are hidden by default in HTML to prevent FOUC, so we remove hidden here)
                  document.querySelectorAll('.pwa-btn-container').forEach(el => el.classList.remove('hidden'));
-                 
+
                  // Special check for iOS which doesn't fire beforeinstallprompt
                  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
                  if(isIOS) {
@@ -3752,7 +3736,7 @@ BASE_LAYOUT = """
             }
         });
     </script>
-    
+
 </body>
 </html>
 """
@@ -3830,7 +3814,7 @@ FITUR_MASJID_HTML = """
             <span class="app-icon-title">Jadwal 30 Hari</span>
         </div>
     </div>
-    
+
     <!-- Modal Fitur 0: Jadwal 30 Hari Kedepan (Pure Dark Mode & Landscape Forced) -->
     <style>
         /* Landscape Orientation Lock Strategy */
@@ -3857,7 +3841,7 @@ FITUR_MASJID_HTML = """
                 left: 0;
             }
         }
-        
+
         .table-30-hari th {
             position: sticky;
             top: 0;
@@ -3887,7 +3871,7 @@ FITUR_MASJID_HTML = """
             -webkit-overflow-scrolling: touch;
         }
     </style>
-    
+
     <div id="modal-fitur-jadwal-30" class="fixed inset-0 z-[300] hidden bg-black">
         <div class="landscape-container font-sans">
             <!-- Navigation Bar -->
@@ -3917,7 +3901,7 @@ FITUR_MASJID_HTML = """
                     </div>
                 </div>
             </div>
-            
+
             <!-- Table Area -->
             <div class="jadwal-scroll-area relative">
                 <table class="w-full text-center border-collapse table-30-hari text-sm md:text-base">
@@ -3948,18 +3932,18 @@ FITUR_MASJID_HTML = """
         <div class="absolute inset-0 bg-[#1a1a1a]" onclick="closeModal('modal-fitur-kiblat')"></div>
         <div class="relative w-full h-full flex flex-col items-center justify-center z-10 p-6">
             <button onclick="closeModal('modal-fitur-kiblat')" class="absolute top-6 right-6 bg-white/10 w-10 h-10 rounded-full text-white hover:bg-white/20 flex items-center justify-center transition">&times;</button>
-            
+
             <div class="mb-12 text-center w-full">
                 <!-- Fetch Location Text Hierarchy -->
                 <h2 id="qibla-city" class="text-2xl font-sans font-bold text-white tracking-wide mb-1">Mencari Satelit...</h2>
                 <h3 class="text-sm font-bold tracking-[0.3em] text-[#FFD700] mb-8">INDONESIA</h3>
                 <button id="activate-compass-btn" onclick="startCompass()" class="bg-teal-700 text-white font-bold py-3 px-8 rounded-full shadow-[0_0_20px_rgba(15,118,110,0.5)] hover:bg-teal-600 transition tracking-widest text-sm uppercase">Pindai Kiblat</button>
             </div>
-            
+
             <div class="relative w-[280px] h-[280px] flex items-center justify-center mb-8" style="perspective: 1000px;">
                 <!-- Base Compass Disc with absolute dimensions and strict geometry -->
                 <div id="compass-disc" class="absolute w-full h-full rounded-full flex items-center justify-center shadow-[0_15px_35px_rgba(0,0,0,0.5)] transition-transform duration-300 border-[12px] border-[#2d2d2d]" style="background: white; box-shadow: 0 0 0 8px #0f766e inset; transform-style: preserve-3d;">
-                    
+
                     <!-- 8 Direction Lines -->
                     <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
                         <div class="w-full h-[1px] bg-gray-300 absolute"></div>
@@ -3973,7 +3957,7 @@ FITUR_MASJID_HTML = """
                     <div class="absolute bottom-[22px] font-bold text-[#4b5563] text-sm drop-shadow-sm rotate-180 leading-none">S</div>
                     <div class="absolute left-[22px] font-bold text-[#4b5563] text-sm drop-shadow-sm -rotate-90 leading-none">W</div>
                     <div class="absolute right-[22px] font-bold text-[#4b5563] text-sm drop-shadow-sm rotate-90 leading-none">E</div>
-                    
+
                     <div class="absolute top-[60px] right-[60px] font-bold text-[#9ca3af] text-[10px] rotate-45 leading-none">NE</div>
                     <div class="absolute bottom-[60px] right-[60px] font-bold text-[#9ca3af] text-[10px] rotate-[135deg] leading-none">SE</div>
                     <div class="absolute bottom-[60px] left-[60px] font-bold text-[#9ca3af] text-[10px] rotate-[225deg] leading-none">SW</div>
@@ -4002,7 +3986,7 @@ FITUR_MASJID_HTML = """
                         <div class="w-1.5 h-2.5 bg-[#1a1a1a] rounded-t-sm absolute bottom-0"></div>
                     </div>
                 </div>
-                
+
                 <!-- Fixed Outer Indicator (Phone direction) -->
                 <div class="absolute top-[-20px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[12px] border-r-[12px] border-b-[16px] border-l-transparent border-r-transparent border-b-gray-400 drop-shadow-md z-50 opacity-80"></div>
             </div>
@@ -4025,9 +4009,9 @@ FITUR_MASJID_HTML = """
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-fitur-puasa')"></div>
         <div class="relative bg-white w-full max-w-md mx-4 p-6 rounded-3xl shadow-2xl animate-[slideUp_0.3s_ease-out] flex flex-col max-h-[90vh]">
             <button onclick="closeModal('modal-fitur-puasa')" class="absolute top-4 right-4 bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center z-10">&times;</button>
-            
+
             <h3 class="text-xl font-bold text-sky-700 mb-2"><i class="fas fa-calendar-alt mr-2"></i>Kalender Puasa Sunnah</h3>
-            
+
             <!-- Tanggal Hari Ini & Peringatan -->
             <div class="bg-sky-50 rounded-2xl p-3 text-center mb-4 flex-shrink-0">
                 <p class="text-[10px] text-sky-600 font-bold uppercase mb-1">Tanggal Hari Ini</p>
@@ -4059,7 +4043,7 @@ FITUR_MASJID_HTML = """
                     <!-- Blocks rendered via JS -->
                 </div>
             </div>
-            
+
             <div class="flex justify-center items-center gap-2 mt-4 pt-4 border-t border-gray-100 flex-shrink-0 text-[10px] font-bold text-gray-500">
                 <span class="w-3 h-3 rounded-full bg-[#dcfce7] inline-block border border-green-200"></span> Jadwal Puasa Sunnah
             </div>
@@ -4086,7 +4070,7 @@ FITUR_MASJID_HTML = """
         <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1564683214965-3619addd900d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80');"></div>
         <!-- Gradient Overlay: Dark midnight blue gradually transparent to bottom -->
         <div class="absolute inset-0 bg-gradient-to-b from-[#0b162c]/95 via-[#0b162c]/80 to-[#0b162c]/95"></div>
-        
+
         <div class="relative w-full h-full max-w-md mx-auto p-6 flex flex-col z-10 overflow-hidden">
             <!-- Zona 1: Navigasi Atas -->
             <div class="flex justify-between items-start mb-8 flex-shrink-0 animate-[fadeIn_0.5s_ease-out]">
@@ -4115,12 +4099,12 @@ FITUR_MASJID_HTML = """
                         <i class="fas fa-compass"></i> Qiblat
                     </button>
                 </div>
-                
+
                 <div class="w-full flex justify-between text-xs font-bold text-gray-300 mb-4 px-4">
                     <span id="alarm-hijri-date">-- ---- ---- H</span>
                     <span id="alarm-masehi-date">-- --- ----</span>
                 </div>
-                
+
                 <p id="alarm-countdown-text" class="text-teal-400 font-bold text-sm tracking-wide bg-teal-900/30 px-4 py-2 rounded-full border border-teal-500/30 mb-2">Memuat Waktu...</p>
                 <button onclick="openAlarmHelp()" class="text-[10px] text-teal-300 hover:text-teal-200 underline underline-offset-2">Adzan/Notif Sering Tidak Muncul?</button>
             </div>
@@ -4165,40 +4149,40 @@ FITUR_MASJID_HTML = """
                 const now = new Date();
                 const month = now.getMonth() + 1;
                 const year = now.getFullYear();
-                
+
                 const res1 = await fetch(`https://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month=${month}&year=${year}`);
                 const data1 = await res1.json();
-                
+
                 let nextMonth = month + 1;
                 let nextYear = year;
                 if (nextMonth > 12) { nextMonth = 1; nextYear++; }
                 const res2 = await fetch(`https://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month=${nextMonth}&year=${nextYear}`);
                 const data2 = await res2.json();
-                
+
                 let allDays = [...data1.data, ...data2.data];
-                
+
                 const todayStr = String(now.getDate()).padStart(2, '0') + '-' + String(now.getMonth()+1).padStart(2, '0') + '-' + now.getFullYear();
-                
+
                 let startIndex = allDays.findIndex(d => d.date.gregorian.date === todayStr);
                 if (startIndex === -1) startIndex = 0;
-                
+
                 let thirtyDays = allDays.slice(startIndex, startIndex + 30);
-                
+
                 let html = '';
                 const todayGregorianDate = now.getDate();
                 const todayGregorianMonth = now.getMonth() + 1;
-                
+
                 thirtyDays.forEach(day => {
                     const g = day.date.gregorian;
                     const h = day.date.hijri;
                     const t = day.timings;
-                    
+
                     const gDay = parseInt(g.day);
                     const gMonth = parseInt(g.month.number);
                     const isToday = (gDay === todayGregorianDate && gMonth === todayGregorianMonth);
-                    
+
                     const clean = (timeStr) => timeStr.split(' ')[0];
-                    
+
                     html += `
                         <tr class="${isToday ? 'today-row' : 'hover:bg-[#111] transition-colors'}">
                             <td class="text-left pl-4">${g.day} ${g.month.en} ${g.year}</td>
@@ -4213,9 +4197,9 @@ FITUR_MASJID_HTML = """
                         </tr>
                     `;
                 });
-                
+
                 tbody.innerHTML = html;
-                
+
                 const checkboxes = document.querySelectorAll('#jadwal-column-menu input[type="checkbox"]');
                 checkboxes.forEach(cb => {
                     const colClass = cb.getAttribute('onchange').match(/'([^']+)'/)[1];
@@ -4224,18 +4208,18 @@ FITUR_MASJID_HTML = """
                         el.style.display = cb.checked ? '' : 'none';
                     });
                 });
-                
+
             } catch(e) {
                 tbody.innerHTML = `<tr><td colspan="9" class="py-10 text-red-500">Gagal mengambil data: ${e.message}</td></tr>`;
             }
         }
     }
-    
+
     function toggleColJadwal(colClass) {
         const elements = document.querySelectorAll('.' + colClass);
         const checkbox = document.querySelector(`input[onchange="toggleColJadwal('${colClass}')"]`);
         const isVisible = checkbox.checked;
-        
+
         elements.forEach(el => {
             el.style.display = isVisible ? '' : 'none';
         });
@@ -4250,19 +4234,19 @@ FITUR_MASJID_HTML = """
 
     // Fitur 2: Kompas Kiblat Presisi
     let currentHeading = 0;
-    
+
     // Haversine Formula for Distance to Kaaba
     function calculateDistance(lat1, lon1, lat2, lon2) {
         const R = 6371; // Radius of the earth in km
-        const dLat = (lat2 - lat1) * Math.PI / 180;  
-        const dLon = (lon2 - lon1) * Math.PI / 180; 
-        const a = 
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a =
             Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
             Math.sin(dLon/2) * Math.sin(dLon/2)
-            ; 
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-        const d = R * c; 
+            ;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const d = R * c;
         return Math.round(d);
     }
 
@@ -4271,7 +4255,7 @@ FITUR_MASJID_HTML = """
             alert("Geolocation tidak didukung di perangkat ini.");
             return;
         }
-        
+
         // Disable button & show loading state
         const btn = document.getElementById('activate-compass-btn');
         if (btn) btn.classList.add('hidden');
@@ -4279,37 +4263,37 @@ FITUR_MASJID_HTML = """
         navigator.geolocation.getCurrentPosition(async (pos) => {
             let lat = pos.coords.latitude;
             let lon = pos.coords.longitude;
-            
+
             // Kaaba Coordinates
             const kaabaLat = 21.422487;
             const kaabaLon = 39.826206;
-            
+
             try {
                 // Fetch Qibla Direction
                 const res = await fetch(`https://api.aladhan.com/v1/qibla/${lat}/${lon}`);
                 const data = await res.json();
                 const qibla = data.data.direction;
-                
+
                 // Calculate Distance
                 const distance = calculateDistance(lat, lon, kaabaLat, kaabaLon);
-                
+
                 // Fetch Location Name (Reverse Geocoding)
                 const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`);
                 const geoData = await geoRes.json();
                 let city = geoData.address.city || geoData.address.town || geoData.address.county || geoData.address.state || "Lokasi Anda";
                 let state = geoData.address.state || "";
-                
+
                 // Update UI Location
                 document.getElementById('qibla-city').innerText = `${city} ${state}`;
-                
+
                 // Update UI Qibla Info
                 const infoEl = document.getElementById('kiblat-info');
                 infoEl.innerText = `Qiblat ${qibla.toFixed(2)} Derajat Jarak ${distance} KM`;
                 infoEl.classList.remove('opacity-0');
-                
+
                 // Inject Kaaba Icon precisely at Qibla degree relative to North
                 document.getElementById('kaaba-icon-container').style.transform = `rotate(${qibla}deg)`;
-                
+
                 // Low-Pass Filter factor
                 const alphaFilter = 0.15;
 
@@ -4319,7 +4303,7 @@ FITUR_MASJID_HTML = """
                         heading = event.webkitCompassHeading; // iOS
                     } else if (event.alpha !== null) {
                         // Android absolute orientation
-                        heading = 360 - event.alpha; 
+                        heading = 360 - event.alpha;
                     }
 
                     if (heading !== null) {
@@ -4334,7 +4318,7 @@ FITUR_MASJID_HTML = """
 
                         let diffQibla = Math.abs(currentHeading - qibla);
                         if (diffQibla > 180) diffQibla = 360 - diffQibla;
-                        
+
                         if (diffQibla <= 3) {
                             if (disc.style.background !== "radial-gradient(circle at 50% 50%, #ffffff, #dcfce7)") {
                                 disc.style.background = "radial-gradient(circle at 50% 50%, #ffffff, #dcfce7)";
@@ -4391,7 +4375,7 @@ FITUR_MASJID_HTML = """
             const data = await res.json();
             const h = data.data.hijri;
             document.getElementById('fitur-hijri-date').innerText = `${h.day} ${h.month.en} ${h.year} H`;
-            
+
             // Check if today is a fasting day
             const isFasting = checkPuasaSunnah(parseInt(h.day), h.month.number, today.getDay());
             if (isFasting) {
@@ -4407,21 +4391,21 @@ FITUR_MASJID_HTML = """
         // gregorianWeekday: 0 = Sunday, 1 = Monday, 4 = Thursday
         hijriDay = parseInt(hijriDay);
         hijriMonthNum = parseInt(hijriMonthNum);
-        
+
         let fasting = null;
-        
+
         // 1. Senin & Kamis
         if (gregorianWeekday === 1) {
             fasting = { title: "Puasa Senin", desc: "Puasa sunnah mingguan yang rutin dikerjakan Rasulullah SAW karena pada hari tersebut amal-amal diangkat." };
         } else if (gregorianWeekday === 4) {
             fasting = { title: "Puasa Kamis", desc: "Puasa sunnah mingguan yang rutin dikerjakan Rasulullah SAW karena pada hari tersebut amal-amal diangkat." };
         }
-        
+
         // 2. Ayyamul Bidh (13, 14, 15 every Hijri month)
         if ([13, 14, 15].includes(hijriDay)) {
             fasting = { title: "Puasa Ayyamul Bidh", desc: "Puasa sunnah tiga hari pertengahan bulan Hijriah yang pahalanya seperti berpuasa sepanjang tahun." };
         }
-        
+
         // 3. Tasu'a & Asyura (9 & 10 Muharram)
         if (hijriMonthNum === 1) {
             if (hijriDay === 9) fasting = { title: "Puasa Tasu'a", desc: "Puasa sunnah tanggal 9 Muharram untuk menyelisihi ahli kitab." };
@@ -4432,7 +4416,7 @@ FITUR_MASJID_HTML = """
         if (hijriMonthNum === 12 && hijriDay === 9) {
              fasting = { title: "Puasa Arafah", desc: "Puasa sunnah bagi yang tidak wukuf di Arafah, menghapus dosa setahun lalu dan setahun yang akan datang." };
         }
-        
+
         // 5. Syawal (6 Days) - We won't mark them specifically here as it can be any 6 days, but usually marked manually. For simplicity, omit or just tag month.
 
         return fasting;
@@ -4442,7 +4426,7 @@ FITUR_MASJID_HTML = """
         const grid = document.getElementById('calendar-grid');
         const header = document.getElementById('calendar-month-year');
         grid.innerHTML = '<div class="col-span-7 py-10 text-center"><i class="fas fa-spinner fa-spin text-sky-500 text-2xl"></i></div>';
-        
+
         const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
         header.innerText = `${monthNames[month - 1]} ${year}`;
 
@@ -4452,12 +4436,12 @@ FITUR_MASJID_HTML = """
             const days = data.data;
 
             let html = '';
-            
+
             // Get first day of the month to pad empty grid cells
             const firstDayData = days[0].date.gregorian;
             const firstDateObj = new Date(year, month - 1, 1);
             let startDayOfWeek = firstDateObj.getDay(); // 0 = Sunday, 1 = Monday
-            
+
             // Pad empty cells
             for(let i=0; i<startDayOfWeek; i++) {
                 html += `<div class="p-2 border border-transparent"></div>`;
@@ -4466,23 +4450,23 @@ FITUR_MASJID_HTML = """
             days.forEach(day => {
                 const gregorian = day.date.gregorian;
                 const hijri = day.date.hijri;
-                
+
                 const gDay = parseInt(gregorian.day);
                 const weekday = new Date(year, month - 1, gDay).getDay(); // 0-6
-                
+
                 const fastingData = checkPuasaSunnah(hijri.day, hijri.month.number, weekday);
-                
+
                 // Styling classes
                 let textClass = "text-gray-800";
                 if (weekday === 0) textClass = "text-red-500"; // Minggu = Merah
-                
+
                 let bgClass = "bg-white hover:bg-gray-50 border-transparent";
                 let cursorClass = "cursor-pointer";
                 let onclickEvent = ``;
 
                 if (fastingData) {
                     bgClass = "bg-[#d1fae5] hover:bg-[#bbf7d0] border-transparent"; // sky-100 / green-200
-                    
+
                     // Escape single quotes for inline JS injection
                     const safeTitle = fastingData.title.replace(/'/g, "\\'");
                     const safeDesc = fastingData.desc.replace(/'/g, "\\'");
@@ -4491,7 +4475,7 @@ FITUR_MASJID_HTML = """
                 } else {
                     cursorClass = "cursor-default";
                 }
-                
+
                 // Add current day highlight if it's today
                 const today = new Date();
                 if (gDay === today.getDate() && month === today.getMonth() + 1 && year === today.getFullYear()) {
@@ -4506,7 +4490,7 @@ FITUR_MASJID_HTML = """
                     </div>
                 `;
             });
-            
+
             grid.innerHTML = html;
         } catch(e) {
             grid.innerHTML = `<div class="col-span-7 text-center text-red-500 py-4 text-xs">Error memuat kalender</div>`;
@@ -4548,7 +4532,7 @@ FITUR_MASJID_HTML = """
 
     async function initAlarmAdzan() {
         if(alarmAdzanInterval) clearInterval(alarmAdzanInterval);
-        
+
         // Fetch Location
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -4579,7 +4563,7 @@ FITUR_MASJID_HTML = """
             const hData = await hRes.json();
             const h = hData.data.hijri;
             document.getElementById('alarm-hijri-date').innerText = `${h.day} ${h.month.en} ${h.year} H`;
-            
+
             // Masehi Date
             const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
             document.getElementById('alarm-masehi-date').innerText = `${dateObj.getDate()} ${monthNames[dateObj.getMonth()]} ${yyyy}`;
@@ -4588,7 +4572,7 @@ FITUR_MASJID_HTML = """
             const pRes = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
             const pData = await pRes.json();
             const timings = pData.data.timings;
-            
+
             alarmAdzanSchedules = [
                 { id: 'Imsak', name: 'Imsak', time: timings.Imsak },
                 { id: 'Fajr', name: 'Subuh', time: timings.Fajr },
@@ -4650,7 +4634,7 @@ FITUR_MASJID_HTML = """
             const [h, m] = p.time.split(':');
             const pDate = new Date();
             pDate.setHours(parseInt(h), parseInt(m), 0, 0);
-            
+
             if (pDate > now) {
                 nextPrayer = p;
                 targetTime = pDate;
@@ -4675,23 +4659,23 @@ FITUR_MASJID_HTML = """
             pDate.setHours(parseInt(h), parseInt(m), 0, 0);
             if (now >= pDate) {
                 activePrayerId = p.id;
-                
+
                 // Calculate time passed since active prayer
                 const diffMs = now - pDate;
                 const passedH = Math.floor(diffMs / 3600000);
                 const passedM = Math.floor((diffMs % 3600000) / 60000);
-                
+
                 let passedStr = "";
                 if(passedH > 0) passedStr += `${passedH} jam `;
                 if(passedM > 0) passedStr += `${passedM} menit `;
                 if(passedStr === "") passedStr = "Baru saja ";
-                
+
                 // Update countdown text to show what passed
                 document.getElementById('alarm-countdown-text').innerText = `Kurang lebih ${passedStr.trim()} yang lalu`;
                 break;
             }
         }
-        
+
         // If it's close to next prayer (< 30 mins), switch to countdown
         if (targetTime) {
             const diffMsToNext = targetTime - now;
@@ -4711,7 +4695,7 @@ FITUR_MASJID_HTML = """
             if(row) {
                 const nameEl = row.querySelector('.schedule-name');
                 const timeEl = row.querySelector('.schedule-time');
-                
+
                 // Reset styling
                 row.classList.remove('bg-white/20', 'border-[#FFD700]/50', 'shadow-[0_0_20px_rgba(255,215,0,0.15)]');
                 row.classList.add('bg-white/10', 'border-white/10');
@@ -4737,16 +4721,16 @@ FITUR_MASJID_HTML = """
         initAlarmAdzan();
         if('vibrate' in navigator) navigator.vibrate(50);
     }
-    
+
     function openAlarmCalendar() {
         closeModal('modal-fitur-alarm-adzan');
         openModal('modal-fitur-puasa');
     }
-    
+
     function openAlarmSettings() {
         alert("Menu Pengaturan Suara Muadzin (Dalam Pengembangan)");
     }
-    
+
     function openAlarmHelp() {
         alert("PANDUAN NOTIFIKASI:\\n\\n1. Buka Pengaturan HP > Aplikasi > Masjid Al Hijrah.\\n2. Izinkan 'Mulai Otomatis' (Auto Start).\\n3. Matikan 'Penghemat Baterai' (No Restrictions).\\n4. Pastikan volume media/notifikasi tidak dibisukan.");
     }
@@ -4755,10 +4739,10 @@ FITUR_MASJID_HTML = """
 
 HOME_HTML = """
 <div class="pt-20 md:pt-32 pb-32 px-5 md:px-8">
-    
+
     <!-- DESKTOP SPLIT HEADER -->
     <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-8 md:mb-12">
-        
+
         <!-- LEFT COLUMN: WELCOME (Desktop Only) -->
         <div class="hidden md:block pl-2">
             <p class="text-xl text-gray-500 font-medium mb-2">Assalamualaikum Warahmatullahi Wabarakatuh</p>
@@ -4774,7 +4758,7 @@ HOME_HTML = """
 
         <!-- RIGHT COLUMN: PRAYER CARD & RAMADHAN BANNER -->
         <div class="flex flex-col gap-6">
-            
+
             <!-- PRAYER CARD -->
             <div class="bg-gradient-to-br from-sky-500 to-sky-600 rounded-3xl p-6 md:p-10 text-white shadow-xl relative overflow-hidden transform md:hover:scale-[1.02] transition-transform duration-500">
                 <a href="{{ url_for('fitur_masjid') }}" class="absolute top-4 right-4 bg-white/20 hover:bg-white text-white hover:text-sky-700 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-[0_0_15px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_rgba(255,255,255,0.6)] z-20 flex items-center gap-1 backdrop-blur-sm">
@@ -4789,7 +4773,7 @@ HOME_HTML = """
                     <div class="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 inline-block mb-6 border border-white/10">
                         <span class="font-mono text-2xl font-bold tracking-wider" id="countdown-timer">--:--:--</span>
                     </div>
-                    
+
                     <div class="grid grid-cols-5 gap-1 text-center text-xs opacity-90 border-t border-white/20 pt-4">
                         <div>
                             <div class="font-semibold mb-1">Subuh</div>
@@ -4820,18 +4804,18 @@ HOME_HTML = """
                 <!-- Background & Texture -->
                 <div class="absolute inset-0 bg-[#0b162c]"></div>
                 <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
-                
+
                 <!-- Crescent Moon Background -->
                 <div class="absolute right-12 top-1/2 transform -translate-y-1/2 opacity-10 text-[#FFD700] pointer-events-none">
                     <i class="fas fa-desktop text-9xl"></i>
                 </div>
-                
+
                 <div class="relative px-6 py-6 md:px-8 md:py-8 flex items-center justify-between">
                     <div>
                         <h2 class="text-2xl md:text-3xl font-bold text-[#FFD700] mb-1 font-sans tracking-wide leading-none">Portal Tata Usaha</h2>
                         <p class="text-white/60 text-xs md:text-sm font-medium">Pusat Layanan Administrasi</p>
                     </div>
-                    
+
                     <!-- Gold Circle Button -->
                     <div class="w-12 h-12 rounded-full bg-[#FFD700] flex items-center justify-center text-[#0b1026] shadow-[0_0_15px_rgba(255,215,0,0.4)] group-hover:scale-110 transition-transform duration-300 relative z-10">
                         <i class="fas fa-arrow-right text-lg"></i>
@@ -4853,7 +4837,7 @@ HOME_HTML = """
                         <p class="text-white/80 text-[10px] md:text-xs font-medium">Akademik & Keuangan</p>
                     </div>
                 </a>
-                
+
                 <!-- Garis Pembatas Diagonal -->
                 <div class="absolute inset-y-0 left-1/2 transform -translate-x-1/2 w-4 z-20 pointer-events-none" style="background: linear-gradient(135deg, transparent 45%, white 45%, white 55%, transparent 55%);"></div>
 
@@ -4884,7 +4868,7 @@ HOME_HTML = """
             </div>
             <span class="text-sm md:text-base font-semibold text-center text-gray-700 group-hover:text-sky-600 leading-tight">Profil Kampus</span>
         </a>
-        
+
         <!-- 2. Penerimaan Mahasiswa Baru Digital -->
         <a href="javascript:void(0)" onclick="openModal('modal-pmb')" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
             <div class="bg-blue-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
@@ -4942,7 +4926,7 @@ HOME_HTML = """
                  <i class="fas fa-chevron-down transform transition-transform duration-500"></i>
             </div>
         </button>
-        
+
         <div id="terapi-content" class="hidden mt-6 transition-all duration-1000 ease-in-out opacity-0 -translate-y-4">
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                  <!-- 1. Audio Healing -->
@@ -4995,7 +4979,7 @@ HOME_HTML = """
                  <i class="fas fa-chevron-down transform transition-transform duration-300"></i>
             </div>
         </button>
-        
+
         <div id="calc-content" class="hidden mt-6 animate-[slideDown_0.3s_ease-out]">
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                  <!-- IPK -->
@@ -5075,7 +5059,7 @@ HOME_HTML = """
         <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] overflow-y-auto">
             <div class="relative w-full max-w-2xl mx-auto p-6 md:p-12">
                 <button onclick="closeModal('modal-profil-kampus')" class="absolute top-4 right-4 md:top-8 md:right-8 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center transition-colors">&times;</button>
-                
+
                 <div class="text-center mb-10">
                     <div class="w-20 h-20 bg-sky-50 text-sky-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">
                         <i class="fas fa-university"></i>
@@ -5083,12 +5067,12 @@ HOME_HTML = """
                     <h2 class="text-3xl font-extrabold text-gray-800 mb-2">Profil Kampus</h2>
                     <p class="text-gray-500 font-medium">Sekolah Tinggi Ilmu Ekonomi STIESAM Samarinda</p>
                 </div>
-                
+
                 <div class="space-y-6 text-gray-600 leading-relaxed text-justify">
                     <img src="{{ '/uploads/' + settings.get('profil_gambar') if settings.get('profil_gambar') else 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80' }}" alt="Gedung Kampus" class="w-full h-64 object-cover rounded-3xl shadow-md mb-6">
-                    
+
                     <p style="white-space: pre-wrap;">{{ settings.get('profil_deskripsi', 'Sekolah Tinggi Ilmu Ekonomi (STIE) SAM Samarinda didirikan dengan komitmen teguh untuk menghasilkan sarjana ekonomi yang profesional, beretika, dan mampu bersaing di era digital. Dengan fasilitas pembelajaran yang representatif dan didukung oleh staf pengajar yang kompeten di bidangnya, STIESAM terus bertransformasi menjadi pusat unggulan kajian ekonomi di Kalimantan Timur.') }}</p>
-                    
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-8">
                         <div class="bg-sky-50 p-6 rounded-2xl border border-sky-100">
                             <h4 class="text-sky-800 font-bold mb-2 flex items-center gap-2"><i class="fas fa-eye"></i> Visi</h4>
@@ -5099,7 +5083,7 @@ HOME_HTML = """
                             <p class="text-sm" style="white-space: pre-wrap;">{{ settings.get('profil_misi', '1. Menyelenggarakan pendidikan yang berkualitas.\n2. Melaksanakan penelitian yang bermanfaat.\n3. Melakukan pengabdian yang berdampak nyata bagi masyarakat.') }}</p>
                         </div>
                     </div>
-                    
+
                     <h3 class="text-xl font-bold text-gray-800 mb-4">Program Studi</h3>
                     <div class="space-y-3">
                         <div class="p-4 border border-gray-200 rounded-xl hover:shadow-md transition">
@@ -5121,7 +5105,7 @@ HOME_HTML = """
         <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] overflow-y-auto">
             <div class="relative w-full max-w-xl mx-auto p-6 md:p-12">
                 <button onclick="closeModal('modal-pmb')" class="absolute top-4 right-4 md:top-8 md:right-8 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center transition-colors">&times;</button>
-                
+
                 <div class="text-center mb-8">
                     <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
                         <i class="fas fa-user-plus"></i>
@@ -5129,7 +5113,7 @@ HOME_HTML = """
                     <h2 class="text-2xl font-extrabold text-gray-800 mb-2">Pendaftaran Mahasiswa Baru</h2>
                     <p class="text-gray-500 font-medium text-sm">Isi formulir pendaftaran digital di bawah ini.</p>
                 </div>
-                
+
                 <form id="pmb-form" action="/api/pmb/register" method="POST" enctype="multipart/form-data" class="space-y-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div>
@@ -5148,9 +5132,9 @@ HOME_HTML = """
                         <label class="block text-xs font-bold text-gray-500 mb-1">Upload Bukti Transfer Pendaftaran (JPG/PNG/PDF/DOC/ZIP/etc)</label>
                         <input type="file" name="bukti_transfer" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                     </div>
-                    
+
                     <div id="pmb-alert" class="hidden rounded-xl p-3 text-sm font-bold text-center mt-4"></div>
-                    
+
                     <div class="flex items-center gap-2 mt-4">
                         <button type="submit" id="pmb-submit-btn" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-700 transition transform hover:scale-[1.02]">
                             <i class="fas fa-paper-plane mr-2"></i>Kirim Pendaftaran
@@ -5160,7 +5144,7 @@ HOME_HTML = """
                         </button>
                     </div>
                 </form>
-                
+
                 <script>
                     document.getElementById('pmb-form').addEventListener('submit', async (e) => {
                         e.preventDefault();
@@ -5168,7 +5152,7 @@ HOME_HTML = """
                         const alertBox = document.getElementById('pmb-alert');
                         btn.disabled = true;
                         btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Mengirim...';
-                        
+
                         try {
                             const fd = new FormData(e.target);
                             const res = await fetch('/api/pmb/register', {
@@ -5176,7 +5160,7 @@ HOME_HTML = """
                                 body: fd
                             });
                             const data = await res.json();
-                            
+
                             alertBox.classList.remove('hidden', 'bg-red-50', 'text-red-600', 'bg-green-50', 'text-green-600');
                             if(data.success) {
                                 alertBox.classList.add('bg-green-50', 'text-green-600');
@@ -5205,42 +5189,42 @@ HOME_HTML = """
         <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] overflow-y-auto">
             <div class="relative w-full max-w-md mx-auto p-6 md:p-12 text-center mt-20">
                 <button onclick="closeModal('modal-cek-status-pmb')" class="absolute top-0 right-0 md:-top-4 md:-right-4 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center transition-colors">&times;</button>
-                
+
                 <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
                     <i class="fas fa-search-dollar"></i>
                 </div>
                 <h2 class="text-2xl font-extrabold text-gray-800 mb-2">Cek Status PMB</h2>
                 <p class="text-gray-500 font-medium text-sm mb-6">Masukkan nama lengkap Anda yang terdaftar.</p>
-                
+
                 <div class="flex gap-2 mb-6">
                     <input type="text" id="cek-nama" placeholder="Ketik Nama Lengkap..." class="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <button aria-label="Cari" onclick="cekStatusPMB()" class="bg-indigo-600 text-white px-6 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition"><i class="fas fa-search"></i></button>
                 </div>
-                
+
                 <div id="cek-status-result" class="text-left bg-gray-50 p-4 rounded-2xl border border-gray-100 hidden">
                     <!-- Results will be injected here -->
                 </div>
-                
+
                 <script>
                     async function cekStatusPMB() {
                         const nama = document.getElementById('cek-nama').value;
                         const resBox = document.getElementById('cek-status-result');
                         if(!nama) return;
-                        
+
                         resBox.classList.remove('hidden');
                         resBox.innerHTML = '<p class="text-center text-gray-500 text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>Mencari...</p>';
-                        
+
                         try {
                             const res = await fetch('/api/pmb/status?nama=' + encodeURIComponent(nama));
                             const data = await res.json();
-                            
+
                             if(data.error) {
                                 resBox.innerHTML = `<p class="text-center text-red-500 font-bold text-sm">${data.error}</p>`;
                             } else {
                                 let html = `<p class="font-bold text-gray-800 mb-1">${data.nama}</p>`;
                                 let statusClass = data.status === 'Diterima' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700';
                                 html += `<p class="text-xs text-gray-500 mb-3">Status: <span class="px-2 py-1 rounded font-bold ${statusClass}">${data.status}</span></p>`;
-                                
+
                                 if(data.status === 'Diterima') {
                                     html += `<div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
                                                 <p class="text-xs text-indigo-800 font-bold mb-1">Selamat Anda Diterima!</p>
@@ -5266,7 +5250,7 @@ HOME_HTML = """
         <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] overflow-y-auto">
             <div class="relative w-full max-w-2xl mx-auto p-6 md:p-12">
                 <button onclick="closeModal('modal-berita-agenda')" class="absolute top-4 right-4 md:top-8 md:right-8 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center transition-colors">&times;</button>
-                
+
                 <div class="text-center mb-8">
                     <div class="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
                         <i class="fas fa-newspaper"></i>
@@ -5274,7 +5258,7 @@ HOME_HTML = """
                     <h2 class="text-2xl font-extrabold text-gray-800 mb-2">Berita & Agenda</h2>
                     <p class="text-gray-500 font-medium text-sm">Informasi terkini kegiatan kampus STIESAM.</p>
                 </div>
-                
+
                 <div class="space-y-4">
                     <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 hover:shadow-md transition">
                         <div class="w-full md:w-32 h-32 bg-gray-200 rounded-xl flex-shrink-0 overflow-hidden">
@@ -5308,7 +5292,7 @@ HOME_HTML = """
         <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] overflow-y-auto">
             <div class="relative w-full max-w-4xl mx-auto p-6 md:p-12">
                 <button onclick="closeModal('modal-galeri-jurnal')" class="absolute top-4 right-4 md:top-8 md:right-8 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center transition-colors">&times;</button>
-                
+
                 <div class="text-center mb-8">
                     <div class="w-16 h-16 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
                         <i class="fas fa-book-open"></i>
@@ -5316,7 +5300,7 @@ HOME_HTML = """
                     <h2 class="text-2xl font-extrabold text-gray-800 mb-2">Galeri Jurnal & Penelitian</h2>
                     <p class="text-gray-500 font-medium text-sm">Kumpulan publikasi ilmiah civitas akademika STIESAM.</p>
                 </div>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- Dummy Jurnals -->
                     <div class="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-lg hover:border-purple-200 transition group cursor-pointer">
@@ -5328,7 +5312,7 @@ HOME_HTML = """
                         <p class="text-xs text-gray-500 mb-4 font-medium"><i class="fas fa-user-edit mr-1"></i> {{ settings.get('jurnal_penulis', 'Dr. Budi Santoso, M.Si., Rina Astuti, S.E.') }}</p>
                         <button class="text-xs font-bold text-purple-600 hover:text-purple-800"><i class="fas fa-file-pdf mr-1"></i> Download PDF</button>
                     </div>
-                    
+
                     <div class="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-lg hover:border-purple-200 transition group cursor-pointer">
                         <div class="flex justify-between items-start mb-3">
                             <span class="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded">Akuntansi Publik</span>
@@ -5348,7 +5332,7 @@ HOME_HTML = """
         <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] overflow-y-auto">
             <div class="relative w-full max-w-xl mx-auto p-6 md:p-12">
                 <button onclick="closeModal('modal-tracer-study')" class="absolute top-4 right-4 md:top-8 md:right-8 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center transition-colors">&times;</button>
-                
+
                 <div class="text-center mb-8">
                     <div class="w-16 h-16 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
                         <i class="fas fa-briefcase"></i>
@@ -5356,14 +5340,14 @@ HOME_HTML = """
                     <h2 class="text-2xl font-extrabold text-gray-800 mb-2">Tracer Study Alumni</h2>
                     <p class="text-gray-500 font-medium text-sm">Pelacakan rekam jejak lulusan STIESAM.</p>
                 </div>
-                
+
                 <div class="bg-orange-50 border border-orange-100 rounded-2xl p-6 text-center mb-6">
                     <i class="fas fa-bullhorn text-orange-400 text-4xl mb-3"></i>
                     <h3 class="font-bold text-gray-800 mb-2">Panggilan Untuk Alumni!</h3>
                     <p class="text-sm text-gray-600 mb-4">Bantu kami meningkatkan kualitas pendidikan dengan mengisi kuesioner Tracer Study. Data Anda sangat berharga bagi akreditasi kampus.</p>
                     <button onclick="closeModal('modal-tracer-study'); openModal('modal-tracer-form')" class="inline-block bg-orange-500 text-white px-6 py-3 rounded-xl font-bold shadow hover:bg-orange-600 transition">Isi Kuesioner Sekarang</button>
                 </div>
-                
+
                 <h4 class="font-bold text-gray-800 mb-4 text-center">Statistik Serapan Kerja Lulusan</h4>
                 <div class="space-y-3">
                     <div>
@@ -5379,7 +5363,7 @@ HOME_HTML = """
                         <div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-green-500 h-2 rounded-full" style="width: 20%"></div></div>
                     </div>
                 </div>
-                
+
                 <div class="mt-8 border-t border-gray-200 pt-6">
                     <h4 class="font-bold text-gray-800 mb-4 text-center">Data Alumni Terverifikasi</h4>
                     <div class="space-y-4">
@@ -5408,7 +5392,7 @@ HOME_HTML = """
     <!-- Modal Developer -->
     <div id="modal-developer" class="fixed inset-0 z-[100] hidden">
         <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] flex flex-col h-full max-h-screen">
-            
+
             <!-- Sticky Header -->
             <div class="flex-shrink-0 sticky top-0 bg-white/80 backdrop-blur z-10 p-4 border-b border-gray-100 flex flex-col items-center justify-center relative shadow-sm">
                 <button onclick="closeModal('modal-developer'); stopDevAudio()" class="absolute right-4 top-4 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center transition">&times;</button>
@@ -5418,18 +5402,18 @@ HOME_HTML = """
 
             <!-- Scrollable Content -->
             <div class="flex-1 overflow-y-auto p-4 pb-20 flex flex-col items-center custom-scrollbar">
-                
+
                 <div class="mb-8 mt-4">
                     <img src="/static/Samarinda_Web_Creative_Logo-removebg-preview.png" alt="Logo Developer" class="h-32 md:h-40 object-contain mx-auto drop-shadow-2xl">
                 </div>
-                
+
                 <h3 class="text-xs font-bold text-gray-400 tracking-[0.2em] mb-4 uppercase border-b border-gray-200 pb-2 w-24 text-center">PIHAK KETIGA</h3>
                 <div class="flex flex-col gap-6 justify-center items-center mb-8">
                     <img src="/static/pythonanywherelogo-removebg.png" class="h-16 md:h-20 object-contain">
                     <img src="/static/pythonlogo.png" class="h-16 md:h-20 object-contain">
                     <img src="/static/godaddylogo.png" class="h-8 md:h-10 object-contain">
                 </div>
-                
+
                 <div class="bg-gray-50 p-6 rounded-3xl border border-gray-100 mb-8 max-w-sm w-full text-center">
                     <p class="text-sm text-gray-600 font-medium leading-relaxed mb-2">
                         Samarinda, Kalimantan Timur,<br>
@@ -5437,7 +5421,7 @@ HOME_HTML = """
                     </p>
                     <p class="text-xs text-gray-500 italic">"kalau butuh jasa pembuatan aplikasi website seperti ini, hubungi kami yaa hehee"</p>
                 </div>
-                
+
                 <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10 w-full max-w-xs">
                     <a href="https://www.instagram.com/samarindawebcreative/" target="_blank" class="bg-gradient-to-tr from-purple-500 to-pink-500 text-white w-12 h-12 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition shrink-0">
                         <i class="fab fa-instagram text-2xl"></i>
@@ -5459,7 +5443,7 @@ HOME_HTML = """
                 devAudio.volume = 0.3;
                 devAudio.currentTime = 0;
                 devAudio.play();
-                
+
                 // Fade In 0.3 -> 0.6 in 3s
                 let vol = 0.3;
                 clearInterval(fadeInterval);
@@ -5478,7 +5462,7 @@ HOME_HTML = """
                         if(devAudio.volume > 0.05) devAudio.volume -= 0.01;
                     }
                 };
-                
+
                 devAudio.onended = () => {
                     playDevAudio();
                 };
@@ -5535,7 +5519,7 @@ HOME_HTML = """
     <!-- Modal Tracer Form (Kuesioner) -->
     <div id="modal-tracer-form" class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center">
         <div class="bg-white w-full max-w-2xl md:rounded-3xl rounded-t-3xl shadow-2xl animate-[slideUp_0.3s_ease-out] flex flex-col max-h-[90vh]">
-            
+
             <!-- Sticky Header -->
             <div class="flex justify-between items-center p-6 border-b border-orange-100 bg-orange-50 rounded-t-3xl sticky top-0 z-10 flex-shrink-0">
                 <div>
@@ -5544,7 +5528,7 @@ HOME_HTML = """
                 </div>
                 <button onclick="closeModal('modal-tracer-form')" class="bg-white w-8 h-8 rounded-full text-gray-500 hover:bg-gray-100 flex items-center justify-center shadow-sm">&times;</button>
             </div>
-            
+
             <!-- Scrollable Content -->
             <form action="/api/tracer/submit" method="POST" class="flex-1 overflow-y-auto p-6 bg-white space-y-5 custom-scrollbar">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -5655,7 +5639,7 @@ HOME_HTML = """
                         <input type="text" name="kontak" required placeholder="Untuk keperluan verifikasi alumni" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
                     </div>
                 </div>
-            
+
             <!-- Sticky Footer / Action -->
             <div class="p-6 border-t border-gray-100 bg-white rounded-b-3xl flex-shrink-0 sticky bottom-0 z-20 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)]">
                 <button type="submit" class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-200 hover:from-orange-600 hover:to-orange-700 transition transform hover:-translate-y-0.5"><i class="fas fa-paper-plane mr-2"></i>Kirim Data Tracer Study</button>
@@ -5713,7 +5697,7 @@ HOME_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-file-medical text-blue-500 mr-2"></i>Jurnal Kambuh</h3>
                 <button onclick="closeModal('modal-terapi-log')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             <form action="/therapy/log" method="POST" class="space-y-4 mb-8 bg-blue-50 p-4 rounded-2xl border border-blue-100">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -5744,7 +5728,7 @@ HOME_HTML = """
                 </div>
                 <button type="submit" class="w-full bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-600 transition">Simpan Laporan</button>
             </form>
-            
+
             <h4 class="text-sm font-bold text-gray-800 mb-4 pl-2 border-l-4 border-blue-500">Riwayat Terakhir</h4>
             <div class="space-y-3">
                 {% for log in epilepsi_logs %}
@@ -5776,7 +5760,7 @@ HOME_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-capsules text-blue-500 mr-2"></i>Alarm Obat</h3>
                 <button onclick="closeModal('modal-terapi-alarm')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100 mb-6">
                 <p class="text-sm text-gray-700 mb-3 font-medium">Set Jam Minum Obat:</p>
                 <div class="flex gap-4">
@@ -5786,7 +5770,7 @@ HOME_HTML = """
                 <button onclick="saveAlarm()" class="mt-3 w-full bg-blue-500 text-white text-xs font-bold py-2 rounded-lg hover:bg-blue-600 transition">Simpan Pengaturan</button>
                 <p id="alarm-status" class="text-xs text-green-600 mt-2 hidden text-center font-bold">Alarm Aktif!</p>
             </div>
-            
+
             <p class="text-xs text-gray-500 text-center">
                 Alarm akan mengunci layar dan meminta Anda menyelesaikan soal matematika untuk memastikan Anda bangun.
             </p>
@@ -5801,7 +5785,7 @@ HOME_HTML = """
         <i class="fas fa-bell text-6xl mb-6 animate-bounce"></i>
         <h2 class="text-4xl font-bold mb-2">Waktunya Obat!</h2>
         <p class="mb-8 text-white/80">Selesaikan soal untuk mematikan alarm.</p>
-        
+
         <div class="bg-white text-gray-800 p-6 rounded-3xl w-full max-w-xs text-center shadow-2xl">
             <p class="text-2xl font-bold mb-4" id="math-problem">5 + 7 = ?</p>
             <input type="number" id="math-answer" class="w-full p-3 border-2 border-gray-300 rounded-xl text-center text-xl mb-4" placeholder="Jawab...">
@@ -5817,7 +5801,7 @@ HOME_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-apple-alt text-blue-500 mr-2"></i>Panduan Diet & Puasa</h3>
                 <button onclick="closeModal('modal-terapi-diet')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             <div class="space-y-6">
                 <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl p-5 text-white shadow-lg">
                     <h4 class="font-bold text-lg mb-1">Puasa Sunnah</h4>
@@ -5826,13 +5810,13 @@ HOME_HTML = """
                         <i class="fas fa-calendar-check mr-2"></i> Jadwal Terdekat: Senin & Kamis
                     </div>
                 </div>
-                
+
                 <div>
                     <h4 class="font-bold text-gray-800 mb-3 border-l-4 border-green-500 pl-2">Diet Ketogenik (Rendah Karbo)</h4>
                     <p class="text-sm text-gray-600 mb-4 leading-relaxed">
                         Diet tinggi lemak dan sangat rendah karbohidrat terbukti efektif mengurangi frekuensi kejang.
                     </p>
-                    
+
                     <div class="grid grid-cols-2 gap-3">
                         <div class="bg-green-50 p-3 rounded-xl border border-green-100">
                             <p class="text-xs font-bold text-green-700 uppercase mb-2">Dianjurkan <i class="fas fa-check float-right"></i></p>
@@ -5854,7 +5838,7 @@ HOME_HTML = """
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="bg-gray-50 p-4 rounded-xl text-xs text-gray-500 italic border border-gray-200">
                     <i class="fas fa-info-circle mr-1"></i> Konsultasikan dengan dokter gizi sebelum mengubah pola makan secara drastis.
                 </div>
@@ -5864,7 +5848,7 @@ HOME_HTML = """
             </button>
         </div>
     </div>
-    
+
     <!-- Modal Simulasi Target IPK -->
     <div id="modal-ipk" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-ipk')"></div>
@@ -5891,7 +5875,7 @@ HOME_HTML = """
                     <input type="number" id="ipk-sks-sisa" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
                 <button onclick="calcIPK()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Target Nilai</button>
-                
+
                 <div id="result-ipk" class="hidden mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-sm"></div>
             </div>
         </div>
@@ -6118,7 +6102,7 @@ HOME_HTML = """
         function showMedicalExplanation(key) {
             const data = MEDICAL_DATA[key];
             if(!data) return;
-            
+
             document.getElementById('med-sains').innerText = data.sains;
             const ul = document.getElementById('med-refs');
             ul.innerHTML = '';
@@ -6136,14 +6120,14 @@ HOME_HTML = """
                 }
                 ul.appendChild(li);
             });
-            
+
             openModal('modal-medical-explanation');
         }
 
         function toggleTerapi() {
             const content = document.getElementById('terapi-content');
             const chevron = document.querySelector('#terapi-chevron i');
-            
+
             if (content.classList.contains('hidden')) {
                 // Open
                 content.classList.remove('hidden');
@@ -6157,10 +6141,10 @@ HOME_HTML = """
                 content.classList.remove('opacity-100', 'translate-y-0');
                 content.classList.add('opacity-0', '-translate-y-4');
                 chevron.classList.remove('rotate-180');
-                
+
                 setTimeout(() => {
                     content.classList.add('hidden');
-                }, 1000); 
+                }, 1000);
             }
         }
 
@@ -6170,27 +6154,27 @@ HOME_HTML = """
         let audio = null;
         let currentMurottalIndex = 0;
         const murottalPlaylist = ['001', '112', '113', '114'];
-        
+
         // Nature Playlist
         let currentNatureIndex = 0;
         const naturePlaylist = [
             '/static/rockot-meditation-and-gentle-nature-184572.mp3',
             '/static/soundsforyou-meditative-rain-114484.mp3'
         ];
-        
+
         let hasPlayedAudio = {};
 
         function playAudio(type) {
             const status = document.getElementById('now-playing');
             const seeker = document.getElementById('audio-seeker');
-            
+
             // Real URLs
             const sources = {
-                'alam': naturePlaylist[currentNatureIndex], 
+                'alam': naturePlaylist[currentNatureIndex],
                 'mozart': '/static/Mozart - Sonata for Two Pianos in D, K. 448 [complete].mp3',
                 'murattal': `https://server8.mp3quran.net/afs/${murottalPlaylist[currentMurottalIndex]}.mp3`
             };
-            
+
             if (audio && !audio.paused && audio.dataset.type === type) {
                 audio.pause();
                 status.innerText = "Paused: " + (type === 'alam' ? 'Suara Alam' : type.toUpperCase());
@@ -6205,7 +6189,7 @@ HOME_HTML = """
                 audio.pause();
                 audio = null;
             }
-            
+
             // Loading Animation Check
             if (!hasPlayedAudio[type]) {
                 status.innerText = "sedang mengambil data audio, harap sabar...";
@@ -6221,10 +6205,10 @@ HOME_HTML = """
             } else {
                 // Optimization: Preload none to simulate buffering/chunking control
                 audio = new Audio(sources[type]);
-                audio.preload = 'none'; 
+                audio.preload = 'none';
                 audio.dataset.type = type;
                 setupAudioEvents();
-                
+
                 audio.addEventListener('canplay', () => {
                     status.classList.remove('animate-pulse');
                     let displayType = type.toUpperCase();
@@ -6234,7 +6218,7 @@ HOME_HTML = """
 
                 audio.play();
             }
-            
+
             status.classList.remove('hidden');
             if(seeker) seeker.parentElement.classList.remove('hidden');
         }
@@ -6246,7 +6230,7 @@ HOME_HTML = """
             if (h >= 11 && h < 15) time = "Siang";
             else if (h >= 15 && h < 19) time = "Sore";
             else if (h >= 19 || h < 4) time = "Malam";
-            
+
             const type = document.getElementById('infaq-type-select') ? document.getElementById('infaq-type-select').value : 'Infaq';
             const msg = `Assalamu'alaikum Pak, selamat ${time}, ijin konfirmasi Pak, saya sudah mengtransfer sebesar Rp... di nomor rekening ${type} untuk keperluan ${type} ke masjid langsung, terima kasih Pak 🙏`;
             window.open(`https://wa.me/6282330890500?text=${encodeURIComponent(msg)}`, '_blank');
@@ -6266,7 +6250,7 @@ HOME_HTML = """
                 `;
                 document.body.appendChild(div);
             }
-            
+
             const popup = document.getElementById('amalan-popup');
             popup.classList.remove('hidden');
             // Trigger reflow
@@ -6274,7 +6258,7 @@ HOME_HTML = """
             popup.classList.remove('opacity-0');
             popup.querySelector('div').classList.remove('scale-95');
             popup.querySelector('div').classList.add('scale-100');
-            
+
             setTimeout(() => {
                 popup.classList.add('opacity-0');
                 popup.querySelector('div').classList.add('scale-95');
@@ -6287,7 +6271,7 @@ HOME_HTML = """
 
         function switchNatureAudio() {
             currentNatureIndex = (currentNatureIndex + 1) % naturePlaylist.length;
-            
+
             // If currently playing alam, restart
             if (audio && audio.dataset.type === 'alam') {
                 audio.pause();
@@ -6305,13 +6289,13 @@ HOME_HTML = """
             // Optimasi: Range Requests / Buffer Chunking via JS
             // Menggunakan preload='none' agar browser hanya menarik data saat diputar
             audio = new Audio(url);
-            audio.preload = 'none'; 
+            audio.preload = 'none';
             audio.dataset.type = 'mozart';
             setupAudioEvents();
-            
+
             // Simulate chunking logic
             console.log("Initializing Mozart Range Requests...");
-            
+
             audio.play().catch(e => {
                 console.log("Playback awaiting user interaction or loading...", e);
             });
@@ -6322,12 +6306,12 @@ HOME_HTML = """
             audio = new Audio(url);
             audio.dataset.type = 'murattal';
             setupAudioEvents();
-            
+
             audio.onended = function() {
                 currentMurottalIndex = (currentMurottalIndex + 1) % murottalPlaylist.length;
                 playMurottalSequence();
             };
-            
+
             audio.play();
             document.getElementById('now-playing').innerText = "Sedang Memutar: MURATTAL (Surah " + murottalPlaylist[currentMurottalIndex] + ")";
         }
@@ -6335,13 +6319,13 @@ HOME_HTML = """
         function setupAudioEvents() {
             const seeker = document.getElementById('audio-seeker');
             if(!seeker) return;
-            
+
             audio.ontimeupdate = function() {
                 if(audio.duration) {
                     seeker.value = (audio.currentTime / audio.duration) * 100;
                 }
             };
-            
+
             seeker.oninput = function() {
                 if(audio && audio.duration) {
                     audio.currentTime = (seeker.value / 100) * audio.duration;
@@ -6355,12 +6339,12 @@ HOME_HTML = """
             openModal('modal-terapi-napas');
             const circle = document.getElementById('breath-circle');
             const text = document.getElementById('breath-text');
-            
+
             // Reset
             circle.style.transition = 'none';
             circle.style.transform = 'scale(1)';
             text.innerText = "Mulai";
-            
+
             setTimeout(() => {
                 runCycle();
                 breathInterval = setInterval(runCycle, 12000); // 4+2+6 = 12s
@@ -6371,18 +6355,18 @@ HOME_HTML = """
                 text.innerText = "Tarik Napas";
                 circle.style.transition = 'transform 4s ease-in-out';
                 circle.style.transform = 'scale(2.5)';
-                
+
                 setTimeout(() => {
                     // Hold (2s)
                     text.innerText = "Tahan";
-                    
+
                     setTimeout(() => {
                         // Exhale (6s)
                         text.innerText = "Hembuskan";
                         circle.style.transition = 'transform 6s ease-in-out';
                         circle.style.transform = 'scale(1)';
                     }, 2000);
-                    
+
                 }, 4000);
             }
         }
@@ -6398,9 +6382,9 @@ HOME_HTML = """
             const hours = parseFloat(document.getElementById('sleep-hours').value);
             const resDiv = document.getElementById('sleep-result');
             resDiv.classList.remove('hidden');
-            
+
             if (!hours) return;
-            
+
             if (hours < 6) {
                 resDiv.className = "mt-4 p-4 rounded-xl border border-red-200 bg-red-50 text-sm";
                 resDiv.innerHTML = `
@@ -6424,39 +6408,39 @@ HOME_HTML = """
         // 5. Medication Alarm Simulation
         let alarmInterval = null;
         let alarmTimes = [];
-        
+
         function saveAlarm() {
             const t1 = document.getElementById('alarm-time-1').value;
             const t2 = document.getElementById('alarm-time-2').value;
             alarmTimes = [t1, t2];
-            
+
             document.getElementById('alarm-status').classList.remove('hidden');
-            
+
             // Start checking
             if(alarmInterval) clearInterval(alarmInterval);
             alarmInterval = setInterval(checkAlarm, 60000); // Check every minute
             checkAlarm(); // Initial check
-            
+
             alert("Alarm diaktifkan pada jam " + t1 + " dan " + t2);
         }
-        
+
         function checkAlarm() {
             const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const currentTime = `${hours}:${minutes}`;
-            
+
             if (alarmTimes.includes(currentTime)) {
                 triggerAlarm();
             }
         }
-        
+
         let currentMathAnswer = 0;
-        
+
         function triggerAlarm() {
             const lockScreen = document.getElementById('alarm-lock-screen');
             lockScreen.classList.remove('hidden');
-            
+
             // Generate simple math problem
             const n1 = Math.floor(Math.random() * 10) + 5;
             const n2 = Math.floor(Math.random() * 10) + 1;
@@ -6464,7 +6448,7 @@ HOME_HTML = """
             document.getElementById('math-problem').innerText = `${n1} + ${n2} = ?`;
             document.getElementById('math-answer').value = '';
         }
-        
+
         function checkMath() {
             const ans = parseInt(document.getElementById('math-answer').value);
             if(ans === currentMathAnswer) {
@@ -6492,7 +6476,7 @@ HOME_HTML = """
             const sksCurrent = parseInt(document.getElementById('ipk-sks-current').value);
             const ipkTarget = parseFloat(document.getElementById('ipk-target').value);
             const sksSisa = parseInt(document.getElementById('ipk-sks-sisa').value);
-            
+
             const div = document.getElementById('result-ipk');
             if(isNaN(ipkCurrent) || isNaN(sksCurrent) || isNaN(ipkTarget) || isNaN(sksSisa)) {
                 div.innerHTML = `<span class="text-red-500 font-bold">Harap isi semua kolom dengan angka yang valid.</span>`;
@@ -6502,7 +6486,7 @@ HOME_HTML = """
                 const bobotSaatIni = ipkCurrent * sksCurrent;
                 const sisaBobot = totalBobotDibutuhkan - bobotSaatIni;
                 const targetNilaiRata = sisaBobot / sksSisa;
-                
+
                 div.classList.remove('hidden');
                 if (targetNilaiRata > 4.0) {
                     div.innerHTML = `<span class="text-red-600 font-bold">Maaf, target ini tidak realistis. Anda butuh rata-rata nilai ${targetNilaiRata.toFixed(2)} (Maksimal IPK adalah 4.00). Pertimbangkan untuk menambah SKS atau menurunkan target.</span>`;
@@ -6520,7 +6504,7 @@ HOME_HTML = """
             const fc = parseFloat(document.getElementById('bep-fixed').value);
             const vc = parseFloat(document.getElementById('bep-variable').value);
             const p = parseFloat(document.getElementById('bep-price').value);
-            
+
             const div = document.getElementById('result-bep');
             if(isNaN(fc) || isNaN(vc) || isNaN(p) || (p - vc) <= 0) {
                 div.innerHTML = `<span class="text-red-500 font-bold">Data tidak valid. Harga Jual harus lebih besar dari Biaya Variabel agar tidak rugi permanen.</span>`;
@@ -6528,7 +6512,7 @@ HOME_HTML = """
                 const bepUnit = Math.ceil(fc / (p - vc));
                 const bepRp = bepUnit * p;
                 const marginLaba = ((p - vc) / p) * 100;
-                
+
                 div.innerHTML = `
                     <p class="font-bold text-emerald-800 mb-2">Analisis Kelayakan Bisnis:</p>
                     <ul class="space-y-1 mb-2">
@@ -6548,7 +6532,7 @@ HOME_HTML = """
             const residu = parseFloat(document.getElementById('dep-residu').value);
             const years = parseInt(document.getElementById('dep-years').value);
             const method = document.getElementById('dep-method').value;
-            
+
             const div = document.getElementById('result-depresiasi');
             if(isNaN(price) || isNaN(residu) || isNaN(years) || years <= 0) {
                 div.innerHTML = `<span class="text-red-500 font-bold">Data tidak valid.</span>`;
@@ -6565,10 +6549,10 @@ HOME_HTML = """
                         </thead>
                         <tbody>
                 `;
-                
+
                 let accum = 0;
                 let bookValue = price;
-                
+
                 if(method === 'straight') {
                     const yearlyDep = (price - residu) / years;
                     for(let i=1; i<=years; i++) {
@@ -6619,13 +6603,13 @@ HOME_HTML = """
                 document.getElementById('tvm-fv-group').classList.remove('hidden');
             }
         }
-        
+
         function calcTVM() {
             const mode = document.getElementById('tvm-mode').value;
             const rate = parseFloat(document.getElementById('tvm-rate').value) / 100;
             const years = parseInt(document.getElementById('tvm-years').value);
             const div = document.getElementById('result-tvm');
-            
+
             if(isNaN(rate) || isNaN(years)) {
                 div.innerHTML = `<span class="text-red-500 font-bold">Data tidak valid.</span>`;
             } else if(mode === 'fv') {
@@ -6687,7 +6671,7 @@ HOME_HTML = """
                 const jp = gajiKotor * 0.01;
                 const kes = gajiKotor * 0.01; // max limit omitted for simplicity for entry level
                 const totalBPJS = jht + jp + kes;
-                
+
                 // Simplified Pajak TER (Tarif Efektif Rata-Rata) utk TK/0
                 // Gaji <= 5.4jt = 0%
                 let pph21 = 0;
@@ -6702,9 +6686,9 @@ HOME_HTML = """
                 else if(gajiKotor <= 9650000) { pph21 = gajiKotor * 0.0175; }
                 else if(gajiKotor <= 10050000) { pph21 = gajiKotor * 0.02; }
                 else { pph21 = gajiKotor * 0.025; }
-                
+
                 const thp = gajiKotor - totalBPJS - pph21;
-                
+
                 div.innerHTML = `
                     <p class="font-bold text-emerald-800 mb-2">Rincian Perkiraan Potongan:</p>
                     <ul class="space-y-1 mb-3 text-sm border-b border-gray-200 pb-2">
@@ -6760,7 +6744,7 @@ HOME_HTML = """
                 <i class="fas fa-times text-lg"></i>
             </button>
         </div>
-        
+
         <div class="grid grid-cols-3 gap-y-8 gap-x-4">
             <!-- Feature 1 -->
             <button onclick="openModal('modal-chatbot'); closeModal('modal-fitur-lainnya')" class="flex flex-col items-center group cursor-pointer">
@@ -6769,7 +6753,7 @@ HOME_HTML = """
                 </div>
                 <span class="text-[10px] font-bold text-gray-700 text-center leading-tight">Chatbot<br>Pintar</span>
             </button>
-            
+
             <!-- Feature 2 -->
             <button onclick="openModal('modal-kalender'); closeModal('modal-fitur-lainnya')" class="flex flex-col items-center group cursor-pointer">
                 <div class="w-16 h-16 rounded-[1.2rem] bg-gradient-to-tr from-rose-400 to-red-500 text-white flex items-center justify-center text-2xl shadow-lg group-hover:scale-95 group-active:scale-90 transition-transform duration-200 mb-3 border-2 border-white/50">
@@ -6777,7 +6761,7 @@ HOME_HTML = """
                 </div>
                 <span class="text-[10px] font-bold text-gray-700 text-center leading-tight">Kalender<br>Akademik</span>
             </button>
-            
+
             <!-- Feature 3 -->
             <button onclick="openModal('modal-validasi'); closeModal('modal-fitur-lainnya')" class="flex flex-col items-center group cursor-pointer">
                 <div class="w-16 h-16 rounded-[1.2rem] bg-gradient-to-tr from-emerald-400 to-green-500 text-white flex items-center justify-center text-2xl shadow-lg group-hover:scale-95 group-active:scale-90 transition-transform duration-200 mb-3 border-2 border-white/50">
@@ -6793,7 +6777,7 @@ HOME_HTML = """
                 </div>
                 <span class="text-[10px] font-bold text-gray-700 text-center leading-tight">Simulasi<br>Biaya</span>
             </button>
-            
+
             <!-- Feature 5 -->
             <button onclick="openModal('modal-perpustakaan'); closeModal('modal-fitur-lainnya')" class="flex flex-col items-center group cursor-pointer">
                 <div class="w-16 h-16 rounded-[1.2rem] bg-gradient-to-tr from-indigo-400 to-purple-500 text-white flex items-center justify-center text-2xl shadow-lg group-hover:scale-95 group-active:scale-90 transition-transform duration-200 mb-3 border-2 border-white/50">
@@ -6801,7 +6785,7 @@ HOME_HTML = """
                 </div>
                 <span class="text-[10px] font-bold text-gray-700 text-center leading-tight">E-Library<br>& Jurnal</span>
             </button>
-            
+
             <!-- Feature 6 -->
             <button onclick="openModal('modal-kontak'); closeModal('modal-fitur-lainnya')" class="flex flex-col items-center group cursor-pointer">
                 <div class="w-16 h-16 rounded-[1.2rem] bg-gradient-to-tr from-teal-400 to-cyan-500 text-white flex items-center justify-center text-2xl shadow-lg group-hover:scale-95 group-active:scale-90 transition-transform duration-200 mb-3 border-2 border-white/50">
@@ -6827,7 +6811,7 @@ HOME_HTML = """
             <i class="fas fa-times"></i>
         </button>
     </div>
-    
+
     <div class="flex-1 overflow-y-auto p-5 space-y-4" id="chat-messages">
         <div class="flex justify-start">
             <div class="bg-white p-3 rounded-2xl rounded-tl-sm shadow-sm max-w-[80%] border border-gray-100">
@@ -6835,7 +6819,7 @@ HOME_HTML = """
             </div>
         </div>
     </div>
-    
+
     <div class="p-4 bg-white border-t border-gray-100 shadow-[0_-5px_15px_rgba(0,0,0,0.02)]">
         <div class="flex gap-2 overflow-x-auto pb-3 custom-scrollbar">
             <button onclick="sendChat('Berapa biaya pendaftaran?')" class="whitespace-nowrap px-4 py-2 bg-sky-50 text-sky-600 rounded-full text-xs font-bold border border-sky-100 hover:bg-sky-100 transition-colors">Biaya Pendaftaran</button>
@@ -6858,13 +6842,13 @@ HOME_HTML = """
         const chatBox = document.getElementById('chat-messages');
         chatBox.innerHTML += `<div class="flex justify-end"><div class="bg-sky-600 text-white p-3 rounded-2xl rounded-tr-sm shadow-sm max-w-[80%]"><p class="text-sm">${msg}</p></div></div>`;
         chatBox.scrollTop = chatBox.scrollHeight;
-        
+
         setTimeout(() => {
             let reply = "Maaf, saya tidak mengerti. Silakan hubungi admin via WhatsApp.";
             if(msg.includes('biaya')) reply = "Estimasi biaya pendaftaran adalah Rp 300.000. Untuk rincian uang kuliah tunggal (UKT), Anda bisa menggunakan fitur Kalkulator Simulasi Biaya.";
             else if(msg.includes('beasiswa')) reply = "STIESAM menyediakan beasiswa KIP-K, prestasi, dan tahfidz. Syarat umum meliputi fotokopi rapor, KTP, dan surat keterangan tidak mampu (jika ada).";
             else if(msg.includes('masuk')) reply = "Jalur masuk STIESAM terbagi menjadi Reguler, Prestasi, dan Karyawan (Kelas Sore/Malam).";
-            
+
             chatBox.innerHTML += `<div class="flex justify-start"><div class="bg-white p-3 rounded-2xl rounded-tl-sm shadow-sm max-w-[80%] border border-gray-100"><p class="text-sm text-gray-700">${reply}</p></div></div>`;
             chatBox.scrollTop = chatBox.scrollHeight;
         }, 800);
@@ -6889,7 +6873,7 @@ HOME_HTML = """
             <i class="fas fa-times"></i>
         </button>
     </div>
-    
+
     <div class="p-5 overflow-y-auto">
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
             <div class="flex justify-between items-center mb-4">
@@ -6909,7 +6893,7 @@ HOME_HTML = """
                 <div class="p-2 text-red-500">29</div><div class="p-2">30</div><div class="p-2 text-gray-300">1</div><div class="p-2 text-gray-300">2</div><div class="p-2 text-gray-300">3</div><div class="p-2 text-gray-300">4</div><div class="p-2 text-gray-300">5</div>
             </div>
         </div>
-        
+
         <h4 class="font-bold text-gray-800 mb-3 text-sm">Keterangan</h4>
         <div class="space-y-2">
             <div class="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100">
@@ -6945,7 +6929,7 @@ HOME_HTML = """
                 <input type="text" id="validasi-input" placeholder="Cth: STS-2401-8A9F" class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-center font-mono text-gray-800 uppercase focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200">
             </div>
             <button onclick="validateSurat()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-emerald-600 transition-colors mb-6">Cek Keaslian</button>
-            
+
             <div id="validasi-result" class="hidden border border-emerald-200 bg-emerald-50 p-4 rounded-xl flex items-start gap-3">
                 <i class="fas fa-check-circle text-emerald-500 text-2xl mt-0.5"></i>
                 <div>
@@ -6998,7 +6982,7 @@ HOME_HTML = """
                 </div>
             </div>
             <button onclick="calculateUKT()" class="w-full bg-amber-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-amber-600 transition-colors mb-6">Hitung Simulasi</button>
-            
+
             <div class="bg-gray-800 text-white p-5 rounded-2xl text-center shadow-inner relative overflow-hidden">
                 <div class="absolute -right-4 -top-4 opacity-10 text-7xl"><i class="fas fa-coins"></i></div>
                 <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Estimasi Biaya Per Semester</p>
@@ -7030,7 +7014,7 @@ HOME_HTML = """
                 <i class="fas fa-search absolute left-4 top-3.5 text-indigo-200 text-lg"></i>
             </div>
         </div>
-        
+
         <div class="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-3" id="lib-results">
             <!-- Results populated by JS -->
             <div class="lib-item bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow flex gap-4 cursor-pointer">
@@ -7083,7 +7067,7 @@ HOME_HTML = """
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        
+
         <div class="p-4 overflow-y-auto flex-1 space-y-3 bg-slate-50">
             <a href="https://wa.me/6281234567890" target="_blank" class="block bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-teal-300 hover:shadow-md transition-all group">
                 <div class="flex items-center gap-4">
@@ -7095,7 +7079,7 @@ HOME_HTML = """
                     <i class="fab fa-whatsapp text-2xl text-green-500"></i>
                 </div>
             </a>
-            
+
             <a href="https://wa.me/6281234567891" target="_blank" class="block bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-amber-300 hover:shadow-md transition-all group">
                 <div class="flex items-center gap-4">
                     <div class="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-xl group-hover:bg-amber-500 group-hover:text-white transition-colors"><i class="fas fa-file-invoice-dollar"></i></div>
@@ -7106,7 +7090,7 @@ HOME_HTML = """
                     <i class="fab fa-whatsapp text-2xl text-green-500"></i>
                 </div>
             </a>
-            
+
             <a href="mailto:it@stiesam.ac.id" class="block bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-blue-300 hover:shadow-md transition-all group">
                 <div class="flex items-center gap-4">
                     <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl group-hover:bg-blue-500 group-hover:text-white transition-colors"><i class="fas fa-laptop-code"></i></div>
@@ -7117,7 +7101,7 @@ HOME_HTML = """
                     <i class="fas fa-envelope text-2xl text-blue-400"></i>
                 </div>
             </a>
-            
+
             <a href="tel:0541123456" class="block bg-red-50 p-4 rounded-2xl shadow-sm border border-red-200 hover:border-red-400 hover:shadow-md transition-all group">
                 <div class="flex items-center gap-4">
                     <div class="w-12 h-12 rounded-full bg-white text-red-600 flex items-center justify-center text-xl group-hover:bg-red-600 group-hover:text-white transition-colors"><i class="fas fa-phone-volume"></i></div>
@@ -7157,7 +7141,7 @@ HOME_HTML = """
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mb-4"></div>
             <p class="text-gray-500 text-sm">Mengambil Data Surat Yasin...</p>
         </div>
-        
+
         <!-- Error State -->
         <div id="yasin-error" class="hidden text-center py-20">
             <p class="text-red-500 mb-2">Gagal memuat data.</p>
@@ -7198,7 +7182,7 @@ HOME_HTML = """
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mb-4"></div>
             <p class="text-gray-500 text-sm">Mengambil Daftar Surat...</p>
         </div>
-        
+
         <!-- Error State -->
         <div id="quran-list-error" class="hidden text-center py-20">
             <p class="text-red-500 mb-2">Gagal memuat daftar surat.</p>
@@ -7251,7 +7235,7 @@ HOME_HTML = """
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mb-4"></div>
             <p class="text-gray-500 text-sm">Membuka Ayat...</p>
         </div>
-        
+
         <!-- Verses -->
         <div id="quran-detail-verses" class="hidden space-y-8 pb-20">
              <!-- Verses injected here -->
@@ -7287,11 +7271,11 @@ HOME_HTML = """
 <script>
     let quranListLoaded = false;
     let currentSurahData = null;
-    
+
     let isQuranTajwidMode = false;
     let currentQuranSurahNomor = null;
     let currentQuranSurahName = '';
-    
+
     const TAJWID_RULES = {
         'idgham': {
             name: 'Idgham',
@@ -7360,7 +7344,7 @@ HOME_HTML = """
         document.getElementById('modal-quran-list').classList.add('hidden');
         document.getElementById('modal-quran-detail').classList.add('hidden');
         document.body.style.overflow = 'auto';
-        
+
         // Stop audio if playing
         const audio = document.getElementById('quran-audio-player');
         if(audio) {
@@ -7374,14 +7358,14 @@ HOME_HTML = """
         const loading = document.getElementById('quran-list-loading');
         const error = document.getElementById('quran-list-error');
         const container = document.getElementById('quran-list-container');
-        
+
         loading.classList.remove('hidden');
         error.classList.add('hidden');
-        
+
         try {
             const response = await fetch('https://equran.id/api/v2/surat');
             const result = await response.json();
-            
+
             if (result.code === 200 && result.data) {
                 renderSurahList(result.data);
                 quranListLoaded = true;
@@ -7400,12 +7384,12 @@ HOME_HTML = """
     function renderSurahList(surahs) {
         const container = document.getElementById('quran-list-container');
         container.innerHTML = '';
-        
+
         surahs.forEach(surah => {
             const el = document.createElement('div');
             el.className = "bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between cursor-pointer hover:bg-sky-50 hover:border-sky-200 transition-all group";
             el.onclick = () => openSurahDetail(surah.nomor);
-            
+
             el.innerHTML = `
                 <div class="flex items-center gap-4">
                     <div class="w-10 h-10 rounded-full bg-sky-100 text-sky-600 font-bold flex items-center justify-center text-sm group-hover:bg-sky-500 group-hover:text-white transition-colors">
@@ -7431,7 +7415,7 @@ HOME_HTML = """
         const loading = document.getElementById('quran-detail-loading');
         const content = document.getElementById('quran-detail-verses');
         const legend = document.getElementById('quran-detail-tajwid-legend');
-        
+
         // Reset view
         document.getElementById('detail-surah-name').innerText = "Loading...";
         document.getElementById('detail-surah-info').innerText = "...";
@@ -7439,11 +7423,11 @@ HOME_HTML = """
         content.classList.add('hidden');
         legend.classList.add('hidden');
         content.innerHTML = '';
-        
+
         try {
             const response = await fetch(`https://equran.id/api/v2/surat/${nomor}`);
             const result = await response.json();
-            
+
             let tajwidData = null;
             if (isQuranTajwidMode) {
                 const resTajwid = await fetch(`https://api.alquran.cloud/v1/surah/${nomor}/ar.tajweed`);
@@ -7478,17 +7462,17 @@ HOME_HTML = """
         // Update Header
         document.getElementById('detail-surah-name').innerText = data.namaLatin;
         document.getElementById('detail-surah-info').innerText = `${data.arti} • ${data.jumlahAyat} Ayat • ${data.tempatTurun}`;
-        
+
         // Update Audio
         const audioPlayer = document.getElementById('quran-audio-player');
         const seeker = document.getElementById('quran-seeker');
-        
+
         audioPlayer.ontimeupdate = () => {
             if(audioPlayer.duration) {
                 seeker.value = (audioPlayer.currentTime / audioPlayer.duration) * 100;
             }
         };
-        
+
         seeker.oninput = () => {
             if(audioPlayer.duration) {
                 audioPlayer.currentTime = (seeker.value / 100) * audioPlayer.duration;
@@ -7497,7 +7481,7 @@ HOME_HTML = """
         // Use Misyari Rasyid (05) if available, fallback to 01
         const audioSrc = data.audioFull['05'] || data.audioFull['01'];
         audioPlayer.src = audioSrc;
-        
+
         // Render Verses
         const container = document.getElementById('quran-detail-verses');
         container.innerHTML = '';
@@ -7506,7 +7490,7 @@ HOME_HTML = """
             data.ayat.forEach(verse => {
                 const el = document.createElement('div');
                 el.className = "border-b border-gray-100 pb-6 last:border-0";
-                
+
                 el.innerHTML = `
                     <div class="flex flex-col gap-4">
                         <div class="flex justify-between items-start">
@@ -7544,7 +7528,7 @@ HOME_HTML = """
 
                 const el = document.createElement('div');
                 el.className = "border-b border-gray-100 pb-6 last:border-0 relative";
-                
+
                 el.innerHTML = `
                     <div class="flex flex-col gap-4">
                         <div class="flex justify-between items-start">
@@ -7587,7 +7571,7 @@ HOME_HTML = """
         const loading = document.getElementById('yasin-loading');
         const error = document.getElementById('yasin-error');
         const content = document.getElementById('yasin-verses');
-        
+
         loading.classList.remove('hidden');
         error.classList.add('hidden');
         content.classList.add('hidden');
@@ -7595,7 +7579,7 @@ HOME_HTML = """
         try {
             const response = await fetch('/api/yasin');
             const result = await response.json();
-            
+
             if (result.data && result.data.ayat) {
                 renderYasin(result.data.ayat);
                 yasinDataLoaded = true;
@@ -7689,10 +7673,10 @@ RAMADHAN_DASHBOARD_HTML = """
     <div class="h-24"></div>
 
     <div class="px-5 md:px-8 max-w-7xl mx-auto relative z-10">
-        
+
         <!-- SPLIT HEADER -->
         <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-10">
-             
+
              <!-- LEFT: WELCOME -->
              <div class="hidden md:block pl-2">
                 <p class="text-xl text-gray-400 font-medium mb-2">Assalamualaikum Warahmatullahi Wabarakatuh</p>
@@ -7718,7 +7702,7 @@ RAMADHAN_DASHBOARD_HTML = """
                             <h2 class="text-5xl font-bold font-mono tracking-tighter text-white drop-shadow-lg" id="ramadhan-clock">--:--</h2>
                             <p class="text-sm text-gray-400 mt-2 flex items-center justify-center md:justify-start gap-2"><i class="fas fa-map-marker-alt text-gold"></i> Samarinda, Kalimantan Timur</p>
                         </div>
-                        
+
                         <div class="grid grid-cols-5 gap-2 md:gap-4 w-full md:w-auto">
                              <div class="bg-[#0b1026] p-3 rounded-2xl text-center border border-white/5">
                                 <span class="block text-[10px] text-white uppercase font-bold mb-1">Subuh</span>
@@ -7748,9 +7732,9 @@ RAMADHAN_DASHBOARD_HTML = """
 
         <!-- MENU GRID -->
         <h2 class="text-xl font-bold text-white font-sans mb-6 border-l-4 border-gold pl-3">Menu Utama</h2>
-        
+
         <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-24">
-            
+
             <button onclick="openModal('modal-pabrik-surat')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
                 <div class="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div class="w-14 h-14 rounded-full bg-[#0b1026] flex items-center justify-center text-gold mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/5">
@@ -7833,7 +7817,7 @@ RAMADHAN_DASHBOARD_HTML = """
     </nav>
 
     <!-- MODALS SECTION -->
-    
+
     <!-- 1. MODAL PABRIK SURAT OTOMATIS -->
     <div id="modal-pabrik-surat" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
@@ -7841,7 +7825,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-gold font-sans">Surat Otomatis</h3>
                 <button aria-label="Tutup Modal" onclick="closeModal('modal-pabrik-surat')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
-            
+
             <h4 class="text-sm font-bold text-gray-400 mb-3">Daftar Antrean Permohonan</h4>
             <div class="overflow-hidden rounded-xl border border-white/10">
                 <table class="w-full text-left border-collapse">
@@ -7895,7 +7879,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <button onclick="switchVerifikasiTab('pmb-content')" id="tab-btn-pmb" class="flex-1 py-2 text-sm font-bold rounded-lg bg-gold shadow-sm text-midnight transition">Calon Mahasiswa Baru (PMB)</button>
                 <button onclick="switchVerifikasiTab('dosen-content')" id="tab-btn-dosen" class="flex-1 py-2 text-sm font-bold rounded-lg text-gray-300 hover:bg-white/5 transition">Calon Dosen/Sivitas</button>
             </div>
-            
+
             <div id="pmb-content" class="verifikasi-tab-content">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {% for item in pmb_list %}
@@ -7918,7 +7902,7 @@ RAMADHAN_DASHBOARD_HTML = """
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="type" value="pmb">
                                 <input type="hidden" name="id" value="{{ item['id'] }}">
-                                
+
                                 <div>
                                     <label class="block text-xs font-bold text-gray-400 mb-1">NPM Baru (Kosongkan utk Auto-Generate)</label>
                                     <input type="text" name="npm_manual" placeholder="Contoh: 2401001" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-gold">
@@ -7952,13 +7936,13 @@ RAMADHAN_DASHBOARD_HTML = """
                         <p class="font-bold text-white">{{ user['nama'] }}</p>
                         <p class="text-sm text-gray-400 mb-2">Username/Identitas: {{ user['username'] }}</p>
                         <p class="text-xs font-bold text-gold mb-4">Mendaftar Sebagai: {{ user['role'] }}</p>
-                        
+
                         <div id="verifikasi-dosen-form-{{ user['id'] }}" class="hidden mt-3 pt-3 border-t border-white/10">
                             <form action="/tu/pmb/verifikasi" method="POST" class="space-y-3">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="type" value="dosen_mhs">
                                 <input type="hidden" name="id" value="{{ user['id'] }}">
-                                
+
                                 <div>
                                     <label class="block text-xs font-bold text-gray-400 mb-1">Username/NIDN Baru (Opsional)</label>
                                     <input type="text" name="username_manual" value="{{ user['username'] }}" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-gold">
@@ -7986,7 +7970,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 function switchVerifikasiTab(tab) {
                     document.querySelectorAll('.verifikasi-tab-content').forEach(el => el.classList.add('hidden'));
                     document.getElementById(tab).classList.remove('hidden');
-                    
+
                     if(tab === 'pmb-content') {
                         document.getElementById('tab-btn-pmb').className = "flex-1 py-2 text-sm font-bold rounded-lg bg-gold shadow-sm text-midnight transition";
                         document.getElementById('tab-btn-dosen').className = "flex-1 py-2 text-sm font-bold rounded-lg text-gray-300 hover:bg-white/5 transition";
@@ -8006,16 +7990,16 @@ RAMADHAN_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-gold font-sans">Arsip Digital Data Kampus</h3>
                 <button onclick="closeModal('modal-laci-arsip')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
-            
+
             <div class="flex gap-2 mb-6">
                 <input type="text" id="arsip-search-npm" placeholder="Ketik NPM Mahasiswa..." class="flex-1 bg-[#0b1026] border border-gold/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold">
                 <button aria-label="Cari Arsip" onclick="searchArsip()" class="bg-blue-500 text-white px-6 rounded-xl font-bold hover:bg-blue-600 transition"><i class="fas fa-search"></i></button>
             </div>
-            
+
             <div id="arsip-result" class="text-white">
                 <p class="text-gray-500 text-center">Gunakan fitur pencarian di atas.</p>
             </div>
-            
+
             <script>
                 async function searchArsip() {
                     const npm = document.getElementById('arsip-search-npm').value;
@@ -8059,7 +8043,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-gold font-sans">Verifikasi Pembayaran</h3>
                 <button onclick="closeModal('modal-verifikasi-pembayaran')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
-            
+
             <form action="/tu/tagihan/tambah" method="POST" class="bg-white/5 p-4 border border-white/10 rounded-xl mb-6 space-y-3">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="grid grid-cols-2 gap-3">
@@ -8098,7 +8082,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <p class="text-gray-500 text-center">Tidak ada tagihan tercatat.</p>
                 {% endfor %}
             </div>
-            
+
         </div>
     </div>
 
@@ -8109,7 +8093,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-gold font-sans">Kelola Jadwal Perkuliahan</h3>
                 <button onclick="closeModal('modal-kelola-jadwal')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
-            
+
             <form action="/tu/jadwal" method="POST" class="bg-white/5 p-4 border border-white/10 rounded-xl mb-6 space-y-3">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -8146,7 +8130,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-gold font-sans">Verifikasi Tracer Study Alumni</h3>
                 <button onclick="closeModal('modal-cek-alumni')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
-            
+
             <div class="space-y-4">
                 {% for item in tracer_list %}
                 <div class="bg-white/5 p-5 rounded-2xl shadow-sm border border-white/10 relative">
@@ -8156,7 +8140,7 @@ RAMADHAN_DASHBOARD_HTML = """
                     </div>
                     <p class="text-xs text-gray-400 mb-1">Lulus: {{ item['tahun_lulus'] }} • {{ item['program_studi'] }}</p>
                     <p class="text-xs text-gray-400 mb-3">Kerja: {{ item['status_pekerjaan'] }} di {{ item['nama_perusahaan'] or '-' }} sebagai {{ item['jabatan'] or '-' }}</p>
-                    
+
                     {% if item['status'] == 'Menunggu Verifikasi' %}
                     <form action="/tu/tracer/verify" method="POST" class="mt-4 pt-3 border-t border-white/10 text-right">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -8224,7 +8208,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-gold font-sans">Publikasi Informasi Publik</h3>
                 <button onclick="closeModal('modal-publikasi-informasi')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
-            
+
             <form action="/tu/publikasi/update" method="POST" enctype="multipart/form-data" class="space-y-6">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -8232,13 +8216,13 @@ RAMADHAN_DASHBOARD_HTML = """
                     <h4 class="text-white font-bold mb-4 border-l-4 border-gold pl-2">1. Profil Kampus</h4>
                     <label class="block text-xs text-gray-400 mb-1">Teks Sejarah / Deskripsi Utama</label>
                     <textarea name="profil_deskripsi" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl p-3 text-sm text-white mb-3 h-24">{{ settings.get('profil_deskripsi', 'Sekolah Tinggi Ilmu Ekonomi (STIE) SAM Samarinda didirikan dengan komitmen teguh untuk menghasilkan sarjana ekonomi yang profesional, beretika, dan mampu bersaing di era digital. Dengan fasilitas pembelajaran yang representatif dan didukung oleh staf pengajar yang kompeten di bidangnya, STIESAM terus bertransformasi menjadi pusat unggulan kajian ekonomi di Kalimantan Timur.') }}</textarea>
-                    
+
                     <label class="block text-xs text-gray-400 mb-1">Teks Visi Kampus</label>
                     <textarea name="profil_visi" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl p-3 text-sm text-white mb-3 h-16">{{ settings.get('profil_visi', 'Menjadi institusi pendidikan tinggi ekonomi yang terkemuka, inovatif, dan berdaya saing global dengan menjunjung tinggi nilai-nilai moral dan etika bisnis.') }}</textarea>
-                    
+
                     <label class="block text-xs text-gray-400 mb-1">Teks Misi Kampus</label>
                     <textarea name="profil_misi" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl p-3 text-sm text-white mb-3 h-24">{{ settings.get('profil_misi', '1. Menyelenggarakan pendidikan yang berkualitas.\n2. Melaksanakan penelitian yang bermanfaat.\n3. Melakukan pengabdian yang berdampak nyata bagi masyarakat.') }}</textarea>
-                    
+
                     <label class="block text-xs text-gray-400 mb-1">Gambar/Foto Profil Kampus (Opsional, max 2MB)</label>
                     <input type="file" name="profil_gambar" class="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-gold/20 file:text-gold hover:file:bg-gold/30">
                 </div>
@@ -8246,19 +8230,19 @@ RAMADHAN_DASHBOARD_HTML = """
                 <div class="bg-white/5 border border-white/10 p-6 rounded-2xl">
                     <h4 class="text-white font-bold mb-4 border-l-4 border-green-500 pl-2">2. Berita & Agenda Kampus</h4>
                     <p class="text-xs text-gray-500 mb-4">Ubah isi berita/agenda utama yang ditampilkan pada beranda (Highlight 1).</p>
-                    
+
                     <label class="block text-xs text-gray-400 mb-1">Kategori / Label (Contoh: Seminar Nasional)</label>
                     <input type="text" name="berita_label" value="{{ settings.get('berita_label', 'Seminar Nasional') }}" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white mb-3">
-                    
+
                     <label class="block text-xs text-gray-400 mb-1">Judul Berita</label>
                     <input type="text" name="berita_judul" value="{{ settings.get('berita_judul', 'Tantangan Ekonomi Digital 2025') }}" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white mb-3">
-                    
+
                     <label class="block text-xs text-gray-400 mb-1">Waktu & Tempat</label>
                     <input type="text" name="berita_waktu" value="{{ settings.get('berita_waktu', '12 Oktober 2024 • Auditorium STIESAM') }}" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white mb-3">
-                    
+
                     <label class="block text-xs text-gray-400 mb-1">Isi Berita</label>
                     <textarea name="berita_isi" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl p-3 text-sm text-white mb-3 h-20">{{ settings.get('berita_isi', 'Seminar nasional yang membahas tentang persiapan UMKM menghadapi transformasi ekonomi digital dan kecerdasan buatan.') }}</textarea>
-                    
+
                     <label class="block text-xs text-gray-400 mb-1">Gambar Sampul Berita (Opsional, max 2MB)</label>
                     <input type="file" name="berita_gambar" class="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-green-500/20 file:text-green-500 hover:file:bg-green-500/30">
                 </div>
@@ -8266,16 +8250,16 @@ RAMADHAN_DASHBOARD_HTML = """
                 <div class="bg-white/5 border border-white/10 p-6 rounded-2xl">
                     <h4 class="text-white font-bold mb-4 border-l-4 border-purple-500 pl-2">3. Galeri Jurnal & Penelitian</h4>
                     <p class="text-xs text-gray-500 mb-4">Ubah isi sorotan jurnal penelitian utama (Highlight 1).</p>
-                    
+
                     <label class="block text-xs text-gray-400 mb-1">Kategori Prodi (Contoh: Manajemen Keuangan)</label>
                     <input type="text" name="jurnal_kategori" value="{{ settings.get('jurnal_kategori', 'Manajemen Keuangan') }}" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white mb-3">
-                    
+
                     <label class="block text-xs text-gray-400 mb-1">Volume/Tahun</label>
                     <input type="text" name="jurnal_volume" value="{{ settings.get('jurnal_volume', 'Vol 12, No. 2 (2023)') }}" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white mb-3">
-                    
+
                     <label class="block text-xs text-gray-400 mb-1">Judul Penelitian</label>
                     <textarea name="jurnal_judul" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl p-3 text-sm text-white mb-3 h-16">{{ settings.get('jurnal_judul', 'Analisis Pengaruh Literasi Keuangan Terhadap Kinerja UMKM di Samarinda') }}</textarea>
-                    
+
                     <label class="block text-xs text-gray-400 mb-1">Penulis</label>
                     <input type="text" name="jurnal_penulis" value="{{ settings.get('jurnal_penulis', 'Dr. Budi Santoso, M.Si., Rina Astuti, S.E.') }}" class="w-full bg-[#0b1026] border border-gold/30 rounded-lg p-2 text-sm text-white mb-3">
                 </div>
@@ -8292,7 +8276,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-gold font-sans">Manajemen Sivitas Akademika</h3>
                 <button onclick="closeModal('modal-manajemen-sivitas')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
-            
+
             <div class="flex gap-2 mb-6">
                 <button onclick="filterSivitas('Tata Usaha')" class="bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fas fa-user-shield"></i> TU</button>
                 <button onclick="filterSivitas('Mahasiswa')" class="bg-green-500/20 text-green-400 hover:bg-green-500/40 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2"><i class="fas fa-user-graduate"></i> Mahasiswa</button>
@@ -8312,7 +8296,7 @@ RAMADHAN_DASHBOARD_HTML = """
                     });
                 }
             </script>
-            
+
             <div class="overflow-x-auto rounded-xl border border-white/10">
                 <table class="w-full text-left border-collapse min-w-[600px]">
                     <thead class="bg-gold/10 text-gold">
@@ -8380,13 +8364,13 @@ RAMADHAN_DASHBOARD_HTML = """
                 </table>
             </div>
         </div>
-    
+
 </div>
 
 <script>
     // --- RAMADHAN JS UTILS ---
 
-    
+
         // Tampilkan kerangka loading saat transisi halaman (tanpa merombak struktur)
         window.addEventListener('beforeunload', function () {
             document.body.classList.add('skeleton-overlay');
@@ -8395,7 +8379,7 @@ RAMADHAN_DASHBOARD_HTML = """
         const open = '{{ open_modal }}';
         if(open && open !== 'None') openModal(open);
     });
-    
+
     // CLOCK
     function updateRamadhanClock() {
         const now = new Date();
@@ -8406,7 +8390,7 @@ RAMADHAN_DASHBOARD_HTML = """
     }
     setInterval(updateRamadhanClock, 1000);
     updateRamadhanClock();
-    
+
     // HIJRI DATE RAMADHAN (REUSE fetchHijri but target different ID)
     async function fetchHijriRamadhan() {
         try {
@@ -8415,7 +8399,7 @@ RAMADHAN_DASHBOARD_HTML = """
             const mm = String(today.getMonth() + 1).padStart(2, '0');
             const yyyy = today.getFullYear();
             const dateStr = dd + '-' + mm + '-' + yyyy;
-            
+
             // Brute Force Adjustment -3 Days
             const response = await fetch('https://api.aladhan.com/v1/gToH?date=' + dateStr + '&adjustment=-3');
             const data = await response.json();
@@ -8434,7 +8418,7 @@ RAMADHAN_DASHBOARD_HTML = """
             const response = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
             const result = await response.json();
             const timings = result.data.timings;
-            
+
             if(document.getElementById('r-fajr')) {
                 document.getElementById('r-fajr').innerText = timings.Fajr;
                 document.getElementById('r-dhuhr').innerText = timings.Dhuhr;
@@ -8457,8 +8441,8 @@ RAMADHAN_DASHBOARD_HTML = """
             }
         }
     }
-    
-    
+
+
         // Tampilkan kerangka loading saat transisi halaman (tanpa merombak struktur)
         window.addEventListener('beforeunload', function () {
             document.body.classList.add('skeleton-overlay');
@@ -8476,7 +8460,7 @@ RAMADHAN_DASHBOARD_HTML = """
             document.getElementById(id).classList.add('hidden');
         }
     }
-    
+
     // TAKJIL FILTER
     function filterTakjil() {
         const input = document.getElementById('search-takjil');
@@ -8503,13 +8487,13 @@ RAMADHAN_DASHBOARD_HTML = """
         const beras = jiwa * 2.75;
         const rate = document.getElementById('zakat-uang-rate') ? parseInt(document.getElementById('zakat-uang-rate').value) : 45000;
         const uang = jiwa * rate;
-        
+
         document.getElementById('res-beras').innerText = beras.toFixed(2) + " Kg";
         document.getElementById('res-uang').innerText = "Rp " + Number(uang).toLocaleString('id-ID');
     }
 
     // AMALAN CHECKLIST
-    
+
     window.addEventListener('beforeunload', function () {
         document.body.classList.add('skeleton', 'opacity-50', 'pointer-events-none');
     });
@@ -8522,16 +8506,16 @@ RAMADHAN_DASHBOARD_HTML = """
             // Save state
             localStorage.setItem('amalan_' + Array.from(checks).indexOf(c), c.checked);
         });
-        
+
         const pct = Math.round((checkedCount / checks.length) * 100);
         document.getElementById('progress-bar').style.width = pct + "%";
         document.getElementById('progress-text').innerText = pct + "%";
-        
+
         if(pct === 100) {
             triggerFireworks();
         }
     }
-    
+
     function loadAmalan() {
         const checks = document.querySelectorAll('#amalan-list input[type="checkbox"]');
         checks.forEach((c, index) => {
@@ -8540,7 +8524,7 @@ RAMADHAN_DASHBOARD_HTML = """
         });
         updateProgress();
     }
-    
+
     function resetAmalan() {
         const checks = document.querySelectorAll('#amalan-list input[type="checkbox"]');
         checks.forEach((c, index) => {
@@ -8560,7 +8544,7 @@ RAMADHAN_DASHBOARD_HTML = """
          const ctx = canvas.getContext('2d');
          canvas.width = canvas.parentElement.clientWidth;
          canvas.height = canvas.parentElement.clientHeight;
-         
+
          let particles = [];
          for(let i=0; i<50; i++) {
              particles.push({
@@ -8572,7 +8556,7 @@ RAMADHAN_DASHBOARD_HTML = """
                  life: 1.0
              });
          }
-         
+
          function animate() {
              ctx.clearRect(0,0,canvas.width,canvas.height);
              particles.forEach((p, index) => {
@@ -8580,16 +8564,16 @@ RAMADHAN_DASHBOARD_HTML = """
                  p.y += p.vy;
                  p.life -= 0.02;
                  p.vy += 0.1; // gravity
-                 
+
                  ctx.fillStyle = p.color;
                  ctx.globalAlpha = p.life;
                  ctx.beginPath();
                  ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
                  ctx.fill();
-                 
+
                  if(p.life <= 0) particles.splice(index, 1);
              });
-             
+
              if(particles.length > 0) requestAnimationFrame(animate);
              else ctx.clearRect(0,0,canvas.width,canvas.height);
          }
@@ -8620,20 +8604,20 @@ IRMA_STYLES = """
         .bg-sage { background-color: #0284C7; }
         .text-sage { color: #0284C7; }
         .border-sage { border-color: #0284C7; }
-        
+
         .bg-pastel-pink { background-color: #7DD3FC; }
         .text-pastel-pink { color: #7DD3FC; }
         .border-pastel-pink { border-color: #7DD3FC; }
-        
+
         .bg-off-white { background-color: #F0F9FF; }
-        
+
         .text-dark-grey { color: #4A4A4A; }
         .text-forest { color: #075985; } /* Dark Forest Green for contrast */
-        
+
         .irma-header {
             background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
         }
-        
+
         .irma-card {
             background-color: white;
             border-radius: 1.5rem;
@@ -8646,7 +8630,7 @@ IRMA_STYLES = """
             box-shadow: 0 20px 25px -5px rgba(160, 179, 145, 0.3);
             border-color: #7DD3FC;
         }
-        
+
         .btn-irma-primary {
             background-color: #0284C7;
             color: white;
@@ -8672,10 +8656,10 @@ IRMA_STYLES = """
 
 IRMA_DASHBOARD_HTML = """
 <div class="pt-24 pb-32 px-5 md:px-8 bg-[#F0F9FF] min-h-screen">
-    
+
     <!-- SPLIT HEADER -->
     <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-10">
-        
+
         <!-- LEFT: WELCOME -->
         <div class="hidden md:block pl-2">
             <p class="text-xl text-gray-500 font-medium mb-2">Salam Mahasiswa STIESAM</p>
@@ -8699,7 +8683,7 @@ IRMA_DASHBOARD_HTML = """
                     <p class="text-xs font-medium opacity-80 mb-1 tracking-wide uppercase">Informasi Akademik</p>
                     <h2 class="text-3xl font-bold mb-1">{{ user.nama if user else 'Nama Mahasiswa' }}</h2>
                     <p class="text-sm font-mono opacity-90 mb-4">{{ user.username if user else 'NPM' }}</p>
-                    
+
                     {% set total_sks_kumulatif = namespace(value=0) %}
                     {% set total_bobot_kumulatif = namespace(value=0) %}
                     {% for n in nilai_list %}
@@ -8717,7 +8701,7 @@ IRMA_DASHBOARD_HTML = """
                         {% set total_bobot_kumulatif.value = total_bobot_kumulatif.value + (n['sks'] * nilai_angka) %}
                     {% endfor %}
                     {% set ipk = (total_bobot_kumulatif.value / total_sks_kumulatif.value) if total_sks_kumulatif.value > 0 else 0 %}
-                    
+
                     <div class="grid grid-cols-2 gap-4">
                         <div class="bg-white/20 backdrop-blur-md rounded-xl p-4 border border-white/10">
                             <p class="text-[10px] uppercase tracking-wider mb-1 opacity-80">IPK Saat Ini</p>
@@ -8728,7 +8712,7 @@ IRMA_DASHBOARD_HTML = """
                             <span class="font-mono text-2xl font-bold">{{ total_sks_kumulatif.value }}</span>
                         </div>
                     </div>
-                    
+
                     <a href="/logout" class="block w-full text-center mt-4 bg-white/20 hover:bg-white/30 text-white text-xs font-bold py-2 rounded-xl border border-white/20 transition backdrop-blur-md shadow-sm">
                         Keluar Akun
                     </a>
@@ -8740,7 +8724,7 @@ IRMA_DASHBOARD_HTML = """
     <!-- MENU GRID -->
     <h3 class="text-[#075985] font-bold text-lg mb-4 pl-3 border-l-4 border-[#7DD3FC]">Layanan Akademik</h3>
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-24">
-        
+
         <!-- 1. RENCANA STUDI -->
         <button onclick="openModal('modal-rencana-studi')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#0284C7]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
              <div class="w-14 h-14 rounded-full bg-[#0284C7]/10 flex items-center justify-center text-[#0284C7] mb-3 group-hover:bg-[#0284C7] group-hover:text-white transition-colors shadow-inner">
@@ -8794,7 +8778,7 @@ IRMA_DASHBOARD_HTML = """
     </div>
 
     <!-- MODALS SECTION -->
-    
+
     <!-- 3. MODAL PUSAT TAGIHAN -->
     <div id="modal-pusat-tagihan" class="hidden fixed inset-0 z-40 bg-[#F0F9FF] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
@@ -8802,7 +8786,7 @@ IRMA_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-[#075985]">Pusat Tagihan Pendidikan</h3>
                 <button onclick="closeModal('modal-pusat-tagihan')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
-            
+
             <div class="space-y-4">
                 {% for item in tagihan_list %}
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#0284C7]/20 relative overflow-hidden">
@@ -8815,10 +8799,10 @@ IRMA_DASHBOARD_HTML = """
                         <i class="fas fa-exclamation-circle"></i> Belum Lunas
                     </div>
                     {% endif %}
-                    
+
                     <h4 class="font-bold text-lg text-gray-800 mb-1">{{ item['jenis_tagihan'] }}</h4>
                     <p class="text-sm text-gray-500 mb-4">Total: <span class="font-bold text-[#075985]">Rp {{ "{:,.0f}".format(item['jumlah']|int) if item['jumlah']|string|length > 0 else '0' }}</span></p>
-                    
+
                     {% if item['status'] != 'Lunas' %}
                     <form action="/mahasiswa/tagihan/upload" method="POST" enctype="multipart/form-data" class="bg-gray-50 p-4 rounded-xl border border-gray-100 mt-4">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -8850,7 +8834,7 @@ IRMA_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-[#075985]">Pengisian Rencana Studi (KRS)</h3>
                 <button onclick="closeModal('modal-rencana-studi')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
-            
+
             {% if has_unpaid %}
             <div class="bg-white p-8 rounded-3xl shadow-lg border border-red-200 text-center relative overflow-hidden">
                 <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-inner">
@@ -8861,7 +8845,7 @@ IRMA_DASHBOARD_HTML = """
                 <button onclick="closeModal('modal-rencana-studi'); openModal('modal-pusat-tagihan')" class="bg-[#0284C7] text-white px-8 py-3 rounded-xl font-bold hover:bg-[#0369A1] transition shadow-md">Menuju Pusat Tagihan</button>
             </div>
             {% else %}
-            
+
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#0284C7]/20 mb-6">
                 <p class="text-sm text-gray-600 mb-4">Pilih mata kuliah dari jadwal yang ditawarkan semester ini. Mata kuliah yang dipilih akan diajukan ke Dosen Wali.</p>
                 <form action="/mahasiswa/krs/add" method="POST">
@@ -8886,7 +8870,7 @@ IRMA_DASHBOARD_HTML = """
                     {% endif %}
                 </form>
             </div>
-            
+
             <h4 class="text-[#075985] font-bold mb-3 border-l-4 border-[#7DD3FC] pl-2">KRS Saya (Semester Ini)</h4>
             <div class="space-y-3">
                 {% for k in krs_list %}
@@ -8901,7 +8885,7 @@ IRMA_DASHBOARD_HTML = """
                 <p class="text-center text-gray-500 text-sm italic">Belum ada KRS yang diajukan.</p>
                 {% endfor %}
             </div>
-            
+
             {% endif %}
         </div>
     </div>
@@ -8913,10 +8897,10 @@ IRMA_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-[#075985]">Kartu Hasil Studi (KHS)</h3>
                 <button onclick="closeModal('modal-kartu-hasil-studi')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
-            
+
             {% set total_sks_kumulatif = namespace(value=0) %}
             {% set total_bobot_kumulatif = namespace(value=0) %}
-            
+
             {% set semester_groups = {} %}
             {% for n in nilai_list %}
                 {% if n['semester'] not in semester_groups %}
@@ -8924,11 +8908,11 @@ IRMA_DASHBOARD_HTML = """
                 {% endif %}
                 {% set _ = semester_groups[n['semester']].append(n) %}
             {% endfor %}
-            
+
             {% for smt, items in semester_groups.items() %}
                 {% set smt_sks = namespace(value=0) %}
                 {% set smt_bobot = namespace(value=0) %}
-                
+
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-[#0284C7]/20 mb-6">
                     <div class="flex justify-between items-end mb-6 border-b border-gray-100 pb-4">
                         <div>
@@ -8956,13 +8940,13 @@ IRMA_DASHBOARD_HTML = """
                             {% elif n['nilai_huruf'] == 'C' %}{% set nilai_angka = 2.0 %}
                             {% elif n['nilai_huruf'] == 'D' %}{% set nilai_angka = 1.0 %}
                             {% else %}{% set nilai_angka = 0.0 %}{% endif %}
-                            
+
                             {% set smt_sks.value = smt_sks.value + n['sks'] %}
                             {% set smt_bobot.value = smt_bobot.value + (n['sks'] * nilai_angka) %}
-                            
+
                             {% set total_sks_kumulatif.value = total_sks_kumulatif.value + n['sks'] %}
                             {% set total_bobot_kumulatif.value = total_bobot_kumulatif.value + (n['sks'] * nilai_angka) %}
-                            
+
                             <tr>
                                 <td class="p-3 text-sm text-gray-800 font-medium">{{ n['mata_kuliah'] }}</td>
                                 <td class="p-3 text-sm text-gray-600 text-center">{{ n['sks'] }}</td>
@@ -8971,7 +8955,7 @@ IRMA_DASHBOARD_HTML = """
                             {% endfor %}
                         </tbody>
                     </table>
-                    
+
                     {% set ips = (smt_bobot.value / smt_sks.value) if smt_sks.value > 0 else 0 %}
                     <script>
                         document.addEventListener("DOMContentLoaded", function() {
@@ -8985,7 +8969,7 @@ IRMA_DASHBOARD_HTML = """
                     <p class="text-gray-500">Belum ada nilai yang diinput oleh Dosen.</p>
                 </div>
             {% endfor %}
-            
+
             {% if nilai_list %}
             <div class="fixed bottom-0 left-0 w-full bg-white border-t border-[#0284C7]/20 p-4 md:p-6 pb-safe z-50 flex justify-between items-center max-w-md mx-auto right-0 rounded-t-3xl shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
                 <div>
@@ -9008,9 +8992,9 @@ IRMA_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-[#075985]">Jadwal Kuliah Mahasiswa</h3>
                 <button onclick="closeModal('modal-jadwal-kuliah')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
-            
+
             <p class="text-sm text-gray-600 mb-6 bg-white p-4 rounded-xl border border-[#0284C7]/20 shadow-sm"><i class="fas fa-info-circle text-[#0284C7] mr-2"></i>Jadwal ini disinkronkan langsung dari ruang kendali Tata Usaha secara real-time.</p>
-            
+
             <div class="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
                 {% for item in jadwal_list %}
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-[#0284C7]/20 flex justify-between items-center group hover:border-[#0284C7]/50 transition-colors">
@@ -9039,7 +9023,7 @@ IRMA_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-[#075985]">Layanan Permohonan Surat</h3>
                 <button onclick="closeModal('modal-permohonan-surat')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
-            
+
             <form action="/mahasiswa/surat/request" method="POST" class="bg-white p-6 rounded-2xl shadow-sm border border-[#0284C7]/20 mb-6 relative overflow-hidden">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="absolute top-0 right-0 opacity-5 -mt-4 -mr-4">
@@ -9074,7 +9058,7 @@ IRMA_DASHBOARD_HTML = """
                     </div>
                     <p class="text-xs text-gray-500 mb-3"><i class="fas fa-calendar-alt mr-1"></i> {{ s['tanggal'] }}</p>
                     <p class="text-xs text-gray-600 italic border-l-2 border-gray-200 pl-2">"{{ s['keterangan'] }}"</p>
-                    
+
                     {% if s['status'] == 'Disetujui' %}
                     <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
                         <p class="text-[10px] text-green-600 font-bold flex items-center gap-1"><i class="fas fa-shield-alt"></i> Ditandatangani Elektronik</p>
@@ -9099,10 +9083,10 @@ IRMA_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-[#075985]">Profil & Arsip Digital Saya</h3>
                 <button onclick="closeModal('modal-profil-arsip')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
-            
+
             <div class="bg-white p-6 rounded-3xl shadow-lg border border-[#0284C7]/20 mb-6 relative overflow-hidden">
                 <div class="absolute top-0 right-0 w-32 h-32 bg-[#0284C7]/10 rounded-bl-full -z-10"></div>
-                
+
                 <div class="flex items-center gap-6 mb-6">
                     <div class="relative w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 shadow-inner border-4 border-white overflow-hidden group">
                         {% if user and user.foto_profil %}
@@ -9120,14 +9104,14 @@ IRMA_DASHBOARD_HTML = """
                         <span class="inline-block mt-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider {{ 'bg-green-100 text-green-700' if user and user.status_akademik == 'Aktif' else 'bg-red-100 text-red-700' }}">{{ user.status_akademik if user else 'Status' }}</span>
                     </div>
                 </div>
-                
+
                 <form id="mhs_foto_form" action="/mahasiswa/update_foto" method="POST" enctype="multipart/form-data" class="hidden">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="file" id="mhs_foto_profil_input" name="foto_profil" accept="image/*" onchange="document.getElementById('mhs_foto_form').submit()">
                 </form>
-                
+
                 <div class="flex justify-center border-t border-gray-100 pt-4">
-                    <img src="/api/ktm/qr/{{ user.username if user else 'KTM' }}" class="w-24 h-24 object-contain rounded-lg shadow-sm border border-gray-100 p-1">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ user.username if user else 'KTM' }}" class="w-24 h-24 object-contain rounded-lg shadow-sm border border-gray-100 p-1">
                 </div>
                 <p class="text-[10px] text-center text-gray-400 mt-2 tracking-widest uppercase">Pindai KTM Digital</p>
             </div>
@@ -9159,7 +9143,7 @@ IRMA_DASHBOARD_HTML = """
     </div>
 
     <script>
-        
+
         // Tampilkan kerangka loading saat transisi halaman (tanpa merombak struktur)
         window.addEventListener('beforeunload', function () {
             document.body.classList.add('skeleton-overlay');
@@ -9197,7 +9181,7 @@ def _fetch_dosen_data(dosen_name):
             # For Dosen data, if tagihan is empty, that implies unpaid/unverified SPP billing (as per rules: empty tagihan explicitly trigger has_unpaid=True locking KRS access)
             if tagihan and all(t.status == 'Lunas' for t in tagihan): krs_perwalian.append(krs)
             unique_npms.add(krs.npm)
-            
+
         if jadwal_dosen:
             jadwal_ids = [j.id for j in jadwal_dosen]
             mata_kuliah_list = [j.mata_kuliah for j in jadwal_dosen]
@@ -9234,7 +9218,7 @@ def _fetch_dosen_data(dosen_name):
                     user_obj = user_class_map.get(student_krs.npm)
                     student_data.append({'npm': student_krs.npm, 'nama': user_obj.nama if user_obj else 'Unknown', 'attendance_pct': attendance_pct})
             kelas_list.append({'jadwal': jadwal, 'is_published': is_published, 'students': student_data})
-            
+
         if unique_npms:
             npm_list = list(unique_npms)
             users = User.query.filter(User.username.in_(npm_list)).all()
@@ -9269,7 +9253,7 @@ def _fetch_mahasiswa_data(npm, is_admin):
     arsip_list = []
     pmb_docs = []
     has_unpaid = False
-    
+
     try:
         user = User.query.filter_by(username=npm).first()
         if npm:
@@ -9281,7 +9265,7 @@ def _fetch_mahasiswa_data(npm, is_admin):
             surat_list = SuratOtomatis.query.filter_by(npm=npm).order_by(SuratOtomatis.id.desc()).all()
             arsip_list_raw = LaciArsip.query.filter_by(npm=npm).order_by(LaciArsip.id.desc()).all()
             arsip_list = [{'id': a.id, 'nama_dokumen': a.nama_dokumen, 'file_path': a.file_path, 'ukuran': a.ukuran, 'tanggal': a.tanggal} for a in arsip_list_raw]
-            
+
             # Fetch verified PMB documents for this student
             pmb = PendaftaranPMB.query.filter_by(npm_generated=npm).first()
             if pmb:
@@ -9325,20 +9309,20 @@ def _fetch_tu_data():
 def render_page(template, active_page, theme=None, content_kwargs=None, hide_nav=False, full_width=False):
     if content_kwargs is None:
         content_kwargs = {}
-    
+
     settings = get_settings()
     is_admin = session.get('is_admin', False)
-    
+
     rendered_content = render_template_string(template, open_modal=request.args.get('open'), is_admin=is_admin, settings=settings, **content_kwargs)
-    
-    return render_template_string(BASE_LAYOUT, 
-                                  styles=STYLES_HTML + (RAMADHAN_STYLES if active_page == 'ramadhan' else (IRMA_STYLES if active_page == 'irma' else '')), 
-                                  active_page=active_page, 
+
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML + (RAMADHAN_STYLES if active_page == 'ramadhan' else (IRMA_STYLES if active_page == 'irma' else '')),
+                                  active_page=active_page,
                                   theme=theme,
-                                  content=rendered_content, 
+                                  content=rendered_content,
                                   hide_nav=hide_nav,
                                   full_width=full_width,
-                                  is_admin=is_admin, 
+                                  is_admin=is_admin,
                                   settings=settings)
 
 class PrayTimes:
@@ -9377,12 +9361,12 @@ class PrayTimes:
             "Maghrib": self.compute_time(0.833, decl, lat, noon) if "maghrib" not in self.params else self.compute_time(self.params["maghrib"], decl, lat, noon),
             "Isha": self.compute_time(self.params["isha"], decl, lat, noon)
         }
-        
+
         # Adjust for timezone
         final_times = {}
         for name, t in times.items():
             final_times[name] = self.adjust_time(t, tzone)
-            
+
         return final_times
 
     def days_since_j2000(self, year, month, day):
@@ -9418,7 +9402,7 @@ class PrayTimes:
             d = math.degrees(math.acos((math.sin(math.radians(g)) - math.sin(math.radians(decl)) * math.sin(math.radians(lat))) / (math.cos(math.radians(decl)) * math.cos(math.radians(lat)))))
         except:
             return 0 # Handle polar regions if needed
-        return noon - d / 15.0 if g > 90 else noon + d / 15.0 
+        return noon - d / 15.0 if g > 90 else noon + d / 15.0
 
     def compute_asr(self, step, decl, lat, noon):
         try:
@@ -9464,7 +9448,7 @@ def get_settings():
 def gregorian_to_hijri(date_obj):
     # Offset -1 day -> BRUTE FORCE -3 DAYS (Updated for 2026 adjustment)
     date_obj = date_obj - datetime.timedelta(days=3)
-    
+
     # Kuwaiti Algorithm
     day = date_obj.day
     month = date_obj.month
@@ -9521,10 +9505,10 @@ def allowed_file(filename):
 def is_safe_file(file_storage):
     """Deep inspection of file mime types and signatures."""
     ext = file_storage.filename.rsplit('.', 1)[1].lower() if '.' in file_storage.filename else ''
-    
+
     header = file_storage.read(2048)
     file_storage.seek(0)
-    
+
     # Custom magic bytes signatures for non-image documents
     signatures = {
         'pdf': b'%PDF-',
@@ -9535,12 +9519,12 @@ def is_safe_file(file_storage):
         'zip': b'PK\x03\x04',
         'rar': b'Rar!\x1a\x07',
     }
-    
+
     if ext in signatures:
         if header.startswith(signatures[ext]):
             return True
         return False
-        
+
     if ext in {'txt', 'csv'}:
         # Ensure it's mostly text/printable
         try:
@@ -9558,10 +9542,10 @@ def compress_image(file_storage, upload_folder):
     os.makedirs(upload_folder, exist_ok=True)
     if not is_safe_file(file_storage):
         raise ValueError("Invalid file content signature detected.")
-    
+
     filename = secure_filename(file_storage.filename)
     ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
-    
+
     if ext in {'mp4', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'txt', 'csv'}:
         save_path = os.path.join(upload_folder, filename)
         file_storage.seek(0)
@@ -9571,16 +9555,16 @@ def compress_image(file_storage, upload_folder):
     try:
         file_storage.seek(0)
         img = Image.open(file_storage)
-        
+
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
-            
+
         img.thumbnail((800, 800), Image.Resampling.LANCZOS)
-        
+
         base = os.path.splitext(filename)[0]
         new_filename = base + ".jpg"
         save_path = os.path.join(upload_folder, new_filename)
-        
+
         quality = 90
         img_byte_arr = io.BytesIO()
         while quality >= 10:
@@ -9593,9 +9577,9 @@ def compress_image(file_storage, upload_folder):
 
         with open(save_path, 'wb') as f:
             f.write(img_byte_arr.getbuffer())
-            
+
         return new_filename
-        
+
     except Exception as e:
         app.logger.warning(f"Compression error: {e}")
         file_storage.seek(0)
@@ -9643,10 +9627,10 @@ def seed_ramadhan_schedule():
 
             for night, imam, penceramah in schedule_data:
                 entry = TarawihSchedule(
-                    night_index=night, 
-                    date=f"Ramadhan {night}", 
-                    imam=imam, 
-                    penceramah=penceramah, 
+                    night_index=night,
+                    date=f"Ramadhan {night}",
+                    imam=imam,
+                    penceramah=penceramah,
                     judul="-"
                 )
                 db.session.add(entry)
@@ -9664,16 +9648,16 @@ def get_imsakiyah_schedule():
         # 2. Bulan Februari & Maret 2026 (Ramadhan 1447 H) & Method 20 (Kemenag RI)
         months = [2, 3]
         all_days = []
-        
+
         for m in months:
             url = f"https://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month={m}&year=2026"
             with urllib.request.urlopen(url) as response:
                 data = json.loads(response.read().decode())
                 if 'data' in data:
                     all_days.extend(data['data'])
-            
+
         today = datetime.date.today()
-        
+
         # 3. Filter Tanggal (19 Feb - 19 Mar 2026)
         start_date = datetime.date(2026, 2, 19)
         end_date = datetime.date(2026, 3, 19)
@@ -9681,12 +9665,12 @@ def get_imsakiyah_schedule():
         for day in all_days:
             # Parse date
             date_obj = datetime.datetime.strptime(day['date']['gregorian']['date'], "%d-%m-%Y").date()
-            
+
             if not (start_date <= date_obj <= end_date):
                 continue
 
             timings = day['timings']
-            
+
             # Format HH:MM (strip seconds/timezone if any)
             def clean_time(t): return t.split(' ')[0]
 
@@ -9700,12 +9684,12 @@ def get_imsakiyah_schedule():
                 'isha': clean_time(timings['Isha']),
                 'is_today': (date_obj == today)
             })
-                
+
     except Exception as e:
         app.logger.error(f"Error fetching Imsakiyah API: {e}", exc_info=True)
         flash(GENERIC_ERROR_MSG, "error")
         # Fallback empty or local calculation if needed, but user requested API specifically.
-        
+
     return schedule
 
 # --- FRONTEND ASSETS & LAYOUT ---
