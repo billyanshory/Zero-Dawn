@@ -1,4 +1,4 @@
-__version__ = "3.0.0"
+__version__ = "5.0.0"
 __author__ = "Nitro-o-PC Dev"
 __app_name__ = "Nitro-o-PC Ultimate Optimizer"
 
@@ -7,7 +7,6 @@ if sys.version_info < (3, 8):
     raise RuntimeError(f"Nitro-o-PC memerlukan Python 3.8+. Anda menggunakan Python {sys.version_info.major}.{sys.version_info.minor}.")
 
 import os
-import sys
 import subprocess
 import shutil
 import psutil
@@ -307,8 +306,8 @@ class NitroApp(ctk.CTk):
                         try:
                             flags = win32con.TOKEN_ADJUST_PRIVILEGES | win32con.TOKEN_QUERY
                             htoken = win32security.OpenProcessToken(win32api.GetCurrentProcess(), flags)
-                            id = win32security.LookupPrivilegeValue(None, win32security.SE_PROF_SINGLE_PROCESS_NAME)
-                            newPrivileges = [(id, win32security.SE_PRIVILEGE_ENABLED)]
+                            priv_luid = win32security.LookupPrivilegeValue(None, win32security.SE_PROF_SINGLE_PROCESS_NAME)
+                            newPrivileges = [(priv_luid, win32security.SE_PRIVILEGE_ENABLED)]
                             win32security.AdjustTokenPrivileges(htoken, 0, newPrivileges)
                             
                             SYSTEM_MEMORY_LIST_COMMAND = ctypes.c_int(4) # MemoryPurgeStandbyList
@@ -354,7 +353,7 @@ class NitroApp(ctk.CTk):
         self.refresh_startup_btn = ctk.CTkButton(self.startup_frame, text="Refresh List", command=self.load_startup_items)
         self.refresh_startup_btn.pack(pady=10)
         
-        self.load_startup_items()
+        self.after(300, self.load_startup_items)
 
     def load_startup_items(self):
         """Loads startup items and their states, executing the registry scan in a background thread."""
@@ -400,8 +399,10 @@ class NitroApp(ctk.CTk):
                         except OSError:
                             break
                     winreg.CloseKey(key)
+                except (FileNotFoundError, OSError) as e:
+                    logger.debug("Backup key '%s' belum ada — normal jika startup belum pernah dinonaktifkan.", backup_path)
                 except Exception as e:
-                    logger.warning("Failed to read backup startup key %s: %s", backup_path, str(e), exc_info=True)
+                    logger.warning("Gagal baca backup startup key %s: %s", backup_path, e, exc_info=True)
             self.after(0, lambda: self._render_startup_items(startup_items))
         except Exception as e:
             logger.error("Error in startup thread: %s", str(e), exc_info=True)
@@ -479,20 +480,36 @@ class NitroApp(ctk.CTk):
     def _detect_storage_type(self) -> str:
         if platform.system() != "Windows":
             return "unknown"
+
+        # Method 1: PowerShell
         try:
             result = subprocess.run(
-                ["powershell", "-Command", "Get-PhysicalDisk | Select-Object -ExpandProperty MediaType"],
-                capture_output=True, text=True, timeout=5, creationflags=subprocess.CREATE_NO_WINDOW
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", "(Get-PhysicalDisk | Where-Object {$_.DeviceId -eq '0'}).MediaType"],
+                capture_output=True, text=True, timeout=8, creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            out = result.stdout.lower().strip()
+            if "hdd" in out or "hard disk drive" in out:
+                return "hdd"
+            elif "ssd" in out or "solid state drive" in out:
+                return "ssd"
+        except Exception as e:
+            logger.debug("PowerShell detect storage failed: %s", e)
+
+        # Method 2: WMIC Fallback
+        try:
+            result = subprocess.run(
+                ["wmic", "diskdrive", "get", "MediaType"],
+                capture_output=True, text=True, timeout=8, creationflags=subprocess.CREATE_NO_WINDOW
             )
             out = result.stdout.lower()
-            if "hdd" in out:
+            if "fixed hard disk" in out:
                 return "hdd"
-            elif "ssd" in out:
+            elif "ssd" in out or "solid state drive" in out:
                 return "ssd"
-            return "unknown"
         except Exception as e:
-            logger.warning("Gagal mendeteksi tipe storage: %s", e, exc_info=True)
-            return "unknown"
+            logger.debug("WMIC detect storage failed: %s", e)
+
+        return "unknown"
 
     def setup_cleaner_tab(self):
         """Initializes the smart cleaner tab and its widgets, adding HDD warnings if needed."""
@@ -528,16 +545,36 @@ class NitroApp(ctk.CTk):
         self.clean_status = ctk.CTkLabel(self.cleaner_frame, text="Status: Ready")
         self.clean_status.pack(pady=10)
 
-        # Storage type detection
+        # Storage type detection via background thread
+        self._storage_warn_lbl = ctk.CTkLabel(
+            self.cleaner_frame,
+            text="🔍 Mendeteksi tipe storage...",
+            text_color="gray"
+        )
+        self._storage_warn_lbl.pack(pady=5)
+        threading.Thread(target=self._detect_and_warn_storage, daemon=True).start()
+
+    def _detect_and_warn_storage(self):
         storage_type = self._detect_storage_type()
+        self.after(0, lambda: self._apply_storage_warning(storage_type))
+
+    def _apply_storage_warning(self, storage_type):
         if storage_type == "hdd":
-            warn_lbl = ctk.CTkLabel(
-                self.cleaner_frame,
+            self._storage_warn_lbl.configure(
                 text="⚠️ HDD Terdeteksi: Disarankan untuk TIDAK membersihkan Prefetch karena akan memperlambat cold-start aplikasi.",
                 text_color="orange"
             )
-            warn_lbl.pack(pady=5)
             self.clean_prefetch_cb.deselect()
+        elif storage_type == "ssd":
+            self._storage_warn_lbl.configure(
+                text="✅ SSD Terdeteksi: Aman membersihkan Prefetch.",
+                text_color="green"
+            )
+        else:
+            self._storage_warn_lbl.configure(
+                text="❔ Tipe storage tidak diketahui: Harap berhati-hati membersihkan Prefetch.",
+                text_color="gray"
+            )
 
     def run_cleaner(self):
         """Runs the smart cleaner operations in a separate thread to avoid UI freezing."""
