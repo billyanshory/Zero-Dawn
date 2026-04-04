@@ -9,7 +9,10 @@ import pymysql
 import io
 from reportlab.pdfgen import canvas
 from PIL import Image
+import smtplib
+from email.mime.text import MIMEText
 from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify, session, flash
+import markupsafe
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask_sqlalchemy import SQLAlchemy
@@ -24,6 +27,8 @@ from sqlalchemy.orm import joinedload
 from dotenv import load_dotenv
 from functools import wraps
 import filetype
+import logging
+from logging.handlers import RotatingFileHandler, SMTPHandler
 
 load_dotenv()
 
@@ -61,8 +66,6 @@ limiter = Limiter(
 cache = Cache(app, config={'CACHE_TYPE': 'RedisCache', 'CACHE_REDIS_URL': os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), 'CACHE_DEFAULT_TIMEOUT': 86400})
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20MB Limit
 
-import logging
-from logging.handlers import RotatingFileHandler, SMTPHandler
 
 if not os.path.exists('error.log'):
     open('error.log', 'w').close()
@@ -99,7 +102,7 @@ app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__fil
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.permanent_session_lifetime = datetime.timedelta(minutes=30)
+app.permanent_session_lifetime = datetime.timedelta(days=30)
 
 db_url = os.environ.get("DATABASE_URL")
 if not db_url:
@@ -114,7 +117,9 @@ engine_options = {
     'pool_pre_ping': True,
     'pool_recycle': 3600,
 }
-if 'mysql' in db_url.lower():
+from sqlalchemy.engine import make_url
+parsed_url = make_url(db_url)
+if parsed_url.drivername.startswith('mysql'):
     engine_options['connect_args'] = {'charset': 'utf8mb4'}
 
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = engine_options
@@ -137,15 +142,6 @@ db = SQLAlchemy(app)
 # ============================================================================
 
 # --- DATABASE MODELS (Zona Model) ---
-class EpilepsiLog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.Date, default=datetime.date.today, nullable=False)
-    time = db.Column(db.String(255), nullable=False)
-    trigger = db.Column(db.String(255), nullable=False)
-    notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, server_default=func.now())
-    
-
 
 class SuratOtomatis(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -196,7 +192,6 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    password_raw = db.Column(db.String(255), nullable=True)
     must_change_password = db.Column(db.Boolean, default=False)
     role = db.Column(db.String(50), nullable=False, index=True)
     nama = db.Column(db.String(255))
@@ -288,11 +283,6 @@ class TracerStudy(db.Model):
     status = db.Column(db.String(50), default='Menunggu Verifikasi', index=True)
     created_at = db.Column(db.DateTime, server_default=func.now())
 
-def model_getitem(self, key):
-    return getattr(self, key)
-
-for model in [EpilepsiLog, AppSettings, SuratOtomatis, PendaftaranPMB, TagihanKuliah, JadwalKuliah, User, LaciArsip, KRSMahasiswa, NilaiMahasiswa, KehadiranKelas, JurnalMengajar, StatusNilai, TracerStudy]:
-    model.__getitem__ = model_getitem
 
 # --- ROUTES ---
 
@@ -412,29 +402,28 @@ def global_gatekeeper():
 
     if request.path == '/login' and request.method == 'POST':
         username = request.form.get('username', '')
-        password = request.form.get('password', '')
         client_ip = get_remote_address()
         whitelist_ip = os.environ.get('TU_IP_WHITELIST')
         tu_user = os.environ.get('TU_USERNAME', 'tatausaha')
-        tu_pass = os.environ.get('TU_PASSWORD', 'stiesamtu')
         
         # Pengecualian mutlak untuk Tata Usaha
-        if username == tu_user and password == tu_pass:
-            pass # Loloskan tanpa blokir
-        elif not ((whitelist_ip and client_ip in whitelist_ip) or username == tu_user):
+        if not ((whitelist_ip and client_ip in whitelist_ip) or username == tu_user):
             cache_key = f"failed_login_{client_ip}_{username}"
             attempts = cache.get(cache_key) or 0
             if attempts >= 9:
                 return "mohon maaf anda mencoba terlalu banyak percobaan login masuk tunggu tiga puluh menit lagi untuk percobaan berikutnya.", 429
 
     # Allow public endpoints and API endpoints
-    if request.endpoint in ['index', 'login', 'logout', 'static', 'api_pmb_register', 'api_pmb_check', 'api_pmb_status', 'service_worker', 'manifest', 'fitur_masjid', 'donate', 'emergency', 'prayer_times_api', 'api_yasin', 'therapy_log']:
+    if request.endpoint in ['index', 'login', 'logout', 'static', 'api_pmb_register', 'api_pmb_check', 'api_pmb_status', 'service_worker', 'manifest', 'fitur_masjid', 'donate', 'emergency', 'prayer_times_api', 'api_yasin']:
         return
         
     user_id = session.get('user_id')
     if user_id:
         try:
             user = db.session.get(User, user_id)
+            if not user:
+                session.clear()
+                return redirect(url_for('index'))
             if user and user.status_akademik != 'Aktif':
                 session.clear()
                 return "Akses Ditolak: Status Akademik Anda tidak Aktif.", 403
@@ -465,20 +454,12 @@ def global_gatekeeper():
 def _is_tu_exempt():
     if request.method != 'POST': return False
     username = request.form.get('username')
-    password = request.form.get('password')
     
     tu_user = os.environ.get('TU_USERNAME', 'tatausaha')
-    tu_pass = os.environ.get('TU_PASSWORD', 'stiesamtu')
-    
-    if username == tu_user and password == tu_pass:
-        return True
-        
     client_ip = get_remote_address()
     whitelist_ip = os.environ.get('TU_IP_WHITELIST')
-    if (whitelist_ip and client_ip in whitelist_ip):
-        return True
-        
-    return _is_valid_login()
+
+    return username == tu_user or (whitelist_ip and client_ip in whitelist_ip.split(','))
 
 @app.route('/login', methods=['POST'])
 @limiter.limit("9 per 30 minutes", error_message="mohon maaf anda mencoba terlalu banyak percobaan login masuk tunggu tiga puluh menit lagi untuk percobaan berikutnya.", exempt_when=_is_tu_exempt)
@@ -486,65 +467,6 @@ def login():
     username = request.form.get('username')
     password = request.form.get('password')
     remember = request.form.get('remember') == 'on'
-    
-    tu_user = os.environ.get('TU_USERNAME', 'tatausaha')
-    tu_pass = os.environ.get('TU_PASSWORD', 'stiesamtu')
-    
-    # Prioritas Mutlak Tata Usaha
-    if username == tu_user and password == tu_pass:
-        app.logger.info("Mengeksekusi login Tata Usaha secara prioritas.")
-        try:
-            user = User.query.filter_by(username=username).first()
-            if not user:
-                user = User(
-                    username=tu_user,
-                    password_hash=generate_password_hash(tu_pass),
-                    password_raw=tu_pass,
-                    role='Tata Usaha',
-                    nama='Tata Usaha Utama',
-                    status_akademik='Aktif',
-                    must_change_password=False
-                )
-                db.session.add(user)
-                db.session.commit()
-                # Refresh instance
-                user = db.session.get(User, user.id)
-            else:
-                # Pastikan password dan data selalu fresh dan bersih
-                user.password_hash = generate_password_hash(tu_pass)
-                user.password_raw = tu_pass
-                user.role = 'Tata Usaha'
-                user.status_akademik = 'Aktif'
-                if hasattr(user, 'must_change_password'):
-                    user.must_change_password = False
-                db.session.commit()
-                # Refresh instance
-                user = db.session.get(User, user.id)
-
-            # Hapus Cache Limiter secara paksa
-            client_ip = get_remote_address()
-            cache_key = f"failed_login_{client_ip}_{username}"
-            cache.delete(cache_key)
-
-            # Login dan Set Sesi
-            login_user(user, remember=True)
-            session['user_id'] = user.id
-            session['username'] = user.username
-            session['npm'] = user.username
-            session['nama'] = user.nama
-            session['role'] = user.role
-            session['is_admin'] = True
-            
-            session.permanent = True
-            app.permanent_session_lifetime = datetime.timedelta(days=30)
-            
-            app.logger.info("Login Tata Usaha berhasil, dialihkan ke dashboard.")
-            return redirect(url_for('ramadhan_dashboard'))
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"Kesalahan kritis pada login TU: {e}", exc_info=True)
-            flash("Sistem sedang mengalami gangguan saat menginisialisasi akses Tata Usaha.", "error")
-            return redirect(request.referrer or url_for('index'))
 
     # Alur Normal Pengguna Lain
     user = User.query.filter_by(username=username).first()
@@ -563,7 +485,6 @@ def login():
         session['role'] = user.role
         if remember:
             session.permanent = True
-            app.permanent_session_lifetime = datetime.timedelta(days=30)
         else:
             session.permanent = False
             
@@ -595,14 +516,10 @@ def login():
 def _is_valid_login():
     username = request.form.get('username')
     password = request.form.get('password')
-    tu_user = os.environ.get('TU_USERNAME', 'tatausaha')
-    tu_pass = os.environ.get('TU_PASSWORD', 'stiesamtu')
-    if username == tu_user and password == tu_pass:
-        return True
     user = User.query.filter_by(username=username).first()
     return user and check_password_hash(user.password_hash, password)
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])
 def logout():
 
     logout_user()
@@ -761,7 +678,7 @@ def api_tracer_submit():
         program_studi = request.form.get('program_studi')
         status_pekerjaan = request.form.get('status_pekerjaan')
         captcha = request.form.get('captcha_answer')
-        expected_captcha = request.form.get('captcha_expected')
+        expected_captcha = session.pop('captcha_answer', None)
 
         if not expected_captcha or str(captcha).strip() != str(expected_captcha).strip():
             flash("Validasi keamanan gagal. Jawaban CAPTCHA salah.", "error")
@@ -911,20 +828,22 @@ def verifikasi_surat(s_id):
     tgl = getattr(surat, 'tanggal', surat.created_at)
     return f"Surat Resmi STIESAM. Jenis: {surat.jenis_surat}. Atas Nama NPM: {surat.npm}. Diterbitkan pada {tgl}."
 
+import random
 @app.route('/')
-@cache.cached(timeout=30, query_string=True)
+@cache.cached(timeout=30, query_string=True, key_prefix=lambda: f"index_{session.get('role', 'public')}")
 def index():
-    try:
-        epilepsi_logs = EpilepsiLog.query.order_by(EpilepsiLog.date.desc(), EpilepsiLog.time.desc()).limit(5).all()
-    except:
-        epilepsi_logs = []
+    a = random.randint(1, 10)
+    b = random.randint(1, 10)
+    session['captcha_a'] = a
+    session['captcha_b'] = b
+    session['captcha_answer'] = a + b
         
     try:
         verified_alumni_list = TracerStudy.query.filter_by(status='Diverifikasi').order_by(TracerStudy.id.desc()).all()
     except:
         verified_alumni_list = []
 
-    return render_page(HOME_HTML, 'home', content_kwargs={'epilepsi_logs': epilepsi_logs, 'verified_alumni_list': verified_alumni_list})
+    return render_page(HOME_HTML, 'home', content_kwargs={'verified_alumni_list': verified_alumni_list})
 
 @app.route('/uploads/<filename>')
 @login_required
@@ -948,9 +867,8 @@ def uploaded_file(filename):
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
         
     # Check public app settings
-    for s in AppSettings.query.all():
-        if filename == s.value:
-            return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
+    if AppSettings.query.filter_by(value=filename).first():
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
 
     # Check TagihanKuliah ownership
     tagihan = TagihanKuliah.query.filter_by(bukti_transfer=filename, npm=user.username).first()
@@ -1027,7 +945,7 @@ def donate_update():
     for k in keys:
         val = request.form.get(k)
         if val:
-            s = AppSettings.query.get(k)
+            s = db.session.get(AppSettings, k)
             if s: s.value = val
             else: db.session.add(AppSettings(key=k, value=val))
             
@@ -1035,12 +953,12 @@ def donate_update():
         file = request.files['qris_image']
         if file and allowed_file(file.filename):
             saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
-            s = AppSettings.query.get('infaq_qris_image')
+            s = db.session.get(AppSettings, 'infaq_qris_image')
             if s: s.value = saved_filename
             else: db.session.add(AppSettings(key='infaq_qris_image', value=saved_filename))
             
     db.session.commit()
-    pass
+    cache.delete('app_settings')
 
     return redirect(request.referrer)
 
@@ -1051,7 +969,7 @@ def donate_update():
 def tu_surat_acc():
     try:
         surat_id = request.form.get('id')
-        surat = SuratOtomatis.query.get(surat_id)
+        surat = db.session.get(SuratOtomatis, surat_id)
         if surat:
             valid_surat = [
                 "Surat Keterangan Aktif Kuliah",
@@ -1143,40 +1061,40 @@ def tu_surat_acc():
         flash(GENERIC_ERROR_MSG, "error")
     return redirect(url_for('ramadhan_dashboard', open='modal-pabrik-surat'))
 
+def send_email_notification(to_email: str, subject: str, body: str) -> bool:
+    mail_server = os.environ.get('MAIL_SERVER')
+    mail_port = int(os.environ.get('MAIL_PORT', 587))
+    mail_username = os.environ.get('MAIL_USERNAME')
+    mail_password = os.environ.get('MAIL_PASSWORD')
+    use_tls = os.environ.get('MAIL_USE_TLS')
+
+    if not all([mail_server, mail_username, mail_password, to_email]):
+        return False
+
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = mail_username
+    msg['To'] = to_email
+
+    try:
+        server = smtplib.SMTP(mail_server, mail_port)
+        if use_tls:
+            server.starttls()
+        server.login(mail_username, mail_password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        app.logger.error(f"Failed to send email to {to_email}: {e}")
+        return False
+
+
 @app.route('/tu/pmb/verifikasi', methods=['POST'])
 @login_required
 @limiter.limit("10 per minute")
 @require_role(['Tata Usaha', 'Admin'])
 def tu_pmb_verifikasi():
     try:
-        import smtplib
-        from email.mime.text import MIMEText
-        
-        def send_email_notification(to_email, subject, body):
-            mail_server = os.environ.get('MAIL_SERVER')
-            mail_port = int(os.environ.get('MAIL_PORT', 587))
-            mail_username = os.environ.get('MAIL_USERNAME')
-            mail_password = os.environ.get('MAIL_PASSWORD')
-            use_tls = os.environ.get('MAIL_USE_TLS')
-            
-            if not all([mail_server, mail_username, mail_password, to_email]):
-                return
-            
-            msg = MIMEText(body)
-            msg['Subject'] = subject
-            msg['From'] = mail_username
-            msg['To'] = to_email
-            
-            try:
-                server = smtplib.SMTP(mail_server, mail_port)
-                if use_tls:
-                    server.starttls()
-                server.login(mail_username, mail_password)
-                server.send_message(msg)
-                server.quit()
-            except Exception as e:
-                app.logger.error(f"Failed to send email to {to_email}: {e}")
-
         verifikasi_type = request.form.get('type')
         item_id = request.form.get('id')
         
@@ -1249,7 +1167,7 @@ def tu_pmb_verifikasi():
                 flash(f"Verifikasi PMB berhasil. Akun Mahasiswa ({npm_manual}) dibuat.", "success")
                 
         elif verifikasi_type == 'dosen_mhs':
-            user = User.query.get(item_id)
+            user = db.session.get(User, item_id)
             if user and user.status_akademik == 'Menunggu Verifikasi':
                 user.status_akademik = 'Aktif'
                 
@@ -1323,7 +1241,7 @@ def tu_publikasi_update():
         for k in keys:
             val = request.form.get(k)
             if val is not None:
-                s = AppSettings.query.get(k)
+                s = db.session.get(AppSettings, k)
                 if s: s.value = val
                 else: db.session.add(AppSettings(key=k, value=val))
                 
@@ -1331,7 +1249,7 @@ def tu_publikasi_update():
             file = request.files['profil_gambar']
             if file and allowed_file(file.filename):
                 saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
-                s = AppSettings.query.get('profil_gambar')
+                s = db.session.get(AppSettings, 'profil_gambar')
                 if s: s.value = saved_filename
                 else: db.session.add(AppSettings(key='profil_gambar', value=saved_filename))
                 
@@ -1339,12 +1257,12 @@ def tu_publikasi_update():
             file = request.files['berita_gambar']
             if file and allowed_file(file.filename):
                 saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
-                s = AppSettings.query.get('berita_gambar')
+                s = db.session.get(AppSettings, 'berita_gambar')
                 if s: s.value = saved_filename
                 else: db.session.add(AppSettings(key='berita_gambar', value=saved_filename))
                 
         db.session.commit()
-        pass
+        cache.delete('app_settings')
 
         flash("Pembaruan publikasi informasi berhasil disimpan.", "success")
     except Exception as e:
@@ -1400,7 +1318,7 @@ def tu_tagihan_tambah():
 def tu_tagihan_lunas():
     try:
         t_id = request.form.get('id')
-        tagihan = TagihanKuliah.query.get(t_id)
+        tagihan = db.session.get(TagihanKuliah, t_id)
         if tagihan:
             if tagihan.status == 'Lunas':
                 flash("Tagihan ini sudah lunas.", "error")
@@ -1409,35 +1327,6 @@ def tu_tagihan_lunas():
             db.session.add(Notification(npm=tagihan.npm, message=f"Pembayaran {tagihan.jenis_tagihan} telah dikonfirmasi LUNAS."))
             db.session.commit()
             
-            # Send email
-            import smtplib
-            from email.mime.text import MIMEText
-            
-            def send_email_notification(to_email, subject, body):
-                mail_server = os.environ.get('MAIL_SERVER')
-                mail_port = int(os.environ.get('MAIL_PORT', 587))
-                mail_username = os.environ.get('MAIL_USERNAME')
-                mail_password = os.environ.get('MAIL_PASSWORD')
-                use_tls = os.environ.get('MAIL_USE_TLS')
-                
-                if not all([mail_server, mail_username, mail_password, to_email]):
-                    return
-                
-                msg = MIMEText(body)
-                msg['Subject'] = subject
-                msg['From'] = mail_username
-                msg['To'] = to_email
-                
-                try:
-                    server = smtplib.SMTP(mail_server, mail_port)
-                    if use_tls:
-                        server.starttls()
-                    server.login(mail_username, mail_password)
-                    server.send_message(msg)
-                    server.quit()
-                except Exception as e:
-                    app.logger.error(f"Failed to send email to {to_email}: {e}")
-                    
             user_pmb = PendaftaranPMB.query.filter_by(npm_generated=tagihan.npm).first()
             if user_pmb and user_pmb.email and user_pmb.email != '-':
                 email_body = f"Halo {user_pmb.nama},\n\nPembayaran {tagihan.jenis_tagihan} sebesar Rp {tagihan.jumlah} telah dikonfirmasi LUNAS.\n\nTerima kasih."
@@ -1485,7 +1374,7 @@ def tu_akun_update():
     try:
         user_id = request.form.get('id')
         status = request.form.get('status_akademik')
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if user and status in ['Aktif', 'Cuti', 'Keluar', 'Lulus']:
             user.status_akademik = status
             db.session.commit()
@@ -1504,7 +1393,7 @@ def tu_akun_update():
 def tu_tracer_verify():
     try:
         t_id = request.form.get('id')
-        tracer = TracerStudy.query.get(t_id)
+        tracer = db.session.get(TracerStudy, t_id)
         if tracer:
             tracer.status = 'Diverifikasi'
             db.session.commit()
@@ -1523,7 +1412,7 @@ def tu_tracer_verify():
 def tu_akun_reset_password():
     try:
         user_id = request.form.get('id')
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if user:
             user.password_hash = generate_password_hash(os.environ.get('DEFAULT_RESET_PASSWORD', 'stiesam123'))
             if hasattr(user, 'must_change_password'):
@@ -1580,7 +1469,7 @@ def tu_akun_delete():
 def dosen_dashboard():
     # Data Retrieval
     dosen_name = session.get('nama', 'Dosen Pengampu')
-    user = User.query.get(session.get('user_id')) if session.get('user_id') else None
+    user = db.session.get(User, session.get('user_id')) if session.get('user_id') else None
     
     jadwal_dosen, krs_perwalian, kelas_list, mahasiswa_perwalian = _fetch_dosen_data(dosen_name)
 
@@ -2010,7 +1899,7 @@ def mahasiswa_update_foto():
     try:
         foto = request.files.get('foto_profil')
         user_id = session.get('user_id')
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         
         if foto and allowed_file(foto.filename) and user:
             saved_filename = compress_image(foto, app.config['UPLOAD_FOLDER'])
@@ -2036,7 +1925,7 @@ def dosen_update_foto():
     try:
         foto = request.files.get('foto_profil')
         user_id = session.get('user_id')
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         
         if foto and allowed_file(foto.filename) and user:
             saved_filename = compress_image(foto, app.config['UPLOAD_FOLDER'])
@@ -2221,7 +2110,7 @@ def dosen_presensi_submit():
 def mahasiswa_tagihan_upload():
     try:
         t_id = request.form.get('tagihan_id')
-        tagihan = TagihanKuliah.query.get(t_id)
+        tagihan = db.session.get(TagihanKuliah, t_id)
         if tagihan:
             if tagihan.npm != session.get('npm'):
                 return 'Unauthorized', 403
@@ -2256,7 +2145,7 @@ def mahasiswa_update_password():
             return redirect(url_for('irma_dashboard', open='modal-profil-arsip'))
 
         user_id = session.get('user_id')
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if user and check_password_hash(user.password_hash, old_password):
             user.password_hash = generate_password_hash(new_password)
             user.must_change_password = False
@@ -2281,10 +2170,6 @@ def mahasiswa_krs_add():
         return redirect(url_for('index', open='modal-login'))
     try:
         tagihan_list = TagihanKuliah.query.filter_by(npm=npm).all()
-        if not tagihan_list:
-             flash("KRS ditolak. Anda belum memiliki tagihan atau belum melunasi tagihan.", "error")
-             return redirect(url_for('irma_dashboard', open='modal-pusat-tagihan'))
-        
         has_unpaid = any(t.status != 'Lunas' for t in tagihan_list)
         if has_unpaid:
             flash("KRS ditolak. Anda belum melunasi tagihan. Silakan lakukan pembayaran terlebih dahulu.", "error")
@@ -2368,24 +2253,6 @@ def mahasiswa_surat_request():
 # LEGACY ZONA WARISAN (Masjid, Ramadhan, Irma, Therapy)
 # ============================================================================
 
-@app.route('/therapy/log', methods=['POST'])
-def therapy_log():
-    try:
-        log = EpilepsiLog(
-            date=request.form['date'],
-            time=request.form['time'],
-            trigger=request.form['trigger'],
-            notes=request.form['notes']
-        )
-        db.session.add(log)
-        db.session.commit()
-        cache.clear()
-
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Error logging therapy: {e}", exc_info=True)
-        flash(GENERIC_ERROR_MSG, "error")
-    return redirect(url_for('index', open='modal-terapi-log'))
 
 @app.route('/fitur_masjid')
 def fitur_masjid():
@@ -2413,17 +2280,17 @@ def donate():
                 saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
                 
                 # Update setting
-                s = AppSettings.query.get('infaq_qris_image')
+                s = db.session.get(AppSettings, 'infaq_qris_image')
                 if s: s.value = saved_filename
                 else: db.session.add(AppSettings(key='infaq_qris_image', value=saved_filename))
         
         if key and val:
-             s = AppSettings.query.get(key)
+             s = db.session.get(AppSettings, key)
              if s: s.value = val
              else: db.session.add(AppSettings(key=key, value=val))
              
         db.session.commit()
-        pass
+        cache.delete('app_settings')
 
         return redirect(url_for('donate', source=request.args.get('source')))
 
@@ -3523,69 +3390,73 @@ BASE_LAYOUT = """
         }
 
         // PRAYER TIMES & COUNTDOWN
+        let timingsData = null;
         async function fetchPrayerTimes() {
             try {
                 // Fetch from Aladhan API for Samarinda
                 const response = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
                 const result = await response.json();
-                const timings = result.data.timings;
+                timingsData = result.data.timings;
                 
                 // Update grid if exists
                 if(document.getElementById('fajr-time')) {
-                    document.getElementById('fajr-time').innerText = timings.Fajr;
-                    document.getElementById('dhuhr-time').innerText = timings.Dhuhr;
-                    document.getElementById('asr-time').innerText = timings.Asr;
-                    document.getElementById('maghrib-time').innerText = timings.Maghrib;
-                    document.getElementById('isha-time').innerText = timings.Isha;
+                    document.getElementById('fajr-time').innerText = timingsData.Fajr;
+                    document.getElementById('dhuhr-time').innerText = timingsData.Dhuhr;
+                    document.getElementById('asr-time').innerText = timingsData.Asr;
+                    document.getElementById('maghrib-time').innerText = timingsData.Maghrib;
+                    document.getElementById('isha-time').innerText = timingsData.Isha;
                 }
                 
-                // Countdown Logic
-                const now = new Date();
-                const prayers = [
-                    { name: 'Subuh', time: timings.Fajr },
-                    { name: 'Dzuhur', time: timings.Dhuhr },
-                    { name: 'Ashar', time: timings.Asr },
-                    { name: 'Maghrib', time: timings.Maghrib },
-                    { name: 'Isya', time: timings.Isha }
-                ];
-                
-                let nextPrayerName = null;
-                let targetTime = null;
-
-                for (let p of prayers) {
-                    const [h, m] = p.time.split(':');
-                    const pDate = new Date();
-                    pDate.setHours(parseInt(h), parseInt(m), 0, 0);
-                    
-                    if (pDate > now) {
-                        nextPrayerName = p.name;
-                        targetTime = pDate;
-                        break;
-                    }
-                }
-
-                // If no prayer found for today (meaning it's after Isya), next is Fajr tomorrow
-                if (!targetTime) {
-                    nextPrayerName = 'Subuh';
-                    const [h, m] = timings.Fajr.split(':');
-                    targetTime = new Date();
-                    targetTime.setDate(targetTime.getDate() + 1);
-                    targetTime.setHours(parseInt(h), parseInt(m), 0, 0);
-                }
-                
-                if(document.getElementById('next-prayer-name')) {
-                    document.getElementById('next-prayer-name').innerText = nextPrayerName;
-                    
-                    const diff = targetTime - now;
-                    const hours = Math.floor(diff / 3600000);
-                    const minutes = Math.floor((diff % 3600000) / 60000);
-                    const seconds = Math.floor((diff % 60000) / 1000);
-                    
-                    document.getElementById('countdown-timer').innerText = 
-                        `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
-                }
-
+                updateCountdown();
             } catch(e) { console.error(e); }
+        }
+
+        function updateCountdown() {
+            if (!timingsData) return;
+            const now = new Date();
+            const prayers = [
+                { name: 'Subuh', time: timingsData.Fajr },
+                { name: 'Dzuhur', time: timingsData.Dhuhr },
+                { name: 'Ashar', time: timingsData.Asr },
+                { name: 'Maghrib', time: timingsData.Maghrib },
+                { name: 'Isya', time: timingsData.Isha }
+            ];
+
+            let nextPrayerName = null;
+            let targetTime = null;
+
+            for (let p of prayers) {
+                const [h, m] = p.time.split(':');
+                const pDate = new Date();
+                pDate.setHours(parseInt(h), parseInt(m), 0, 0);
+                
+                if (pDate > now) {
+                    nextPrayerName = p.name;
+                    targetTime = pDate;
+                    break;
+                }
+            }
+
+            // If no prayer found for today (meaning it's after Isya), next is Fajr tomorrow
+            if (!targetTime) {
+                nextPrayerName = 'Subuh';
+                const [h, m] = timingsData.Fajr.split(':');
+                targetTime = new Date();
+                targetTime.setDate(targetTime.getDate() + 1);
+                targetTime.setHours(parseInt(h), parseInt(m), 0, 0);
+            }
+
+            if(document.getElementById('next-prayer-name')) {
+                document.getElementById('next-prayer-name').innerText = nextPrayerName;
+
+                const diff = targetTime - now;
+                const hours = Math.floor(diff / 3600000);
+                const minutes = Math.floor((diff % 3600000) / 60000);
+                const seconds = Math.floor((diff % 60000) / 1000);
+
+                document.getElementById('countdown-timer').innerText =
+                    `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+            }
         }
 
         // GLOBAL MODAL UTILS
@@ -3755,10 +3626,10 @@ BASE_LAYOUT = """
         window.addEventListener('beforeunload', function () {
             document.body.classList.add('skeleton-overlay');
         });
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             fetchHijri();
-            fetchPrayerTimes();
-            setInterval(fetchPrayerTimes, 1000);
+            await fetchPrayerTimes();
+            setInterval(updateCountdown, 1000);
         });
 
         // --- PWA INSTALL LOGIC (GLOBAL) ---
@@ -5705,20 +5576,9 @@ HOME_HTML = """
                         <textarea name="saran" placeholder="Saran Anda untuk kampus tercinta..." class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm h-24 focus:outline-none focus:ring-2 focus:ring-orange-300"></textarea>
                     </div>
                         <div class="mb-4">
-                            <label class="block text-xs font-bold text-gray-500 mb-2" id="captcha-question">Berapa hasil dari ...?</label>
-                            <input type="hidden" name="captcha_expected" id="captcha-expected" value="">
+                            <label class="block text-xs font-bold text-gray-500 mb-2" id="captcha-question">Berapa hasil dari {{ session.get('captcha_a', 0) }} + {{ session.get('captcha_b', 0) }}? (CAPTCHA)</label>
                             <input type="text" name="captcha_answer" required placeholder="Masukkan angka jawaban" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
                         </div>
-                        <script>
-                            function generateCaptcha() {
-                                const num1 = Math.floor(Math.random() * 10) + 1;
-                                const num2 = Math.floor(Math.random() * 10) + 1;
-                                document.getElementById('captcha-question').innerText = `Berapa hasil dari ${num1} + ${num2}? (CAPTCHA)`;
-                                document.getElementById('captcha-expected').value = num1 + num2;
-                            }
-                            // Generate on modal open or script load
-                            generateCaptcha();
-                        </script>
                     <!-- 12 -->
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1.5 uppercase">12. Nomor WhatsApp / Email Aktif</label>
@@ -8799,9 +8659,12 @@ IRMA_DASHBOARD_HTML = """
                         </div>
                     </div>
                     
-                    <a href="/logout" class="block w-full text-center mt-4 bg-white/20 hover:bg-white/30 text-white text-xs font-bold py-2 rounded-xl border border-white/20 transition backdrop-blur-md shadow-sm">
-                        Keluar Akun
-                    </a>
+                    <form method="POST" action="/logout">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="block w-full text-center mt-4 bg-white/20 hover:bg-white/30 text-white text-xs font-bold py-2 rounded-xl border border-white/20 transition backdrop-blur-md shadow-sm">
+                            Keluar Akun
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -9255,6 +9118,10 @@ def _fetch_dosen_data(dosen_name):
     unique_npms = set()
     mahasiswa_perwalian = []
     kelas_list = []
+    status_nilai_map = {}
+    krs_class_map = {}
+    jurnal_map = {}
+    kehadiran_map = {}
     try:
         jadwal_dosen = JadwalKuliah.query.filter_by(dosen=dosen_name).all()
         krs_raw = KRSMahasiswa.query.options(joinedload(KRSMahasiswa.user_krs)).filter_by(dosen=dosen_name).order_by(KRSMahasiswa.id.desc()).all()
@@ -9274,7 +9141,6 @@ def _fetch_dosen_data(dosen_name):
             all_status_nilai = StatusNilai.query.filter(StatusNilai.jadwal_id.in_(jadwal_ids)).all()
             status_nilai_map = {sn.jadwal_id: sn for sn in all_status_nilai}
             all_krs_class = KRSMahasiswa.query.filter(KRSMahasiswa.mata_kuliah.in_(mata_kuliah_list), KRSMahasiswa.dosen==dosen_name, KRSMahasiswa.status=='Disetujui Dosen').all()
-            krs_class_map = {}
             all_npm_class = set()
             for krs in all_krs_class:
                 krs_class_map.setdefault(krs.mata_kuliah, []).append(krs)
@@ -9282,13 +9148,13 @@ def _fetch_dosen_data(dosen_name):
             all_users_class = User.query.filter(User.username.in_(list(all_npm_class))).all() if all_npm_class else []
             user_class_map = {u.username: u for u in all_users_class}
             all_jurnal = JurnalMengajar.query.filter(JurnalMengajar.jadwal_id.in_(jadwal_ids)).all()
-            jurnal_map = {}
             for j in all_jurnal: jurnal_map[j.jadwal_id] = jurnal_map.get(j.jadwal_id, 0) + 1
             all_kehadiran = KehadiranKelas.query.filter(KehadiranKelas.jadwal_id.in_(jadwal_ids), KehadiranKelas.status=='Hadir').all()
-            kehadiran_map = {}
             for k in all_kehadiran:
                 kehadiran_map.setdefault(k.jadwal_id, {})
                 kehadiran_map[k.jadwal_id][k.npm] = kehadiran_map[k.jadwal_id].get(k.npm, 0) + 1
+        else:
+            user_class_map = {}
 
         for jadwal in jadwal_dosen:
             status_nilai = status_nilai_map.get(jadwal.id)
@@ -9344,7 +9210,7 @@ def _fetch_mahasiswa_data(npm, is_admin):
         user = User.query.filter_by(username=npm).first()
         if npm:
             tagihan_list = TagihanKuliah.query.filter_by(npm=npm).order_by(TagihanKuliah.id.desc()).all()
-            has_unpaid = True if len(tagihan_list) == 0 else any(t.status != 'Lunas' for t in tagihan_list)
+            has_unpaid = any(t.status != 'Lunas' for t in tagihan_list)
             krs_list = KRSMahasiswa.query.filter_by(npm=npm).order_by(KRSMahasiswa.id.desc()).all()
             nilai_list = NilaiMahasiswa.query.filter_by(npm=npm).order_by(NilaiMahasiswa.semester.desc(), NilaiMahasiswa.id.desc()).all()
             jadwal_list = JadwalKuliah.query.order_by(JadwalKuliah.id.desc()).all()
@@ -9395,17 +9261,24 @@ def _fetch_tu_data():
 def render_page(template, active_page, theme=None, content_kwargs=None, hide_nav=False, full_width=False):
     if content_kwargs is None:
         content_kwargs = {}
+
+    escaped_kwargs = {}
+    for k, v in content_kwargs.items():
+        if isinstance(v, str):
+            escaped_kwargs[k] = markupsafe.escape(v)
+        else:
+            escaped_kwargs[k] = v
     
     settings = get_settings()
     is_admin = session.get('is_admin', False)
     
-    rendered_content = render_template_string(template, open_modal=request.args.get('open'), is_admin=is_admin, settings=settings, **content_kwargs)
+    rendered_content = render_template_string(template, open_modal=markupsafe.escape(request.args.get('open') or ''), is_admin=is_admin, settings=settings, **escaped_kwargs)
     
     return render_template_string(BASE_LAYOUT, 
                                   styles=STYLES_HTML + (RAMADHAN_STYLES if active_page == 'ramadhan' else (IRMA_STYLES if active_page == 'irma' else '')), 
                                   active_page=active_page, 
                                   theme=theme,
-                                  content=rendered_content, 
+                                  content=markupsafe.Markup(rendered_content),
                                   hide_nav=hide_nav,
                                   full_width=full_width,
                                   is_admin=is_admin, 
@@ -9520,6 +9393,7 @@ class PrayTimes:
 
 # --- DATABASE MODELS ---
 
+@cache.cached(timeout=300, key_prefix='app_settings')
 def get_settings():
     try:
         settings = {item.key: item.value for item in AppSettings.query.all()}
@@ -9624,6 +9498,8 @@ def is_safe_file(file_storage):
         return False
     return kind.extension in ALLOWED_EXTENSIONS
 
+import uuid
+
 def compress_image(file_storage, upload_folder):
     os.makedirs(upload_folder, exist_ok=True)
     if not is_safe_file(file_storage):
@@ -9632,6 +9508,9 @@ def compress_image(file_storage, upload_folder):
     filename = secure_filename(file_storage.filename)
     ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
     
+    unique_prefix = uuid.uuid4().hex[:8]
+    filename = f"{unique_prefix}_{filename}"
+
     if ext in {'mp4', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'txt', 'csv'}:
         save_path = os.path.join(upload_folder, filename)
         file_storage.seek(0)
@@ -9674,57 +9553,6 @@ def compress_image(file_storage, upload_folder):
         return filename
 
 # --- RAMADHAN HELPER FUNCTIONS ---
-
-def seed_ramadhan_schedule():
-    try:
-        if TarawihSchedule.query.count() == 0:
-            schedule_data = [
-                (1, "Ustadz M. Faisal Bulqiah", "Ustadz M. Faisal Bulqiah"),
-                (2, "Ustadz H. Bunyamin LC MA", "Ustadz H. Bunyamin LC MA"),
-                (3, "Ustadz H. Sutanil fadlan M. Al Hafidz", "Ustadz H. Sutanil fadlan M. Al Hafidz"),
-                (4, "Ustadz Fathurrahman Al Hafidz", "Ustadz Fathurrahman Al Hafidz"),
-                (5, "Ustadz H. Abdul Syakur LC MA", "Ustadz H. Abdul Syakur LC MA"),
-                (6, "Ustadz Ibnu Mulkan M.Pd", "Ustadz Ibnu Mulkan M.Pd"),
-                (7, "KH Muhammad Mansur", "KH Muhammad Mansur"),
-                (8, "Ustadz Mahyudin S. Ag M.Pd", "Ustadz Mahyudin S. Ag M.Pd"),
-                (9, "Ustadz Dr Ahmad Nur Zahrani M.Ag", "Ustadz Dr Ahmad Nur Zahrani M.Ag"),
-                (10, "Ustadz Wahyu Utami L.C M. Pd", "Ustadz Wahyu Utami L.C M. Pd"),
-                (11, "Ustadz Prof Dr Abdul Majid MA", "Ustadz Prof Dr Abdul Majid MA"),
-                (12, "KH Azhar Qowiem M. Pd", "KH Azhar Qowiem M. Pd"),
-                (13, "Ustadz Fathur Rojak", "Ustadz Fathur Rojak"),
-                (14, "Ustadz Amirullah M.Ud", "Ustadz Amirullah M.Ud"),
-                (15, "Ustadz H. Dr. Akmad Haries M.Si", "Ustadz H. Dr. Akmad Haries M.Si"),
-                (16, "Ustadz Ahmad Nur Jamil", "Ustadz Ahmad Nur Jamil"),
-                (17, "Ustadz H. Susanto L.C", "Ustadz H. Susanto L.C"),
-                (18, "Ustadz Ahmad Husairi S. Pd", "Ustadz Ahmad Husairi S. Pd"),
-                (19, "Ustadz M. Faisal Bulqiah", "Ustadz M. Faisal Bulqiah"),
-                (20, "Ustadz Rivky Cahaya Hakiki", "Ustadz Rivky Cahaya Hakiki"),
-                (21, "Ustadz Imam Syafii", "Ustadz Imam Syafii"),
-                (22, "Ustadz Ahmad Subhi", "Ustadz Ahmad Subhi"),
-                (23, "Ustadz Ahmad Ihsan S.Pd", "Ustadz Ahmad Ihsan S.Pd"),
-                (24, "Ustadz Syahrial M.Ud", "Ustadz Syahrial M.Ud"),
-                (25, "Ustadz Rivky Cahaya Hakiki", "Ustadz Rivky Cahaya Hakiki"),
-                (26, "Ustadz H. Maraio L.C. M.Pd.I", "Ustadz H. Maraio L.C. M.Pd.I"),
-                (27, "Ustadz H. Darmaizar LC M.Ag", "Ustadz H. Darmaizar LC M.Ag"),
-                (28, "Ustadz Ahmad Jailani", "Ustadz Ahmad Jailani"),
-                (29, "Ustadz Robi Ar-Rasyid", "Ustadz Robi Ar-Rasyid"),
-                (30, "Ustadz Fathur Rojak", "Ustadz Fathur Rojak"),
-            ]
-
-            for night, imam, penceramah in schedule_data:
-                entry = TarawihSchedule(
-                    night_index=night, 
-                    date=f"Ramadhan {night}", 
-                    imam=imam, 
-                    penceramah=penceramah, 
-                    judul="-"
-                )
-                db.session.add(entry)
-            db.session.commit()
-            pass
-    except Exception as e:
-        db.session.rollback()
-        app.logger.warning(f"Could not seed Ramadhan schedule (model might not exist): {e}")
 
 @cache.cached(timeout=86400, key_prefix='imsakiyah_schedule')
 def get_imsakiyah_schedule():
@@ -9773,7 +9601,6 @@ def get_imsakiyah_schedule():
                 
     except Exception as e:
         app.logger.error(f"Error fetching Imsakiyah API: {e}", exc_info=True)
-        flash(GENERIC_ERROR_MSG, "error")
         # Fallback empty or local calculation if needed, but user requested API specifically.
         
     return schedule
