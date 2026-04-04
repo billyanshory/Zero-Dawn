@@ -12,6 +12,7 @@ from PIL import Image
 from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify, session, flash
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError
@@ -30,6 +31,7 @@ load_dotenv()
 
 # --- KONFIGURASI FLASK ---
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 GENERIC_ERROR_MSG = "Terjadi kesalahan sistem. Tim teknis telah diberitahu."
 
