@@ -334,6 +334,45 @@ def manifest():
 # AUTH & SECURITY ROUTES
 # ============================================================================
 
+@app.before_request
+def dynamic_auto_login():
+    path = request.path
+    # Intercept portal paths and force appropriate login
+    if path.startswith('/tu_dashboard') or path.startswith('/tu/'):
+        role, username, nama = 'Tata Usaha', 'tatausaha', 'Tata Usaha Utama'
+    elif path.startswith('/mahasiswa'):
+        role, username, nama = 'Mahasiswa', '2401001', 'Mahasiswa Dummy'
+    elif path.startswith('/dosen'):
+        role, username, nama = 'Dosen', 'dosen123', 'Dosen Dummy'
+    else:
+        # Check referrer if interacting with APIs
+        ref = request.referrer or ''
+        if '/mahasiswa' in ref:
+            role, username, nama = 'Mahasiswa', '2401001', 'Mahasiswa Dummy'
+        elif '/dosen' in ref:
+            role, username, nama = 'Dosen', 'dosen123', 'Dosen Dummy'
+        elif '/tu' in ref:
+            role, username, nama = 'Tata Usaha', 'tatausaha', 'Tata Usaha Utama'
+        else:
+            return # Don't interfere with public routes
+
+    # Ensure user is fully logged into this context, overcoming any previous session
+    if current_user.is_anonymous or current_user.username != username:
+        u = User.query.filter_by(username=username).first()
+        if not u:
+            u = User(username=username, password_hash='dummy', role=role, nama=nama, status_akademik='Aktif')
+            db.session.add(u)
+            db.session.commit()
+
+        login_user(u)
+        session['user_id'] = u.id
+        session['username'] = u.username
+        session['npm'] = u.username
+        session['nama'] = u.nama
+        session['role'] = u.role
+        session['is_admin'] = (role == 'Tata Usaha')
+
+
 
 def require_role(roles):
     def decorator(f):
@@ -2949,175 +2988,6 @@ BASE_LAYOUT = """
 
     <!-- NEW MODALS FROM BOTTOM NAV -->
     
-    <!-- MODAL LOGIN -->
-    <div id="modal-login" class="fixed inset-0 z-[250] hidden bg-black/60 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-[slideUp_0.3s_ease-out] relative">
-            <button onclick="closeModal('modal-login')" class="absolute top-4 right-4 bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center z-10">&times;</button>
-            
-            <div class="bg-gradient-to-br from-sky-600 to-sky-800 p-6 text-center text-white relative">
-                <div class="absolute inset-0 bg-white/5 mix-blend-overlay"></div>
-                <img src="/static/logo-stiesam.png" alt="Logo" class="h-12 w-12 mx-auto mb-2 object-contain bg-white rounded-full p-1 relative z-10">
-                <h3 class="font-bold tracking-widest text-lg relative z-10">Masuk ke Portal STIESAM</h3>
-            </div>
-            
-            <div class="p-6">
-                <!-- Portal Tabs -->
-                <div class="flex p-1 bg-gray-100 rounded-xl mb-6">
-                    <button onclick="switchPortalTab('portal-tu')" id="tab-btn-tu" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-sky-600 transition">Tata Usaha</button>
-                    <button onclick="switchPortalTab('portal-mhs')" id="tab-btn-mhs" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition">Mahasiswa</button>
-                    <button onclick="switchPortalTab('portal-dsn')" id="tab-btn-dsn" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition">Dosen</button>
-                </div>
-
-                <!-- Tata Usaha Portal -->
-                <div id="portal-tu" class="portal-tab-content block">
-                    <form action="/login" method="POST" class="space-y-4">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Username Tata Usaha</label>
-                            <input type="text" name="username" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
-                            <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        </div>
-                        <div class="flex items-center mt-2 mb-4">
-                            <input type="checkbox" id="remember-tu" name="remember" class="w-4 h-4 text-sky-500 bg-gray-50 border-gray-300 rounded focus:ring-sky-500">
-                            <label for="remember-tu" class="ml-2 text-xs font-medium text-gray-500">Ingat Saya</label>
-                        </div>
-                        <button type="submit" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl hover:bg-sky-600 transition shadow-md">Masuk Tata Usaha</button>
-                    </form>
-                </div>
-
-                <!-- Mahasiswa Portal -->
-                <div id="portal-mhs" class="portal-tab-content hidden">
-                    <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
-                        <h4 class="font-bold text-gray-700 text-sm">Login Mahasiswa</h4>
-                        <button onclick="toggleRegister('mhs-login-section', 'mhs-register-section')" class="text-xs text-sky-500 font-bold hover:underline">Daftar Akun?</button>
-                    </div>
-
-                    <div id="mhs-login-section" class="block">
-                        <form action="/login" method="POST" class="space-y-4">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">NPM Mahasiswa</label>
-                                <input type="text" name="username" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
-                                <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                            </div>
-                            <div class="flex items-center gap-2 mb-2">
-                                <input type="checkbox" name="remember" id="remember-me-mhs" class="accent-sky-500 w-4 h-4 text-sky-500 bg-gray-50 border-gray-300 rounded focus:ring-sky-500">
-                                <label for="remember-me-mhs" class="text-xs text-gray-600 font-medium cursor-pointer">Ingat Saya</label>
-                            </div>
-                            <button type="submit" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl hover:bg-sky-600 transition shadow-md">Masuk Mahasiswa</button>
-                        </form>
-                    </div>
-
-                    <div id="mhs-register-section" class="hidden">
-                        <form action="/api/register_user" method="POST" class="space-y-4">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="role" value="Mahasiswa">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Nama Lengkap</label>
-                                <input type="text" name="nama" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">NPM Pendaftaran</label>
-                                <input type="text" name="username" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
-                                <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                            </div>
-                            <button type="submit" class="w-full bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition shadow-md">Daftar Akun Mahasiswa</button>
-                            <button type="button" onclick="toggleRegister('mhs-register-section', 'mhs-login-section')" class="w-full mt-2 text-xs font-bold text-gray-500 hover:text-gray-700">Kembali ke Login</button>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Dosen Portal -->
-                <div id="portal-dsn" class="portal-tab-content hidden">
-                    <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
-                        <h4 class="font-bold text-gray-700 text-sm">Login Dosen</h4>
-                        <button onclick="toggleRegister('dsn-login-section', 'dsn-register-section')" class="text-xs text-sky-500 font-bold hover:underline">Daftar Akun?</button>
-                    </div>
-
-                    <div id="dsn-login-section" class="block">
-                        <form action="/login" method="POST" class="space-y-4">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">NIDN / Username Dosen</label>
-                                <input type="text" name="username" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
-                                <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                            </div>
-                            <div class="flex items-center gap-2 mb-2">
-                                <input type="checkbox" name="remember" id="remember-me-dsn" class="accent-sky-500 w-4 h-4 text-sky-500 bg-gray-50 border-gray-300 rounded focus:ring-sky-500">
-                                <label for="remember-me-dsn" class="text-xs text-gray-600 font-medium cursor-pointer">Ingat Saya</label>
-                            </div>
-                            <button type="submit" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl hover:bg-sky-600 transition shadow-md">Masuk Dosen</button>
-                        </form>
-                    </div>
-
-                    <div id="dsn-register-section" class="hidden">
-                        <form action="/api/register_user" method="POST" class="space-y-4">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="role" value="Dosen">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Nama Lengkap & Gelar</label>
-                                <input type="text" name="nama" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">NIDN</label>
-                                <input type="text" name="username" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
-                                <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                            </div>
-                            <button type="submit" class="w-full bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition shadow-md">Daftar Akun Dosen</button>
-                            <button type="button" onclick="toggleRegister('dsn-register-section', 'dsn-login-section')" class="w-full mt-2 text-xs font-bold text-gray-500 hover:text-gray-700">Kembali ke Login</button>
-                        </form>
-                    </div>
-                </div>
-
-            </div>
-            
-            <script>
-                function switchPortalTab(tabId) {
-                    document.querySelectorAll('.portal-tab-content').forEach(el => {
-                        el.classList.remove('block');
-                        el.classList.add('hidden');
-                    });
-                    document.getElementById(tabId).classList.remove('hidden');
-                    document.getElementById(tabId).classList.add('block');
-                    
-                    const activeClass = "flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-sky-600 transition".split(" ");
-                    const inactiveClass = "flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition".split(" ");
-                    
-                    ['tab-btn-tu', 'tab-btn-mhs', 'tab-btn-dsn'].forEach(id => {
-                        const btn = document.getElementById(id);
-                        btn.className = "";
-                        if (tabId === id.replace('tab-btn-', 'portal-')) {
-                            btn.classList.add(...activeClass);
-                        } else {
-                            btn.classList.add(...inactiveClass);
-                        }
-                    });
-                }
-
-                function toggleRegister(hideId, showId) {
-                    document.getElementById(hideId).classList.remove('block');
-                    document.getElementById(hideId).classList.add('hidden');
-                    document.getElementById(showId).classList.remove('hidden');
-                    document.getElementById(showId).classList.add('block');
-                }
-            </script>
-        </div>
-    </div>
 
     <!-- MODAL LOGO ZOOM -->
     <div id="modal-logo-zoom" class="fixed inset-0 z-[200] hidden bg-white/30 backdrop-blur-md flex justify-center items-center" onclick="document.getElementById('modal-logo-zoom').classList.add('hidden'); if(history.state && history.state.modal === 'modal-logo-zoom') { history.replaceState(null, '', window.location.pathname); }">
@@ -4881,7 +4751,7 @@ HOME_HTML = """
             </div>
 
             <!-- PORTAL TATA USAHA BANNER -->
-            <a href="javascript:void(0)" onclick="openModal('modal-login')" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-[#0b162c]">
+            <a href="/tu_dashboard" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-[#0b162c]">
                 <!-- Background & Texture -->
                 <div class="absolute inset-0 bg-[#0b162c]"></div>
                 <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
@@ -4907,7 +4777,7 @@ HOME_HTML = """
             <!-- PORTAL MAHASISWA & DOSEN -->
             <div class="relative floating-card overflow-hidden rounded-3xl shadow-xl border border-gray-200 mt-4 flex h-32 md:h-40">
                 <!-- Zona Kiri: Mahasiswa -->
-                <a href="javascript:void(0)" onclick="openModal('modal-login')" class="w-1/2 relative group hover:z-10 transition-all duration-300">
+                <a href="/mahasiswa" class="w-1/2 relative group hover:z-10 transition-all duration-300">
                     <div class="absolute inset-0 bg-gradient-to-r from-blue-500 to-blue-400 group-hover:scale-105 transition-transform duration-300"></div>
                     <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
                     <div class="absolute -right-8 top-1/2 transform -translate-y-1/2 opacity-20 text-white pointer-events-none group-hover:scale-110 transition-transform duration-300">
@@ -4923,7 +4793,7 @@ HOME_HTML = """
                 <div class="absolute inset-y-0 left-1/2 transform -translate-x-1/2 w-4 z-20 pointer-events-none" style="background: linear-gradient(135deg, transparent 45%, white 45%, white 55%, transparent 55%);"></div>
 
                 <!-- Zona Kanan: Dosen -->
-                <a href="javascript:void(0)" onclick="openModal('modal-login')" class="w-1/2 relative group hover:z-10 transition-all duration-300">
+                <a href="/dosen" class="w-1/2 relative group hover:z-10 transition-all duration-300">
                     <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-orange-500 group-hover:scale-105 transition-transform duration-300"></div>
                     <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
                     <div class="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 opacity-20 text-white pointer-events-none group-hover:scale-110 transition-transform duration-300">

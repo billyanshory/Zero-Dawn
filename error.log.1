@@ -1,0 +1,1428 @@
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
+Global Error Captured: Error 111 connecting to localhost:6379. Connection refused.
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1003, in connect_check_health
+    sock = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1515, in _connect
+    raise err
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1499, in _connect
+    sock.connect(socket_address)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 915, in full_dispatch_request
+    rv = self.preprocess_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask/app.py", line 1291, in preprocess_request
+    rv = self.ensure_sync(before_func)()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1169, in _check_request_limit
+    raise e
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1153, in _check_request_limit
+    self.__evaluate_limits(endpoint, all_limits)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/flask_limiter/_extension.py", line 1081, in __evaluate_limits
+    if not method(lim.limit, *args, **kwargs):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/strategies.py", line 157, in hit
+    self.storage.incr(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/base.py", line 25, in inner
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/limits/storage/redis.py", line 224, in incr
+    return int(self.lua_incr_expire([key], [expiry, amount]))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6225, in __call__
+    return client.evalsha(self.sha, len(keys), *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6453, in evalsha
+    return self._evalsha("EVALSHA", sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/commands/core.py", line 6437, in _evalsha
+    return self.execute_command(command, sha, numkeys, *keys_and_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 716, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/client.py", line 722, in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/utils.py", line 236, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 3041, in get_connection
+    connection.connect()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 976, in connect
+    self.retry.call_with_retry(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 977, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/redis/connection.py", line 1025, in connect_check_health
+    raise e
+redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379. Connection refused.
