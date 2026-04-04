@@ -2,6 +2,10 @@ __version__ = "3.0.0"
 __author__ = "Nitro-o-PC Dev"
 __app_name__ = "Nitro-o-PC Ultimate Optimizer"
 
+import sys
+if sys.version_info < (3, 8):
+    raise RuntimeError(f"Nitro-o-PC memerlukan Python 3.8+. Anda menggunakan Python {sys.version_info.major}.{sys.version_info.minor}.")
+
 import os
 import sys
 import subprocess
@@ -35,7 +39,6 @@ handler = logging.handlers.RotatingFileHandler(log_file_path, maxBytes=2*1024*10
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(funcName)s:%(lineno)d — %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
-logger = logging.getLogger(__name__)
 
 # Conditional import for Windows API
 if platform.system() == "Windows":
@@ -97,6 +100,7 @@ class NitroApp(ctk.CTk):
         self.setup_monitor()
 
     def setup_turbo_boost_tab(self):
+        """Initializes the Turbo Boost tab containing service disabling and visual tweaking features."""
         self.boost_frame = ctk.CTkFrame(self.tab_boost)
         self.boost_frame.pack(fill="both", expand=True, padx=20, pady=20)
         
@@ -141,6 +145,7 @@ class NitroApp(ctk.CTk):
         self._blink_after_id = self.after(1000, self._start_blink)
 
     def _wsearch_warning(self):
+        """Displays a confirmation dialog before allowing the user to select the WSearch disable option."""
         if self.disable_wsearch_var.get():
             confirm = messagebox.askyesno(
                 "Critical Warning",
@@ -163,18 +168,25 @@ class NitroApp(ctk.CTk):
 
     def _restore_boost_thread(self):
         try:
+            changes = getattr(self, '_boost_applied_changes', None)
+            if not changes:
+                self.after(0, lambda: messagebox.showinfo("Info", "Tidak ada perubahan Boost yang tercatat untuk di-restore."))
+                self.after(0, lambda: self.boost_status.configure(text="Status: Ready", text_color="white"))
+                return
+
             if platform.system() == "Windows":
-                services_to_restore = [
-                    ("XblAuthManager", win32service.SERVICE_DEMAND_START),
-                    ("XblGameSave", win32service.SERVICE_DEMAND_START),
-                    ("XboxNetApiSvc", win32service.SERVICE_DEMAND_START),
-                    ("DiagTrack", win32service.SERVICE_AUTO_START),
-                    ("OneDriveStandaloneUpdater", win32service.SERVICE_DEMAND_START),
-                    ("OneSyncSvc", win32service.SERVICE_AUTO_START),
-                    ("WSearch", win32service.SERVICE_AUTO_START)
-                ]
+                svc_defaults = {
+                    "XblAuthManager": win32service.SERVICE_DEMAND_START,
+                    "XblGameSave": win32service.SERVICE_DEMAND_START,
+                    "XboxNetApiSvc": win32service.SERVICE_DEMAND_START,
+                    "DiagTrack": win32service.SERVICE_AUTO_START,
+                    "OneDriveStandaloneUpdater": win32service.SERVICE_DEMAND_START,
+                    "OneSyncSvc": win32service.SERVICE_AUTO_START,
+                    "WSearch": win32service.SERVICE_AUTO_START
+                }
                 
-                for svc, start_type in services_to_restore:
+                for svc in changes.get("services_disabled", []):
+                    start_type = svc_defaults.get(svc, win32service.SERVICE_DEMAND_START)
                     try:
                         hscm = win32service.OpenSCManager(None, None, win32service.SC_MANAGER_ALL_ACCESS)
                         hs = win32service.OpenService(hscm, svc, win32service.SERVICE_ALL_ACCESS)
@@ -191,10 +203,22 @@ class NitroApp(ctk.CTk):
                         if start_type == win32service.SERVICE_AUTO_START:
                             try:
                                 win32serviceutil.StartService(svc)
-                            except Exception:
-                                pass
+                                logger.info("Service %s berhasil distart kembali.", svc)
+                            except Exception as e:
+                                logger.warning("Gagal start ulang service %s (mungkin perlu restart PC): %s", svc, e, exc_info=True)
                     except Exception as e:
                         logger.warning("Failed to restore service %s: %s", svc, str(e), exc_info=True)
+
+                for val_name, (hkey, subkey, orig_val, reg_type) in changes.get("visual_tweaks_original", {}).items():
+                    try:
+                        key = winreg.OpenKey(hkey, subkey, 0, winreg.KEY_SET_VALUE)
+                        winreg.SetValueEx(key, val_name, 0, reg_type, orig_val)
+                        winreg.CloseKey(key)
+                    except Exception as e:
+                        logger.warning("Failed to restore visual effect %s: %s", val_name, str(e), exc_info=True)
+
+            # Reset state
+            del self._boost_applied_changes
             self.after(0, lambda: self.boost_status.configure(text="Status: Restore Completed!", text_color=self.COLOR_NEON_GREEN))
         except Exception as e:
             logger.error("Restore boost failed: %s", str(e), exc_info=True)
@@ -204,6 +228,10 @@ class NitroApp(ctk.CTk):
 
     def _turbo_boost_thread(self):
         try:
+            self._boost_applied_changes = {
+                "services_disabled": [],
+                "visual_tweaks_original": {}
+            }
             if platform.system() == "Windows":
                 # Power plan: Balanced
                 subprocess.run(["powercfg", "-setactive", self.BALANCED_GUID], shell=False, timeout=15, creationflags=subprocess.CREATE_NO_WINDOW, capture_output=True)
@@ -235,6 +263,7 @@ class NitroApp(ctk.CTk):
                         )
                         win32service.CloseServiceHandle(hs)
                         win32service.CloseServiceHandle(hscm)
+                        self._boost_applied_changes["services_disabled"].append(svc)
                     except Exception as e:
                         logger.warning("Failed to disable service %s: %s", svc, str(e), exc_info=True)
                 
@@ -246,11 +275,20 @@ class NitroApp(ctk.CTk):
                 ]
                 for hkey, subkey, val_name, val_data in visual_tweaks:
                     try:
+                        # Save original value
+                        try:
+                            orig_key = winreg.OpenKey(hkey, subkey, 0, winreg.KEY_READ)
+                            orig_val, reg_type = winreg.QueryValueEx(orig_key, val_name)
+                            winreg.CloseKey(orig_key)
+                            self._boost_applied_changes["visual_tweaks_original"][val_name] = (hkey, subkey, orig_val, reg_type)
+                        except FileNotFoundError:
+                            logger.debug("Registry key %s\\%s tidak ditemukan, skip backup.", subkey, val_name)
+
                         key = winreg.OpenKey(hkey, subkey, 0, winreg.KEY_SET_VALUE)
                         winreg.SetValueEx(key, val_name, 0, winreg.REG_DWORD, val_data)
                         winreg.CloseKey(key)
                     except Exception as e:
-                        logger.warning(f"Failed to minimize visual effect {val_name}: %s", str(e), exc_info=True)
+                        logger.warning("Failed to minimize visual effect %s: %s", val_name, str(e), exc_info=True)
                     
                 # Attempt to kill OneDrive and Cortana processes
                 for proc in psutil.process_iter(['name']):
@@ -293,7 +331,7 @@ class NitroApp(ctk.CTk):
                         try:
                             gov_file.write_text("performance")
                         except Exception as e:
-                            logger.warning(f"Failed to set performance governor on {gov_file}: {e}")
+                            logger.warning("Failed to set performance governor on %s: %s", gov_file, e, exc_info=True)
                 
             self.after(0, lambda: self.boost_status.configure(text="Status: Boost Completed!", text_color=self.COLOR_NEON_GREEN))
         except Exception as e:
@@ -303,6 +341,7 @@ class NitroApp(ctk.CTk):
             self.after(0, lambda: self.boost_button.configure(state="normal"))
 
     def setup_startup_tab(self):
+        """Initializes the Startup Optimizer tab containing the list of active/disabled startup items."""
         self.startup_frame = ctk.CTkFrame(self.tab_startup)
         self.startup_frame.pack(fill="both", expand=True, padx=20, pady=20)
         
@@ -394,7 +433,10 @@ class NitroApp(ctk.CTk):
             cb.pack(side="right", padx=10, pady=5)
 
     def toggle_startup_item(self, item, is_enabled):
-        """Toggles a startup item by moving it between the active Run key and a backup key."""
+        """Launches a background thread to toggle a startup item."""
+        threading.Thread(target=self._toggle_startup_thread, args=(item, is_enabled), daemon=True).start()
+
+    def _toggle_startup_thread(self, item, is_enabled):
         try:
             active_path = item["path"]
             backup_path = active_path + self.NITRO_BACKUP_SUFFIX
@@ -428,12 +470,32 @@ class NitroApp(ctk.CTk):
                     logger.debug("Entry tidak ditemukan di lokasi asal (normal): %s", e)
             
             # Reload to reflect changes
-            self.load_startup_items()
+            self.after(0, self.load_startup_items)
             
         except Exception as e:
-            logger.error("Failed to toggle startup item: %s", str(e), exc_info=True)
+            logger.error("Gagal toggle startup item: %s", e, exc_info=True)
+            self.after(0, lambda: messagebox.showerror("Error", f"Gagal mengubah startup item: {e}"))
+
+    def _detect_storage_type(self) -> str:
+        if platform.system() != "Windows":
+            return "unknown"
+        try:
+            result = subprocess.run(
+                ["powershell", "-Command", "Get-PhysicalDisk | Select-Object -ExpandProperty MediaType"],
+                capture_output=True, text=True, timeout=5, creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            out = result.stdout.lower()
+            if "hdd" in out:
+                return "hdd"
+            elif "ssd" in out:
+                return "ssd"
+            return "unknown"
+        except Exception as e:
+            logger.warning("Gagal mendeteksi tipe storage: %s", e, exc_info=True)
+            return "unknown"
 
     def setup_cleaner_tab(self):
+        """Initializes the smart cleaner tab and its widgets, adding HDD warnings if needed."""
         self.cleaner_frame = ctk.CTkFrame(self.tab_cleaner)
         self.cleaner_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
@@ -465,6 +527,17 @@ class NitroApp(ctk.CTk):
 
         self.clean_status = ctk.CTkLabel(self.cleaner_frame, text="Status: Ready")
         self.clean_status.pack(pady=10)
+
+        # Storage type detection
+        storage_type = self._detect_storage_type()
+        if storage_type == "hdd":
+            warn_lbl = ctk.CTkLabel(
+                self.cleaner_frame,
+                text="⚠️ HDD Terdeteksi: Disarankan untuk TIDAK membersihkan Prefetch karena akan memperlambat cold-start aplikasi.",
+                text_color="orange"
+            )
+            warn_lbl.pack(pady=5)
+            self.clean_prefetch_cb.deselect()
 
     def run_cleaner(self):
         """Runs the smart cleaner operations in a separate thread to avoid UI freezing."""
@@ -499,15 +572,21 @@ class NitroApp(ctk.CTk):
             logger.error("Failed to scan directory %s: %s", path, str(e), exc_info=True)
         return freed
 
-    def _stop_service_temporarily(self, svc_name: str) -> bool:
-        """Stops a service temporarily, returns True if it was running and successfully stopped."""
+    def _stop_service_temporarily(self, svc_name: str, timeout: int = 10) -> bool:
+        """Stops a service temporarily with a timeout polling loop, returns True if successfully stopped."""
         try:
             if win32serviceutil.QueryServiceStatus(svc_name)[1] == win32service.SERVICE_RUNNING:
                 win32serviceutil.StopService(svc_name)
-                time.sleep(2)  # Wait for it to stop
-                return True
+                deadline = time.time() + timeout
+                while time.time() < deadline:
+                    time.sleep(0.5)
+                    if win32serviceutil.QueryServiceStatus(svc_name)[1] == win32service.SERVICE_STOPPED:
+                        logger.info("Service %s berhasil dihentikan.", svc_name)
+                        return True
+                logger.warning("Timeout saat menunggu service %s untuk berhenti.", svc_name)
+                return False
         except Exception as e:
-            logger.warning(f"Failed to stop service temporarily {svc_name}: {e}")
+            logger.warning("Failed to stop service temporarily %s: %s", svc_name, e, exc_info=True)
         return False
 
     def _cleaner_thread(self):
@@ -532,7 +611,7 @@ class NitroApp(ctk.CTk):
                         try:
                             win32serviceutil.StartService("wuauserv")
                         except Exception as e:
-                            logger.warning(f"Failed to restart wuauserv: {e}")
+                            logger.warning("Failed to restart wuauserv: %s", e, exc_info=True)
                                 
                 # Thumbnail Cache
                 _localappdata = os.environ.get('LOCALAPPDATA')
@@ -569,7 +648,13 @@ class NitroApp(ctk.CTk):
                         
             elif platform.system() == "Linux":
                 if self.clean_temp_cb.get():
-                    os.system("rm -rf /tmp/* /var/tmp/*")
+                    if os.getuid() == 0:
+                        for tmp_dir in ["/tmp", "/var/tmp"]:
+                            freed = self._delete_directory_contents(tmp_dir)
+                            cleaned_size += freed
+                            logger.info("Linux /tmp cleanup: freed %d bytes", freed)
+                    else:
+                        logger.warning("Linux cleanup memerlukan root, dilewati.")
             
             mb_cleaned = cleaned_size / (1024 * 1024)
             self.after(0, lambda text=f"Status: Cleaned {mb_cleaned:.2f} MB!": self.clean_status.configure(text=text, text_color=self.COLOR_NEON_GREEN))
@@ -580,6 +665,7 @@ class NitroApp(ctk.CTk):
             self.after(0, lambda: self.clean_button.configure(state="normal"))
 
     def setup_monitor(self):
+        """Initializes the bottom monitor bar and starts the monitoring loop for CPU/RAM/Disk."""
         # Bottom monitor bar attached to main window
         self.monitor_frame = ctk.CTkFrame(self, height=60, corner_radius=0)
         self.monitor_frame.pack(side="bottom", fill="x")
@@ -615,6 +701,7 @@ class NitroApp(ctk.CTk):
         threading.Thread(target=self._monitor_thread, daemon=True).start()
 
     def _monitor_thread(self):
+        """Runs as a daemon thread, updating the UI labels for CPU, RAM, and Disk I/O every second."""
         while self.monitor_running:
             try:
                 cpu_percent = psutil.cpu_percent(interval=None)
@@ -646,6 +733,7 @@ class NitroApp(ctk.CTk):
             time.sleep(1)
 
     def on_closing(self):
+        """Cleans up running threads and timers before gracefully destroying the main window."""
         self.monitor_running = False
         self.blink_running = False
         if hasattr(self, '_blink_after_id'):
