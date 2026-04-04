@@ -1,3 +1,7 @@
+__version__ = "3.0.0"
+__author__ = "Nitro-o-PC Dev"
+__app_name__ = "Nitro-o-PC Ultimate Optimizer"
+
 import os
 import sys
 import subprocess
@@ -9,8 +13,28 @@ import time
 import ctypes
 import platform
 import logging
+import logging.handlers
+from tkinter import messagebox
+from pathlib import Path
 
-logging.basicConfig(filename='nitro_pc.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+WINDIR = Path(os.environ.get('WINDIR', r'C:\Windows'))
+PREFETCH_PATH = WINDIR / 'Prefetch'
+WU_CACHE_PATH = WINDIR / 'SoftwareDistribution' / 'Download'
+SYSTEM_TEMP_PATH = WINDIR / 'Temp'
+
+if getattr(sys, 'frozen', False):
+    LOG_DIR = Path(sys.executable).parent
+else:
+    LOG_DIR = Path(__file__).parent
+
+log_file_path = LOG_DIR / 'nitro_pc.log'
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.handlers.RotatingFileHandler(log_file_path, maxBytes=2*1024*1024, backupCount=3)
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(funcName)s:%(lineno)d — %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 logger = logging.getLogger(__name__)
 
 # Conditional import for Windows API
@@ -35,12 +59,12 @@ def is_admin():
             return ctypes.windll.shell32.IsUserAnAdmin()
         else:
             return os.getuid() == 0
-    except:
+    except Exception:
         return False
 
 # Elevate privileges if not admin
 if not is_admin() and platform.system() == "Windows":
-    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, subprocess.list2cmdline(sys.argv[1:]), None, 1)
     sys.exit()
 
 ctk.set_appearance_mode("dark")
@@ -82,46 +106,116 @@ class NitroApp(ctk.CTk):
         self.boost_desc = ctk.CTkLabel(self.boost_frame, text="Disable unnecessary services, optimize power plan, and clear standby RAM.", text_color="gray")
         self.boost_desc.pack(pady=10)
 
+        self.disable_wsearch_var = ctk.BooleanVar(value=False)
+        self.wsearch_cb = ctk.CTkCheckBox(
+            self.boost_frame,
+            text="Disable Windows Search (WSearch) - Advanced/Risky",
+            variable=self.disable_wsearch_var,
+            command=self._wsearch_warning,
+            text_color="orange"
+        )
+        self.wsearch_cb.pack(pady=10)
+
         self.boost_button = ctk.CTkButton(self.boost_frame, text="TURBO BOOST", font=ctk.CTkFont(size=20, weight="bold"), fg_color=self.COLOR_NEON_GREEN, hover_color="#32CD32", text_color="black", height=60, width=200, command=self.run_turbo_boost)
-        self.boost_button.pack(pady=40)
+        self.boost_button.pack(pady=20)
+
+        self.restore_boost_button = ctk.CTkButton(self.boost_frame, text="Undo / Restore Boost", font=ctk.CTkFont(size=14, weight="bold"), fg_color="gray", hover_color="darkgray", text_color="white", height=40, width=150, command=self.restore_boost)
+        self.restore_boost_button.pack(pady=10)
 
         self.boost_status = ctk.CTkLabel(self.boost_frame, text="Status: Ready", font=ctk.CTkFont(size=14))
         self.boost_status.pack(pady=10)
         
         self.blink_state = False
         self.blink_running = True
-        threading.Thread(target=self._blink_button, daemon=True).start()
+        self._start_blink()
 
-    def _blink_button(self):
-        while self.blink_running:
-            try:
-                if self.boost_button.cget("state") != "disabled":
-                    if self.blink_state:
-                        self.after(0, lambda: self.boost_button.configure(fg_color=self.COLOR_NEON_GREEN))
-                    else:
-                        self.after(0, lambda: self.boost_button.configure(fg_color=self.COLOR_DARK_GREEN))
-                    self.blink_state = not self.blink_state
-            except Exception as e:
-                logger.warning("Blink button error: %s", str(e), exc_info=True)
-            time.sleep(1)
+    def _start_blink(self):
+        if not self.blink_running:
+            return
+        try:
+            color = self.COLOR_NEON_GREEN if self.blink_state else self.COLOR_DARK_GREEN
+            self.boost_button.configure(fg_color=color)
+            self.blink_state = not self.blink_state
+        except Exception as e:
+            logger.warning("Blink button error: %s", str(e), exc_info=True)
+        self._blink_after_id = self.after(1000, self._start_blink)
+
+    def _wsearch_warning(self):
+        if self.disable_wsearch_var.get():
+            confirm = messagebox.askyesno(
+                "Critical Warning",
+                "Mematikan Windows Search service secara permanen akan merusak fungsi pencarian Start Menu, membuat Windows Explorer search tidak berfungsi, dan di Windows 10 bisa menyebabkan SearchUI.exe masuk ke crash loop. Yakin ingin melanjutkan?"
+            )
+            if not confirm:
+                self.disable_wsearch_var.set(False)
 
     def run_turbo_boost(self):
+        """Runs the Turbo Boost optimization in a separate thread."""
         self.boost_button.configure(state="disabled")
         self.boost_status.configure(text="Status: Boosting...", text_color="yellow")
         threading.Thread(target=self._turbo_boost_thread, daemon=True).start()
+
+    def restore_boost(self):
+        """Restores the services disabled by Turbo Boost to their default states."""
+        self.restore_boost_button.configure(state="disabled")
+        self.boost_status.configure(text="Status: Restoring...", text_color="yellow")
+        threading.Thread(target=self._restore_boost_thread, daemon=True).start()
+
+    def _restore_boost_thread(self):
+        try:
+            if platform.system() == "Windows":
+                services_to_restore = [
+                    ("XblAuthManager", win32service.SERVICE_DEMAND_START),
+                    ("XblGameSave", win32service.SERVICE_DEMAND_START),
+                    ("XboxNetApiSvc", win32service.SERVICE_DEMAND_START),
+                    ("DiagTrack", win32service.SERVICE_AUTO_START),
+                    ("OneDriveStandaloneUpdater", win32service.SERVICE_DEMAND_START),
+                    ("OneSyncSvc", win32service.SERVICE_AUTO_START),
+                    ("WSearch", win32service.SERVICE_AUTO_START)
+                ]
+
+                for svc, start_type in services_to_restore:
+                    try:
+                        hscm = win32service.OpenSCManager(None, None, win32service.SC_MANAGER_ALL_ACCESS)
+                        hs = win32service.OpenService(hscm, svc, win32service.SERVICE_ALL_ACCESS)
+                        win32service.ChangeServiceConfig(
+                            hs,
+                            win32service.SERVICE_NO_CHANGE,
+                            start_type,
+                            win32service.SERVICE_NO_CHANGE,
+                            None, None, 0, None, None, None, None
+                        )
+                        win32service.CloseServiceHandle(hs)
+                        win32service.CloseServiceHandle(hscm)
+                        # Optionally try to start auto-start services
+                        if start_type == win32service.SERVICE_AUTO_START:
+                            try:
+                                win32serviceutil.StartService(svc)
+                            except Exception:
+                                pass
+                    except Exception as e:
+                        logger.warning("Failed to restore service %s: %s", svc, str(e), exc_info=True)
+            self.after(0, lambda: self.boost_status.configure(text="Status: Restore Completed!", text_color=self.COLOR_NEON_GREEN))
+        except Exception as e:
+            logger.error("Restore boost failed: %s", str(e), exc_info=True)
+            self.after(0, lambda: self.boost_status.configure(text=f"Status: Error - {str(e)}", text_color="red"))
+        finally:
+            self.after(0, lambda: self.restore_boost_button.configure(state="normal"))
 
     def _turbo_boost_thread(self):
         try:
             if platform.system() == "Windows":
                 # Power plan: Balanced
-                subprocess.run(["powercfg", "-setactive", self.BALANCED_GUID], shell=True, capture_output=True)
+                subprocess.run(["powercfg", "-setactive", self.BALANCED_GUID], shell=False, timeout=15, creationflags=subprocess.CREATE_NO_WINDOW, capture_output=True)
                 
                 # Disable services using pywin32
                 services_to_disable = [
                     "XblAuthManager", "XblGameSave", "XboxNetApiSvc", 
-                    "WSearch", "DiagTrack", "OneDriveStandaloneUpdater", 
+                    "DiagTrack", "OneDriveStandaloneUpdater",
                     "OneSyncSvc"
                 ]
+                if getattr(self, 'disable_wsearch_var', None) and self.disable_wsearch_var.get():
+                    services_to_disable.append("WSearch")
                 
                 for svc in services_to_disable:
                     try:
@@ -145,17 +239,23 @@ class NitroApp(ctk.CTk):
                         logger.warning("Failed to disable service %s: %s", svc, str(e), exc_info=True)
                 
                 # Visual Effects (minimizing)
-                try:
-                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects", 0, winreg.KEY_SET_VALUE)
-                    winreg.SetValueEx(key, "VisualFXSetting", 0, winreg.REG_DWORD, 2) # Adjust for best performance
-                    winreg.CloseKey(key)
-                except Exception as e:
-                    logger.warning("Failed to minimize visual effects: %s", str(e), exc_info=True)
+                visual_tweaks = [
+                    (winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects", "VisualFXSetting", 2),
+                    (winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\DWM", "EnableAeroPeek", 0),
+                    (winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "EnableTransparency", 0)
+                ]
+                for hkey, subkey, val_name, val_data in visual_tweaks:
+                    try:
+                        key = winreg.OpenKey(hkey, subkey, 0, winreg.KEY_SET_VALUE)
+                        winreg.SetValueEx(key, val_name, 0, winreg.REG_DWORD, val_data)
+                        winreg.CloseKey(key)
+                    except Exception as e:
+                        logger.warning(f"Failed to minimize visual effect {val_name}: %s", str(e), exc_info=True)
                     
                 # Attempt to kill OneDrive and Cortana processes
                 for proc in psutil.process_iter(['name']):
                     try:
-                        if proc.info['name'] in ['OneDrive.exe', 'SearchUI.exe', 'Cortana.exe']:
+                        if proc.info['name'] in ['OneDrive.exe', 'Cortana.exe']:
                             proc.kill()
                     except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
                         logger.warning("Failed to kill process %s: %s", proc.info.get('name'), str(e), exc_info=True)
@@ -187,8 +287,13 @@ class NitroApp(ctk.CTk):
 
             elif platform.system() == "Linux":
                 # Linux fallback: sync and drop caches, set governor to performance
-                os.system("sync; echo 3 > /proc/sys/vm/drop_caches" if os.getuid() == 0 else "")
-                os.system("cpufreq-set -r -g performance" if os.getuid() == 0 else "")
+                if os.getuid() == 0:
+                    subprocess.run(["sh", "-c", "sync; echo 3 > /proc/sys/vm/drop_caches"], capture_output=True)
+                    for gov_file in Path("/sys/devices/system/cpu").glob("cpu*/cpufreq/scaling_governor"):
+                        try:
+                            gov_file.write_text("performance")
+                        except Exception as e:
+                            logger.warning(f"Failed to set performance governor on {gov_file}: {e}")
                 
             self.after(0, lambda: self.boost_status.configure(text="Status: Boost Completed!", text_color=self.COLOR_NEON_GREEN))
         except Exception as e:
@@ -213,7 +318,7 @@ class NitroApp(ctk.CTk):
         self.load_startup_items()
 
     def load_startup_items(self):
-        # Clear existing
+        """Loads startup items and their states, executing the registry scan in a background thread."""
         for widget in self.startup_scroll.winfo_children():
             widget.destroy()
 
@@ -222,20 +327,18 @@ class NitroApp(ctk.CTk):
             lbl.pack(pady=20)
             return
 
+        self.refresh_startup_btn.configure(text="Loading...", state="disabled")
+        threading.Thread(target=self._load_startup_thread, daemon=True).start()
+
+    def _load_startup_thread(self):
         try:
-            # Read from Run registry and our custom backup registry
             startup_items = []
             paths = [
                 (winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run"),
                 (winreg.HKEY_LOCAL_MACHINE, r"Software\Microsoft\Windows\CurrentVersion\Run")
             ]
-            
-            # Helper to safely open or create backup key
-            def get_backup_key_path(original_path):
-                return original_path + self.NITRO_BACKUP_SUFFIX
 
             for hkey, path in paths:
-                # Read active items
                 try:
                     key = winreg.OpenKey(hkey, path, 0, winreg.KEY_READ)
                     for i in range(1024):
@@ -248,8 +351,7 @@ class NitroApp(ctk.CTk):
                 except Exception as e:
                     logger.warning("Failed to read active startup key %s: %s", path, str(e), exc_info=True)
                     
-                # Read disabled items
-                backup_path = get_backup_key_path(path)
+                backup_path = path + self.NITRO_BACKUP_SUFFIX
                 try:
                     key = winreg.OpenKey(hkey, backup_path, 0, winreg.KEY_READ)
                     for i in range(1024):
@@ -261,32 +363,38 @@ class NitroApp(ctk.CTk):
                     winreg.CloseKey(key)
                 except Exception as e:
                     logger.warning("Failed to read backup startup key %s: %s", backup_path, str(e), exc_info=True)
-            
-            if not startup_items:
-                lbl = ctk.CTkLabel(self.startup_scroll, text="No startup items found.", text_color="gray")
-                lbl.pack(pady=20)
-                return
-
-            for item in startup_items:
-                frame = ctk.CTkFrame(self.startup_scroll)
-                frame.pack(fill="x", pady=5, padx=5)
-                
-                lbl_name = ctk.CTkLabel(frame, text=item["name"], font=ctk.CTkFont(weight="bold"), width=200, anchor="w")
-                lbl_name.pack(side="left", padx=10, pady=5)
-                
-                # Use a checkbox for toggle functionality
-                is_disabled = item.get("is_disabled", False)
-                toggle_var = ctk.BooleanVar(value=not is_disabled)
-                cb = ctk.CTkCheckBox(frame, text="Enabled", variable=toggle_var, 
-                                     command=lambda i=item, v=toggle_var: self.toggle_startup_item(i, v.get()))
-                cb.pack(side="right", padx=10, pady=5)
-                
+            self.after(0, lambda: self._render_startup_items(startup_items))
         except Exception as e:
-            logger.error("Error loading startup items: %s", str(e), exc_info=True)
-            lbl = ctk.CTkLabel(self.startup_scroll, text=f"Error loading startup items: {str(e)}", text_color="red")
+            logger.error("Error in startup thread: %s", str(e), exc_info=True)
+            self.after(0, lambda text=f"Error loading startup items: {str(e)}": self._render_startup_error(text))
+            
+    def _render_startup_error(self, text):
+        lbl = ctk.CTkLabel(self.startup_scroll, text=text, text_color="red")
+        lbl.pack(pady=20)
+        self.refresh_startup_btn.configure(text="Refresh List", state="normal")
+
+    def _render_startup_items(self, startup_items):
+        self.refresh_startup_btn.configure(text="Refresh List", state="normal")
+        if not startup_items:
+            lbl = ctk.CTkLabel(self.startup_scroll, text="No startup items found.", text_color="gray")
             lbl.pack(pady=20)
+            return
+
+        for item in startup_items:
+            frame = ctk.CTkFrame(self.startup_scroll)
+            frame.pack(fill="x", pady=5, padx=5)
+
+            lbl_name = ctk.CTkLabel(frame, text=item["name"], font=ctk.CTkFont(weight="bold"), width=200, anchor="w")
+            lbl_name.pack(side="left", padx=10, pady=5)
+
+            is_disabled = item.get("is_disabled", False)
+            toggle_var = ctk.BooleanVar(value=not is_disabled)
+            cb = ctk.CTkCheckBox(frame, text="Enabled", variable=toggle_var,
+                                 command=lambda i=item, v=toggle_var: self.toggle_startup_item(i, v.get()))
+            cb.pack(side="right", padx=10, pady=5)
 
     def toggle_startup_item(self, item, is_enabled):
+        """Toggles a startup item by moving it between the active Run key and a backup key."""
         try:
             active_path = item["path"]
             backup_path = active_path + self.NITRO_BACKUP_SUFFIX
@@ -304,8 +412,8 @@ class NitroApp(ctk.CTk):
                     bk_key = winreg.OpenKey(item["hkey"], backup_path, 0, winreg.KEY_ALL_ACCESS)
                     winreg.DeleteValue(bk_key, name)
                     winreg.CloseKey(bk_key)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Entry tidak ditemukan di lokasi asal (normal): %s", e)
             else:
                 # Move from Active to Backup (Write first, then delete)
                 bk_key = winreg.CreateKey(item["hkey"], backup_path)
@@ -316,8 +424,8 @@ class NitroApp(ctk.CTk):
                     ac_key = winreg.OpenKey(item["hkey"], active_path, 0, winreg.KEY_ALL_ACCESS)
                     winreg.DeleteValue(ac_key, name)
                     winreg.CloseKey(ac_key)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Entry tidak ditemukan di lokasi asal (normal): %s", e)
             
             # Reload to reflect changes
             self.load_startup_items()
@@ -359,7 +467,7 @@ class NitroApp(ctk.CTk):
         self.clean_status.pack(pady=10)
 
     def run_cleaner(self):
-        import tkinter.messagebox as messagebox
+        """Runs the smart cleaner operations in a separate thread to avoid UI freezing."""
         if self.clean_recycle_cb.get():
             if not messagebox.askyesno("Confirm", "Are you sure you want to empty the Recycle Bin?"):
                 self.clean_recycle_cb.deselect()
@@ -369,6 +477,7 @@ class NitroApp(ctk.CTk):
         threading.Thread(target=self._cleaner_thread, daemon=True).start()
 
     def _delete_directory_contents(self, path, match_prefix=None):
+        """Recursively deletes contents of a given directory path and returns the freed space in bytes."""
         freed = 0
         if not path or not os.path.exists(path):
             return freed
@@ -390,46 +499,65 @@ class NitroApp(ctk.CTk):
             logger.error("Failed to scan directory %s: %s", path, str(e), exc_info=True)
         return freed
 
+    def _stop_service_temporarily(self, svc_name: str) -> bool:
+        """Stops a service temporarily, returns True if it was running and successfully stopped."""
+        try:
+            if win32serviceutil.QueryServiceStatus(svc_name)[1] == win32service.SERVICE_RUNNING:
+                win32serviceutil.StopService(svc_name)
+                time.sleep(2)  # Wait for it to stop
+                return True
+        except Exception as e:
+            logger.warning(f"Failed to stop service temporarily {svc_name}: {e}")
+        return False
+
     def _cleaner_thread(self):
         try:
             cleaned_size = 0
             if platform.system() == "Windows":
                 # Temp Folders
                 if self.clean_temp_cb.get():
-                    temp_paths = [os.environ.get('TEMP'), os.environ.get('TMP'), r"C:\Windows\Temp"]
+                    temp_paths = list({os.environ.get('TEMP', ''), os.environ.get('TMP', ''), str(SYSTEM_TEMP_PATH)} - {''})
                     for path in temp_paths:
                         cleaned_size += self._delete_directory_contents(path)
                 
                 # Prefetch
                 if self.clean_prefetch_cb.get():
-                    cleaned_size += self._delete_directory_contents(r"C:\Windows\Prefetch")
+                    cleaned_size += self._delete_directory_contents(str(PREFETCH_PATH))
                 
                 # Windows Update Cache
                 if self.clean_windows_update_cb.get():
-                    cleaned_size += self._delete_directory_contents(r"C:\Windows\SoftwareDistribution\Download")
+                    re_start_wu = self._stop_service_temporarily("wuauserv")
+                    cleaned_size += self._delete_directory_contents(str(WU_CACHE_PATH))
+                    if re_start_wu:
+                        try:
+                            win32serviceutil.StartService("wuauserv")
+                        except Exception as e:
+                            logger.warning(f"Failed to restart wuauserv: {e}")
                                 
                 # Thumbnail Cache
-                thumb_path = os.path.join(os.environ.get('LOCALAPPDATA', ''), r"Microsoft\Windows\Explorer")
-                cleaned_size += self._delete_directory_contents(thumb_path, match_prefix="thumbcache_")
+                _localappdata = os.environ.get('LOCALAPPDATA')
+                if _localappdata:
+                    thumb_path = os.path.join(_localappdata, r"Microsoft\Windows\Explorer")
+                    cleaned_size += self._delete_directory_contents(thumb_path, match_prefix="thumbcache_")
 
                 # Browser Caches
                 if self.clean_browser_cb.get():
-                    localappdata = os.environ.get('LOCALAPPDATA', '')
-                    appdata = os.environ.get('APPDATA', '')
-                    
-                    caches = [
-                        os.path.join(localappdata, r"Google\Chrome\User Data\Default\Cache"),
-                        os.path.join(localappdata, r"Microsoft\Edge\User Data\Default\Cache"),
-                    ]
-                    
-                    # Firefox cache is trickier due to random profiles
-                    ff_profiles = os.path.join(localappdata, r"Mozilla\Firefox\Profiles")
-                    if os.path.exists(ff_profiles):
-                        for profile in os.listdir(ff_profiles):
-                            caches.append(os.path.join(ff_profiles, profile, "cache2"))
-                            
-                    for cache_dir in caches:
-                        cleaned_size += self._delete_directory_contents(cache_dir)
+                    if not _localappdata:
+                        logger.warning("LOCALAPPDATA tidak ditemukan, browser cache dilewati.")
+                    else:
+                        caches = [
+                            os.path.join(_localappdata, r"Google\Chrome\User Data\Default\Cache"),
+                            os.path.join(_localappdata, r"Microsoft\Edge\User Data\Default\Cache"),
+                        ]
+
+                        # Firefox cache is trickier due to random profiles
+                        ff_profiles = os.path.join(_localappdata, r"Mozilla\Firefox\Profiles")
+                        if os.path.exists(ff_profiles):
+                            for profile in os.listdir(ff_profiles):
+                                caches.append(os.path.join(ff_profiles, profile, "cache2"))
+
+                        for cache_dir in caches:
+                            cleaned_size += self._delete_directory_contents(cache_dir)
                                     
                 # Recycle Bin
                 if self.clean_recycle_cb.get():
@@ -520,6 +648,8 @@ class NitroApp(ctk.CTk):
     def on_closing(self):
         self.monitor_running = False
         self.blink_running = False
+        if hasattr(self, '_blink_after_id'):
+            self.after_cancel(self._blink_after_id)
         self.destroy()
 
 if __name__ == "__main__":

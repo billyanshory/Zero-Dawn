@@ -1,0 +1,2 @@
+pyinstaller --noconsole --onedir --uac-admin --collect-all customtkinter --collect-all pywin32 --hidden-import win32api --hidden-import win32con --hidden-import win32serviceutil --hidden-import win32service --hidden-import win32security --hidden-import winreg --icon="assets\icon.ico" --version-file "version_info.txt" "Nitro-o-PC-1 ( dekstop - Layer of Quality Control - 9 Critical Bug ).py"
+pause
