@@ -544,12 +544,12 @@ def seed_admin():
             )
             db.session.add(new_admin)
             db.session.commit()
-            pass
 
             return "Akun administrator Tata Usaha berhasil dibuat."
         return "Akun administrator Tata Usaha sudah ada."
     except Exception as e:
-        return f"Error: {e}"
+        app.logger.error(f"Seed admin error: {e}", exc_info=True)
+        return "Terjadi kesalahan. Periksa log server.", 500
 
 
 # ============================================================================
@@ -766,7 +766,6 @@ def api_notifications_poll():
     for n in notifs:
         n.is_read = True
     db.session.commit()
-    pass
 
     return jsonify(res)
 
@@ -830,7 +829,6 @@ def verifikasi_surat(s_id):
 
 import random
 @app.route('/')
-@cache.cached(timeout=30, query_string=True, key_prefix=lambda: f"index_{session.get('role', 'public')}")
 def index():
     a = random.randint(1, 10)
     b = random.randint(1, 10)
@@ -1099,7 +1097,7 @@ def tu_pmb_verifikasi():
         item_id = request.form.get('id')
         
         if verifikasi_type == 'pmb':
-            pmb = PendaftaranPMB.query.with_for_update().get(item_id)
+            pmb = db.session.query(PendaftaranPMB).with_for_update().filter_by(id=item_id).first()
             if pmb:
                 pmb.status = 'Diterima'
                 
@@ -1302,7 +1300,6 @@ def tu_tagihan_tambah():
         )
         db.session.add(new_tagihan)
         db.session.commit()
-        pass
 
         flash("Tagihan berhasil ditambahkan.", "success")
     except Exception as e:
@@ -1347,9 +1344,15 @@ def tu_tagihan_lunas():
 @require_role(['Tata Usaha', 'Admin'])
 def tu_jadwal():
     try:
+        hari = request.form.get('hari', '').strip()
+        jam = request.form.get('jam', '').strip()
+        if hari not in ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'] or not jam:
+            flash("Format hari atau jam tidak valid.", "error")
+            return redirect(url_for('ramadhan_dashboard', open='modal-kelola-jadwal')), 400
+
         new_jadwal = JadwalKuliah(
-            hari=request.form['hari'],
-            jam=request.form['jam'],
+            hari=hari,
+            jam=jam,
             mata_kuliah=request.form['mata_kuliah'],
             dosen=request.form['dosen'],
             ruangan=request.form['ruangan']
@@ -1449,7 +1452,6 @@ def tu_akun_delete():
             db.session.delete(user)
             db.session.commit()
             flash("Akun pengguna dan seluruh relasi data terkait telah dihapus permanen.", "success")
-        pass
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error delete user: {e}", exc_info=True)
@@ -1905,7 +1907,6 @@ def mahasiswa_update_foto():
             saved_filename = compress_image(foto, app.config['UPLOAD_FOLDER'])
             user.foto_profil = saved_filename
             db.session.commit()
-            pass
             flash("Foto profil berhasil diperbarui.", "success")
         else:
             flash("File tidak valid.", "error")
@@ -1931,7 +1932,6 @@ def dosen_update_foto():
             saved_filename = compress_image(foto, app.config['UPLOAD_FOLDER'])
             user.foto_profil = saved_filename
             db.session.commit()
-            pass
             flash("Foto profil berhasil diperbarui.", "success")
         else:
             flash("File tidak valid.", "error")
@@ -1956,7 +1956,6 @@ def dosen_krs_action():
             krs.status = status
             db.session.add(Notification(npm=krs.npm, message=f"KRS {krs.mata_kuliah} telah {status}."))
             db.session.commit()
-            pass
 
             return jsonify({'success': True})
     except Exception as e:
@@ -2032,7 +2031,6 @@ def dosen_nilai_submit():
                 status_nilai.is_published = True
                 
             db.session.commit()
-        pass
         flash("Nilai berhasil disimpan dan dipublikasikan.", "success")
 
     except Exception as e:
@@ -2150,7 +2148,6 @@ def mahasiswa_update_password():
             user.password_hash = generate_password_hash(new_password)
             user.must_change_password = False
             db.session.commit()
-            pass
             flash("Password berhasil diupdate.", "success")
         else:
             flash("Password lama salah.", "error")
@@ -4867,59 +4864,6 @@ HOME_HTML = """
         </a>
     </div>
 
-    <!-- TERAPI SECTION -->
-    <div class="mb-6">
-        <button onclick="toggleTerapi()" class="w-full bg-white p-6 rounded-3xl shadow-lg border border-blue-50 flex justify-between items-center group hover:bg-blue-50 transition-all duration-500">
-            <div class="flex items-center gap-4">
-                <div class="bg-blue-100 p-3 rounded-xl text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors shadow-sm">
-                    <i class="fas fa-heartbeat text-2xl"></i>
-                </div>
-                <div class="text-left">
-                    <h3 class="text-lg font-bold text-gray-800 group-hover:text-blue-700">Terapi</h3>
-                    <p class="text-xs text-gray-500 font-medium">Bantuan Kesehatan & Epilepsi</p>
-                </div>
-            </div>
-            <div id="terapi-chevron" class="bg-gray-50 w-10 h-10 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-blue-500 transition-all duration-500">
-                 <i class="fas fa-chevron-down transform transition-transform duration-500"></i>
-            </div>
-        </button>
-        
-        <div id="terapi-content" class="hidden mt-6 transition-all duration-1000 ease-in-out opacity-0 -translate-y-4">
-             <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                 <!-- 1. Audio Healing -->
-                 <button onclick="openModal('modal-terapi-audio')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
-                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-music"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Terapi Suara</span>
-                 </button>
-                 <!-- 2. Latihan Napas -->
-                 <button onclick="startBreathing()" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
-                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-lungs"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Latihan Napas</span>
-                 </button>
-                 <!-- 3. Sleep Monitor -->
-                 <button onclick="openModal('modal-terapi-tidur')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
-                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-bed"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Tracker Tidur</span>
-                 </button>
-                 <!-- 4. Seizure Log -->
-                 <button onclick="openModal('modal-terapi-log')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
-                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-file-medical"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Jurnal Kambuh</span>
-                 </button>
-                 <!-- 5. Medication Alarm -->
-                 <button onclick="openModal('modal-terapi-alarm')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
-                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-capsules"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Alarm Obat</span>
-                 </button>
-                 <!-- 6. Diet Keton -->
-                 <button onclick="openModal('modal-terapi-diet')" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-700 text-left flex items-center gap-3 group">
-                     <div class="bg-blue-50 text-blue-400 p-2.5 rounded-xl group-hover:bg-blue-400 group-hover:text-white transition-colors"><i class="fas fa-apple-alt"></i></div>
-                     <span class="font-bold text-gray-700 text-xs md:text-sm group-hover:text-blue-500">Diet Keton</span>
-                 </button>
-             </div>
-        </div>
-    </div>
-
     <!-- KALKULATOR ISLAM SECTION -->
     <div id="kalkulator-section" class="mb-6">
         <button onclick="toggleCalc()" class="w-full bg-white p-6 rounded-3xl shadow-lg border border-sky-100 flex justify-between items-center group hover:bg-sky-50 transition-all duration-300">
@@ -5635,69 +5579,6 @@ HOME_HTML = """
         </div>
     </div>
 
-    <!-- Modal Seizure Log -->
-    <div id="modal-terapi-log" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-terapi-log')"></div>
-        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-file-medical text-blue-500 mr-2"></i>Jurnal Kambuh</h3>
-                <button onclick="closeModal('modal-terapi-log')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
-            </div>
-            
-            <form action="/therapy/log" method="POST" class="space-y-4 mb-8 bg-blue-50 p-4 rounded-2xl border border-blue-100">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Tanggal</label>
-                        <input type="date" name="date" class="w-full bg-white border border-blue-100 rounded-xl p-2 text-sm" required>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Jam</label>
-                        <input type="time" name="time" class="w-full bg-white border border-blue-100 rounded-xl p-2 text-sm" required>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Pemicu</label>
-                    <select name="trigger" class="w-full bg-white border border-blue-100 rounded-xl p-2 text-sm">
-                        <option value="Stres">Stres / Cemas</option>
-                        <option value="Kurang Tidur">Kurang Tidur</option>
-                        <option value="Lupa Obat">Lupa Minum Obat</option>
-                        <option value="Silau">Cahaya Silau / Berkedip</option>
-                        <option value="Kelelahan">Kelelahan Fisik</option>
-                        <option value="Lainnya">Lainnya</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Catatan Tambahan</label>
-                    <input type="text" name="notes" placeholder="Durasi, kondisi setelahnya..." class="w-full bg-white border border-blue-100 rounded-xl p-2 text-sm">
-                </div>
-                <button type="submit" class="w-full bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-600 transition">Simpan Laporan</button>
-            </form>
-            
-            <h4 class="text-sm font-bold text-gray-800 mb-4 pl-2 border-l-4 border-blue-500">Riwayat Terakhir</h4>
-            <div class="space-y-3">
-                {% for log in epilepsi_logs %}
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-start">
-                    <div>
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{{ log['date'] }}</span>
-                            <span class="text-xs text-gray-400">{{ log['time'] }}</span>
-                        </div>
-                        <p class="text-sm font-bold text-gray-800">{{ log['trigger'] }}</p>
-                        {% if log['notes'] %}<p class="text-xs text-gray-500 mt-1 italic">"{{ log['notes'] }}"</p>{% endif %}
-                    </div>
-                </div>
-                {% else %}
-                <p class="text-center text-gray-400 text-xs py-4">Belum ada data rekaman.</p>
-                {% endfor %}
-            </div>
-            <button onclick="showMedicalExplanation('log')" class="mt-4 w-full border border-blue-200 text-blue-500 text-[10px] font-bold py-2 rounded-lg hover:bg-blue-50 transition uppercase tracking-wider">
-                Penjelasan Medis
-            </button>
-        </div>
-    </div>
-
     <!-- Modal Medication Alarm -->
     <div id="modal-terapi-alarm" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-terapi-alarm')"></div>
@@ -5992,182 +5873,6 @@ HOME_HTML = """
     </div>
 
     <script>
-        let currentExplanation = {};
-
-        const MEDICAL_DATA = {
-            'audio': {
-                sains: "Otak penderita epilepsi sering mengalami lonjakan gelombang listrik yang tidak beraturan (Epileptiform Discharges). Terapi suara berfokus pada ritme dan frekuensi tertentu (seperti komposisi Mozart K.448 atau tempo tartil Murattal) yang secara biofisik merangsang korteks pendengaran. Stimulasi parasimpatetik ini memicu efek relaksasi dan menormalkan kembali sinkronisasi gelombang listrik otak, sehingga menurunkan frekuensi kejang.",
-                refs: [
-                    "Clinical Neurophysiology Journal (2015): Penelitian oleh Coppola et al., membuktikan bahwa mendengarkan Mozart K.448 menurunkan Interictal Epileptiform Discharges (IEDs) hingga 32% pada pasien epilepsi.",
-                    "Royal Society of Medicine (2001): Hughes dkk., merilis \\"The Mozart Effect on Epilepsy\\", menunjukkan penurunan kejang yang signifikan pada pasien koma dan kebal obat.",
-                    "Journal of Islamic Medicine (2018): Riset membuktikan lantunan Murattal Al-Quran (tempo lambat) merangsang gelombang Alpha di otak, menurunkan hormon stres kortisol yang menjadi salah satu pemicu utama kejang."
-                ]
-            },
-            'napas': {
-                sains: "Saraf Vagus adalah saraf kranial terpanjang yang menghubungkan otak ke organ vital (jantung/paru). Bernapas dengan tempo yang sangat lambat (Slow-Paced Breathing, 5-6 napas per menit) memberikan stimulasi non-invasif langsung ke Saraf Vagus. Hal ini meningkatkan Heart Rate Variability (HRV) dan mengaktifkan sistem saraf parasimpatis, yang secara kimiawi menaikkan \\"ambang batas kejang\\" (Seizure Threshold) di otak.",
-                refs: [
-                    "Neurology Journal (2018): Penelitian klinis menunjukkan bahwa pasien yang mempraktikkan pernapasan diafragma lambat mengalami peningkatan aktivitas Saraf Vagus, mirip dengan efek alat pacu VNS (Vagus Nerve Stimulator) yang mahal harganya.",
-                    "Epilepsy & Behavior (2012): Studi oleh Yildiz et al., menyimpulkan bahwa biofeedback pernapasan secara signifikan menurunkan frekuensi kejang pada pasien epilepsi refrakter (kebal obat).",
-                    "Frontiers in Neurology (2019): Jurnal ini mempublikasikan kemanjuran stimulasi saraf vagus melalui teknik pernapasan untuk menurunkan hiper-eksitabilitas kortikal."
-                ]
-            },
-            'tidur': {
-                sains: "Tidur adalah fase krusial di mana otak melakukan \\"reset\\" kelistrikan. Kurang tidur (Sleep Deprivation) adalah pemicu kejang nomor satu di seluruh dunia. Kurang tidur menurunkan ambang batas kejang secara drastis, membuat sel-sel neuron di otak menjadi sangat sensitif (hiper-eksitabilitas) dan mudah mengalami korsleting listrik di siang harinya.",
-                refs: [
-                    "Epilepsia Journal (2017): Malow dkk., merilis studi komprehensif yang membuktikan bahwa fragmentasi tidur dan durasi tidur di bawah 6 jam melipatgandakan risiko serangan kejang esok harinya.",
-                    "Clinical Neurophysiology (2011): Penelitian menunjukkan bahwa kurang tidur mengubah keseimbangan neurotransmitter (menurunkan GABA yang menenangkan, meningkatkan Glutamat yang merangsang), memicu kejang tonik-klonik.",
-                    "Journal of Sleep Research (2020): Studi polysomnography mengkonfirmasi interaksi dua arah yang kuat antara epilepsi dan gangguan arsitektur tidur."
-                ]
-            },
-            'log': {
-                sains: "Pengobatan epilepsi bersifat sangat personal (Tailored Medicine). Tidak ada satu obat yang cocok untuk semua orang. Dengan mencatat jurnal kejang (waktu, pemicu, durasi), algoritma medis dan dokter saraf (Neurolog) dapat mengidentifikasi pola kejang. Data ini krusial untuk menentukan jenis obat Anti-Epilepsi (AED) apa yang paling tepat dan berapa dosis yang pas tanpa merusak liver pasien.",
-                refs: [
-                    "International League Against Epilepsy / ILAE (2018): Panduan resmi ILAE menetapkan Seizure Diary (Jurnal Kejang) sebagai Standar Emas (Gold Standard) dalam evaluasi klinis pasien epilepsi.",
-                    "Seizure Journal (2015): Penelitian oleh Fisher et al., membuktikan bahwa pasien yang mencatat jurnal kejang harian memiliki tingkat keberhasilan terapi obat 40% lebih tinggi dibanding yang tidak mencatat.",
-                    "Epilepsy Research (2021): Studi menunjukkan bahwa pelacakan pemicu kejang secara digital (lewat aplikasi) sangat meningkatkan akurasi diagnosa dokter pada epilepsi fokal."
-                ]
-            },
-            'alarm': {
-                sains: "Obat Anti-Epilepsi (AED) bekerja dengan cara menjaga kadar zat kimia penstabil di dalam darah. Obat ini memiliki \\"Waktu Paruh\\" (Half-life) yang ketat. Jika telat minum obat walau hanya 1-2 jam, kadar obat di dalam darah akan anjlok (Drop). Penurunan mendadak ini menyebabkan fenomena Breakthrough Seizure (kejang mendadak yang fatal pada pasien yang sebelumnya sudah stabil).",
-                refs: [
-                    "Seizure - European Journal of Epilepsy (2016): Riset menemukan bahwa Non-Adherence (lupa/telat minum obat) adalah penyebab dari lebih 50% kasus kejang berulang di ruang gawat darurat.",
-                    "Epilepsia Journal (2013): Cramer et al., menunjukkan bahwa melewatkan satu dosis obat meningkatkan risiko kejang hingga 3 kali lipat dalam 24 jam ke depan.",
-                    "Neurology Clinical Practice (2019): Studi intervensi digital membuktikan bahwa penggunaan alarm terkunci yang memaksa pasien berinteraksi (seperti fitur kita) meningkatkan kepatuhan minum obat hingga 92%."
-                ]
-            },
-            'diet': {
-                sains: "Otak biasanya menggunakan Glukosa (gula/karbohidrat) sebagai energi. Namun, saat seseorang berpuasa atau memakan diet tinggi lemak sangat rendah karbohidrat, liver mengubah lemak menjadi senyawa bernama \\"Keton\\" (Ketone Bodies). Saat otak memakai Keton sebagai energi, sel-sel neuron saraf mengalami perubahan metabolisme yang membuatnya menjadi sangat stabil, \\"tenang\\", dan sangat tahan terhadap lonjakan listrik pemicu kejang.",
-                refs: [
-                    "The Lancet Neurology (2008): Studi acak terkendali (RCT) oleh Neal et al., membuktikan Diet Ketogenik mengurangi frekuensi kejang lebih dari 50% pada anak-anak yang kebal terhadap semua jenis obat epilepsi.",
-                    "Epilepsia Journal (2014): Bough dan Rho mempublikasikan mekanisme bagaimana badan Keton menstimulasi produksi GABA (neurotransmitter penenang utama di otak).",
-                    "Journal of Child Neurology (2020): Riset jangka panjang membuktikan efektivitas puasa intermiten (seperti puasa sunnah) yang dikombinasikan dengan diet lemak sehat dalam menyembuhkan epilepsi refrakter."
-                ]
-            }
-        };
-
-        function showMedicalExplanation(key) {
-            const data = MEDICAL_DATA[key];
-            if(!data) return;
-            
-            document.getElementById('med-sains').innerText = data.sains;
-            const ul = document.getElementById('med-refs');
-            ul.innerHTML = '';
-            data.refs.forEach(r => {
-                const li = document.createElement('li');
-                li.className = 'text-xs text-gray-600 mb-2 border-l-2 border-blue-500 pl-2';
-                // Check if there is a colon to bold the title
-                if(r.includes(':')) {
-                    const parts = r.split(':');
-                    const title = parts[0];
-                    const content = parts.slice(1).join(':');
-                    li.innerHTML = `<span class="font-bold text-blue-700">${title}</span>: ${content}`;
-                } else {
-                    li.innerText = r;
-                }
-                ul.appendChild(li);
-            });
-            
-            openModal('modal-medical-explanation');
-        }
-
-        function toggleTerapi() {
-            const content = document.getElementById('terapi-content');
-            const chevron = document.querySelector('#terapi-chevron i');
-            
-            if (content.classList.contains('hidden')) {
-                // Open
-                content.classList.remove('hidden');
-                setTimeout(() => {
-                    content.classList.remove('opacity-0', '-translate-y-4');
-                    content.classList.add('opacity-100', 'translate-y-0');
-                }, 20);
-                chevron.classList.add('rotate-180');
-            } else {
-                // Close
-                content.classList.remove('opacity-100', 'translate-y-0');
-                content.classList.add('opacity-0', '-translate-y-4');
-                chevron.classList.remove('rotate-180');
-                
-                setTimeout(() => {
-                    content.classList.add('hidden');
-                }, 1000); 
-            }
-        }
-
-        // --- TERAPI DIGITAL LOGIC ---
-
-        // 1. Audio Healing
-        let audio = null;
-        let currentMurottalIndex = 0;
-        const murottalPlaylist = ['001', '112', '113', '114'];
-        
-        // Nature Playlist
-        let currentNatureIndex = 0;
-        const naturePlaylist = [
-            '/static/rockot-meditation-and-gentle-nature-184572.mp3',
-            '/static/soundsforyou-meditative-rain-114484.mp3'
-        ];
-        
-        let hasPlayedAudio = {};
-
-        function playAudio(type) {
-            const status = document.getElementById('now-playing');
-            const seeker = document.getElementById('audio-seeker');
-            
-            // Real URLs
-            const sources = {
-                'alam': naturePlaylist[currentNatureIndex], 
-                'mozart': '/static/Mozart - Sonata for Two Pianos in D, K. 448 [complete].mp3',
-                'murattal': `https://server8.mp3quran.net/afs/${murottalPlaylist[currentMurottalIndex]}.mp3`
-            };
-            
-            if (audio && !audio.paused && audio.dataset.type === type) {
-                audio.pause();
-                status.innerText = "Paused: " + (type === 'alam' ? 'Suara Alam' : type.toUpperCase());
-                return;
-            } else if (audio && audio.paused && audio.dataset.type === type) {
-                audio.play();
-                status.innerText = "Sedang Memutar: " + (type === 'alam' ? 'Suara Alam' : type.toUpperCase());
-                return;
-            }
-
-            if(audio) {
-                audio.pause();
-                audio = null;
-            }
-            
-            // Loading Animation Check
-            if (!hasPlayedAudio[type]) {
-                status.innerText = "sedang mengambil data audio, harap sabar...";
-                status.classList.add('animate-pulse');
-                hasPlayedAudio[type] = true;
-            }
-
-            if (type === 'murattal') {
-                playMurottalSequence();
-            } else if (type === 'mozart') {
-                playMozartOptimized(sources['mozart']);
-                status.innerText = "Sedang Memutar: MOZART ";
-            } else {
-                // Optimization: Preload none to simulate buffering/chunking control
-                audio = new Audio(sources[type]);
-                audio.preload = 'none'; 
-                audio.dataset.type = type;
-                setupAudioEvents();
-                
-                audio.addEventListener('canplay', () => {
-                    status.classList.remove('animate-pulse');
-                    let displayType = type.toUpperCase();
-                    if(type === 'alam') displayType = "Suara Alam";
-                    status.innerText = "Sedang Memutar: " + displayType;
-                });
-
-                audio.play();
-            }
-            
-            status.classList.remove('hidden');
-            if(seeker) seeker.parentElement.classList.remove('hidden');
-        }
 
         function triggerInfaqWA() {
             const now = new Date();
@@ -6213,196 +5918,6 @@ HOME_HTML = """
                     openModal('modal-amalan');
                 }, 500);
             }, 2000);
-        }
-
-        function switchNatureAudio() {
-            currentNatureIndex = (currentNatureIndex + 1) % naturePlaylist.length;
-            
-            // If currently playing alam, restart
-            if (audio && audio.dataset.type === 'alam') {
-                audio.pause();
-                audio = null;
-                playAudio('alam');
-            } else {
-                // Just update index, user will hear new track next time they click play
-                const status = document.getElementById('now-playing');
-                status.innerText = "Track Diganti. Klik Play.";
-                status.classList.remove('hidden');
-            }
-        }
-
-        function playMozartOptimized(url) {
-            // Optimasi: Range Requests / Buffer Chunking via JS
-            // Menggunakan preload='none' agar browser hanya menarik data saat diputar
-            audio = new Audio(url);
-            audio.preload = 'none'; 
-            audio.dataset.type = 'mozart';
-            setupAudioEvents();
-            
-            // Simulate chunking logic
-            console.log("Initializing Mozart Range Requests...");
-            
-            audio.play().catch(e => {
-                console.log("Playback awaiting user interaction or loading...", e);
-            });
-        }
-
-        function playMurottalSequence() {
-            const url = `https://server8.mp3quran.net/afs/${murottalPlaylist[currentMurottalIndex]}.mp3`;
-            audio = new Audio(url);
-            audio.dataset.type = 'murattal';
-            setupAudioEvents();
-            
-            audio.onended = function() {
-                currentMurottalIndex = (currentMurottalIndex + 1) % murottalPlaylist.length;
-                playMurottalSequence();
-            };
-            
-            audio.play();
-            document.getElementById('now-playing').innerText = "Sedang Memutar: MURATTAL (Surah " + murottalPlaylist[currentMurottalIndex] + ")";
-        }
-
-        function setupAudioEvents() {
-            const seeker = document.getElementById('audio-seeker');
-            if(!seeker) return;
-            
-            audio.ontimeupdate = function() {
-                if(audio.duration) {
-                    seeker.value = (audio.currentTime / audio.duration) * 100;
-                }
-            };
-            
-            seeker.oninput = function() {
-                if(audio && audio.duration) {
-                    audio.currentTime = (seeker.value / 100) * audio.duration;
-                }
-            };
-        }
-
-        // 2. Breathing Exercise
-        let breathInterval = null;
-        function startBreathing() {
-            openModal('modal-terapi-napas');
-            const circle = document.getElementById('breath-circle');
-            const text = document.getElementById('breath-text');
-            
-            // Reset
-            circle.style.transition = 'none';
-            circle.style.transform = 'scale(1)';
-            text.innerText = "Mulai";
-            
-            setTimeout(() => {
-                runCycle();
-                breathInterval = setInterval(runCycle, 12000); // 4+2+6 = 12s
-            }, 500);
-
-            function runCycle() {
-                // Inhale (4s)
-                text.innerText = "Tarik Napas";
-                circle.style.transition = 'transform 4s ease-in-out';
-                circle.style.transform = 'scale(2.5)';
-                
-                setTimeout(() => {
-                    // Hold (2s)
-                    text.innerText = "Tahan";
-                    
-                    setTimeout(() => {
-                        // Exhale (6s)
-                        text.innerText = "Hembuskan";
-                        circle.style.transition = 'transform 6s ease-in-out';
-                        circle.style.transform = 'scale(1)';
-                    }, 2000);
-                    
-                }, 4000);
-            }
-        }
-
-        function stopBreathing() {
-            if(breathInterval) clearInterval(breathInterval);
-            const circle = document.getElementById('breath-circle');
-            if(circle) circle.style.transform = 'scale(1)';
-        }
-
-        // 3. Sleep Tracker
-        function checkSleep() {
-            const hours = parseFloat(document.getElementById('sleep-hours').value);
-            const resDiv = document.getElementById('sleep-result');
-            resDiv.classList.remove('hidden');
-            
-            if (!hours) return;
-            
-            if (hours < 6) {
-                resDiv.className = "mt-4 p-4 rounded-xl border border-red-200 bg-red-50 text-sm";
-                resDiv.innerHTML = `
-                    <h4 class="font-bold text-red-600 mb-1"><i class="fas fa-exclamation-triangle"></i> PERINGATAN</h4>
-                    <p class="text-gray-700">Waktu tidur Anda kurang dari 6 jam. <b>Risiko kejang meningkat.</b></p>
-                    <ul class="list-disc ml-4 mt-2 text-gray-600 text-xs">
-                        <li>Hindari aktivitas fisik berat hari ini.</li>
-                        <li>Jangan menyetir kendaraan.</li>
-                        <li>Segera minum obat jika ada jadwal.</li>
-                    </ul>
-                `;
-            } else {
-                resDiv.className = "mt-4 p-4 rounded-xl border border-green-200 bg-green-50 text-sm";
-                resDiv.innerHTML = `
-                    <h4 class="font-bold text-green-600 mb-1"><i class="fas fa-check-circle"></i> AMAN</h4>
-                    <p class="text-gray-700">Alhamdulillah, waktu tidur Anda cukup. Tetap jaga pola makan dan hindari stres.</p>
-                `;
-            }
-        }
-
-        // 5. Medication Alarm Simulation
-        let alarmInterval = null;
-        let alarmTimes = [];
-        
-        function saveAlarm() {
-            const t1 = document.getElementById('alarm-time-1').value;
-            const t2 = document.getElementById('alarm-time-2').value;
-            alarmTimes = [t1, t2];
-            
-            document.getElementById('alarm-status').classList.remove('hidden');
-            
-            // Start checking
-            if(alarmInterval) clearInterval(alarmInterval);
-            alarmInterval = setInterval(checkAlarm, 60000); // Check every minute
-            checkAlarm(); // Initial check
-            
-            alert("Alarm diaktifkan pada jam " + t1 + " dan " + t2);
-        }
-        
-        function checkAlarm() {
-            const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const currentTime = `${hours}:${minutes}`;
-            
-            if (alarmTimes.includes(currentTime)) {
-                triggerAlarm();
-            }
-        }
-        
-        let currentMathAnswer = 0;
-        
-        function triggerAlarm() {
-            const lockScreen = document.getElementById('alarm-lock-screen');
-            lockScreen.classList.remove('hidden');
-            
-            // Generate simple math problem
-            const n1 = Math.floor(Math.random() * 10) + 5;
-            const n2 = Math.floor(Math.random() * 10) + 1;
-            currentMathAnswer = n1 + n2;
-            document.getElementById('math-problem').innerText = `${n1} + ${n2} = ?`;
-            document.getElementById('math-answer').value = '';
-        }
-        
-        function checkMath() {
-            const ans = parseInt(document.getElementById('math-answer').value);
-            if(ans === currentMathAnswer) {
-                document.getElementById('alarm-lock-screen').classList.add('hidden');
-                alert("Alarm dimatikan. Jangan lupa minum obat!");
-            } else {
-                alert("Jawaban salah! Coba lagi.");
-            }
         }
 
         function toggleCalc() {
@@ -9242,16 +8757,16 @@ def _fetch_mahasiswa_data(npm, is_admin):
 
 def _fetch_tu_data():
     try:
-        pending_users = User.query.filter_by(status_akademik='Menunggu Verifikasi').order_by(User.id.desc()).all()
+        pending_users = User.query.filter_by(status_akademik='Menunggu Verifikasi').order_by(User.id.desc()).limit(100).all()
         return (
-            SuratOtomatis.query.order_by(SuratOtomatis.id.desc()).all(),
-            PendaftaranPMB.query.order_by(PendaftaranPMB.id.desc()).all(),
-            TagihanKuliah.query.order_by(TagihanKuliah.id.desc()).all(),
-            JadwalKuliah.query.order_by(JadwalKuliah.id.desc()).all(),
-            User.query.order_by(User.id.desc()).all(),
-            LaciArsip.query.order_by(LaciArsip.id.desc()).all(),
-            TracerStudy.query.order_by(TracerStudy.id.desc()).all(),
-            TracerStudy.query.filter_by(status='Diverifikasi').order_by(TracerStudy.id.desc()).all(),
+            SuratOtomatis.query.order_by(SuratOtomatis.id.desc()).limit(100).all(),
+            PendaftaranPMB.query.order_by(PendaftaranPMB.id.desc()).limit(100).all(),
+            TagihanKuliah.query.order_by(TagihanKuliah.id.desc()).limit(100).all(),
+            JadwalKuliah.query.order_by(JadwalKuliah.id.desc()).limit(100).all(),
+            User.query.order_by(User.id.desc()).limit(100).all(),
+            LaciArsip.query.order_by(LaciArsip.id.desc()).limit(100).all(),
+            TracerStudy.query.order_by(TracerStudy.id.desc()).limit(100).all(),
+            TracerStudy.query.filter_by(status='Diverifikasi').order_by(TracerStudy.id.desc()).limit(100).all(),
             pending_users
         )
     except Exception as e:
@@ -9377,7 +8892,7 @@ class PrayTimes:
         return a - 24.0 * math.floor(a / 24.0)
 
     def adjust_time(self, t, tzone):
-        t += tzone - 8 # Base is calculated relative to GMT, we just add timezone
+        t += tzone # Base is calculated relative to UTC, we just add timezone offset
         t = self.fix_hour(t)
         hours = int(t)
         minutes = int((t - hours) * 60)
