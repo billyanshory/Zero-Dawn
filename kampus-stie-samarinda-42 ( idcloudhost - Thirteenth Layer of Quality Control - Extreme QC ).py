@@ -303,6 +303,7 @@ from flask_wtf.csrf import CSRFError
 
 @app.route('/api/therapy/logs', methods=['GET'])
 @login_required
+@limiter.limit("30 per minute")
 def api_therapy_logs():
     logs = EpilepsiLog.query.filter_by(user_id=current_user.id).order_by(EpilepsiLog.date.desc()).limit(30).all()
     return jsonify([{'date': l.date.strftime('%Y-%m-%d'), 'pemicu': l.pemicu, 'catatan': l.catatan} for l in logs])
@@ -397,8 +398,8 @@ class KampusSTIEException(Exception):
 def handle_kampus_error(e):
     try:
         db.session.rollback()
-    except:
-        pass
+    except Exception:
+        app.logger.warning("DB rollback gagal di error handler")
     if request.path.startswith('/api/'):
         return jsonify({'success': False, 'error': e.message}), e.status_code
     flash(f"Informasi Sistem: {e.message}", "error")
@@ -426,8 +427,8 @@ def handle_general_error(e):
     # Misi Ketiga: Pembatalan Transaksi Global
     try:
         db.session.rollback()
-    except:
-        pass
+    except Exception:
+        app.logger.warning("DB rollback gagal di error handler")
         
     
     app.logger.error(f"Global Error Captured: {str(e)}", exc_info=True)
@@ -458,7 +459,7 @@ def global_gatekeeper():
                 return "mohon maaf anda mencoba terlalu banyak percobaan login masuk tunggu tiga puluh menit lagi untuk percobaan berikutnya.", 429
 
     # Allow public endpoints and API endpoints
-    if request.endpoint in ['index', 'login', 'logout', 'static', 'api_pmb_register', 'api_pmb_check', 'api_pmb_status', 'service_worker', 'manifest', 'fitur_masjid', 'donate', 'emergency', 'prayer_times_api', 'api_yasin']:
+    if request.endpoint in ['index', 'login', 'logout', 'static', 'api_pmb_register', 'api_pmb_check', 'api_pmb_status', 'service_worker', 'manifest', 'fitur_masjid', 'donate', 'emergency', 'prayer_times_api', 'api_yasin', 'api_captcha_refresh', 'api_tracer_submit', 'verifikasi_surat']:
         return
         
     user_id = session.get('user_id')
@@ -9374,14 +9375,14 @@ def _fetch_tu_data():
         akun_page = request.args.get('akun_page', 1, type=int)
         pending_users = User.query.filter_by(status_akademik='Menunggu Verifikasi').order_by(User.id.desc()).all()
         return (
-            SuratOtomatis.query.order_by(SuratOtomatis.id.desc()).all(),
+            SuratOtomatis.query.order_by(SuratOtomatis.id.desc()).limit(100).all(),
             PendaftaranPMB.query.order_by(PendaftaranPMB.id.desc()).paginate(page=pmb_page, per_page=50),
             TagihanKuliah.query.order_by(TagihanKuliah.id.desc()).paginate(page=tagihan_page, per_page=50),
             JadwalKuliah.query.order_by(JadwalKuliah.id.desc()).all(),
             User.query.order_by(User.id.desc()).paginate(page=akun_page, per_page=50),
-            LaciArsip.query.order_by(LaciArsip.id.desc()).all(),
-            TracerStudy.query.order_by(TracerStudy.id.desc()).all(),
-            TracerStudy.query.filter_by(status='Diverifikasi').order_by(TracerStudy.id.desc()).all(),
+            LaciArsip.query.order_by(LaciArsip.id.desc()).limit(200).all(),
+            TracerStudy.query.order_by(TracerStudy.id.desc()).limit(100).all(),
+            TracerStudy.query.filter_by(status='Diverifikasi').order_by(TracerStudy.id.desc()).limit(100).all(),
             pending_users
         )
     except Exception as e:
@@ -9507,6 +9508,7 @@ class PrayTimes:
         return a - 24.0 * math.floor(a / 24.0)
 
     def adjust_time(self, t, tzone):
+        # t dalam UTC, tambahkan offset timezone untuk mendapat waktu lokal
         t += tzone
         t = self.fix_hour(t)
         hours = int(t)
