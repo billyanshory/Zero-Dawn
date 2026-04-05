@@ -15,6 +15,7 @@ from flask import Flask, request, send_from_directory, render_template_string, r
 import markupsafe
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
+from itsdangerous import URLSafeTimedSerializer
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError
@@ -459,7 +460,7 @@ def global_gatekeeper():
                 return "mohon maaf anda mencoba terlalu banyak percobaan login masuk tunggu tiga puluh menit lagi untuk percobaan berikutnya.", 429
 
     # Allow public endpoints and API endpoints
-    if request.endpoint in ['index', 'login', 'logout', 'static', 'api_pmb_register', 'api_pmb_check', 'api_pmb_status', 'service_worker', 'manifest', 'fitur_masjid', 'donate', 'emergency', 'prayer_times_api', 'api_yasin', 'api_captcha_refresh', 'api_tracer_submit', 'verifikasi_surat']:
+    if request.endpoint in ['index', 'login', 'logout', 'static', 'api_pmb_register', 'api_pmb_check', 'api_pmb_status', 'service_worker', 'manifest', 'fitur_masjid', 'donate', 'emergency', 'prayer_times_api', 'api_yasin', 'api_captcha_refresh', 'api_tracer_submit', 'verifikasi_surat', 'tu_magic_link', 'tu_verify_magic_link']:
         return
         
     user_id = session.get('user_id')
@@ -505,6 +506,61 @@ def _is_tu_exempt():
     whitelist_ip = os.environ.get('TU_IP_WHITELIST')
     
     return username == tu_user or (whitelist_ip and client_ip in whitelist_ip.split(','))
+
+@app.route('/tu/magic_link', methods=['POST'])
+@limiter.limit("5 per minute", error_message="Terlalu banyak permintaan.")
+def tu_magic_link():
+    email = request.form.get('email')
+    if not email:
+        flash("Email diperlukan.", "error")
+        return redirect(url_for('index', open='modal-login'))
+
+    user = User.query.filter_by(role='Tata Usaha').first()
+    if not user:
+        flash("Akun Tata Usaha tidak ditemukan di sistem.", "error")
+        return redirect(url_for('index', open='modal-login'))
+
+    # Generate a secure token
+    serializer = URLSafeTimedSerializer(app.secret_key)
+    token = serializer.dumps(user.id, salt='magic-link-salt')
+    magic_url = url_for('tu_verify_magic_link', token=token, _external=True)
+
+    # For testing, always send to billy.anshory7@gmail.com
+    target_email = 'billy.anshory7@gmail.com'
+    subject = "Login Portal Tata Usaha STIESAM"
+    body = f"Anda meminta tautan masuk untuk portal Tata Usaha.\n\nKlik tautan ini untuk masuk:\n{magic_url}\n\nTautan ini hanya berlaku untuk 15 menit."
+
+    send_email_notification(target_email, subject, body)
+
+    flash(f"Tautan ajaib telah dikirim ke kotak masuk Anda. Silakan cek email Anda.", "success")
+    return redirect(url_for('index', open='modal-login'))
+
+
+@app.route('/tu/verify/<token>', methods=['GET'])
+def tu_verify_magic_link(token):
+    serializer = URLSafeTimedSerializer(app.secret_key)
+    try:
+        user_id = serializer.loads(token, salt='magic-link-salt', max_age=900) # 15 minutes
+    except Exception as e:
+        flash("Tautan tidak valid atau telah kadaluarsa.", "error")
+        return redirect(url_for('index', open='modal-login'))
+
+    user = db.session.get(User, user_id)
+    if not user or user.role not in ['Tata Usaha', 'Admin']:
+        flash("Akun tidak valid untuk sesi ini.", "error")
+        return redirect(url_for('index', open='modal-login'))
+
+    login_user(user, remember=True)
+    session['user_id'] = user.id
+    session['username'] = user.username
+    session['npm'] = user.username
+    session['nama'] = user.nama
+    session['role'] = user.role
+    session['is_admin'] = True
+    session.permanent = True
+
+    return redirect(url_for('ramadhan_dashboard'))
+
 
 @app.route('/login', methods=['POST'])
 @limiter.limit("9 per 30 minutes", error_message="mohon maaf anda mencoba terlalu banyak percobaan login masuk tunggu tiga puluh menit lagi untuk percobaan berikutnya.", exempt_when=_is_tu_exempt)
@@ -2898,21 +2954,14 @@ BASE_LAYOUT = """
 
                 <!-- Tata Usaha Portal -->
                 <div id="portal-tu" class="portal-tab-content block">
-                    <form action="/login" method="POST" class="space-y-4">
+                    <form action="/tu/magic_link" method="POST" class="space-y-4">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Username Tata Usaha</label>
-                            <input type="text" name="username" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Alamat Surel Resmi</label>
+                            <input type="email" name="email" placeholder="contoh@stiesam.ac.id" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
-                            <input type="password" name="password" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        </div>
-                        <div class="flex items-center mt-2 mb-4">
-                            <input type="checkbox" id="remember-tu" name="remember" class="w-4 h-4 text-sky-500 bg-gray-50 border-gray-300 rounded focus:ring-sky-500">
-                            <label for="remember-tu" class="ml-2 text-xs font-medium text-gray-500">Ingat Saya</label>
-                        </div>
-                        <button type="submit" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl hover:bg-sky-600 transition shadow-md">Masuk Tata Usaha</button>
+                        <p class="text-xs text-gray-400 italic">Tautan masuk rahasia akan dikirimkan ke surel Anda.</p>
+                        <button type="submit" class="w-full bg-sky-500 text-white font-bold py-3 rounded-xl hover:bg-sky-600 transition shadow-md">Kirim Tautan Ajaib</button>
                     </form>
                 </div>
 
