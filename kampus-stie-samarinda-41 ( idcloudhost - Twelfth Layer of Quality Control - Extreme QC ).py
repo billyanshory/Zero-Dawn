@@ -266,6 +266,16 @@ class Notification(db.Model):
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, server_default=func.now())
 
+
+class EpilepsiLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), index=True)
+    date = db.Column(db.Date, nullable=False)
+    durasi_menit = db.Column(db.Integer, default=0)
+    pemicu = db.Column(db.String(255))
+    catatan = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
 class TracerStudy(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nama_lengkap = db.Column(db.String(255), nullable=False)
@@ -288,6 +298,40 @@ class TracerStudy(db.Model):
 
 from werkzeug.exceptions import RequestEntityTooLarge
 from flask_wtf.csrf import CSRFError
+
+
+
+@app.route('/api/therapy/logs', methods=['GET'])
+@login_required
+def api_therapy_logs():
+    logs = EpilepsiLog.query.filter_by(user_id=current_user.id).order_by(EpilepsiLog.date.desc()).limit(30).all()
+    return jsonify([{'date': l.date.strftime('%Y-%m-%d'), 'pemicu': l.pemicu, 'catatan': l.catatan} for l in logs])
+
+@app.route('/therapy/log', methods=['POST'])
+@login_required
+@limiter.limit("10 per hour")
+def therapy_log():
+    try:
+        date_str = request.form.get('date')
+        pemicu = request.form.get('trigger')
+        catatan = request.form.get('notes')
+        import datetime
+        parsed_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+        new_log = EpilepsiLog(
+            user_id=current_user.id,
+            date=parsed_date,
+            durasi_menit=0,
+            pemicu=pemicu,
+            catatan=catatan
+        )
+        db.session.add(new_log)
+        db.session.commit()
+        flash("Jurnal kambuh berhasil disimpan.", "success")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error saving therapy log: {e}", exc_info=True)
+        flash("Terjadi kesalahan. Pastikan format tanggal benar (YYYY-MM-DD).", "error")
+    return redirect(request.referrer or url_for('index'))
 
 @app.route('/manifest.json')
 def manifest():
@@ -544,12 +588,12 @@ def seed_admin():
             )
             db.session.add(new_admin)
             db.session.commit()
-            pass
 
             return "Akun administrator Tata Usaha berhasil dibuat."
         return "Akun administrator Tata Usaha sudah ada."
     except Exception as e:
-        return f"Error: {e}"
+        app.logger.error(f"Seed admin error: {e}", exc_info=True)
+        return "Terjadi kesalahan. Periksa log server.", 500
 
 
 # ============================================================================
@@ -766,7 +810,6 @@ def api_notifications_poll():
     for n in notifs:
         n.is_read = True
     db.session.commit()
-    pass
 
     return jsonify(res)
 
@@ -829,15 +872,21 @@ def verifikasi_surat(s_id):
     return f"Surat Resmi STIESAM. Jenis: {surat.jenis_surat}. Atas Nama NPM: {surat.npm}. Diterbitkan pada {tgl}."
 
 import random
-@app.route('/')
-@cache.cached(timeout=30, query_string=True, key_prefix=lambda: f"index_{session.get('role', 'public')}")
-def index():
+
+@app.route('/api/captcha/refresh', methods=['POST'])
+@limiter.limit("20 per minute")
+def api_captcha_refresh():
+    import random
     a = random.randint(1, 10)
     b = random.randint(1, 10)
     session['captcha_a'] = a
     session['captcha_b'] = b
     session['captcha_answer'] = a + b
-        
+    return jsonify({'a': a, 'b': b})
+
+@app.route('/')
+@cache.cached(timeout=30, query_string=True, key_prefix=lambda: f"index_{session.get('role', 'public')}")
+def index():
     try:
         verified_alumni_list = TracerStudy.query.filter_by(status='Diverifikasi').order_by(TracerStudy.id.desc()).all()
     except:
@@ -1099,7 +1148,7 @@ def tu_pmb_verifikasi():
         item_id = request.form.get('id')
         
         if verifikasi_type == 'pmb':
-            pmb = PendaftaranPMB.query.with_for_update().get(item_id)
+            pmb = db.session.query(PendaftaranPMB).with_for_update().filter_by(id=item_id).first()
             if pmb:
                 pmb.status = 'Diterima'
                 
@@ -1302,7 +1351,6 @@ def tu_tagihan_tambah():
         )
         db.session.add(new_tagihan)
         db.session.commit()
-        pass
 
         flash("Tagihan berhasil ditambahkan.", "success")
     except Exception as e:
@@ -1347,6 +1395,19 @@ def tu_tagihan_lunas():
 @require_role(['Tata Usaha', 'Admin'])
 def tu_jadwal():
     try:
+        hari = request.form.get('hari', '')
+        jam = request.form.get('jam', '')
+
+        valid_hari = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+        if hari not in valid_hari:
+            flash("Hari tidak valid", "error")
+            return "Hari tidak valid", 400
+
+        import re
+        if not re.match(r'^\d{2}:\d{2}\s*-\s*\d{2}:\d{2}$', jam):
+            flash("Format jam tidak valid (Gunakan format HH:MM - HH:MM)", "error")
+            return "Format jam tidak valid", 400
+
         new_jadwal = JadwalKuliah(
             hari=request.form['hari'],
             jam=request.form['jam'],
@@ -1449,7 +1510,6 @@ def tu_akun_delete():
             db.session.delete(user)
             db.session.commit()
             flash("Akun pengguna dan seluruh relasi data terkait telah dihapus permanen.", "success")
-        pass
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error delete user: {e}", exc_info=True)
@@ -1905,7 +1965,6 @@ def mahasiswa_update_foto():
             saved_filename = compress_image(foto, app.config['UPLOAD_FOLDER'])
             user.foto_profil = saved_filename
             db.session.commit()
-            pass
             flash("Foto profil berhasil diperbarui.", "success")
         else:
             flash("File tidak valid.", "error")
@@ -1931,7 +1990,6 @@ def dosen_update_foto():
             saved_filename = compress_image(foto, app.config['UPLOAD_FOLDER'])
             user.foto_profil = saved_filename
             db.session.commit()
-            pass
             flash("Foto profil berhasil diperbarui.", "success")
         else:
             flash("File tidak valid.", "error")
@@ -1956,7 +2014,6 @@ def dosen_krs_action():
             krs.status = status
             db.session.add(Notification(npm=krs.npm, message=f"KRS {krs.mata_kuliah} telah {status}."))
             db.session.commit()
-            pass
 
             return jsonify({'success': True})
     except Exception as e:
@@ -2032,7 +2089,6 @@ def dosen_nilai_submit():
                 status_nilai.is_published = True
                 
             db.session.commit()
-        pass
         flash("Nilai berhasil disimpan dan dipublikasikan.", "success")
 
     except Exception as e:
@@ -2150,7 +2206,6 @@ def mahasiswa_update_password():
             user.password_hash = generate_password_hash(new_password)
             user.must_change_password = False
             db.session.commit()
-            pass
             flash("Password berhasil diupdate.", "success")
         else:
             flash("Password lama salah.", "error")
@@ -3472,11 +3527,58 @@ BASE_LAYOUT = """
             }
         });
 
-        function openModal(id) {
+
+
+async function loadEpilepsiLogs() {
+    try {
+        const res = await fetch('/api/therapy/logs');
+        if (!res.ok) return;
+        const logs = await res.json();
+        const container = document.getElementById('epilepsi-logs-container');
+        if (!container) return;
+
+        if (logs.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-400 text-xs py-4">Belum ada data rekaman.</p>';
+            return;
+        }
+
+        let html = '';
+        logs.forEach(log => {
+            html += `
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-start mb-3">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">${log.date}</span>
+                        </div>
+                        <p class="text-sm font-bold text-gray-800">${log.pemicu}</p>
+                        ${log.catatan ? `<p class="text-xs text-gray-500 mt-1 italic">"${log.catatan}"</p>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    } catch(e) { console.error(e); }
+}
+
+async function refreshCaptcha() {
+        try {
+            const fd = new FormData();
+            const csrfToken = document.querySelector('input[name="csrf_token"]');
+            if (csrfToken) fd.append('csrf_token', csrfToken.value);
+            const res = await fetch('/api/captcha/refresh', {method: 'POST', body: fd});
+            const data = await res.json();
+            const el = document.getElementById('captcha-question');
+            if (el) el.innerText = `Berapa hasil dari ${data.a} + ${data.b}? (CAPTCHA)`;
+        } catch(e) { console.error(e); }
+    }
+
+function openModal(id) {
             const el = document.getElementById(id);
             if(el) {
                 el.classList.remove('hidden');
                 history.pushState({modal: id}, null, "");
+        if (id === 'modal-tracer-form' && typeof refreshCaptcha === 'function') { refreshCaptcha(); }
+        if (id === 'modal-terapi-log' && typeof loadEpilepsiLogs === 'function') { loadEpilepsiLogs(); }
                 
                 if (id === 'modal-cek-status-pmb') {
                     const cekNamaInput = document.getElementById('cek-nama');
@@ -5676,21 +5778,9 @@ HOME_HTML = """
             </form>
             
             <h4 class="text-sm font-bold text-gray-800 mb-4 pl-2 border-l-4 border-blue-500">Riwayat Terakhir</h4>
-            <div class="space-y-3">
-                {% for log in epilepsi_logs %}
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-start">
-                    <div>
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{{ log['date'] }}</span>
-                            <span class="text-xs text-gray-400">{{ log['time'] }}</span>
-                        </div>
-                        <p class="text-sm font-bold text-gray-800">{{ log['trigger'] }}</p>
-                        {% if log['notes'] %}<p class="text-xs text-gray-500 mt-1 italic">"{{ log['notes'] }}"</p>{% endif %}
-                    </div>
+            <div class="space-y-3" id="epilepsi-logs-container">
+                    <p class="text-center text-gray-400 text-xs py-4">Memuat data rekaman...</p>
                 </div>
-                {% else %}
-                <p class="text-center text-gray-400 text-xs py-4">Belum ada data rekaman.</p>
-                {% endfor %}
             </div>
             <button onclick="showMedicalExplanation('log')" class="mt-4 w-full border border-blue-200 text-blue-500 text-[10px] font-bold py-2 rounded-lg hover:bg-blue-50 transition uppercase tracking-wider">
                 Penjelasan Medis
@@ -7809,6 +7899,18 @@ RAMADHAN_DASHBOARD_HTML = """
                     </tbody>
                 </table>
             </div>
+            <div class="p-4 flex justify-between gap-2 mt-4 bg-white/5 rounded-xl border border-white/10">
+                <div>
+                    {% if akun_list.has_prev %}
+                    <a href="?open=modal-manajemen-sivitas&akun_page={{ akun_list.prev_num }}" class="text-gold font-bold text-xs hover:text-white transition">&laquo; Sebelumnya</a>
+                    {% endif %}
+                </div>
+                <div>
+                    {% if akun_list.has_next %}
+                    <a href="?open=modal-manajemen-sivitas&akun_page={{ akun_list.next_num }}" class="text-gold font-bold text-xs hover:text-white transition">Berikutnya &raquo;</a>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 
@@ -7828,7 +7930,7 @@ RAMADHAN_DASHBOARD_HTML = """
             
             <div id="pmb-content" class="verifikasi-tab-content">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {% for item in pmb_list %}
+                    {% for item in pmb_list.items %}
                     <div class="bg-white/5 border border-white/10 p-4 rounded-xl">
                         <p class="font-bold text-white mb-2">{{ item['nama'] }}</p>
                         <div class="flex gap-2 mb-4">
@@ -7872,6 +7974,18 @@ RAMADHAN_DASHBOARD_HTML = """
                     {% else %}
                     <p class="text-gray-500">Belum ada pendaftar PMB.</p>
                     {% endfor %}
+                </div>
+                <div class="p-4 flex justify-between gap-2 mt-4 bg-white/5 rounded-xl border border-white/10">
+                    <div>
+                        {% if pmb_list.has_prev %}
+                        <a href="?open=modal-verifikasi-pmb&pmb_page={{ pmb_list.prev_num }}" class="text-gold font-bold text-xs hover:text-white transition">&laquo; Sebelumnya</a>
+                        {% endif %}
+                    </div>
+                    <div>
+                        {% if pmb_list.has_next %}
+                        <a href="?open=modal-verifikasi-pmb&pmb_page={{ pmb_list.next_num }}" class="text-gold font-bold text-xs hover:text-white transition">Berikutnya &raquo;</a>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
 
@@ -8001,7 +8115,7 @@ RAMADHAN_DASHBOARD_HTML = """
             </form>
 
             <div class="space-y-3">
-                {% for item in tagihan_list %}
+                {% for item in tagihan_list.items %}
                 <div class="bg-white/5 p-4 rounded-xl border border-white/10 flex justify-between items-center">
                     <div>
                         <p class="font-bold text-white">{{ item['jenis_tagihan'] }}</p>
@@ -8027,6 +8141,18 @@ RAMADHAN_DASHBOARD_HTML = """
                 {% else %}
                 <p class="text-gray-500 text-center">Tidak ada tagihan tercatat.</p>
                 {% endfor %}
+            </div>
+            <div class="p-4 flex justify-between gap-2 mt-4 bg-white/5 rounded-xl border border-white/10">
+                <div>
+                    {% if tagihan_list.has_prev %}
+                    <a href="?open=modal-verifikasi-pembayaran&tagihan_page={{ tagihan_list.prev_num }}" class="text-gold font-bold text-xs hover:text-white transition">&laquo; Sebelumnya</a>
+                    {% endif %}
+                </div>
+                <div>
+                    {% if tagihan_list.has_next %}
+                    <a href="?open=modal-verifikasi-pembayaran&tagihan_page={{ tagihan_list.next_num }}" class="text-gold font-bold text-xs hover:text-white transition">Berikutnya &raquo;</a>
+                    {% endif %}
+                </div>
             </div>
             
         </div>
@@ -8256,7 +8382,7 @@ RAMADHAN_DASHBOARD_HTML = """
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-white/5">
-                        {% for item in akun_list %}
+                        {% for item in akun_list.items %}
                         <tr class="hover:bg-white/5 transition sivitas-row" data-role="{{ item['role'] }}">
                             <td class="p-3">
                                 <p class="font-bold text-white">{{ item['nama'] }}</p>
@@ -9242,13 +9368,17 @@ def _fetch_mahasiswa_data(npm, is_admin):
 
 def _fetch_tu_data():
     try:
+        from flask import request
+        pmb_page = request.args.get('pmb_page', 1, type=int)
+        tagihan_page = request.args.get('tagihan_page', 1, type=int)
+        akun_page = request.args.get('akun_page', 1, type=int)
         pending_users = User.query.filter_by(status_akademik='Menunggu Verifikasi').order_by(User.id.desc()).all()
         return (
             SuratOtomatis.query.order_by(SuratOtomatis.id.desc()).all(),
-            PendaftaranPMB.query.order_by(PendaftaranPMB.id.desc()).all(),
-            TagihanKuliah.query.order_by(TagihanKuliah.id.desc()).all(),
+            PendaftaranPMB.query.order_by(PendaftaranPMB.id.desc()).paginate(page=pmb_page, per_page=50),
+            TagihanKuliah.query.order_by(TagihanKuliah.id.desc()).paginate(page=tagihan_page, per_page=50),
             JadwalKuliah.query.order_by(JadwalKuliah.id.desc()).all(),
-            User.query.order_by(User.id.desc()).all(),
+            User.query.order_by(User.id.desc()).paginate(page=akun_page, per_page=50),
             LaciArsip.query.order_by(LaciArsip.id.desc()).all(),
             TracerStudy.query.order_by(TracerStudy.id.desc()).all(),
             TracerStudy.query.filter_by(status='Diverifikasi').order_by(TracerStudy.id.desc()).all(),
@@ -9377,7 +9507,7 @@ class PrayTimes:
         return a - 24.0 * math.floor(a / 24.0)
 
     def adjust_time(self, t, tzone):
-        t += tzone - 8 # Base is calculated relative to GMT, we just add timezone
+        t += tzone
         t = self.fix_hour(t)
         hours = int(t)
         minutes = int((t - hours) * 60)
@@ -9601,7 +9731,7 @@ def get_imsakiyah_schedule():
                 
     except Exception as e:
         app.logger.error(f"Error fetching Imsakiyah API: {e}", exc_info=True)
-        # Fallback empty or local calculation if needed, but user requested API specifically.
+        return []
         
     return schedule
 
