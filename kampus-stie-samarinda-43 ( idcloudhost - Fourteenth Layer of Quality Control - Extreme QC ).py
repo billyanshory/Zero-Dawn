@@ -449,7 +449,7 @@ def global_gatekeeper():
         username = request.form.get('username', '')
         client_ip = get_remote_address()
         whitelist_ip = os.environ.get('TU_IP_WHITELIST')
-        tu_user = os.environ.get('TU_USERNAME', 'tatausaha')
+        tu_user = os.environ.get('TU_USERNAME', 'tustiesam')
         
         # Pengecualian mutlak untuk Tata Usaha
         if not ((whitelist_ip and client_ip in whitelist_ip) or username == tu_user):
@@ -500,7 +500,7 @@ def _is_tu_exempt():
     if request.method != 'POST': return False
     username = request.form.get('username')
     
-    tu_user = os.environ.get('TU_USERNAME', 'tatausaha')
+    tu_user = os.environ.get('TU_USERNAME', 'tustiesam')
     client_ip = get_remote_address()
     whitelist_ip = os.environ.get('TU_IP_WHITELIST')
     
@@ -578,11 +578,11 @@ def seed_admin():
     if not seed_token or request.args.get('token') != seed_token:
         return 'Unauthorized', 403
     try:
-        admin_exists = User.query.filter_by(role='Tata Usaha').first()
+        admin_exists = User.query.filter_by(username='tustiesam', role='Tata Usaha').first()
         if not admin_exists:
             new_admin = User(
-                username='adminstiesam',
-                password_hash=generate_password_hash(os.environ.get('ADMIN_PASSWORD', 'stiesamadmin123')),
+                username='tustiesam',
+                password_hash=generate_password_hash(os.environ.get('ADMIN_PASSWORD', 'tatausahaaja')),
                 role='Tata Usaha',
                 nama='Administrator STIESAM',
                 status_akademik='Aktif'
@@ -770,7 +770,7 @@ def api_tracer_submit():
             kontak=request.form.get('kontak')
         )
         db.session.add(new_tracer)
-        db.session.add(Notification(npm=os.environ.get('TU_USERNAME', 'tatausaha'), message=f"Data Tracer Study baru dari NPM {npm_input}."))
+        db.session.add(Notification(npm=os.environ.get('TU_USERNAME', 'tustiesam'), message=f"Data Tracer Study baru dari NPM {npm_input}."))
         db.session.commit()
         cache.clear()
 
@@ -2177,7 +2177,7 @@ def mahasiswa_tagihan_upload():
                 saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
                 tagihan.bukti_transfer = saved_filename
                 tagihan.status = 'Menunggu Konfirmasi'
-                db.session.add(Notification(npm=os.environ.get('TU_USERNAME', 'tatausaha'), message=f"Bukti transfer diunggah oleh NPM {tagihan.npm} untuk {tagihan.jenis_tagihan}."))
+                db.session.add(Notification(npm=os.environ.get('TU_USERNAME', 'tustiesam'), message=f"Bukti transfer diunggah oleh NPM {tagihan.npm} untuk {tagihan.jenis_tagihan}."))
                 db.session.commit()
         cache.clear()
 
@@ -2294,7 +2294,7 @@ def mahasiswa_surat_request():
             keterangan=request.form['keterangan']
         )
         db.session.add(item)
-        db.session.add(Notification(npm=os.environ.get('TU_USERNAME', 'tatausaha'), message=f"Permohonan surat baru dari NPM {npm}."))
+        db.session.add(Notification(npm=os.environ.get('TU_USERNAME', 'tustiesam'), message=f"Permohonan surat baru dari NPM {npm}."))
         db.session.commit()
         cache.clear()
 
@@ -9743,4 +9743,21 @@ def get_imsakiyah_schedule():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        # Ensure Tata Usaha default user exists safely at startup
+        try:
+            tu_user = User.query.filter_by(username='tustiesam').first()
+            if not tu_user:
+                new_tu = User(
+                    username='tustiesam',
+                    password_hash=generate_password_hash(os.environ.get('ADMIN_PASSWORD', 'tatausahaaja')),
+                    role='Tata Usaha',
+                    nama='Administrator TU',
+                    status_akademik='Aktif'
+                )
+                db.session.add(new_tu)
+                db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error initializing TU user on startup: {e}")
+
     app.run(debug=False, port=5000)
