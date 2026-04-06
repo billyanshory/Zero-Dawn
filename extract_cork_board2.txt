@@ -1,0 +1,30 @@
+
+                        <!-- Istirahat -->
+                        <button onclick="speakAAC('Saya butuh istirahat')" class="neumorphic-btn p-4 flex flex-col items-center justify-center gap-2 aspect-square">
+                            <div class="w-12 h-12 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-2xl shadow-inner">
+                                <i class="fas fa-bed"></i>
+                            </div>
+                            <span class="text-[10px] font-bold text-gray-600 text-center leading-tight">Saya butuh istirahat</span>
+                        </button>
+
+                        <!-- Pelukan -->
+                        <button onclick="speakAAC('Saya butuh pelukan')" class="neumorphic-btn p-4 flex flex-col items-center justify-center gap-2 aspect-square">
+                            <div class="w-12 h-12 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-2xl shadow-inner">
+                                <i class="fas fa-heart"></i>
+                            </div>
+                            <span class="text-[10px] font-bold text-gray-600 text-center leading-tight">Saya butuh pelukan</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DASHBOARD GURU BANNER -->
+            <a href="/ramadhan" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-blue-200 mt-4">
+                <div class="absolute inset-0 bg-gradient-to-r from-blue-100 to-sky-100"></div>
+
+                <div class="absolute right-12 top-1/2 transform -translate-y-1/2 opacity-20 text-blue-500 pointer-events-none">
+                    <i class="fas fa-chalkboard-teacher text-9xl"></i>
+                </div>
+
+                <div class="relative px-6 py-6 md:px-8 md:py-8 flex items-center justify-between">
+                    <div>

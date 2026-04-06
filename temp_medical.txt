@@ -1,0 +1,81 @@
+                <p id="calc-info-text" class="text-sm text-gray-700 leading-relaxed font-medium text-justify"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Medical Panel -->
+    <div id="modal-medical-panel" class="fixed inset-0 z-[140] hidden">
+        <div class="absolute inset-0 bg-indigo-900/60 backdrop-blur-md" onclick="closeModal('modal-medical-panel')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.4s_ease-out] md:relative md:max-w-xl md:mx-auto md:rounded-3xl md:top-10 max-h-[90dvh] overflow-y-auto border-t-4 border-indigo-500 flex flex-col">
+
+            <div class="flex justify-between items-start mb-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 rounded-full bg-white shadow-md border-2 border-indigo-100 flex items-center justify-center overflow-hidden shrink-0">
+                        <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Budi&backgroundColor=e0e7ff" alt="Avatar Budi" class="w-full h-full object-cover">
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-extrabold text-gray-800 tracking-tight leading-none mb-1">Budi Santoso</h3>
+                        <p class="text-xs text-indigo-500 font-bold tracking-wider uppercase"><i class="fas fa-id-card mr-1"></i> Rekam Digital Siswa</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('modal-medical-panel')" class="w-10 h-10 rounded-full bg-gray-50 text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition flex items-center justify-center border border-gray-100 shrink-0">&times;</button>
+            </div>
+
+            <!-- Mini Tab Navigation -->
+            <div class="flex p-1 bg-gray-100 rounded-xl mb-6 shrink-0 flex-wrap gap-1">
+                <button onclick="switchMedicalTab('krusial')" id="tab-medis-krusial-btn" class="flex-1 py-2 text-[10px] md:text-xs font-bold rounded-lg bg-white shadow-sm text-indigo-600 transition flex items-center justify-center gap-1 min-w-[30%]"><i class="fas fa-heartbeat"></i> Data Medis </button>
+                <button onclick="switchMedicalTab('harian')" id="tab-medis-harian-btn" class="flex-1 py-2 text-[10px] md:text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition flex items-center justify-center gap-1 min-w-[30%]"><i class="fas fa-book-medical"></i> Data Harian </button>
+                <button onclick="switchMedicalTab('jadwal')" id="tab-medis-jadwal-btn" class="flex-1 py-2 text-[10px] md:text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition flex items-center justify-center gap-1 min-w-[30%]"><i class="fas fa-pills"></i> Jadwal Medis </button>
+            </div>
+
+            <!-- Tab 1: Data Medis -->
+            <div id="tab-medis-krusial" class="medical-tab-content flex-1 overflow-y-auto pr-1">
+                <p class="text-xs text-red-500 font-bold tracking-widest uppercase mb-4 text-center bg-red-50 p-2 rounded-lg border border-red-100 shadow-sm"><i class="fas fa-exclamation-circle mr-1 animate-pulse"></i> Protokol Darurat Aktif</p>
+
+                <!-- Panel Instrumen Medis Masa Depan Layout -->
+                <div class="space-y-3 font-sans text-sm text-gray-700 bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <!-- 1. Identitas Utama -->
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-start gap-3 hover:-translate-y-0.5 transition-transform">
+                            <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center shrink-0">
+                                <i class="fas fa-id-badge text-lg"></i>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Identitas Utama</span>
+                                <div class="font-extrabold text-gray-800 text-sm">Budi Santoso (Budi)</div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Fase Perkembangan -->
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-start gap-3 hover:-translate-y-0.5 transition-transform">
+                            <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center shrink-0">
+                                <i class="fas fa-calendar-alt text-lg"></i>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Perkembangan</span>
+                                <div class="font-extrabold text-gray-800 text-sm">10 Thn / Kelas 4 SLB</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Diagnosis Medis Utama -->
+                    <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-l-red-500 border border-y-gray-100 border-r-gray-100 flex items-center gap-4 hover:-translate-y-0.5 transition-transform">
+                        <div class="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center shrink-0 shadow-inner">
+                            <i class="fas fa-stethoscope text-xl"></i>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] text-red-500 font-bold uppercase tracking-wider mb-0.5">Diagnosis Medis Utama</span>
+                            <div class="font-extrabold text-gray-800 text-base md:text-lg">Tunagrahita Sedang (Moderate ID) & ADHD</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <!-- 4. Tingkat Hambatan -->
+                        <div class="bg-orange-50/50 p-4 rounded-xl shadow-sm border border-orange-100 flex items-start gap-3 hover:-translate-y-0.5 transition-transform">
+                            <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center shrink-0">
+                                <i class="fas fa-exclamation-triangle text-lg"></i>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] text-orange-600 font-bold uppercase tracking-wider mb-0.5">Tingkat Hambatan</span>
+                                <div class="font-bold text-orange-900 text-sm leading-snug">Sedang (Butuh Pendampingan)</div>

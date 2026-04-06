@@ -90,6 +90,14 @@ DB_NAME = 'slb.db'
 
 # --- DATABASE MODELS ---
 
+class StudentMedicalData(db.Model):
+    __tablename__ = 'student_medical_data'
+    id = db.Column(db.Integer, primary_key=True)
+    parent_id = db.Column(db.Integer, db.ForeignKey('akun_pengguna.id'), nullable=False)
+    medical_history = db.Column(db.Text)
+    daily_habits = db.Column(db.Text)
+    medication_schedules = db.Column(db.Text)
+
 class Siswa(db.Model):
     __tablename__ = 'siswa'
     id = db.Column(db.Integer, primary_key=True)
@@ -1644,92 +1652,6 @@ HOME_HTML = """
         <!-- RIGHT COLUMN: PRAYER CARD & RAMADHAN BANNER -->
         <div class="flex flex-col gap-6">
             
-            <!-- KARTU PROFIL SISWA DAN PAPAN KOMUNIKASI EKSPRES AAC (NEUMORPHISM CORK BOARD) -->
-            <div class="cork-board p-6 md:p-8">
-                
-                <!-- Acrylic Card (Polaroid Style) -->
-                <div class="acrylic-card cursor-pointer group" id="student-acrylic-card" onclick="openMedicalPanel()">
-                    <!-- Metal Pin -->
-                    <div class="metal-pin"></div>
-                    
-                    <!-- Header Identitas Medis -->
-                    <div class="px-6 py-6 flex items-center justify-between border-b border-gray-200/50">
-                        <div class="flex items-center gap-4">
-                            <div class="w-14 h-14 rounded-full bg-white shadow-md border-2 border-white flex items-center justify-center overflow-hidden shrink-0">
-                                <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Budi&backgroundColor=e0e7ff" alt="Avatar Budi" class="w-full h-full object-cover">
-                            </div>
-                            <div>
-                                <h2 class="text-xl font-extrabold text-gray-800 tracking-tight leading-none mb-1">Budi</h2>
-                                <p class="text-xs text-gray-600 font-bold">Siswa SLB C (Tunagrahita)</p>
-                            </div>
-                        </div>
-                        <!-- Lencana Indikator Status Emosi -->
-                        <div class="bg-white px-3 py-1.5 rounded-full border border-green-200 flex items-center gap-2 shadow-sm shrink-0">
-                            <span class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
-                            <span class="text-[10px] font-bold text-green-700 uppercase tracking-wider">Sedang Tenang</span>
-                        </div>
-                    </div>
-                    <div class="absolute inset-0 bg-white/0 group-hover:bg-white/20 transition-colors rounded-3xl pointer-events-none"></div>
-                    <div class="absolute right-4 bottom-4 w-8 h-8 rounded-full bg-white/50 text-gray-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm pointer-events-none shadow-sm border border-white">
-                        <i class="fas fa-search-plus"></i>
-                    </div>
-                </div>
-                
-                <!-- Papan Komunikasi Ekspres (AAC) Neumorphic -->
-                <div class="mt-6">
-                    <h3 class="text-sm font-extrabold text-gray-800 mb-4 px-2 drop-shadow-sm flex items-center gap-2"><i class="fas fa-th-large text-indigo-600 opacity-80"></i> Papan Komunikasi Ekspres</h3>
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 px-1">
-                        <!-- Toilet -->
-                        <button onclick="speakAAC('Saya mau ke toilet')" class="neumorphic-btn p-4 flex flex-col items-center justify-center gap-2 aspect-square">
-                            <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-2xl shadow-inner">
-                                <i class="fas fa-restroom"></i>
-                            </div>
-                            <span class="text-[10px] font-bold text-gray-600 text-center leading-tight">Saya mau ke toilet</span>
-                        </button>
-                        
-                        <!-- Sakit -->
-                        <button onclick="speakAAC('Saya merasa sakit')" class="neumorphic-btn p-4 flex flex-col items-center justify-center gap-2 aspect-square">
-                            <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-2xl shadow-inner">
-                                <i class="fas fa-briefcase-medical"></i>
-                            </div>
-                            <span class="text-[10px] font-bold text-gray-600 text-center leading-tight">Saya merasa sakit</span>
-                        </button>
-
-                        <!-- Lapar Haus -->
-                        <button onclick="speakAAC('Saya lapar dan haus')" class="neumorphic-btn p-4 flex flex-col items-center justify-center gap-2 aspect-square">
-                            <div class="w-12 h-12 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-2xl shadow-inner">
-                                <i class="fas fa-hamburger"></i>
-                            </div>
-                            <span class="text-[10px] font-bold text-gray-600 text-center leading-tight">Saya lapar dan haus</span>
-                        </button>
-
-                        <!-- Bising -->
-                        <button onclick="speakAAC('Ruangan ini terlalu bising')" class="neumorphic-btn p-4 flex flex-col items-center justify-center gap-2 aspect-square">
-                            <div class="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-2xl shadow-inner">
-                                <i class="fas fa-volume-mute"></i>
-                            </div>
-                            <span class="text-[10px] font-bold text-gray-600 text-center leading-tight">Ruangan ini terlalu bising</span>
-                        </button>
-
-                        <!-- Istirahat -->
-                        <button onclick="speakAAC('Saya butuh istirahat')" class="neumorphic-btn p-4 flex flex-col items-center justify-center gap-2 aspect-square">
-                            <div class="w-12 h-12 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-2xl shadow-inner">
-                                <i class="fas fa-bed"></i>
-                            </div>
-                            <span class="text-[10px] font-bold text-gray-600 text-center leading-tight">Saya butuh istirahat</span>
-                        </button>
-
-                        <!-- Pelukan -->
-                        <button onclick="speakAAC('Saya butuh pelukan')" class="neumorphic-btn p-4 flex flex-col items-center justify-center gap-2 aspect-square">
-                            <div class="w-12 h-12 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-2xl shadow-inner">
-                                <i class="fas fa-heart"></i>
-                            </div>
-                            <span class="text-[10px] font-bold text-gray-600 text-center leading-tight">Saya butuh pelukan</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
             <!-- DASHBOARD GURU BANNER -->
             <a href="/ramadhan" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-blue-200 mt-4">
                 <div class="absolute inset-0 bg-gradient-to-r from-blue-100 to-sky-100"></div>
@@ -9398,6 +9320,132 @@ ORANG_TUA_HTML = """
         </div>
     </div>
 
+    <!-- KARTU PROFIL SISWA DAN PAPAN KOMUNIKASI EKSPRES AAC (NEUMORPHISM CORK BOARD) -->
+    <div class="px-5 mb-8">
+        <div class="cork-board p-6 md:p-8">
+
+            <!-- Acrylic Card (Polaroid Style) -->
+            <div class="acrylic-card group" id="student-acrylic-card">
+                <!-- Metal Pin -->
+                <div class="metal-pin"></div>
+
+                {% if medical_data and (medical_data.medical_history or medical_data.daily_habits or medical_data.medication_schedules) %}
+                <!-- Header Identitas Medis -->
+                <div class="px-6 py-6 border-b border-gray-200/50">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-14 h-14 rounded-full bg-white shadow-md border-2 border-white flex items-center justify-center overflow-hidden shrink-0">
+                                <img src="https://api.dicebear.com/7.x/notionists/svg?seed={{ session.get('user_id') }}&backgroundColor=e0e7ff" alt="Avatar Anak" class="w-full h-full object-cover">
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-extrabold text-gray-800 tracking-tight leading-none mb-1">Profil Medis Anak</h2>
+                                <p class="text-xs text-gray-600 font-bold">Data Pribadi</p>
+                            </div>
+                        </div>
+                        <!-- Lencana Indikator Status Emosi -->
+                        <div class="bg-white px-3 py-1.5 rounded-full border border-green-200 flex items-center gap-2 shadow-sm shrink-0">
+                            <span class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
+                            <span class="text-[10px] font-bold text-green-700 uppercase tracking-wider">Aktif</span>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                            <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Kondisi & Riwayat Medis Khusus</p>
+                            <p class="text-sm text-gray-700 font-medium">{{ medical_data.medical_history }}</p>
+                        </div>
+                        <div class="bg-teal-50/50 p-3 rounded-xl border border-teal-100">
+                            <p class="text-[10px] font-bold text-teal-400 uppercase tracking-widest mb-1">Kebiasaan Harian / Pola Tidur</p>
+                            <p class="text-sm text-gray-700 font-medium">{{ medical_data.daily_habits }}</p>
+                        </div>
+                        <div class="bg-rose-50/50 p-3 rounded-xl border border-rose-100">
+                            <p class="text-[10px] font-bold text-rose-400 uppercase tracking-widest mb-1">Jadwal Pengobatan</p>
+                            <p class="text-sm text-gray-700 font-medium">{{ medical_data.medication_schedules }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <!-- Formulir Input Ergonomis -->
+                <div class="px-6 py-6 border-b border-gray-200/50">
+                    <div class="mb-4 text-center">
+                        <h2 class="text-lg font-extrabold text-gray-800 tracking-tight">Lengkapi Profil Medis Anak</h2>
+                        <p class="text-xs text-gray-500 font-medium">Bantu sistem memahami kebutuhan khusus anak Anda.</p>
+                    </div>
+                    <form action="/orang-tua/api/medical-data" method="POST" class="space-y-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Kondisi & Riwayat Medis Khusus</label>
+                            <textarea name="medical_history" rows="2" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" placeholder="Contoh: Epilepsi, alergi gluten..." required></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Kebiasaan Harian / Pola Tidur</label>
+                            <textarea name="daily_habits" rows="2" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 transition" placeholder="Contoh: Tidur siang 2 jam, sensitif suara bising..." required></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Jadwal Pengobatan</label>
+                            <textarea name="medication_schedules" rows="2" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 transition" placeholder="Contoh: Obat anti-kejang jam 08:00 dan 20:00..." required></textarea>
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-indigo-600 active:scale-95 transition-all">Simpan Profil Anak</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Papan Komunikasi Ekspres (AAC) Neumorphic -->
+            <div class="mt-6">
+                <h3 class="text-sm font-extrabold text-gray-800 mb-4 px-2 drop-shadow-sm flex items-center gap-2"><i class="fas fa-th-large text-indigo-600 opacity-80"></i> Papan Komunikasi Ekspres</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 px-1">
+                    <!-- Toilet -->
+                    <button onclick="speakAAC('Saya mau ke toilet')" class="neumorphic-btn p-4 flex flex-col items-center justify-center gap-2 aspect-square">
+                        <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-2xl shadow-inner">
+                            <i class="fas fa-restroom"></i>
+                        </div>
+                        <span class="text-[10px] font-bold text-gray-600 text-center leading-tight">Saya mau ke toilet</span>
+                    </button>
+
+                    <!-- Sakit -->
+                    <button onclick="speakAAC('Saya merasa sakit')" class="neumorphic-btn p-4 flex flex-col items-center justify-center gap-2 aspect-square">
+                        <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-2xl shadow-inner">
+                            <i class="fas fa-briefcase-medical"></i>
+                        </div>
+                        <span class="text-[10px] font-bold text-gray-600 text-center leading-tight">Saya merasa sakit</span>
+                    </button>
+
+                    <!-- Lapar Haus -->
+                    <button onclick="speakAAC('Saya lapar dan haus')" class="neumorphic-btn p-4 flex flex-col items-center justify-center gap-2 aspect-square">
+                        <div class="w-12 h-12 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-2xl shadow-inner">
+                            <i class="fas fa-hamburger"></i>
+                        </div>
+                        <span class="text-[10px] font-bold text-gray-600 text-center leading-tight">Saya lapar dan haus</span>
+                    </button>
+
+                    <!-- Bising -->
+                    <button onclick="speakAAC('Ruangan ini terlalu bising')" class="neumorphic-btn p-4 flex flex-col items-center justify-center gap-2 aspect-square">
+                        <div class="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-2xl shadow-inner">
+                            <i class="fas fa-volume-mute"></i>
+                        </div>
+                        <span class="text-[10px] font-bold text-gray-600 text-center leading-tight">Ruangan ini terlalu bising</span>
+                    </button>
+
+                    <!-- Istirahat -->
+                    <button onclick="speakAAC('Saya butuh istirahat')" class="neumorphic-btn p-4 flex flex-col items-center justify-center gap-2 aspect-square">
+                        <div class="w-12 h-12 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-2xl shadow-inner">
+                            <i class="fas fa-bed"></i>
+                        </div>
+                        <span class="text-[10px] font-bold text-gray-600 text-center leading-tight">Saya butuh istirahat</span>
+                    </button>
+
+                    <!-- Pelukan -->
+                    <button onclick="speakAAC('Saya butuh pelukan')" class="neumorphic-btn p-4 flex flex-col items-center justify-center gap-2 aspect-square">
+                        <div class="w-12 h-12 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-2xl shadow-inner">
+                            <i class="fas fa-heart"></i>
+                        </div>
+                        <span class="text-[10px] font-bold text-gray-600 text-center leading-tight">Saya butuh pelukan</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- EMERGENCY BURNOUT CONTAINER (Hidden by default) -->
     <div id="burnout-emergency-container" class="px-5 mb-6 hidden">
         <div class="bg-slate-800 rounded-[2.5rem] p-6 shadow-2xl border border-slate-700 relative overflow-hidden">
@@ -11003,7 +11051,12 @@ ORANG_TUA_HTML = """
 def orang_tua_dashboard():
     if session.get('peran') not in ['orang_tua', 'kepala_sekolah'] and not session.get('is_admin'):
         return redirect(url_for('index'))
-    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=ORANG_TUA_HTML, hide_nav=False, full_width=True, is_admin=session.get('is_admin', False), settings=get_settings())
+
+    medical_data = None
+    if session.get('peran') == 'orang_tua':
+        medical_data = StudentMedicalData.query.filter_by(parent_id=session.get('user_id')).first()
+
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=ORANG_TUA_HTML, hide_nav=False, full_width=True, is_admin=session.get('is_admin', False), settings=get_settings(), medical_data=medical_data)
 
 @app.route('/orang-tua/api/buku', methods=['POST'])
 def save_ot_buku():
@@ -11022,6 +11075,28 @@ def save_ot_buku():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Terjadi kesalahan saat memproses data. Silakan coba lagi.'}), 500
+
+@app.route('/orang-tua/api/medical-data', methods=['POST'])
+def save_medical_data():
+    if session.get('peran') not in ['orang_tua', 'kepala_sekolah'] and not session.get('is_admin'):
+        return redirect(url_for('index'))
+
+    parent_id = session.get('user_id')
+    history = request.form.get('medical_history')
+    habits = request.form.get('daily_habits')
+    meds = request.form.get('medication_schedules')
+
+    medical = StudentMedicalData.query.filter_by(parent_id=parent_id).first()
+    if not medical:
+        medical = StudentMedicalData(parent_id=parent_id)
+        db.session.add(medical)
+
+    medical.medical_history = history
+    medical.daily_habits = habits
+    medical.medication_schedules = meds
+
+    db.session.commit()
+    return redirect(request.referrer or url_for('orang_tua_dashboard'))
 
 @app.route('/api/jurnal-harian')
 def api_jurnal_harian():

@@ -1,0 +1,51 @@
+            }
+        });
+        window.addEventListener('mouseup', handlePointerEnd);
+    </script>
+</div>
+"""
+
+ORANG_TUA_HTML = """
+<div class="min-h-[100dvh] bg-[#fff0f5] pb-32 transition-colors duration-1000" id="ot-main-bg">
+
+    <!-- HEADER -->
+    <div class="pt-20 px-6 pb-4 bg-gradient-to-b from-pink-100/50 to-transparent">
+        <div class="flex items-center gap-4 mb-2">
+            <div class="w-12 h-12 rounded-full bg-pink-200 flex items-center justify-center text-pink-600 shadow-inner">
+                <i class="fas fa-home text-2xl"></i>
+            </div>
+            <div>
+                <h2 class="text-3xl font-extrabold text-pink-900 tracking-tight leading-none">Ruang Orang Tua</h2>
+                <p class="text-pink-600 font-medium text-sm">Asisten Digital Inklusi</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- EMERGENCY BURNOUT CONTAINER (Hidden by default) -->
+    <div id="burnout-emergency-container" class="px-5 mb-6 hidden">
+        <div class="bg-slate-800 rounded-[2.5rem] p-6 shadow-2xl border border-slate-700 relative overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-32 h-32 bg-violet-500/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -left-4 -bottom-4 w-32 h-32 bg-rose-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="relative z-10 text-center">
+                <i class="fas fa-heart text-4xl text-rose-400 mb-4 animate-bounce"></i>
+                <h3 class="text-2xl font-extrabold text-white mb-2">Anda Tidak Sendirian.</h3>
+                <p class="text-slate-300 text-sm mb-6 leading-relaxed">Sistem mendeteksi tingkat stres Anda sangat tinggi berturut-turut. Mengurus anak istimewa tidaklah mudah. Mari ambil napas sejenak.</p>
+
+                <div class="bg-white/5 p-4 rounded-2xl border border-white/10 mb-6 backdrop-blur-sm">
+                    <p class="text-lg font-serif text-slate-200 italic" id="zen-quote-inline">"Loading quote..."</p>
+                </div>
+
+                <a href="https://wa.me/6282330890500?text=Halo%20Psikolog%20Sekolah,%20saya%20butuh%20sesi%20konseling%20segera." class="inline-flex items-center justify-center gap-3 w-full bg-rose-500/20 text-rose-400 border border-rose-500/50 px-6 py-4 rounded-full font-bold shadow-lg hover:bg-rose-500 hover:text-white transition-all">
+                    <i class="fas fa-user-md text-xl"></i> Konsultasi Psikolog Sekarang
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature 2: Tantrum Darurat (PROMINENT TOP BUTTON) -->
+    <div class="px-5 mb-8">
+        <button onclick="openModal('modal-ot-tantrum')" class="w-full bg-gradient-to-r from-red-600 to-rose-600 p-6 rounded-[2.5rem] shadow-xl shadow-red-200 flex items-center justify-center gap-4 hover:scale-[1.02] active:scale-95 transition-all group border border-red-400/50">
+            <i class="fas fa-exclamation-circle text-4xl text-white animate-pulse"></i>
+            <div class="text-left">
+                <h3 class="font-extrabold text-white text-2xl leading-tight uppercase tracking-wider">Bantuan Tantrum</h3>

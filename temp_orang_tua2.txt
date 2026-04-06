@@ -1,0 +1,115 @@
+ORANG_TUA_HTML = """
+<div class="min-h-[100dvh] bg-[#fff0f5] pb-32 transition-colors duration-1000" id="ot-main-bg">
+
+    <!-- HEADER -->
+    <div class="pt-20 px-6 pb-4 bg-gradient-to-b from-pink-100/50 to-transparent">
+        <div class="flex items-center gap-4 mb-2">
+            <div class="w-12 h-12 rounded-full bg-pink-200 flex items-center justify-center text-pink-600 shadow-inner">
+                <i class="fas fa-home text-2xl"></i>
+            </div>
+            <div>
+                <h2 class="text-3xl font-extrabold text-pink-900 tracking-tight leading-none">Ruang Orang Tua</h2>
+                <p class="text-pink-600 font-medium text-sm">Asisten Digital Inklusi</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- EMERGENCY BURNOUT CONTAINER (Hidden by default) -->
+    <div id="burnout-emergency-container" class="px-5 mb-6 hidden">
+        <div class="bg-slate-800 rounded-[2.5rem] p-6 shadow-2xl border border-slate-700 relative overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-32 h-32 bg-violet-500/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -left-4 -bottom-4 w-32 h-32 bg-rose-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="relative z-10 text-center">
+                <i class="fas fa-heart text-4xl text-rose-400 mb-4 animate-bounce"></i>
+                <h3 class="text-2xl font-extrabold text-white mb-2">Anda Tidak Sendirian.</h3>
+                <p class="text-slate-300 text-sm mb-6 leading-relaxed">Sistem mendeteksi tingkat stres Anda sangat tinggi berturut-turut. Mengurus anak istimewa tidaklah mudah. Mari ambil napas sejenak.</p>
+
+                <div class="bg-white/5 p-4 rounded-2xl border border-white/10 mb-6 backdrop-blur-sm">
+                    <p class="text-lg font-serif text-slate-200 italic" id="zen-quote-inline">"Loading quote..."</p>
+                </div>
+
+                <a href="https://wa.me/6282330890500?text=Halo%20Psikolog%20Sekolah,%20saya%20butuh%20sesi%20konseling%20segera." class="inline-flex items-center justify-center gap-3 w-full bg-rose-500/20 text-rose-400 border border-rose-500/50 px-6 py-4 rounded-full font-bold shadow-lg hover:bg-rose-500 hover:text-white transition-all">
+                    <i class="fas fa-user-md text-xl"></i> Konsultasi Psikolog Sekarang
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature 2: Tantrum Darurat (PROMINENT TOP BUTTON) -->
+    <div class="px-5 mb-8">
+        <button onclick="openModal('modal-ot-tantrum')" class="w-full bg-gradient-to-r from-red-600 to-rose-600 p-6 rounded-[2.5rem] shadow-xl shadow-red-200 flex items-center justify-center gap-4 hover:scale-[1.02] active:scale-95 transition-all group border border-red-400/50">
+            <i class="fas fa-exclamation-circle text-4xl text-white animate-pulse"></i>
+            <div class="text-left">
+                <h3 class="font-extrabold text-white text-2xl leading-tight uppercase tracking-wider">Bantuan Tantrum</h3>
+                <p class="text-xs text-white/90 mt-1 font-medium">Protokol & Audio Penenang Instan</p>
+            </div>
+        </button>
+    </div>
+
+    <!-- MAIN GRID -->
+    <div class="px-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+
+        <!-- Feature 1: Buku Penghubung -->
+        <button onclick="openModal('modal-ot-buku')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-pink-50 flex items-center gap-5 hover:bg-pink-50 hover:-translate-y-1 transition-all group">
+            <div class="w-16 h-16 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-500 shadow-inner group-hover:scale-110 transition-transform">
+                <i class="fas fa-book-reader text-3xl"></i>
+            </div>
+            <div class="text-left flex-1">
+                <h3 class="font-bold text-gray-800 text-lg leading-tight">Jurnal Penghubung</h3>
+                <p class="text-xs text-gray-500 mt-1 line-clamp-2">Sinkronisasi mood & perilaku 2 arah dengan Guru.</p>
+            </div>
+            <i class="fas fa-chevron-right text-gray-700 group-hover:text-rose-400"></i>
+        </button>
+
+        <!-- Feature 3: Jadwal Medis -->
+        <button onclick="openModal('modal-ot-jadwal')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-pink-50 flex items-center gap-5 hover:bg-pink-50 hover:-translate-y-1 transition-all group">
+            <div class="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-500 shadow-inner group-hover:scale-110 transition-transform">
+                <i class="fas fa-pills text-3xl"></i>
+            </div>
+            <div class="text-left flex-1">
+                <h3 class="font-bold text-gray-800 text-lg leading-tight">Jadwal Medis</h3>
+                <p class="text-xs text-gray-500 mt-1 line-clamp-2">Notifikasi paksa (push) obat & terapi harian.</p>
+            </div>
+            <i class="fas fa-chevron-right text-gray-700 group-hover:text-blue-400"></i>
+        </button>
+
+        <!-- Feature 4: Pelacak Nutrisi -->
+        <button onclick="openModal('modal-ot-nutrisi')" class="bg-emerald-50 p-6 rounded-[2rem] shadow-sm border border-emerald-100 flex items-center gap-5 hover:bg-emerald-100 hover:-translate-y-1 transition-all group">
+            <div class="w-16 h-16 rounded-2xl bg-teal-100 flex items-center justify-center text-teal-600 shadow-inner group-hover:scale-110 transition-transform">
+                <i class="fas fa-notes-medical text-3xl"></i>
+            </div>
+            <div class="text-left flex-1">
+                <h3 class="font-bold text-teal-800 text-lg leading-tight">Pelacak Nutrisi</h3>
+                <p class="text-xs text-teal-600 mt-1 line-clamp-2">Jurnal diet eliminasi neurologis (CF/GF).</p>
+            </div>
+            <i class="fas fa-chevron-right text-teal-500 group-hover:text-teal-700"></i>
+        </button>
+
+        <!-- Feature 5: Modul Terapi -->
+        <button onclick="openModal('modal-ot-modul')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-pink-50 flex items-center gap-5 hover:bg-pink-50 hover:-translate-y-1 transition-all group">
+            <div class="w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-500 shadow-inner group-hover:scale-110 transition-transform">
+                <i class="fas fa-video text-3xl"></i>
+            </div>
+            <div class="text-left flex-1">
+                <h3 class="font-bold text-gray-800 text-lg leading-tight">Modul Terapi</h3>
+                <p class="text-xs text-gray-500 mt-1 line-clamp-2">Video & PDF latihan motorik mandiri di rumah.</p>
+            </div>
+            <i class="fas fa-chevron-right text-gray-700 group-hover:text-amber-400"></i>
+        </button>
+
+        <!-- Feature 6: Monitor Burnout -->
+        <button onclick="openModal('modal-ot-burnout-menu')" class="bg-violet-50 p-6 rounded-[2rem] shadow-sm border border-violet-100 flex items-center gap-5 hover:bg-violet-100 hover:-translate-y-1 transition-all group">
+            <div class="w-16 h-16 rounded-2xl bg-violet-200 flex items-center justify-center text-violet-600 shadow-inner group-hover:scale-110 transition-transform">
+                <i class="fas fa-spa text-3xl"></i>
+            </div>
+            <div class="text-left flex-1">
+                <h3 class="font-bold text-violet-900 text-lg leading-tight">Monitor Burnout</h3>
+                <p class="text-xs text-violet-600 mt-1 line-clamp-2">Apotek digital pereda stres & afirmasi penenang.</p>
+            </div>
+            <i class="fas fa-chevron-right text-violet-500 group-hover:text-violet-700"></i>
+        </button>
+
+    </div>
+
+    <!-- Inject Modals Content via JS based on implementation steps -->

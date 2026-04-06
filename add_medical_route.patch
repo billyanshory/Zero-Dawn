@@ -1,0 +1,31 @@
+--- "sekolah-luar-biasa-54 ( idcloudhost - Layer of Quality Cyber Security - Second Effort ).py"
++++ "sekolah-luar-biasa-54 ( idcloudhost - Layer of Quality Cyber Security - Second Effort ).py"
+@@ -11028,6 +11028,26 @@
+         db.session.rollback()
+         return jsonify({'error': 'Terjadi kesalahan saat memproses data. Silakan coba lagi.'}), 500
+
++@app.route('/orang-tua/api/medical-data', methods=['POST'])
++def save_medical_data():
++    if session.get('peran') not in ['orang_tua', 'kepala_sekolah'] and not session.get('is_admin'):
++        return redirect(url_for('index'))
++
++    parent_id = session.get('user_id')
++    history = request.form.get('medical_history')
++    habits = request.form.get('daily_habits')
++    meds = request.form.get('medication_schedules')
++
++    medical = StudentMedicalData.query.filter_by(parent_id=parent_id).first()
++    if not medical:
++        medical = StudentMedicalData(parent_id=parent_id)
++        db.session.add(medical)
++
++    medical.medical_history = history
++    medical.daily_habits = habits
++    medical.medication_schedules = meds
++
++    db.session.commit()
++    return redirect(request.referrer or url_for('orang_tua_dashboard'))
++
+ @app.route('/api/jurnal-harian')
+ def api_jurnal_harian():
+     try:
