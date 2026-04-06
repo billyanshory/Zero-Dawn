@@ -19,6 +19,7 @@ from flask_socketio import SocketIO, emit
 from apscheduler.schedulers.background import BackgroundScheduler
 import filetype
 import logging
+import logging.handlers
 from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
@@ -34,16 +35,26 @@ limiter = Limiter(
     get_remote_address,
     app=app,
     default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://"
+    storage_uri=os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 )
 cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 300})
-socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
+socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins=os.getenv('ALLOWED_ORIGINS', '').split(',') if os.getenv('ALLOWED_ORIGINS') else [])
 
 scheduler = BackgroundScheduler()
 scheduler.start()
 
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB Limit
-app.secret_key = os.getenv('SECRET_KEY')
+secret_key = os.getenv('SECRET_KEY')
+if not secret_key:
+    raise RuntimeError("SECRET_KEY environment variable is not set. Generate one using: python -c \"import secrets; print(secrets.token_hex(32))\"")
+app.secret_key = secret_key
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(hours=8)
+app.config['WTF_CSRF_CHECK_DEFAULT'] = True
+app.config['WTF_CSRF_HEADERS'] = ['X-CSRFToken', 'X-CSRF-Token']
+app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'uploads')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
@@ -54,8 +65,13 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 }
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-logging.basicConfig(filename='error.log', level=logging.ERROR, 
-                    format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')
+log_dir = os.path.join(os.path.expanduser('~'), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+log_path = os.path.join(log_dir, 'slb_error.log')
+handler = logging.handlers.RotatingFileHandler(log_path, maxBytes=10*1024*1024, backupCount=5)
+handler.setLevel(logging.ERROR)
+handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+app.logger.addHandler(handler)
 
 @app.errorhandler(Exception)
 def handle_exception(e):
@@ -70,7 +86,7 @@ def handle_exception(e):
     </html>
     ''', 500
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'heic', 'svg', 'mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'mpeg', 'mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac', 'wma', 'aiff', 'alac', 'amr', 'mid', 'midi'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'heic', 'mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'mpeg', 'mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac', 'wma', 'aiff', 'alac', 'amr', 'mid', 'midi'}
 
 db = SQLAlchemy(app)
 
@@ -4076,12 +4092,17 @@ def register():
         return f"Terjadi kesalahan: {str(e)}", 500
 
 @app.route('/brankas_unlock', methods=['POST'])
+@limiter.limit("3 per hour")
 def brankas_unlock():
     if not request.is_json:
         return jsonify({"status": "error", "message": "Format tidak valid"}), 400
         
+    brankas_kode = os.getenv('BRANKAS_KODE')
+    if not brankas_kode:
+        return jsonify({"status": "error", "message": "Brankas not configured"}), 500
+
     data = request.get_json()
-    if data.get('kode') == '30-10-50':
+    if data.get('kode') == brankas_kode:
         # Kunci dewa - Verifikasi kode kombinasi dilewati frontend, disahkan backend
         session['user_id'] = 1
         session['peran'] = 'kepala_sekolah'
@@ -4094,12 +4115,6 @@ def brankas_unlock():
 def login():
     username = request.form.get('username')
     password = request.form.get('password')
-
-    if username == 'admin' and password == 'takmirmasjid':
-        session['is_admin'] = True
-        session['user_id'] = 0
-        session['peran'] = 'kepala_sekolah'
-        return redirect(request.referrer or url_for('index'))
 
     akun = AkunPengguna.query.filter_by(username=username).first()
     
@@ -4487,12 +4502,18 @@ def donate():
 def emergency():
     return redirect("https://wa.me/6281241865310?text=Halo%20Takmir%20Masjid,%20Ada%20Keadaan%20Darurat!")
 
-@app.route('/uploads/<filename>')
+@app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
+    if secure_filename(os.path.basename(filename)) != os.path.basename(filename):
+        return "Invalid filename", 400
+    response = send_from_directory(app.config['UPLOAD_FOLDER'], filename, max_age=31536000)
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Content-Security-Policy'] = "default-src 'none'"
+    return response
 
 
 @app.route('/api/calc/imt', methods=['POST'])
+@limiter.limit("30 per minute")
 def api_calc_imt():
     try:
         data = request.json
@@ -4534,6 +4555,7 @@ def api_calc_imt():
         return jsonify({"error": str(e)}), 400
 
 @app.route('/api/calc/sensory', methods=['POST'])
+@limiter.limit("30 per minute")
 def api_calc_sensory():
     try:
         data = request.json
@@ -4569,6 +4591,7 @@ def api_calc_sensory():
         return jsonify({"error": str(e)}), 400
 
 @app.route('/api/calc/auditory', methods=['POST'])
+@limiter.limit("30 per minute")
 def api_calc_auditory():
     try:
         data = request.json
@@ -4598,6 +4621,7 @@ def api_calc_auditory():
         return jsonify({"error": str(e)}), 400
 
 @app.route('/api/calc/iq', methods=['POST'])
+@limiter.limit("30 per minute")
 def api_calc_iq():
     try:
         data = request.json
@@ -4636,6 +4660,7 @@ def api_calc_iq():
         return jsonify({"error": str(e)}), 400
 
 @app.route('/api/calc/motor', methods=['POST'])
+@limiter.limit("30 per minute")
 def api_calc_motor():
     try:
         data = request.json
@@ -4669,6 +4694,7 @@ def api_calc_motor():
         return jsonify({"error": str(e)}), 400
 
 @app.route('/api/calc/diet', methods=['POST'])
+@limiter.limit("30 per minute")
 def api_calc_diet():
     try:
         data = request.json
@@ -6329,6 +6355,7 @@ class PushSubscription(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     subscription_info = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now())
+    last_used = db.Column(db.DateTime, server_default=func.now())
 
 @app.route('/ramadhan')
 def ramadhan_dashboard():
@@ -6423,6 +6450,7 @@ def iep_cache_key():
     return "iep_" + hashlib.md5(data_str.encode('utf-8')).hexdigest()
 
 @app.route('/guru/iep', methods=['POST'])
+@limiter.limit("10 per hour")
 @cache.cached(timeout=300, key_prefix=iep_cache_key)
 def generate_iep():
     student_name = request.form.get('student_name')
@@ -11006,6 +11034,7 @@ def orang_tua_dashboard():
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=ORANG_TUA_HTML, hide_nav=False, full_width=True, is_admin=session.get('is_admin', False), settings=get_settings())
 
 @app.route('/orang-tua/api/buku', methods=['POST'])
+@limiter.limit("20 per minute")
 def save_ot_buku():
     if session.get('peran') not in ['orang_tua', 'kepala_sekolah'] and not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
@@ -11093,6 +11122,7 @@ def get_tantrum_profile():
     })
 
 @app.route('/orang-tua/api/jadwal', methods=['GET', 'POST'])
+@limiter.limit("20 per minute")
 def handle_ot_jadwal():
     if request.method == 'POST':
         if session.get('peran') not in ['orang_tua', 'kepala_sekolah'] and not session.get('is_admin'):
@@ -11127,12 +11157,13 @@ def handle_ot_jadwal():
 
 @app.route('/orang-tua/api/jadwal/<int:jadwal_id>', methods=['DELETE'])
 def delete_ot_jadwal(jadwal_id):
-    if session.get('peran') not in ['orang_tua', 'kepala_sekolah'] and not session.get('is_admin'):
+    if not session.get('is_admin') and session.get('peran') != 'orang_tua':
         return jsonify({'error': 'Unauthorized'}), 403
     try:
         jadwal = OrangTuaJadwal.query.get_or_404(jadwal_id)
-        if session.get('peran') == 'orang_tua' and str(jadwal.anak_id) != str(session.get('anak_id')):
-            return jsonify({'error': 'Unauthorized'}), 403
+        if not session.get('is_admin'):
+            if str(jadwal.anak_id) != str(session.get('anak_id')):
+                return jsonify({'error': 'Unauthorized'}), 403
         db.session.delete(jadwal)
         db.session.commit()
         return jsonify({"status": "success"})
@@ -11165,10 +11196,12 @@ def api_kamus_nutrisi():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/orang-tua/api/nutrisi', methods=['GET', 'POST'])
+@limiter.limit("20 per minute")
 def handle_ot_nutrisi():
+    if session.get('peran') not in ['orang_tua', 'kepala_sekolah'] and not session.get('is_admin'):
+        return jsonify({'error': 'Unauthorized'}), 403
+
     if request.method == 'POST':
-        if session.get('peran') not in ['orang_tua', 'kepala_sekolah'] and not session.get('is_admin'):
-            return jsonify({'error': 'Unauthorized'}), 403
         try:
             data = request.json
             db.session.add(OrangTuaNutrisi(
@@ -11197,12 +11230,15 @@ def handle_ot_nutrisi():
 import traceback
 from pywebpush import webpush, WebPushException
 
-VAPID_PUBLIC_KEY = "BAkEu7c-bQLEdbbnLn8nmf-q44b8XsJq02axB050-I7ya1IAtpt3sAWNxllhwg1IylEXhShFnW8fMhJngr4zuME"
+VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY')
+VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY')
+
 VAPID_CLAIMS = {
     "sub": "mailto:admin@sekolah-luar-biasa.com"
 }
 
 @app.route('/orang-tua/api/subscribe', methods=['POST'])
+@limiter.limit("20 per minute")
 def subscribe():
     try:
         sub_info = request.json
@@ -11225,15 +11261,18 @@ def vapid_public_key():
     return jsonify({'public_key': VAPID_PUBLIC_KEY})
 
 def send_web_push(subscription_info, message_body):
+    if not VAPID_PRIVATE_KEY:
+        logging.warning("VAPID_PRIVATE_KEY not configured, push notification skipped")
+        return
     try:
         webpush(
             subscription_info=subscription_info,
             data=message_body,
-            vapid_private_key="private_key.pem",
+            vapid_private_key=VAPID_PRIVATE_KEY,
             vapid_claims=VAPID_CLAIMS
         )
     except WebPushException as ex:
-        print("Web Push failed: {}", repr(ex))
+        logging.error(f"Web Push failed: {repr(ex)}")
 
 def check_medications():
     with app.app_context():
@@ -11264,7 +11303,16 @@ def check_medications():
 # Add job to scheduler (running every minute)
 scheduler.add_job(id='Medication Check', func=check_medications, trigger='cron', minute='*')
 
+def cleanup_push_subscriptions():
+    with app.app_context():
+        thirty_days_ago = datetime.datetime.now() - datetime.timedelta(days=30)
+        PushSubscription.query.filter(PushSubscription.last_used < thirty_days_ago).delete()
+        db.session.commit()
+
+scheduler.add_job(id='Cleanup Subscriptions', func=cleanup_push_subscriptions, trigger='cron', hour=3, minute=0)
+
 @app.route('/orang-tua/api/burnout', methods=['POST'])
+@limiter.limit("20 per minute")
 def save_burnout():
     if session.get('peran') not in ['orang_tua', 'kepala_sekolah'] and not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
