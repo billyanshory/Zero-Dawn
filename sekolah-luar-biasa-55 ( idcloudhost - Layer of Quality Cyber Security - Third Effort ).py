@@ -10,7 +10,12 @@ import csv
 import urllib.request
 import pymysql
 from PIL import Image
-from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify, session
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+import io
+from flask import Flask, request, send_from_directory, redirect, url_for, Response, jsonify, session, render_template_string
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
@@ -25,6 +30,22 @@ from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_caching import Cache
+from flask import current_app
+import hashlib
+
+def cached_render(template_string, **context):
+    env = current_app.jinja_env
+    if env.cache is not None:
+        key = hashlib.md5(template_string.encode('utf-8')).hexdigest()
+        template = env.cache.get(key)
+        if template is None:
+            template = env.from_string(template_string)
+            env.cache[key] = template
+    else:
+        template = env.from_string(template_string)
+    return template.render(**context)
+
+render_template_string = cached_render
 
 load_dotenv()
 
@@ -35,13 +56,16 @@ limiter = Limiter(
     get_remote_address,
     app=app,
     default_limits=["200 per day", "50 per hour"],
-    storage_uri=os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+    storage_uri=os.getenv('REDIS_URL', 'memory://')
 )
-cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 300})
+cache = Cache(app, config={
+    'CACHE_TYPE': 'RedisCache' if os.getenv('REDIS_URL') else 'SimpleCache',
+    'CACHE_DEFAULT_TIMEOUT': 300,
+    'CACHE_REDIS_URL': os.getenv('REDIS_URL', 'redis://localhost:6379/0') if os.getenv('REDIS_URL') else None
+})
 socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins=os.getenv('ALLOWED_ORIGINS', '').split(',') if os.getenv('ALLOWED_ORIGINS') else [])
 
 scheduler = BackgroundScheduler()
-scheduler.start()
 
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB Limit
 secret_key = os.getenv('SECRET_KEY')
@@ -55,12 +79,27 @@ app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(hours=8)
 app.config['WTF_CSRF_CHECK_DEFAULT'] = True
 app.config['WTF_CSRF_HEADERS'] = ['X-CSRFToken', 'X-CSRF-Token']
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
+
+from flask import current_app
+
+def cached_render(template_name, template_string, **context):
+    env = current_app.jinja_env
+    if env.cache is not None:
+        template = env.cache.get(template_name)
+        if template is None:
+            template = env.from_string(template_string)
+            env.cache[template_name] = template
+    else:
+        template = env.from_string(template_string)
+    return template.render(**context)
+
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'uploads')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_recycle': 280,
-    'pool_size': 50,
-    'max_overflow': 100,
+    'pool_size': 5,
+    'max_overflow': 10,
+    'pool_timeout': 20,
     'pool_pre_ping': True  # <-- Tambahkan sebaris mantra ini
 }
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -121,8 +160,8 @@ class AkunPengguna(db.Model):
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     peran = db.Column(db.Enum('orang_tua', 'guru', 'kepala_sekolah'), nullable=False)
-    status_akun = db.Column(db.Enum('menunggu_verifikasi', 'disetujui', 'ditolak'), default='menunggu_verifikasi')
-    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True)
+    status_akun = db.Column(db.Enum('menunggu_verifikasi', 'disetujui', 'ditolak'), default='menunggu_verifikasi', index=True)
+    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
 
 class SignLanguageDictionary(db.Model):
     __tablename__ = 'sign_language_dictionary'
@@ -152,7 +191,7 @@ class EpilepsiLog(db.Model):
     time = db.Column(db.String(255), nullable=False)
     trigger = db.Column(db.String(255), nullable=False)
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, server_default=func.now())
+    created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class AppSettings(db.Model):
     key = db.Column(db.String(255), primary_key=True)
@@ -174,12 +213,23 @@ class GaleriKarya(db.Model):
     student_name = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now())
 
+@cache.cached(timeout=600, key_prefix='app_settings')
 def get_settings():
     try:
         settings = {item.key: item.value for item in AppSettings.query.all()}
     except:
         settings = {}
     return settings
+
+@cache.cached(timeout=300, key_prefix='list_siswa')
+def get_list_siswa_cached():
+    try:
+        return Siswa.query.with_entities(Siswa.id, Siswa.nama).limit(500).all()
+    except Exception:
+        return []
+
+def invalidate_settings_cache():
+    cache.delete('app_settings')
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -216,46 +266,17 @@ for model in [EpilepsiLog, AppSettings]:
     model.__getitem__ = model_getitem
 
 STYLES_HTML = """
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-          theme: {
-            extend: {
-              colors: {
-                emerald: {
-                  50: '#ecfdf5',
-                  100: '#d1fae5',
-                  400: '#34d399',
-                  500: '#10b981',
-                  600: '#059669',
-                },
-                amber: {
-                  300: '#fcd34d',
-                  400: '#fbbf24',
-                }
-              },
-              fontFamily: {
-                sans: ['Poppins', 'sans-serif'],
-              },
-              borderRadius: {
-                '3xl': '1.5rem',
-              }
-            }
-          }
-        }
-    </script>
+    <link rel="stylesheet" href="/static/tailwind.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-        body { background-color: #F8FAFC; }
+                body { background-color: #F8FAFC; }
         .glass-nav {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
             border-bottom: 1px solid rgba(0,0,0,0.05);
         }
         .glass-bottom {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
             border-top: 1px solid rgba(0,0,0,0.05);
         }
         .card-hover { transition: all 0.3s ease; }
@@ -275,8 +296,6 @@ STYLES_HTML = """
 
         .acrylic-card {
             background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.8);
             border-top: 2px solid rgba(255, 255, 255, 1);
             border-left: 2px solid rgba(255, 255, 255, 0.9);
@@ -289,6 +308,16 @@ STYLES_HTML = """
             transform-origin: center center;
             position: relative;
             z-index: 10;
+        }
+        @supports (backdrop-filter: blur(1px)) {
+            @media (min-resolution: 2dppx) {
+                .acrylic-card {
+                    backdrop-filter: blur(16px);
+                    -webkit-backdrop-filter: blur(16px);
+                }
+            }
+        }
+        .acrylic-card:hover, .acrylic-card:focus-within {
             will-change: transform, box-shadow;
         }
 
@@ -331,6 +360,8 @@ STYLES_HTML = """
                 inset -1px -1px 2px rgba(163, 177, 198, 0.2);
             transition: all 0.3s ease;
             border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+        .neumorphic-btn:hover, .neumorphic-btn:active {
             will-change: transform, box-shadow;
         }
 
@@ -433,7 +464,12 @@ BASE_LAYOUT = """
         }
     </script>
     <title>Sekolah Luar Biasa</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Poppins:wght@300;400;500;600;700&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Poppins:wght@300;400;500;600;700&display=swap"></noscript>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
     {{ styles|safe }}
 </head>
 <body class="text-gray-800 antialiased {{ 'ramadhan-mode' if hide_nav else '' }}">
@@ -4044,15 +4080,11 @@ HOME_HTML = """
 @app.route('/')
 def index():
     try:
-        epilepsi_logs = EpilepsiLog.query.order_by(EpilepsiLog.date.desc(), EpilepsiLog.time.desc()).limit(5).all()
+        epilepsi_logs = EpilepsiLog.query.order_by(EpilepsiLog.created_at.desc()).limit(5).all()
     except:
         epilepsi_logs = []
 
-    list_siswa = []
-    try:
-        list_siswa = Siswa.query.all()
-    except:
-        pass
+    list_siswa = get_list_siswa_cached()
 
     rendered_home = render_template_string(HOME_HTML, epilepsi_logs=epilepsi_logs, open_modal=request.args.get('open'), is_admin=session.get('is_admin', False))
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=rendered_home, is_admin=session.get('is_admin', False), settings=get_settings(), list_siswa=list_siswa)
@@ -4744,11 +4776,12 @@ def api_calc_diet():
 
 
 @app.route('/api/yasin', methods=['GET'])
+@cache.cached(timeout=86400, key_prefix='surah_yasin')
 def api_yasin():
     try:
         url = "https://equran.id/api/v2/surat/36"
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=8) as response:
             data = json.loads(response.read().decode())
             return jsonify(data)
     except Exception as e:
@@ -6282,12 +6315,12 @@ RAMADHAN_DASHBOARD_HTML = """
 
 class TantrumLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    student = db.Column(db.String(255), nullable=False)
+    student = db.Column(db.String(255), nullable=False, index=True)
     trigger = db.Column(db.String(255), nullable=False)
     start_time = db.Column(db.String(255))
     duration_ms = db.Column(db.Integer)
     action = db.Column(db.String(255))
-    created_at = db.Column(db.DateTime, server_default=func.now())
+    created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class ReactionTimeLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -6310,14 +6343,14 @@ class KognitifBentukLog(db.Model):
 
 class StudentPortfolio(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    student_id = db.Column(db.String(255), nullable=False)
+    student_id = db.Column(db.String(255), nullable=False, index=True)
     semester = db.Column(db.String(255), nullable=False)
     filename = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, server_default=func.now())
+    created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class OrangTuaBuku(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True)
+    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
     mood = db.Column(db.String(255))
     sleep_duration = db.Column(db.Integer)
     morning_behavior = db.Column(db.Text)
@@ -6325,28 +6358,28 @@ class OrangTuaBuku(db.Model):
 
 class OrangTuaTantrum(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True)
+    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
     trigger = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, server_default=func.now())
 
 class OrangTuaJadwal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True)
-    time = db.Column(db.String(255), nullable=False)
+    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
+    time = db.Column(db.String(255), nullable=False, index=True)
     medication_name = db.Column(db.String(255), nullable=False)
-    notified = db.Column(db.Boolean, default=False)
+    notified = db.Column(db.Boolean, default=False, index=True)
     created_at = db.Column(db.DateTime, server_default=func.now())
 
 class OrangTuaNutrisi(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True)
+    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
     food_name = db.Column(db.String(255), nullable=False)
     has_allergen = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, server_default=func.now())
 
 class OrangTuaBurnout(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True)
+    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
     stress_level = db.Column(db.Integer, nullable=False)
     date_str = db.Column(db.String(50))
     created_at = db.Column(db.DateTime, server_default=func.now())
@@ -6362,13 +6395,15 @@ def ramadhan_dashboard():
     if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return redirect(url_for('index'))
     portfolios = StudentPortfolio.query.order_by(StudentPortfolio.created_at.desc()).all()
+
+    settings = get_settings()
         
     # Render CONTENT first
     rendered_content = render_template_string(RAMADHAN_DASHBOARD_HTML,
                                               portfolios=portfolios,
                                               open_modal=request.args.get('open'),
                                               is_admin=session.get('is_admin', False),
-                                              settings=get_settings())
+                                              settings=settings)
 
     return render_template_string(BASE_LAYOUT, 
                                   styles=STYLES_HTML + RAMADHAN_STYLES, 
@@ -6377,7 +6412,7 @@ def ramadhan_dashboard():
                                   hide_nav=False,
                                   full_width=True,
                                   is_admin=session.get('is_admin', False),
-                                  settings=get_settings())
+                                  settings=settings)
 
 @app.route('/guru/tantrum', methods=['POST'])
 def save_tantrum():
@@ -6444,14 +6479,28 @@ def get_tantrum_data():
     return jsonify({"labels": labels, "values": values, "history": history_data})
 
 
-def iep_cache_key():
-    import hashlib
-    data_str = json.dumps(dict(request.form), sort_keys=True)
-    return "iep_" + hashlib.md5(data_str.encode('utf-8')).hexdigest()
+import urllib.request
+import os
+
+def prefetch_emoji_icons():
+    emoji_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'emoji_cache')
+    os.makedirs(emoji_dir, exist_ok=True)
+    # The hex codes identified from the context
+    hex_codes = ['1f441', '1f442', '1f3c3', '1f590', '1f3af', '1f5e3', '2753']
+    for icon_hex in hex_codes:
+        file_path = os.path.join(emoji_dir, f"{icon_hex}.png")
+        if not os.path.exists(file_path):
+            url = f"https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/{icon_hex}.png"
+            try:
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    with open(file_path, 'wb') as out_f:
+                        out_f.write(response.read())
+            except Exception as e:
+                app.logger.error(f"Failed to prefetch emoji {icon_hex}: {e}")
 
 @app.route('/guru/iep', methods=['POST'])
 @limiter.limit("10 per hour")
-@cache.cached(timeout=300, key_prefix=iep_cache_key)
 def generate_iep():
     student_name = request.form.get('student_name')
     student_class = request.form.get('student_class')
@@ -6459,37 +6508,15 @@ def generate_iep():
     scores = {cond: request.form.get(f'score_{cond}', '0') for cond in conditions}
     
     # Fetch real-time date
-    import urllib.request
-    import json
-    import datetime
-    try:
-        req = urllib.request.Request('http://worldtimeapi.org/api/ip', headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=5) as response:
-            data = json.loads(response.read().decode())
-            real_date_str = data.get('datetime', '')
-            if real_date_str:
-                dt = datetime.datetime.fromisoformat(real_date_str.replace('Z', '+00:00'))
-                date_text = dt.strftime("%d %B %Y %H:%M:%S")
-            else:
-                date_text = datetime.datetime.now().strftime("%d %B %Y %H:%M:%S")
-    except Exception as e:
-        date_text = datetime.datetime.now().strftime("%d %B %Y %H:%M:%S")
-
-    # Simulate PDF generation with ReportLab
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
-    from reportlab.lib.pagesizes import letter
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib import colors
-    import io
+    date_text = datetime.datetime.now().strftime("%d %B %Y %H:%M:%S")
     
     def add_item_with_icon(title, body, rationale, icon_hex):
-        url = f"https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/{icon_hex}.png"
+        emoji_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'emoji_cache')
+        file_path = os.path.join(emoji_dir, f"{icon_hex}.png")
         img = None
         try:
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=3) as response:
-                img_data = io.BytesIO(response.read())
-                img = RLImage(img_data, width=36, height=36)
+            if os.path.exists(file_path):
+                img = RLImage(file_path, width=36, height=36)
         except Exception:
             pass
         
@@ -11281,6 +11308,10 @@ def check_medications():
         
         # Find schedules matching current time that haven't been notified
         schedules = OrangTuaJadwal.query.filter_by(time=current_time_str, notified=False).all()
+        if not schedules:
+            return
+
+        subscriptions = PushSubscription.query.all()
         for sched in schedules:
             # Emit Socket.IO event to trigger frontend push notification (for open tabs fallback)
             socketio.emit('trigger_med_notification', {
@@ -11289,7 +11320,6 @@ def check_medications():
             })
             
             # Send Real Web Push to all registered Service Workers
-            subscriptions = PushSubscription.query.all()
             for sub in subscriptions:
                 try:
                     sub_info = json.loads(sub.subscription_info)
@@ -11298,7 +11328,8 @@ def check_medications():
                     traceback.print_exc()
 
             sched.notified = True
-            db.session.commit()
+
+        db.session.commit()
 
 # Add job to scheduler (running every minute)
 scheduler.add_job(id='Medication Check', func=check_medications, trigger='cron', minute='*')
@@ -11417,7 +11448,7 @@ const ASSETS_TO_CACHE = [
     '/',
     '/static/logomasjidalhijrah.png',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-    'https://cdn.tailwindcss.com'
+    '/static/tailwind.min.css'
 ];
 
 self.addEventListener('install', (event) => {
@@ -11526,6 +11557,7 @@ def donate_update():
             else: db.session.add(AppSettings(key='infaq_qris_image', value=filename))
             
     db.session.commit()
+    invalidate_settings_cache()
     return redirect(request.referrer)
 
 @app.route('/jadwal')
@@ -11639,7 +11671,9 @@ def add_jadwal():
 
 @app.route('/galeri')
 def galeri_karya():
-    karya = GaleriKarya.query.order_by(GaleriKarya.created_at.desc()).all()
+    page = request.args.get('page', 1, type=int)
+    pagination = GaleriKarya.query.order_by(GaleriKarya.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
+    karya = pagination.items
     
     content = """
     <div class="pt-24 px-5 pb-32 bg-rose-50/50 min-h-[100dvh]">
@@ -11699,6 +11733,16 @@ def galeri_karya():
                 <div class="w-20 h-20 mx-auto bg-gray-50 text-gray-300 rounded-full flex items-center justify-center text-3xl mb-4"><i class="fas fa-images"></i></div>
                 <p class="text-gray-500 font-medium">Belum ada karya yang diunggah.</p>
             </div>
+            {% else %}
+            <div class="flex justify-center items-center mt-10 gap-2">
+                {% if pagination.has_prev %}
+                <a href="{{ url_for('galeri_karya', page=pagination.prev_num) }}" class="bg-white border border-rose-200 text-rose-500 px-4 py-2 rounded-xl font-bold hover:bg-rose-50 transition"><i class="fas fa-chevron-left mr-1"></i> Prev</a>
+                {% endif %}
+                <span class="text-gray-500 text-sm font-medium px-4">Halaman {{ pagination.page }} dari {{ pagination.pages }}</span>
+                {% if pagination.has_next %}
+                <a href="{{ url_for('galeri_karya', page=pagination.next_num) }}" class="bg-white border border-rose-200 text-rose-500 px-4 py-2 rounded-xl font-bold hover:bg-rose-50 transition">Next <i class="fas fa-chevron-right ml-1"></i></a>
+                {% endif %}
+            </div>
             {% endif %}
 
             <!-- Image Modal -->
@@ -11731,11 +11775,13 @@ def galeri_karya():
         </div>
     </div>
     """
-    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='galeri', content=render_template_string(content, is_admin=session.get('is_admin', False), karya=karya), is_admin=session.get('is_admin', False), settings=get_settings(), karya=karya)
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='galeri', content=render_template_string(content, is_admin=session.get('is_admin', False), karya=karya, pagination=pagination), is_admin=session.get('is_admin', False), settings=get_settings(), karya=karya)
 
 @app.route('/arsip-portofolio')
 def arsip_portofolio():
-    portfolios = StudentPortfolio.query.order_by(StudentPortfolio.created_at.desc()).all()
+    page = request.args.get('page', 1, type=int)
+    pagination = StudentPortfolio.query.order_by(StudentPortfolio.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
+    portfolios = pagination.items
     
     content = """
     <div class="pt-24 px-5 pb-32 bg-rose-50/50 min-h-[100dvh]">
@@ -11792,6 +11838,16 @@ def arsip_portofolio():
                 <div class="w-24 h-24 mx-auto bg-rose-50 text-rose-300 rounded-full flex items-center justify-center text-4xl mb-4"><i class="fas fa-folder-open"></i></div>
                 <p class="text-gray-500 font-medium text-lg mb-1">Brankas Masih Kosong</p>
                 <p class="text-sm text-gray-400">Belum ada portofolio yang diunggah oleh guru.</p>
+            </div>
+            {% else %}
+            <div class="flex justify-center items-center mt-10 gap-2">
+                {% if pagination.has_prev %}
+                <a href="{{ url_for('arsip_portofolio', page=pagination.prev_num) }}" class="bg-white border border-rose-200 text-rose-500 px-4 py-2 rounded-xl font-bold hover:bg-rose-50 transition"><i class="fas fa-chevron-left mr-1"></i> Prev</a>
+                {% endif %}
+                <span class="text-gray-500 text-sm font-medium px-4">Halaman {{ pagination.page }} dari {{ pagination.pages }}</span>
+                {% if pagination.has_next %}
+                <a href="{{ url_for('arsip_portofolio', page=pagination.next_num) }}" class="bg-white border border-rose-200 text-rose-500 px-4 py-2 rounded-xl font-bold hover:bg-rose-50 transition">Next <i class="fas fa-chevron-right ml-1"></i></a>
+                {% endif %}
             </div>
             {% endif %}
 
@@ -11882,7 +11938,7 @@ def arsip_portofolio():
         </div>
     </div>
     """
-    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='arsip', content=render_template_string(content, is_admin=session.get('is_admin', False), portfolios=portfolios), is_admin=session.get('is_admin', False), settings=get_settings(), portfolios=portfolios)
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='arsip', content=render_template_string(content, is_admin=session.get('is_admin', False), portfolios=portfolios, pagination=pagination), is_admin=session.get('is_admin', False), settings=get_settings(), portfolios=portfolios)
 
 
 @app.route('/galeri/upload', methods=['POST'])
@@ -11928,9 +11984,39 @@ def upload_karya():
     return redirect(url_for('galeri_karya'))
 
 
+
+import redis
+def start_scheduler_if_primary():
+    try:
+        r = redis.Redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379/0'))
+        if r.set('slb_scheduler_master', '1', nx=True, ex=3600):
+            scheduler.start()
+            app.logger.info("Started BackgroundScheduler in this worker.")
+    except Exception as e:
+        app.logger.error(f"Error acquiring scheduler lock: {e}")
+
 with app.app_context():
     try:
+        start_scheduler_if_primary()
+        prefetch_emoji_icons()
         db.create_all()
+# Manually create indexes for SQLite if they do not exist
+        try:
+            with db.engine.connect() as con:
+                con.execute(db.text("CREATE INDEX IF NOT EXISTS idx_akun_pengguna_status_akun ON akun_pengguna (status_akun)"))
+                con.execute(db.text("CREATE INDEX IF NOT EXISTS idx_akun_pengguna_anak_id ON akun_pengguna (anak_id)"))
+                con.execute(db.text("CREATE INDEX IF NOT EXISTS idx_epilepsi_log_created_at ON epilepsi_log (created_at)"))
+                con.execute(db.text("CREATE INDEX IF NOT EXISTS idx_tantrum_log_student ON tantrum_log (student)"))
+                con.execute(db.text("CREATE INDEX IF NOT EXISTS idx_tantrum_log_created_at ON tantrum_log (created_at)"))
+                con.execute(db.text("CREATE INDEX IF NOT EXISTS idx_student_portfolio_student_id ON student_portfolio (student_id)"))
+                con.execute(db.text("CREATE INDEX IF NOT EXISTS idx_student_portfolio_created_at ON student_portfolio (created_at)"))
+                con.execute(db.text("CREATE INDEX IF NOT EXISTS idx_orang_tua_jadwal_anak_id ON orang_tua_jadwal (anak_id)"))
+                con.execute(db.text("CREATE INDEX IF NOT EXISTS idx_orang_tua_jadwal_time ON orang_tua_jadwal (time)"))
+                con.execute(db.text("CREATE INDEX IF NOT EXISTS idx_orang_tua_jadwal_notified ON orang_tua_jadwal (notified)"))
+                con.commit()
+        except Exception as e:
+            app.logger.warning(f"Index creation skipped: {e}")
+
         seed_slb_data()
     except Exception as e:
         print(f"Warning: Failed to connect to PythonAnywhere database or create tables. Error: {e}")
