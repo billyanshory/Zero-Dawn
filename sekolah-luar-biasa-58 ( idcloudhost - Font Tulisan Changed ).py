@@ -152,6 +152,28 @@ class Siswa(db.Model):
     kelas = db.Column(db.String(255))
     diagnosis = db.Column(db.String(255))
 
+class ProfilMedisSiswa(db.Model):
+    __tablename__ = 'profil_medis_siswa'
+    id = db.Column(db.Integer, primary_key=True)
+    siswa_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), unique=True, index=True, nullable=False)
+    nama_lengkap = db.Column(db.String(255))
+    nama_panggilan = db.Column(db.String(100))
+    usia = db.Column(db.Integer)
+    kelas = db.Column(db.String(50))
+    jenis_slb = db.Column(db.String(100))
+    kategori_hambatan = db.Column(db.String(100))
+    diagnosis_utama = db.Column(db.Text)
+    tingkat_hambatan = db.Column(db.String(100))
+    alergi_kritis = db.Column(db.Text)
+    pemicu_tantrum = db.Column(db.Text)
+    strategi_penenangan = db.Column(db.Text)
+    kemampuan_komunikasi = db.Column(db.Text)
+    hotline_darurat_nama = db.Column(db.String(100))
+    hotline_darurat_nomor = db.Column(db.String(30))
+    kondisi_terkini = db.Column(db.String(100))
+    kondisi_warna = db.Column(db.String(20))
+    updated_at = db.Column(db.DateTime, server_default=func.now(), onupdate=datetime.datetime.now)
+
 class AkunPengguna(db.Model):
     __tablename__ = 'akun_pengguna'
     id = db.Column(db.Integer, primary_key=True)
@@ -1677,6 +1699,10 @@ BASE_LAYOUT = """
 
 HOME_HTML = """
 <div class="pt-20 md:pt-32 pb-32 px-5 md:px-8">
+    <script>
+        const userPeran = "{{ peran|default('') }}";
+        const userAnakId = {{ anak_id|default('null') }};
+    </script>
     
     <!-- DESKTOP SPLIT HEADER -->
     <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-8 md:mb-12">
@@ -1700,6 +1726,76 @@ HOME_HTML = """
             <!-- KARTU PROFIL SISWA DAN PAPAN KOMUNIKASI EKSPRES AAC (NEUMORPHISM CORK BOARD) -->
             <div class="cork-board p-6 md:p-8">
                 
+                {% if peran == 'guru' or peran == 'kepala_sekolah' %}
+                <!-- TEAHCER SEARCH CARD -->
+                <div class="acrylic-card group" id="student-acrylic-card">
+                    <div class="metal-pin"></div>
+                    <div class="px-6 py-6 flex flex-col gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-14 h-14 rounded-full bg-white shadow-md border-2 border-white flex items-center justify-center shrink-0 text-indigo-600">
+                                <i class="fas fa-search text-xl"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-extrabold text-gray-800 tracking-tight leading-none mb-1">Cari Data Diri Anak SLB</h2>
+                                <p class="text-xs text-gray-600 font-bold">Temukan profil medis siswa dengan cepat</p>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="teacher-search-input" placeholder="Ketik nama siswa..." class="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 shadow-inner">
+                        </div>
+                        <div id="teacher-search-results" class="bg-white rounded-xl shadow-lg border border-gray-100 hidden max-h-48 overflow-y-auto"></div>
+                    </div>
+                </div>
+
+                <script>
+                    let searchTimeout;
+                    const searchInput = document.getElementById('teacher-search-input');
+                    const searchResults = document.getElementById('teacher-search-results');
+
+                    if(searchInput) {
+                        searchInput.addEventListener('input', (e) => {
+                            clearTimeout(searchTimeout);
+                            const q = e.target.value.trim();
+                            if(q.length === 0) {
+                                searchResults.innerHTML = '';
+                                searchResults.classList.add('hidden');
+                                return;
+                            }
+                            searchTimeout = setTimeout(() => {
+                                fetch('/api/cari-siswa-guru?q=' + encodeURIComponent(q))
+                                    .then(res => res.json())
+                                    .then(data => {
+                                        searchResults.innerHTML = '';
+                                        if(data.length === 0) {
+                                            searchResults.innerHTML = '<div class="p-4 text-center text-xs text-gray-500">Tidak ditemukan</div>';
+                                            searchResults.classList.remove('hidden');
+                                            return;
+                                        }
+                                        data.forEach(siswa => {
+                                            const statusHtml = siswa.profil_exists
+                                                ? '<span class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">Data Lengkap</span>'
+                                                : '<span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-bold">Belum Diisi</span>';
+
+                                            const div = document.createElement('div');
+                                            div.className = "p-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition-colors";
+                                            div.innerHTML = `<span class="text-sm font-bold text-gray-800">${siswa.nama}</span>${statusHtml}`;
+                                            div.onclick = () => {
+                                                openTeacherMedicalPanel(siswa.id, siswa.nama);
+                                                searchResults.classList.add('hidden');
+                                                searchInput.value = '';
+                                            };
+                                            searchResults.appendChild(div);
+                                        });
+                                        searchResults.classList.remove('hidden');
+                                    });
+                            }, 300);
+                        });
+                    }
+                </script>
+
+                {% else %}
+
                 <!-- Acrylic Card (Polaroid Style) -->
                 <div class="acrylic-card cursor-pointer group" id="student-acrylic-card" onclick="openMedicalPanel()">
                     <!-- Metal Pin -->
@@ -1709,17 +1805,47 @@ HOME_HTML = """
                     <div class="px-6 py-6 flex items-center justify-between border-b border-gray-200/50">
                         <div class="flex items-center gap-4">
                             <div class="w-14 h-14 rounded-full bg-white shadow-md border-2 border-white flex items-center justify-center overflow-hidden shrink-0">
-                                <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Budi&backgroundColor=e0e7ff" alt="Avatar Budi" class="w-full h-full object-cover">
+                                {% if profil_medis %}
+                                <img src="https://api.dicebear.com/7.x/notionists/svg?seed={{ profil_medis.nama_panggilan }}&backgroundColor=e0e7ff" alt="Avatar" class="w-full h-full object-cover">
+                                {% elif anak_nama %}
+                                <img src="https://api.dicebear.com/7.x/notionists/svg?seed={{ anak_nama }}&backgroundColor=e0e7ff" alt="Avatar" class="w-full h-full object-cover">
+                                {% else %}
+                                <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Default&backgroundColor=e0e7ff" alt="Avatar Default" class="w-full h-full object-cover">
+                                {% endif %}
                             </div>
                             <div>
-                                <h2 class="text-xl font-extrabold text-gray-800 tracking-tight leading-none mb-1">Budi</h2>
-                                <p class="text-xs text-gray-600 font-bold">Siswa SLB C (Tunagrahita)</p>
+                                {% if profil_medis %}
+                                <h2 class="text-xl font-extrabold text-gray-800 tracking-tight leading-none mb-1">{{ profil_medis.nama_panggilan }}</h2>
+                                <p class="text-xs text-gray-600 font-bold">Siswa {{ profil_medis.jenis_slb }} ({{ profil_medis.kategori_hambatan }})</p>
+                                {% elif anak_nama %}
+                                <h2 class="text-xl font-extrabold text-gray-800 tracking-tight leading-none mb-1">{{ anak_nama }}</h2>
+                                <p class="text-xs text-gray-600 font-bold">Tipe SLB (Jenis Hambatan)</p>
+                                {% else %}
+                                <h2 class="text-xl font-extrabold text-gray-800 tracking-tight leading-none mb-1">Anak Anda</h2>
+                                <p class="text-xs text-gray-600 font-bold">Tipe SLB (Jenis Hambatan)</p>
+                                {% endif %}
                             </div>
                         </div>
                         <!-- Lencana Indikator Status Emosi -->
-                        <div class="bg-white px-3 py-1.5 rounded-full border border-green-200 flex items-center gap-2 shadow-sm shrink-0">
-                            <span class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
-                            <span class="text-[10px] font-bold text-green-700 uppercase tracking-wider">Sedang Tenang</span>
+                        <div class="bg-white px-3 py-1.5 rounded-full border flex items-center gap-2 shadow-sm shrink-0">
+                            {% if profil_medis and profil_medis.kondisi_warna %}
+                                {% if profil_medis.kondisi_warna == 'green' %}
+                                    <span class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
+                                    <span class="text-[10px] font-bold text-green-700 uppercase tracking-wider">{{ profil_medis.kondisi_terkini }}</span>
+                                {% elif profil_medis.kondisi_warna == 'yellow' %}
+                                    <span class="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-pulse"></span>
+                                    <span class="text-[10px] font-bold text-yellow-700 uppercase tracking-wider">{{ profil_medis.kondisi_terkini }}</span>
+                                {% else %}
+                                    <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+                                    <span class="text-[10px] font-bold text-red-700 uppercase tracking-wider">{{ profil_medis.kondisi_terkini }}</span>
+                                {% endif %}
+                            {% elif peran == 'orang_tua' %}
+                                <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                                <span class="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Lengkapi Data</span>
+                            {% else %}
+                                <span class="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
+                                <span class="text-[10px] font-bold text-gray-600 uppercase tracking-wider">KONDISI TERKINI ANAK</span>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="absolute inset-0 bg-white/0 group-hover:bg-white/20 transition-colors rounded-3xl pointer-events-none"></div>
@@ -1727,6 +1853,7 @@ HOME_HTML = """
                         <i class="fas fa-search-plus"></i>
                     </div>
                 </div>
+                {% endif %}
                 
                 <!-- Papan Komunikasi Ekspres (AAC) Neumorphic -->
                 <div class="mt-6">
@@ -2602,7 +2729,15 @@ HOME_HTML = """
 
             <!-- Tab 1: Data Medis -->
             <div id="tab-medis-krusial" class="medical-tab-content flex-1 overflow-y-auto pr-1">
-                <p class="text-xs text-red-500 font-bold tracking-widest uppercase mb-4 text-center bg-red-50 p-2 rounded-lg border border-red-100 shadow-sm"><i class="fas fa-exclamation-circle mr-1 animate-pulse"></i> Protokol Darurat Aktif</p>
+                <div id="medical-info-banner" class="mb-4">
+                    {% if peran == 'orang_tua' %}
+                        <p class="text-xs text-emerald-600 font-bold tracking-widest uppercase text-center bg-emerald-50 p-2 rounded-lg border border-emerald-100 shadow-sm"><i class="fas fa-edit mr-1"></i> Mode Edit Orang Tua Aktif</p>
+                    {% elif peran == 'guru' or peran == 'kepala_sekolah' %}
+                        <p class="text-xs text-indigo-600 font-bold tracking-widest uppercase text-center bg-indigo-50 p-2 rounded-lg border border-indigo-100 shadow-sm"><i class="fas fa-eye mr-1"></i> Mode Lihat Guru</p>
+                    {% else %}
+                        <p class="text-xs text-blue-600 font-bold tracking-widest uppercase text-center bg-blue-50 p-2 rounded-lg border border-blue-100 shadow-sm"><i class="fas fa-info-circle mr-1"></i> Login sebagai Orang Tua untuk melihat dan mengisi data medis anak Anda secara lengkap.</p>
+                    {% endif %}
+                </div>
                 
                 <!-- Panel Instrumen Medis Masa Depan Layout -->
                 <div class="space-y-3 font-sans text-sm text-gray-700 bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
@@ -2613,9 +2748,16 @@ HOME_HTML = """
                             <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center shrink-0">
                                 <i class="fas fa-id-badge text-lg"></i>
                             </div>
-                            <div>
+                            <div class="w-full">
                                 <span class="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Identitas Utama</span>
-                                <div class="font-extrabold text-gray-800 text-sm">Budi Santoso (Budi)</div>
+                                {% if peran == 'orang_tua' %}
+                                    <div class="flex flex-col gap-1 w-full">
+                                        <input type="text" id="med-nama-lengkap" class="font-extrabold text-gray-800 text-xs border-b border-gray-200 focus:border-emerald-500 focus:outline-none bg-transparent w-full" value="{{ profil_medis.nama_lengkap if profil_medis else '' }}" placeholder="Nama Lengkap">
+                                        <input type="text" id="med-nama-panggilan" class="font-extrabold text-gray-800 text-xs border-b border-gray-200 focus:border-emerald-500 focus:outline-none bg-transparent w-full" value="{{ profil_medis.nama_panggilan if profil_medis else '' }}" placeholder="Nama Panggilan">
+                                    </div>
+                                {% else %}
+                                    <div class="font-extrabold text-gray-800 text-sm" id="view-med-identitas">Nama Lengkap Anak (Nama Panggilan)</div>
+                                {% endif %}
                             </div>
                         </div>
                         
@@ -2624,9 +2766,16 @@ HOME_HTML = """
                             <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center shrink-0">
                                 <i class="fas fa-calendar-alt text-lg"></i>
                             </div>
-                            <div>
+                            <div class="w-full">
                                 <span class="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Perkembangan</span>
-                                <div class="font-extrabold text-gray-800 text-sm">10 Thn / Kelas 4 SLB</div>
+                                {% if peran == 'orang_tua' %}
+                                    <div class="flex flex-col gap-1 w-full">
+                                        <input type="number" id="med-usia" class="font-extrabold text-gray-800 text-xs border-b border-gray-200 focus:border-emerald-500 focus:outline-none bg-transparent w-full" value="{{ profil_medis.usia if profil_medis else '' }}" placeholder="Usia">
+                                        <input type="text" id="med-kelas" class="font-extrabold text-gray-800 text-xs border-b border-gray-200 focus:border-emerald-500 focus:outline-none bg-transparent w-full" value="{{ profil_medis.kelas if profil_medis else '' }}" placeholder="Tingkat Kelas SLB">
+                                    </div>
+                                {% else %}
+                                    <div class="font-extrabold text-gray-800 text-sm" id="view-med-perkembangan">Usia / Tingkat Kelas SLB</div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -2636,9 +2785,13 @@ HOME_HTML = """
                         <div class="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center shrink-0 shadow-inner">
                             <i class="fas fa-stethoscope text-xl"></i>
                         </div>
-                        <div>
+                        <div class="w-full">
                             <span class="block text-[10px] text-red-500 font-bold uppercase tracking-wider mb-0.5">Diagnosis Medis Utama</span>
-                            <div class="font-extrabold text-gray-800 text-base md:text-lg">Tunagrahita Sedang (Moderate ID) & ADHD</div>
+                            {% if peran == 'orang_tua' %}
+                                <textarea id="med-diagnosis-utama" rows="2" class="font-extrabold text-gray-800 text-sm md:text-base border-b border-gray-200 focus:border-emerald-500 focus:outline-none bg-transparent w-full resize-none" placeholder="Diagnosis Utama & Komorbiditas Medis">{{ profil_medis.diagnosis_utama if profil_medis else '' }}</textarea>
+                            {% else %}
+                                <div class="font-extrabold text-gray-800 text-base md:text-lg" id="view-med-diagnosis">Diagnosis Utama & Komorbiditas Medis</div>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -2648,9 +2801,13 @@ HOME_HTML = """
                             <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center shrink-0">
                                 <i class="fas fa-exclamation-triangle text-lg"></i>
                             </div>
-                            <div>
+                            <div class="w-full">
                                 <span class="block text-[10px] text-orange-600 font-bold uppercase tracking-wider mb-0.5">Tingkat Hambatan</span>
-                                <div class="font-bold text-orange-900 text-sm leading-snug">Sedang (Butuh Pendampingan)</div>
+                                {% if peran == 'orang_tua' %}
+                                    <input type="text" id="med-tingkat-hambatan" class="font-bold text-orange-900 text-sm leading-snug border-b border-orange-200 focus:border-orange-500 focus:outline-none bg-transparent w-full" value="{{ profil_medis.tingkat_hambatan if profil_medis else '' }}" placeholder="Ringan / Sedang / Berat">
+                                {% else %}
+                                    <div class="font-bold text-orange-900 text-sm leading-snug" id="view-med-hambatan">Ringan / Sedang / Berat (Butuh Pendampingan)</div>
+                                {% endif %}
                             </div>
                         </div>
                         
@@ -2659,9 +2816,13 @@ HOME_HTML = """
                             <div class="w-10 h-10 rounded-full bg-red-100 text-red-500 flex items-center justify-center shrink-0">
                                 <i class="fas fa-biohazard text-lg"></i>
                             </div>
-                            <div>
+                            <div class="w-full">
                                 <span class="block text-[10px] text-red-600 font-bold uppercase tracking-wider mb-0.5">Alergi Kritis</span>
-                                <div class="font-bold text-red-900 text-sm leading-snug">Alergi Kacang, Riwayat Kejang</div>
+                                {% if peran == 'orang_tua' %}
+                                    <textarea id="med-alergi-kritis" rows="2" class="font-bold text-red-900 text-sm leading-snug border-b border-red-200 focus:border-red-500 focus:outline-none bg-transparent w-full resize-none" placeholder="Jenis Alergi & Riwayat Medis Kritis">{{ profil_medis.alergi_kritis if profil_medis else '' }}</textarea>
+                                {% else %}
+                                    <div class="font-bold text-red-900 text-sm leading-snug" id="view-med-alergi">Jenis Alergi & Riwayat Medis Kritis</div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -2671,9 +2832,13 @@ HOME_HTML = """
                         <div class="w-12 h-12 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center shrink-0">
                             <i class="fas fa-bolt text-xl"></i>
                         </div>
-                        <div>
+                        <div class="w-full">
                             <span class="block text-[10px] text-yellow-600 font-bold uppercase tracking-wider mb-0.5">Pemicu Tantrum (Triggers)</span>
-                            <div class="font-bold text-yellow-900 text-sm leading-relaxed">Suara bising mendadak (sirine, bor), Perubahan rutinitas tak terduga, Cahaya terlalu silau.</div>
+                            {% if peran == 'orang_tua' %}
+                                <textarea id="med-pemicu-tantrum" rows="2" class="font-bold text-yellow-900 text-sm leading-relaxed border-b border-yellow-300 focus:border-yellow-600 focus:outline-none bg-transparent w-full resize-none" placeholder="Kondisi atau Stimulus yang Memicu Reaksi Emosional">{{ profil_medis.pemicu_tantrum if profil_medis else '' }}</textarea>
+                            {% else %}
+                                <div class="font-bold text-yellow-900 text-sm leading-relaxed" id="view-med-tantrum">Kondisi atau Stimulus yang Memicu Reaksi Emosional</div>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -2682,13 +2847,17 @@ HOME_HTML = """
                         <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
                             <i class="fas fa-spa text-xl"></i>
                         </div>
-                        <div>
+                        <div class="w-full">
                             <span class="block text-[10px] text-emerald-600 font-bold uppercase tracking-wider mb-1">Strategi Penenangan Instan</span>
-                            <ul class="font-bold text-emerald-900 text-xs space-y-1 list-disc pl-4">
-                                <li>Beri headphone peredam bising.</li>
-                                <li>Pelukan kompresi (Deep Pressure) jika ia meminta.</li>
-                                <li>Pindahkan segera ke ruang redup.</li>
-                            </ul>
+                            {% if peran == 'orang_tua' %}
+                                <textarea id="med-strategi-penenangan" rows="3" class="font-bold text-emerald-900 text-xs md:text-sm leading-relaxed border-b border-emerald-300 focus:border-emerald-600 focus:outline-none bg-transparent w-full resize-none" placeholder="Teknik Penenangan Pertama\nTeknik Penenangan Kedua\nTeknik Penenangan Ketiga">{{ profil_medis.strategi_penenangan if profil_medis else '' }}</textarea>
+                            {% else %}
+                                <ul class="font-bold text-emerald-900 text-xs md:text-sm space-y-1 list-disc pl-4" id="view-med-strategi">
+                                    <li>Teknik Penenangan Pertama</li>
+                                    <li>Teknik Penenangan Kedua</li>
+                                    <li>Teknik Penenangan Ketiga</li>
+                                </ul>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -2697,32 +2866,94 @@ HOME_HTML = """
                         <div class="w-12 h-12 rounded-full bg-sky-100 text-sky-500 flex items-center justify-center shrink-0">
                             <i class="fas fa-comment-dots text-xl"></i>
                         </div>
-                        <div>
+                        <div class="w-full">
                             <span class="block text-[10px] text-sky-600 font-bold uppercase tracking-wider mb-0.5">Komunikasi</span>
-                            <div class="font-bold text-sky-900 text-sm leading-relaxed">Verbal terbatas (1-2 kata). Mampu menunjuk gambar (PECS) & memakai Papan Komunikasi.</div>
+                            {% if peran == 'orang_tua' %}
+                                <textarea id="med-kemampuan-komunikasi" rows="2" class="font-bold text-sky-900 text-sm leading-relaxed border-b border-sky-300 focus:border-sky-600 focus:outline-none bg-transparent w-full resize-none" placeholder="Kemampuan Verbal dan Non-Verbal Anak">{{ profil_medis.kemampuan_komunikasi if profil_medis else '' }}</textarea>
+                            {% else %}
+                                <div class="font-bold text-sky-900 text-sm leading-relaxed" id="view-med-komunikasi">Kemampuan Verbal dan Non-Verbal Anak</div>
+                            {% endif %}
                         </div>
                     </div>
 
+                    {% if peran == 'orang_tua' %}
+                    <!-- 8.5 Tipe & Kondisi Terkini (Khusus Form Edit Orang Tua) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="bg-purple-50 p-4 rounded-xl shadow-sm border border-purple-200 flex items-start gap-3 hover:-translate-y-0.5 transition-transform">
+                            <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                                <i class="fas fa-school text-lg"></i>
+                            </div>
+                            <div class="w-full">
+                                <span class="block text-[10px] text-purple-600 font-bold uppercase tracking-wider mb-0.5">Tipe SLB & Kategori</span>
+                                <div class="flex flex-col gap-1 w-full">
+                                    <input type="text" id="med-jenis-slb" class="font-bold text-purple-900 text-xs border-b border-purple-200 focus:border-purple-500 focus:outline-none bg-transparent w-full" value="{{ profil_medis.jenis_slb if profil_medis else '' }}" placeholder='Contoh: "SLB C"'>
+                                    <input type="text" id="med-kategori-hambatan" class="font-bold text-purple-900 text-xs border-b border-purple-200 focus:border-purple-500 focus:outline-none bg-transparent w-full" value="{{ profil_medis.kategori_hambatan if profil_medis else '' }}" placeholder='Contoh: "Tunagrahita"'>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-teal-50 p-4 rounded-xl shadow-sm border border-teal-200 flex items-start gap-3 hover:-translate-y-0.5 transition-transform">
+                            <div class="w-10 h-10 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center shrink-0">
+                                <i class="fas fa-heartbeat text-lg"></i>
+                            </div>
+                            <div class="w-full">
+                                <span class="block text-[10px] text-teal-600 font-bold uppercase tracking-wider mb-0.5">Kondisi Saat Ini (Lencana)</span>
+                                <div class="flex flex-col gap-1 w-full">
+                                    <input type="text" id="med-kondisi-terkini" class="font-bold text-teal-900 text-xs border-b border-teal-200 focus:border-teal-500 focus:outline-none bg-transparent w-full" value="{{ profil_medis.kondisi_terkini if profil_medis else '' }}" placeholder='Label: "Sedang Tenang"'>
+                                    <select id="med-kondisi-warna" class="font-bold text-teal-900 text-xs border-b border-teal-200 focus:border-teal-500 focus:outline-none bg-transparent w-full mt-1">
+                                        <option value="green" {% if profil_medis and profil_medis.kondisi_warna == 'green' %}selected{% endif %}>Hijau (Aman/Tenang)</option>
+                                        <option value="yellow" {% if profil_medis and profil_medis.kondisi_warna == 'yellow' %}selected{% endif %}>Kuning (Waspada/Butuh Perhatian)</option>
+                                        <option value="red" {% if profil_medis and profil_medis.kondisi_warna == 'red' %}selected{% endif %}>Merah (Darurat/Tantrum)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <!-- 9. Kontak Darurat -->
                     <div class="bg-gradient-to-r from-red-600 to-red-500 p-5 rounded-xl shadow-lg border border-red-700 text-white flex items-center justify-between hover:scale-[1.01] transition-transform">
-                        <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-4 w-full">
                             <div class="w-12 h-12 rounded-full bg-red-800/50 flex items-center justify-center shrink-0 border border-red-400">
                                 <i class="fas fa-phone-alt text-2xl text-white animate-pulse"></i>
                             </div>
-                            <div>
+                            <div class="w-full">
                                 <span class="block text-[10px] text-red-200 font-bold uppercase tracking-widest mb-0.5">Hotline Darurat Medis</span>
-                                <div class="font-extrabold text-white text-xl md:text-2xl tracking-wide">0812-3456-7890</div>
+                                {% if peran == 'orang_tua' %}
+                                    <input type="text" id="med-hotline-nomor" class="font-extrabold text-white text-xl md:text-2xl tracking-wide border-b border-red-400 focus:border-white focus:outline-none bg-transparent w-full" value="{{ profil_medis.hotline_darurat_nomor if profil_medis else '' }}" placeholder="0812-XXXX-XXXX">
+                                {% else %}
+                                    <div class="font-extrabold text-white text-xl md:text-2xl tracking-wide" id="view-med-hotline-nomor">0812-XXXX-XXXX</div>
+                                {% endif %}
                             </div>
                         </div>
-                        <div class="text-[10px] font-bold bg-white text-red-600 px-3 py-1.5 rounded-lg uppercase tracking-wider shadow-sm hidden md:block">
-                            Ibu Ratna (Ibu Kandung)
+                        <div class="text-[10px] font-bold bg-white text-red-600 px-3 py-1.5 rounded-lg uppercase tracking-wider shadow-sm hidden md:block shrink-0 ml-4">
+                            {% if peran == 'orang_tua' %}
+                                <input type="text" id="med-hotline-nama" class="font-bold text-red-600 text-[10px] border-b border-red-200 focus:border-red-500 focus:outline-none bg-transparent w-32 text-right" value="{{ profil_medis.hotline_darurat_nama if profil_medis else '' }}" placeholder="Nama Wali Darurat">
+                            {% else %}
+                                <span id="view-med-hotline-nama">Nama Wali Darurat</span>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
+
+                {% if peran == 'orang_tua' %}
+                <button id="btn-save-medical" class="hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white px-6 py-3 rounded-full font-bold shadow-xl hover:bg-emerald-600 transition-all z-50 flex items-center gap-2 border-2 border-white">
+                    <i class="fas fa-save"></i> Simpan Data Medis
+                </button>
+                <div id="toast-medical-save" class="fixed top-20 left-1/2 transform -translate-x-1/2 -translate-y-[150%] opacity-0 bg-green-500 text-white px-6 py-3 rounded-full font-bold shadow-lg transition-all z-[200] flex items-center gap-2 pointer-events-none">
+                    <i class="fas fa-check-circle"></i> Data berhasil disimpan
+                </div>
+                {% endif %}
             </div>
 
             <!-- Tab 2: Data Harian -->
             <div id="tab-medis-harian" class="medical-tab-content hidden flex-1 overflow-y-auto pr-1">
+                {% if peran == '' %}
+                <div class="text-center py-10">
+                    <div class="w-16 h-16 mx-auto bg-rose-50 text-rose-300 rounded-full flex items-center justify-center text-2xl mb-4"><i class="fas fa-lock"></i></div>
+                    <p class="text-sm font-bold text-gray-700">Data Harian Terkunci</p>
+                    <p class="text-xs text-gray-500 mt-2">Silakan login sebagai Orang Tua untuk melihat sinkronisasi jurnal harian anak Anda.</p>
+                </div>
+                {% else %}
                 <p class="text-xs text-rose-500 font-bold tracking-wider uppercase mb-4 text-center"><i class="fas fa-sync-alt mr-1"></i> Sinkronisasi Jurnal Penghubung Orang Tua</p>
                 
                 <div class="space-y-6">
@@ -2743,10 +2974,18 @@ HOME_HTML = """
                         </div>
                     </div>
                 </div>
+                {% endif %}
             </div>
 
             <!-- Tab 3: Jadwal Medis -->
             <div id="tab-medis-jadwal" class="medical-tab-content flex-1 overflow-y-auto pr-1 hidden">
+                {% if peran == '' %}
+                <div class="text-center py-10">
+                    <div class="w-16 h-16 mx-auto bg-sky-50 text-sky-300 rounded-full flex items-center justify-center text-2xl mb-4"><i class="fas fa-lock"></i></div>
+                    <p class="text-sm font-bold text-gray-700">Jadwal Medis Terkunci</p>
+                    <p class="text-xs text-gray-500 mt-2">Silakan login sebagai Orang Tua untuk melihat dan mengelola jadwal pengobatan anak Anda.</p>
+                </div>
+                {% else %}
                 <div class="bg-sky-50/50 p-4 rounded-2xl border border-sky-100 mb-6 flex items-start gap-4">
                     <div class="w-12 h-12 rounded-full bg-sky-100 text-sky-500 flex items-center justify-center shrink-0">
                         <i class="fas fa-pills text-xl"></i>
@@ -2761,6 +3000,7 @@ HOME_HTML = """
                     <!-- Fetched via JS from OrangTuaJadwal -->
                     <div class="text-center py-10 text-xs text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Memuat jadwal...</div>
                 </div>
+                {% endif %}
             </div>
 
         </div>
@@ -2804,7 +3044,13 @@ HOME_HTML = """
 
         async function loadJadwalTimelineMedis() {
             try {
-                const res = await fetch('/orang-tua/api/jadwal');
+                let fetchUrl = '/orang-tua/api/jadwal';
+                if (window.currentViewedSiswaId && (userPeran === 'guru' || userPeran === 'kepala_sekolah')) {
+                    fetchUrl += '?anak_id=' + window.currentViewedSiswaId;
+                } else if (userAnakId) {
+                    fetchUrl += '?anak_id=' + userAnakId;
+                }
+                const res = await fetch(fetchUrl);
                 const data = await res.json();
                 
                 const containerMedis = document.getElementById('jadwal-timeline-medis');
@@ -2848,7 +3094,13 @@ HOME_HTML = """
 
         async function loadJurnalHarianSiswa() {
             try {
-                const res = await fetch('/api/jurnal-harian');
+                let fetchUrl = '/api/jurnal-harian';
+                if (window.currentViewedSiswaId && (userPeran === 'guru' || userPeran === 'kepala_sekolah')) {
+                    fetchUrl += '?anak_id=' + window.currentViewedSiswaId;
+                } else if (userAnakId) {
+                    fetchUrl += '?anak_id=' + userAnakId;
+                }
+                const res = await fetch(fetchUrl);
                 const data = await res.json();
                 
                 // Update List
@@ -3041,6 +3293,9 @@ HOME_HTML = """
         };
 
         function openMedicalPanel() {
+            if(userPeran === 'guru' || userPeran === 'kepala_sekolah') {
+                return; // Handled by search dropdown
+            }
             const card = document.getElementById('student-acrylic-card');
             if(card) {
                 card.classList.add('card-pulled');
@@ -3049,6 +3304,111 @@ HOME_HTML = """
                     card.classList.remove('card-pulled');
                 }, 400); // Wait for the pull animation to finish
             }
+        }
+
+        function openTeacherMedicalPanel(siswaId, siswaNama) {
+            fetch('/api/profil-medis/' + siswaId)
+                .then(res => res.json())
+                .then(data => {
+                    // Populate read-only view
+                    const getVal = (val, placeholder) => val ? val : placeholder;
+
+                    // Update Modal Header Dynamically
+                    const titleEl = document.querySelector('#modal-medical-panel h3');
+                    const seedName = data.nama_panggilan || siswaNama || 'Default';
+                    if (titleEl) {
+                        titleEl.innerHTML = `<img src="https://api.dicebear.com/7.x/notionists/svg?seed=${seedName}&backgroundColor=e0e7ff" class="w-8 h-8 rounded-full border border-indigo-200 shadow-sm mr-3 inline-block"> ${data.nama_lengkap || siswaNama} <span class="text-xs font-bold text-gray-400 block mt-1 ml-11">Rekam Digital Siswa</span>`;
+                    }
+
+                    document.getElementById('view-med-identitas').innerText = getVal(data.nama_lengkap, 'Nama Lengkap') + ' (' + getVal(data.nama_panggilan, 'Nama Panggilan') + ')';
+                    document.getElementById('view-med-perkembangan').innerText = getVal(data.usia, 'Usia') + ' Thn / ' + getVal(data.kelas, 'Kelas');
+                    document.getElementById('view-med-diagnosis').innerText = getVal(data.diagnosis_utama, 'Diagnosis Utama & Komorbiditas Medis');
+                    document.getElementById('view-med-hambatan').innerText = getVal(data.tingkat_hambatan, 'Tingkat Hambatan');
+                    document.getElementById('view-med-alergi').innerText = getVal(data.alergi_kritis, 'Jenis Alergi & Riwayat Medis Kritis');
+                    document.getElementById('view-med-tantrum').innerText = getVal(data.pemicu_tantrum, 'Pemicu Tantrum');
+
+                    const strategiList = document.getElementById('view-med-strategi');
+                    strategiList.innerHTML = '';
+                    if(data.strategi_penenangan) {
+                        data.strategi_penenangan.split('\\n').forEach(s => {
+                            if(s.trim()) {
+                                const li = document.createElement('li');
+                                li.innerText = s;
+                                strategiList.appendChild(li);
+                            }
+                        });
+                    } else {
+                        strategiList.innerHTML = '<li>Teknik Penenangan</li>';
+                    }
+
+                    document.getElementById('view-med-komunikasi').innerText = getVal(data.kemampuan_komunikasi, 'Kemampuan Komunikasi');
+                    document.getElementById('view-med-hotline-nomor').innerText = getVal(data.hotline_darurat_nomor, '0812-XXXX-XXXX');
+                    document.getElementById('view-med-hotline-nama').innerText = getVal(data.hotline_darurat_nama, 'Nama Wali Darurat');
+
+                    openModal('modal-medical-panel');
+
+                    // Teacher mode fetch for Tab 2 and Tab 3
+                    window.currentViewedSiswaId = siswaId;
+                    if(typeof loadJurnalHarianSiswa === 'function') loadJurnalHarianSiswa();
+                    if(typeof loadJadwalTimelineMedis === 'function') loadJadwalTimelineMedis();
+                });
+        }
+
+        const btnSaveMedical = document.getElementById('btn-save-medical');
+        if(btnSaveMedical) {
+            const inputs = document.querySelectorAll('#tab-medis-krusial input, #tab-medis-krusial textarea, #tab-medis-krusial select');
+            inputs.forEach(input => {
+                input.addEventListener('input', () => {
+                    btnSaveMedical.classList.remove('hidden');
+                    btnSaveMedical.classList.add('animate-[slideUp_0.3s_ease-out]');
+                });
+            });
+
+            btnSaveMedical.addEventListener('click', () => {
+                if(!userAnakId) return;
+
+                const payload = {
+                    nama_lengkap: document.getElementById('med-nama-lengkap')?.value,
+                    nama_panggilan: document.getElementById('med-nama-panggilan')?.value,
+                    usia: document.getElementById('med-usia')?.value,
+                    kelas: document.getElementById('med-kelas')?.value,
+                    jenis_slb: document.getElementById('med-jenis-slb')?.value,
+                    kategori_hambatan: document.getElementById('med-kategori-hambatan')?.value,
+                    diagnosis_utama: document.getElementById('med-diagnosis-utama')?.value,
+                    tingkat_hambatan: document.getElementById('med-tingkat-hambatan')?.value,
+                    alergi_kritis: document.getElementById('med-alergi-kritis')?.value,
+                    pemicu_tantrum: document.getElementById('med-pemicu-tantrum')?.value,
+                    strategi_penenangan: document.getElementById('med-strategi-penenangan')?.value,
+                    kemampuan_komunikasi: document.getElementById('med-kemampuan-komunikasi')?.value,
+                    hotline_darurat_nama: document.getElementById('med-hotline-nama')?.value,
+                    hotline_darurat_nomor: document.getElementById('med-hotline-nomor')?.value,
+                    kondisi_terkini: document.getElementById('med-kondisi-terkini')?.value,
+                    kondisi_warna: document.getElementById('med-kondisi-warna')?.value
+                };
+
+                fetch('/api/profil-medis/' + userAnakId, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify(payload)
+                }).then(res => res.json()).then(data => {
+                    if(data.status === 'success') {
+                        btnSaveMedical.classList.add('hidden');
+                        const toast = document.getElementById('toast-medical-save');
+                        toast.classList.remove('translate-y-[150%]', 'opacity-0');
+                        toast.classList.add('translate-y-0', 'opacity-100');
+                        setTimeout(() => {
+                            toast.classList.add('translate-y-[150%]', 'opacity-0');
+                            toast.classList.remove('translate-y-0', 'opacity-100');
+                        }, 3000);
+                        setTimeout(() => window.location.reload(), 1000);
+                    } else {
+                        alert('Gagal menyimpan: ' + (data.error || 'Unknown error'));
+                    }
+                });
+            });
         }
 
         function showMedicalExplanation(key) {
@@ -4087,8 +4447,143 @@ def index():
 
     list_siswa = get_list_siswa_cached()
 
-    rendered_home = render_template_string(HOME_HTML, epilepsi_logs=epilepsi_logs, open_modal=request.args.get('open'), is_admin=session.get('is_admin', False))
+    peran = session.get('peran', '')
+    anak_id = session.get('anak_id')
+    profil_medis = None
+    anak_nama = None
+
+    if peran == 'orang_tua' and anak_id:
+        profil_medis = ProfilMedisSiswa.query.filter_by(siswa_id=anak_id).first()
+        siswa_record = Siswa.query.get(anak_id)
+        if siswa_record:
+            anak_nama = siswa_record.nama
+
+    rendered_home = render_template_string(
+        HOME_HTML,
+        epilepsi_logs=epilepsi_logs,
+        open_modal=request.args.get('open'),
+        is_admin=session.get('is_admin', False),
+        peran=peran,
+        anak_id=anak_id,
+        anak_nama=anak_nama,
+        profil_medis=profil_medis
+    )
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=rendered_home, is_admin=session.get('is_admin', False), settings=get_settings(), list_siswa=list_siswa)
+
+@app.route('/api/profil-medis/<int:siswa_id>', methods=['GET'])
+def get_profil_medis(siswa_id):
+    peran = session.get('peran')
+    if peran not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    if peran == 'orang_tua' and str(session.get('anak_id')) != str(siswa_id):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    profil = ProfilMedisSiswa.query.filter_by(siswa_id=siswa_id).first()
+
+    if not profil:
+        return jsonify({
+            'nama_lengkap': '',
+            'nama_panggilan': '',
+            'usia': '',
+            'kelas': '',
+            'jenis_slb': '',
+            'kategori_hambatan': '',
+            'diagnosis_utama': '',
+            'tingkat_hambatan': '',
+            'alergi_kritis': '',
+            'pemicu_tantrum': '',
+            'strategi_penenangan': '',
+            'kemampuan_komunikasi': '',
+            'hotline_darurat_nama': '',
+            'hotline_darurat_nomor': '',
+            'kondisi_terkini': '',
+            'kondisi_warna': ''
+        })
+
+    return jsonify({
+        'nama_lengkap': profil.nama_lengkap or '',
+        'nama_panggilan': profil.nama_panggilan or '',
+        'usia': profil.usia or '',
+        'kelas': profil.kelas or '',
+        'jenis_slb': profil.jenis_slb or '',
+        'kategori_hambatan': profil.kategori_hambatan or '',
+        'diagnosis_utama': profil.diagnosis_utama or '',
+        'tingkat_hambatan': profil.tingkat_hambatan or '',
+        'alergi_kritis': profil.alergi_kritis or '',
+        'pemicu_tantrum': profil.pemicu_tantrum or '',
+        'strategi_penenangan': profil.strategi_penenangan or '',
+        'kemampuan_komunikasi': profil.kemampuan_komunikasi or '',
+        'hotline_darurat_nama': profil.hotline_darurat_nama or '',
+        'hotline_darurat_nomor': profil.hotline_darurat_nomor or '',
+        'kondisi_terkini': profil.kondisi_terkini or '',
+        'kondisi_warna': profil.kondisi_warna or ''
+    })
+
+@app.route('/api/profil-medis/<int:siswa_id>', methods=['POST'])
+@csrf.exempt
+def update_profil_medis(siswa_id):
+    if session.get('peran') != 'orang_tua' or str(session.get('anak_id')) != str(siswa_id):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    profil = ProfilMedisSiswa.query.filter_by(siswa_id=siswa_id).first()
+    if not profil:
+        profil = ProfilMedisSiswa(siswa_id=siswa_id)
+        db.session.add(profil)
+
+    profil.nama_lengkap = data.get('nama_lengkap', profil.nama_lengkap)
+    profil.nama_panggilan = data.get('nama_panggilan', profil.nama_panggilan)
+
+    usia_val = data.get('usia')
+    if usia_val is not None and usia_val != '':
+        try:
+            profil.usia = int(usia_val)
+        except ValueError:
+            pass
+
+    profil.kelas = data.get('kelas', profil.kelas)
+    profil.jenis_slb = data.get('jenis_slb', profil.jenis_slb)
+    profil.kategori_hambatan = data.get('kategori_hambatan', profil.kategori_hambatan)
+    profil.diagnosis_utama = data.get('diagnosis_utama', profil.diagnosis_utama)
+    profil.tingkat_hambatan = data.get('tingkat_hambatan', profil.tingkat_hambatan)
+    profil.alergi_kritis = data.get('alergi_kritis', profil.alergi_kritis)
+    profil.pemicu_tantrum = data.get('pemicu_tantrum', profil.pemicu_tantrum)
+    profil.strategi_penenangan = data.get('strategi_penenangan', profil.strategi_penenangan)
+    profil.kemampuan_komunikasi = data.get('kemampuan_komunikasi', profil.kemampuan_komunikasi)
+    profil.hotline_darurat_nama = data.get('hotline_darurat_nama', profil.hotline_darurat_nama)
+    profil.hotline_darurat_nomor = data.get('hotline_darurat_nomor', profil.hotline_darurat_nomor)
+    profil.kondisi_terkini = data.get('kondisi_terkini', profil.kondisi_terkini)
+    profil.kondisi_warna = data.get('kondisi_warna', profil.kondisi_warna)
+
+    db.session.commit()
+    return jsonify({'status': 'success'})
+
+@app.route('/api/cari-siswa-guru', methods=['GET'])
+def cari_siswa_guru():
+    if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    query = request.args.get('q', '')
+    if not query:
+        return jsonify([])
+
+    siswa_list = Siswa.query.filter(Siswa.nama.ilike(f'%{query}%')).limit(10).all()
+    results = []
+
+    for siswa in siswa_list:
+        profil_exists = ProfilMedisSiswa.query.filter_by(siswa_id=siswa.id).first() is not None
+        results.append({
+            'id': siswa.id,
+            'nama': siswa.nama,
+            'profil_exists': profil_exists
+        })
+
+    return jsonify(results)
+
 
 @app.route('/register', methods=['POST'])
 @limiter.limit('5 per minute')
@@ -11086,6 +11581,9 @@ def api_jurnal_harian():
         q = OrangTuaBuku.query
         if session.get('peran') == 'orang_tua':
             q = q.filter_by(anak_id=session.get('anak_id'))
+        elif session.get('peran') in ['guru', 'kepala_sekolah'] and request.args.get('anak_id'):
+            q = q.filter_by(anak_id=request.args.get('anak_id'))
+
         buku_logs = q.order_by(OrangTuaBuku.created_at.desc()).limit(7).all()
         # Reverse to show chronological left to right
         buku_logs.reverse()
@@ -11172,6 +11670,9 @@ def handle_ot_jadwal():
     q = OrangTuaJadwal.query
     if session.get('peran') == 'orang_tua':
         q = q.filter_by(anak_id=session.get('anak_id'))
+    elif session.get('peran') in ['guru', 'kepala_sekolah'] and request.args.get('anak_id'):
+        q = q.filter_by(anak_id=request.args.get('anak_id'))
+
     logs = q.order_by(OrangTuaJadwal.time.asc()).all()
     res = []
     for l in logs:
