@@ -95,13 +95,16 @@ def cached_render(template_name, template_string, **context):
 
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'uploads')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_recycle': 280,
-    'pool_size': 5,
-    'max_overflow': 10,
-    'pool_timeout': 20,
-    'pool_pre_ping': True  # <-- Tambahkan sebaris mantra ini
-}
+if os.getenv('SQLALCHEMY_DATABASE_URI', '').startswith('sqlite'):
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True}
+else:
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_recycle': 280,
+        'pool_size': 5,
+        'max_overflow': 10,
+        'pool_timeout': 20,
+        'pool_pre_ping': True
+    }
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 log_dir = os.path.join(os.path.expanduser('~'), 'logs')
@@ -197,6 +200,7 @@ class EmotionJournal(db.Model):
     date = db.Column(db.DateTime, server_default=func.now())
     emotion = db.Column(db.String(50), nullable=False)
     notes = db.Column(db.Text)
+    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
 
 
 
@@ -214,6 +218,7 @@ class EpilepsiLog(db.Model):
     trigger = db.Column(db.String(255), nullable=False)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
+    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
 
 class AppSettings(db.Model):
     key = db.Column(db.String(255), primary_key=True)
@@ -2316,6 +2321,53 @@ HOME_HTML = """
                 <button onclick="closeModal('modal-terapi-log')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
             
+            {% if peran == 'guru' or peran == 'kepala_sekolah' %}
+            <div id="guru-kambuh-monitor">
+                <h4 class="text-sm font-bold text-gray-800 mb-4 pl-2 border-l-4 border-blue-500">Monitor Jurnal Kambuh Siswa</h4>
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="guru-kambuh-search" placeholder="Cari..." class="flex-1 border border-blue-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50">
+                    <button onclick="fetchGuruKambuh()" class="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-blue-600 transition">Muat Data</button>
+                </div>
+                <div id="guru-kambuh-results" class="space-y-3 overflow-y-auto max-h-64"></div>
+            </div>
+            <script>
+            function fetchGuruKambuh(page=1) {
+                fetch('/api/jurnal-kambuh/guru-view?page=' + page)
+                    .then(res => res.json())
+                    .then(data => {
+                        const container = document.getElementById('guru-kambuh-results');
+                        if(page === 1) container.innerHTML = '';
+                        if(data.items.length === 0 && page === 1) {
+                            container.innerHTML = '<p class="text-center text-gray-500 text-xs py-4">Belum ada data rekaman.</p>';
+                            return;
+                        }
+
+                        // remove old button
+                        const oldBtn = document.getElementById('btn-more-kambuh');
+                        if (oldBtn) oldBtn.remove();
+
+                        data.items.forEach(log => {
+                            container.innerHTML += `
+                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-blue-100 flex justify-between items-start">
+                                <div>
+                                    <h4 class="font-bold text-blue-800 text-sm mb-1">${log.siswa_nama}</h4>
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">${log.date}</span>
+                                        <span class="text-xs text-gray-500">${log.time}</span>
+                                    </div>
+                                    <p class="text-sm font-bold text-gray-800">${log.trigger}</p>
+                                    ${log.notes ? `<p class="text-xs text-gray-500 mt-1 italic">"${log.notes}"</p>` : ''}
+                                </div>
+                            </div>`;
+                        });
+                        if (data.has_next) {
+                            container.innerHTML += `<button id="btn-more-kambuh" onclick="fetchGuruKambuh(${data.page + 1})" class="w-full text-xs font-bold text-blue-500 py-2 hover:bg-blue-50 rounded-xl transition mt-2">Muat Lebih Banyak</button>`;
+                        }
+                    });
+            }
+            document.addEventListener('DOMContentLoaded', () => fetchGuruKambuh(1));
+            </script>
+            {% else %}
             <form action="/therapy/log" method="POST" class="space-y-4 mb-8 bg-blue-50 p-4 rounded-2xl border border-blue-100">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="grid grid-cols-2 gap-3">
@@ -2345,7 +2397,7 @@ HOME_HTML = """
                 </div>
                 <button type="submit" class="w-full bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-600 transition">Simpan Laporan</button>
             </form>
-            
+
             <h4 class="text-sm font-bold text-gray-800 mb-4 pl-2 border-l-4 border-blue-500">Riwayat Terakhir</h4>
             <div class="space-y-3">
                 {% for log in epilepsi_logs %}
@@ -2363,6 +2415,7 @@ HOME_HTML = """
                 <p class="text-center text-gray-500 text-xs py-4">Belum ada data rekaman.</p>
                 {% endfor %}
             </div>
+            {% endif %}
             <button onclick="showMedicalExplanation('log')" class="mt-4 w-full border border-blue-200 text-blue-500 text-[10px] font-bold py-2 rounded-lg hover:bg-blue-50 transition uppercase tracking-wider">
                 Penjelasan Medis
             </button>
@@ -4441,7 +4494,10 @@ HOME_HTML = """
 @app.route('/')
 def index():
     try:
-        epilepsi_logs = EpilepsiLog.query.order_by(EpilepsiLog.created_at.desc()).limit(5).all()
+        if session.get('peran') == 'orang_tua' and session.get('anak_id'):
+            epilepsi_logs = EpilepsiLog.query.filter_by(anak_id=session.get('anak_id')).order_by(EpilepsiLog.created_at.desc()).limit(10).all()
+        else:
+            epilepsi_logs = EpilepsiLog.query.order_by(EpilepsiLog.created_at.desc()).limit(5).all()
     except:
         epilepsi_logs = []
 
@@ -8512,16 +8568,18 @@ SLB_TUNAGRAHITA_HTML = """
                     const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
                     
                     const rect = draggable.getBoundingClientRect();
+                    startX = clientX - rect.left;
+                    startY = clientY - rect.top;
+
+                    document.body.appendChild(draggable);
+
                     draggable.style.width = rect.width + 'px';
                     draggable.style.height = rect.height + 'px';
                     draggable.style.position = 'fixed';
-                    draggable.style.zIndex = '1000';
+                    draggable.style.zIndex = '9999';
                     
-                    startX = clientX - rect.left;
-                    startY = clientY - rect.top;
-                    
-                    draggable.style.left = rect.left + 'px';
-                    draggable.style.top = rect.top + 'px';
+                    draggable.style.left = (clientX - startX) + 'px';
+                    draggable.style.top = (clientY - startY) + 'px';
 
                     draggable.classList.add('opacity-90', 'scale-105', 'shadow-2xl');
                     
@@ -8535,9 +8593,36 @@ SLB_TUNAGRAHITA_HTML = """
                     
                     const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
                     const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+                    window.currentDragY = clientY;
 
                     draggable.style.left = (clientX - startX) + 'px';
                     draggable.style.top = (clientY - startY) + 'px';
+
+                    const SCROLL_ZONE = 80;
+                    if (clientY < SCROLL_ZONE) {
+                        if (!window.autoScrollFrame) {
+                            const scrollUp = () => {
+                                let speed = Math.round((1 - (window.currentDragY / SCROLL_ZONE)) * 8);
+                                window.scrollBy(0, -speed);
+                                window.autoScrollFrame = requestAnimationFrame(scrollUp);
+                            };
+                            window.autoScrollFrame = requestAnimationFrame(scrollUp);
+                        }
+                    } else if (clientY > window.innerHeight - SCROLL_ZONE) {
+                        if (!window.autoScrollFrame) {
+                            const scrollDown = () => {
+                                let speed = Math.round(((window.currentDragY - (window.innerHeight - SCROLL_ZONE)) / SCROLL_ZONE) * 8);
+                                window.scrollBy(0, speed);
+                                window.autoScrollFrame = requestAnimationFrame(scrollDown);
+                            };
+                            window.autoScrollFrame = requestAnimationFrame(scrollDown);
+                        }
+                    } else {
+                        if (window.autoScrollFrame) {
+                            cancelAnimationFrame(window.autoScrollFrame);
+                            window.autoScrollFrame = null;
+                        }
+                    }
 
                     currentDropZones.forEach(zone => {
                         const zoneRect = zone.getBoundingClientRect();
@@ -8554,6 +8639,11 @@ SLB_TUNAGRAHITA_HTML = """
                     isDragging = false;
                     activeDraggable = null;
                     
+                    if (window.autoScrollFrame) {
+                        cancelAnimationFrame(window.autoScrollFrame);
+                        window.autoScrollFrame = null;
+                    }
+
                     const clientX = e.type.includes('touch') ? e.changedTouches[0].clientX : e.clientX;
                     const clientY = e.type.includes('touch') ? e.changedTouches[0].clientY : e.clientY;
 
@@ -8706,6 +8796,9 @@ SLB_TUNAGRAHITA_HTML = """
             boingSound.currentTime = 0;
             boingSound.play().catch(()=>{});
             
+            const wrapper = document.querySelector('.cards-wrapper');
+            if (wrapper) wrapper.appendChild(element);
+
             element.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
             element.style.position = 'relative';
             element.style.left = '0';
@@ -8778,14 +8871,13 @@ SLB_TUNADAKSA_HTML = """
             <h3 class="text-xl font-bold text-gray-700 mb-4 pointer-events-none">Relaksasi Delta (Tidur)</h3>
             <button onclick="toggleAudio('delta')" id="btn-delta" 
                     onmouseenter="startDwell('delta')" onmouseleave="stopDwell('delta')" onmousedown="startDwell('delta')" onmouseup="stopDwell('delta')"
-                    class="w-full h-40 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center text-5xl shadow-inner transition-transform relative z-10 p-12">
+                    class="relative w-full h-40 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center text-5xl shadow-inner transition-transform z-10 p-12">
                 <i class="fas fa-play pointer-events-none"></i>
+                <!-- Loader -->
+                <svg class="dwell-loader z-20" id="loader-delta">
+                    <circle cx="60" cy="60" r="45" class="dwell-circle" style="stroke: #3b82f6;"></circle>
+                </svg>
             </button>
-            <!-- Loader -->
-            <svg class="dwell-loader z-20" id="loader-delta">
-                <circle cx="60" cy="60" r="45" class="dwell-circle" style="stroke: #3b82f6;"></circle>
-            </svg>
-            <audio id="delta-audio" src="https://cdn.freesound.org/previews/75/75309_1163156-lq.mp3" loop></audio>
         </div>
 
         <!-- Button Theta -->
@@ -8793,13 +8885,13 @@ SLB_TUNADAKSA_HTML = """
             <h3 class="text-xl font-bold text-gray-700 mb-4 pointer-events-none">Fokus Theta (Tenang)</h3>
             <button onclick="toggleAudio('theta')" id="btn-theta" 
                     onmouseenter="startDwell('theta')" onmouseleave="stopDwell('theta')" onmousedown="startDwell('theta')" onmouseup="stopDwell('theta')"
-                    class="w-full h-40 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center text-5xl shadow-inner transition-transform relative z-10 p-12">
+                    class="relative w-full h-40 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center text-5xl shadow-inner transition-transform z-10 p-12">
                 <i class="fas fa-play pointer-events-none"></i>
+                <!-- Loader -->
+                <svg class="dwell-loader z-20" id="loader-theta">
+                    <circle cx="60" cy="60" r="45" class="dwell-circle" style="stroke: #3b82f6;"></circle>
+                </svg>
             </button>
-            <!-- Loader -->
-            <svg class="dwell-loader z-20" id="loader-theta">
-                <circle cx="60" cy="60" r="45" class="dwell-circle" style="stroke: #3b82f6;"></circle>
-            </svg>
         </div>
 
         <!-- Button Zikir -->
@@ -8807,13 +8899,13 @@ SLB_TUNADAKSA_HTML = """
             <h3 class="text-xl font-bold text-gray-700 mb-4 pointer-events-none">Zikir Penenang (EQuran)</h3>
             <button onclick="toggleAudio('zikir')" id="btn-zikir"
                     onmouseenter="startDwell('zikir')" onmouseleave="stopDwell('zikir')" onmousedown="startDwell('zikir')" onmouseup="stopDwell('zikir')"
-                    class="w-full h-40 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center text-5xl shadow-inner transition-transform relative z-10 p-12">
+                    class="relative w-full h-40 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center text-5xl shadow-inner transition-transform z-10 p-12">
                 <i class="fas fa-quran pointer-events-none"></i>
+                <!-- Loader -->
+                <svg class="dwell-loader z-20" id="loader-zikir">
+                    <circle cx="60" cy="60" r="45" class="dwell-circle" style="stroke: #3b82f6;"></circle>
+                </svg>
             </button>
-            <!-- Loader -->
-            <svg class="dwell-loader z-20" id="loader-zikir">
-                <circle cx="60" cy="60" r="45" class="dwell-circle" style="stroke: #3b82f6;"></circle>
-            </svg>
             </div>
 
         <!-- Button Pink Noise -->
@@ -8821,13 +8913,13 @@ SLB_TUNADAKSA_HTML = """
             <h3 class="text-xl font-bold text-gray-700 mb-4 pointer-events-none">Pink Noise (Sensorik)</h3>
             <button onclick="toggleAudio('pink')" id="btn-pink"
                     onmouseenter="startDwell('pink')" onmouseleave="stopDwell('pink')" onmousedown="startDwell('pink')" onmouseup="stopDwell('pink')"
-                    class="w-full h-40 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center text-5xl shadow-inner transition-transform relative z-10 p-12">
+                    class="relative w-full h-40 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center text-5xl shadow-inner transition-transform z-10 p-12">
                 <i class="fas fa-water pointer-events-none"></i>
+                <!-- Loader -->
+                <svg class="dwell-loader z-20" id="loader-pink">
+                    <circle cx="60" cy="60" r="45" class="dwell-circle" style="stroke: #3b82f6;"></circle>
+                </svg>
             </button>
-            <!-- Loader -->
-            <svg class="dwell-loader z-20" id="loader-pink">
-                <circle cx="60" cy="60" r="45" class="dwell-circle" style="stroke: #3b82f6;"></circle>
-            </svg>
         </div>
 
         <!-- Button White Noise -->
@@ -8999,7 +9091,7 @@ SLB_TUNADAKSA_HTML = """
             }
             
             // Stop HTML5 Audios
-            const htmlAudios = ['delta-audio', 'zikir-audio'];
+            const htmlAudios = ['zikir-audio'];
             htmlAudios.forEach(id => {
                 const a = document.getElementById(id);
                 if (a) {
@@ -9031,15 +9123,30 @@ SLB_TUNADAKSA_HTML = """
             const icon = btn.querySelector('i');
 
             if (type === 'delta') {
-                // HTML5 Audio
-                document.getElementById('delta-audio').play().catch(e => console.log(e));
+                // Web Audio API Delta
+                oscillators.push(createOscillator(100, -1));
+                oscillators.push(createOscillator(102, 1));
             } else if (type === 'theta') {
                 // Web Audio API Binaural
                 oscillators.push(createOscillator(432, -1));
                 oscillators.push(createOscillator(439, 1));
             } else if (type === 'zikir') {
                 // HTML5 Audio
-                document.getElementById('zikir-audio').play().catch(e => console.log(e));
+                if (!window.zikirPlaylist) {
+                    window.zikirPlaylist = ['https://server8.mp3quran.net/afs/001.mp3', 'https://server8.mp3quran.net/afs/113.mp3', 'https://server8.mp3quran.net/afs/114.mp3'];
+                    let zikirAudio = document.createElement('audio');
+                    zikirAudio.id = 'zikir-audio';
+                    document.body.appendChild(zikirAudio);
+                    zikirAudio.addEventListener('ended', function() {
+                        window.zikirIndex = (window.zikirIndex + 1) % window.zikirPlaylist.length;
+                        zikirAudio.src = window.zikirPlaylist[window.zikirIndex];
+                        zikirAudio.play().catch(e => console.log(e));
+                    });
+                }
+                if (typeof window.zikirIndex === 'undefined') window.zikirIndex = 0;
+                const zikirAudio = document.getElementById('zikir-audio');
+                zikirAudio.src = window.zikirPlaylist[window.zikirIndex];
+                zikirAudio.play().catch(e => console.log(e));
             } else if (type === 'pink' || type === 'white' || type === 'brown') {
                 // Web Audio API Noise
                 generateNoise(type);
@@ -9143,6 +9250,7 @@ SLB_TUNALARAS_HTML = """
             </form>
         </div>
         
+        {% if peran == 'orang_tua' or peran == 'kepala_sekolah' %}
         <div class="mt-12">
             <h3 class="font-bold text-emerald-800 mb-4 pl-2 border-l-4 border-emerald-500">Riwayat Perasaan</h3>
             <div class="space-y-3">
@@ -9156,6 +9264,49 @@ SLB_TUNALARAS_HTML = """
                 {% endfor %}
             </div>
         </div>
+        {% endif %}
+
+        {% if peran == 'guru' %}
+        <div class="mt-8 bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
+            <h3 class="font-bold text-emerald-800 mb-4 pl-2 border-l-4 border-emerald-500">Monitor Jurnal Emosi Siswa</h3>
+            <input type="text" id="guru-monitor-search" placeholder="Cari nama siswa..." class="w-full bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 mb-4" oninput="fetchGuruMonitor()">
+            <div id="guru-monitor-results" class="space-y-3 max-h-64 overflow-y-auto"></div>
+        </div>
+        <script>
+        function fetchGuruMonitor() {
+            const q = document.getElementById('guru-monitor-search').value;
+            fetch('/api/tunalaras/guru-monitor?q=' + encodeURIComponent(q))
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById('guru-monitor-results');
+                    container.innerHTML = '';
+                    if(data.length === 0) {
+                        container.innerHTML = '<p class="text-center text-emerald-500/70 text-sm py-4 italic">Belum ada data jurnal emosi.</p>';
+                        return;
+                    }
+                    data.forEach(item => {
+                        let html = `
+                        <div class="p-3 border border-emerald-100 rounded-xl bg-emerald-50/50">
+                            <div class="flex justify-between items-center mb-2">
+                                <div>
+                                    <h4 class="font-bold text-emerald-800 text-sm">${item.student_name}</h4>
+                                    <p class="text-[10px] text-emerald-600 font-medium">Ortu: ${item.parent_name}</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 flex-wrap">`;
+
+                        item.recent_emotions.forEach(emo => {
+                            html += `<span class="bg-white border border-emerald-100 px-2 py-1 rounded-lg text-xs font-bold text-emerald-700 shadow-sm">${emo.emotion} <span class="text-[9px] text-emerald-500 ml-1 font-normal">${emo.date}</span></span>`;
+                        });
+
+                        html += `</div></div>`;
+                        container.innerHTML += html;
+                    });
+                });
+        }
+        document.addEventListener('DOMContentLoaded', fetchGuruMonitor);
+        </script>
+        {% endif %}
 
         <button onclick="openModal('modal-medis-tunalaras')" class="mt-8 w-full border border-emerald-200 text-emerald-600 text-[10px] font-bold py-3.5 rounded-2xl hover:bg-emerald-50 transition uppercase tracking-widest shadow-sm bg-white">
             <i class="fas fa-stethoscope mr-2 text-sm"></i> PENJELASAN MEDIS
@@ -11898,15 +12049,51 @@ def slb_tunalaras():
     if request.method == 'POST':
         try:
             emotion = request.form['emotion']
-            db.session.add(EmotionJournal(emotion=emotion))
+            anak_id = session.get('anak_id') if session.get('peran') == 'orang_tua' else None
+            db.session.add(EmotionJournal(emotion=emotion, anak_id=anak_id))
             db.session.commit()
             return redirect(url_for('slb_tunalaras'))
         except Exception as e:
             db.session.rollback()
             return "Terjadi kesalahan saat memproses data. Silakan coba lagi.", 500
     
-    history = EmotionJournal.query.order_by(EmotionJournal.date.desc()).limit(5).all()
-    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=SLB_TUNALARAS_HTML, history=history, theme={'nav_bg': 'bg-teal-100', 'title_text': 'text-teal-800'}, is_admin=session.get('is_admin', False), settings=get_settings())
+    q = EmotionJournal.query
+    if session.get('peran') == 'orang_tua' and session.get('anak_id'):
+        history = q.filter_by(anak_id=session.get('anak_id')).order_by(EmotionJournal.date.desc()).limit(20).all()
+    else:
+        history = q.order_by(EmotionJournal.date.desc()).limit(5).all()
+
+    rendered_tunalaras = render_template_string(SLB_TUNALARAS_HTML, history=history, csrf_token=lambda: "", peran=session.get('peran',''), anak_id=session.get('anak_id'))
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=rendered_tunalaras, theme={'nav_bg': 'bg-teal-100', 'title_text': 'text-teal-800'}, is_admin=session.get('is_admin', False), settings=get_settings())
+
+@app.route('/api/tunalaras/guru-monitor')
+def api_tunalaras_guru_monitor():
+    if session.get('peran') not in ['guru', 'kepala_sekolah']:
+        return jsonify({'error': 'Unauthorized'}), 403
+    q = request.args.get('q', '').lower()
+
+    entries = db.session.query(EmotionJournal).filter(EmotionJournal.anak_id != None).all()
+    grouped = {}
+    for e in entries:
+        if e.anak_id not in grouped: grouped[e.anak_id] = []
+        grouped[e.anak_id].append(e)
+
+    results = []
+    for a_id, evs in grouped.items():
+        evs.sort(key=lambda x: x.date, reverse=True)
+        siswa = db.session.get(Siswa, a_id)
+        if not siswa: continue
+        if q and q not in siswa.nama.lower(): continue
+        parent = AkunPengguna.query.filter_by(anak_id=a_id, peran='orang_tua').first()
+        parent_name = parent.nama_lengkap if parent else "Unknown"
+
+        recent_emotions = [{"emotion": x.emotion, "date": x.date.strftime('%Y-%m-%d %H:%M') if x.date else ''} for x in evs[:3]]
+        results.append({
+            "parent_name": parent_name,
+            "student_name": siswa.nama,
+            "recent_emotions": recent_emotions
+        })
+    return jsonify(results)
 
 @app.route('/slb/tunaganda')
 def slb_tunaganda():
