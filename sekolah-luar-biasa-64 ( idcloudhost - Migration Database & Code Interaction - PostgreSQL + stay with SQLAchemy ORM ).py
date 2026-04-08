@@ -176,8 +176,8 @@ class AkunPengguna(db.Model):
     nama_lengkap = db.Column(db.String(255), nullable=False)
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    peran = db.Column(db.Enum('orang_tua', 'guru', 'kepala_sekolah'), nullable=False)
-    status_akun = db.Column(db.Enum('menunggu_verifikasi', 'disetujui', 'ditolak'), default='menunggu_verifikasi', index=True)
+    peran = db.Column(db.Enum('orang_tua', 'guru', 'kepala_sekolah', name='peran_akun_enum'), nullable=False)
+    status_akun = db.Column(db.Enum('menunggu_verifikasi', 'disetujui', 'ditolak', name='status_akun_enum'), default='menunggu_verifikasi', index=True)
     anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
 
 class SignLanguageDictionary(db.Model):
@@ -2168,7 +2168,6 @@ HOME_HTML = """
             
             <h3 class="text-xs font-bold text-gray-500 tracking-[0.2em] mb-4 uppercase border-b border-gray-200 pb-2 w-24 mx-auto">PIHAK KETIGA</h3>
             <div class="flex flex-col gap-4 justify-center items-center mb-8">
-                <img src="/static/pythonanywherelogo-removebg.png" class="h-5 object-contain">
                 <img src="/static/pythonlogo.png" class="h-5 object-contain">
                 <img src="/static/godaddylogo.png" class="h-8 object-contain">
             </div>
@@ -12992,7 +12991,7 @@ with app.app_context():
         db.create_all()
         seed_slb_data()
     except Exception as e:
-        print(f"Warning: Failed to connect to PythonAnywhere database or create tables. Error: {e}")
+        app.logger.error(f"CRITICAL: Failed to connect to the local PostgreSQL database or initialize tables on IDCloudHost. Check DATABASE_URL and PostgreSQL service status. Error: {e}")
 
 if __name__ == '__main__':
     socketio.run(app, debug=True, port=5000, allow_unsafe_werkzeug=True)
