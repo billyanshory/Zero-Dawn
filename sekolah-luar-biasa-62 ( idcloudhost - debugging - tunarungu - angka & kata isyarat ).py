@@ -12331,6 +12331,8 @@ def check_burnout():
 
 @app.route('/orang-tua/modul/download')
 def download_modul():
+    if not session.get('peran') and not session.get('is_admin'):
+        return "Unauthorized", 403
     filename = request.args.get('file')
     if not filename:
         return "No file specified", 400
@@ -12341,9 +12343,7 @@ def download_modul():
     filepath = os.path.join(modul_dir, filename)
     
     if not os.path.exists(filepath):
-        # Create a basic dummy text file masquerading as a pdf for the sake of the download if it doesn't exist
-        with open(filepath, 'w') as f:
-            f.write("%PDF-1.4\\n%Dummy PDF for Terapi Motorik\\n")
+        return "File not found", 404
             
     return send_from_directory(modul_dir, filename, as_attachment=True)
 
