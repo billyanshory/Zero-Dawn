@@ -7705,10 +7705,10 @@ SLB_TUNARUNGU_HTML = """
     <script>
         const API_KEY = "dc6zaTOxFJmzC"; // Public Beta Key
         const FALLBACK_DATA = {
-             "wudhu": "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
-             "shalat": "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
-             "sholat": "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
-             "adzan": "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif"
+             "wudhu": "https://commons.wikimedia.org/wiki/Special:FilePath/My%20first%20steps%20in%20Islam.pdf",
+             "shalat": "https://commons.wikimedia.org/wiki/Special:FilePath/Slovak%20%28Slavish%29%20self-taught%20%28IA%20slovakslavishsel00morv%29.pdf",
+             "sholat": "https://media.giphy.com/media/3o7TKMt1VVNkHV2PaE/giphy.gif",
+             "adzan": "https://media.giphy.com/media/3o7TKMt1VVNkHV2PaE/giphy.gif"
         };
 
         const KATA_ISYARAT_DATA = [
@@ -7978,9 +7978,207 @@ SLB_TUNARUNGU_HTML = """
             });
         }
 
+        const STATIC_GIF_MAP = {
+            "1": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%A2%D5%A1%D6%80%D6%87%20%D5%B1%D5%A5%D5%A6%20-%20hello%21.webm",
+            "2": "https://commons.wikimedia.org/wiki/Special:FilePath/Bsl-thank-you.svg",
+            "3": "https://commons.wikimedia.org/wiki/Special:FilePath/Fish%20Creek%20%28AU%29%2C%20Welcome%20Sign%20--%202019%20--%20150820.jpg",
+            "4": "https://commons.wikimedia.org/wiki/Special:FilePath/Asl%20alphabet%20gallaudet.svg",
+            "5": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%B6%D5%A5%D6%80%D5%B8%D5%B2%D5%B8%D6%82%D5%A9%D5%B5%D5%B8%D6%82%D5%B6%20-%20sorry.webm",
+            "6": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign%20language%20alphabet%20%2859%29.png",
+            "7": "https://commons.wikimedia.org/wiki/Special:FilePath/Asl%20alphabet%20gallaudet.svg",
+            "8": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign%20language%20interpreter%2C%202012%20%2801%29.jpg",
+            "9": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%AB%D5%9E%D5%B6%D5%B9%20-%20what%3F.webm",
+            "10": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%B8%D6%80%D5%BF%D5%A5%D5%B2%D5%AB%D5%9E%D6%81%20-%20where%20from%20-%20where%20from.webm",
+            "11": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%A5%D5%9E%D6%80%D5%A2%20-%20when%3F.webm",
+            "12": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%AB%D5%B6%D5%B9%D5%B8%D5%9E%D6%82%20-%20why%3F.webm",
+            "13": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign%20language%20interpreter%2C%202012%20%2801%29.jpg",
+            "14": "https://commons.wikimedia.org/wiki/Special:FilePath/Willie%20and%20the%20mortage%2C%20showing%20how%20much%20may%20be%20accomplished%20b%20y%20a%20boy%20%28IA%20williemortagesho00abbo%29.pdf",
+            "15": "https://commons.wikimedia.org/wiki/Special:FilePath/Tanzanian%20Sign%20Language%20%28TSL%29%20-%20Manual%20alphabet%20-%20F.jpg",
+            "16": "https://commons.wikimedia.org/wiki/Special:FilePath/Hollywood%20Sign.jpg",
+            "17": "https://commons.wikimedia.org/wiki/Special:FilePath/SIGNING%20I%20LOVE%20YOU%20in%20Ghanaian%20Sign%20Language.jpg",
+            "18": "https://commons.wikimedia.org/wiki/Special:FilePath/A%20child%20watching%20an%20American%20Sign%20Language%20video%20in%20northern%20Maracay%2C%20Venezuela.jpg",
+            "19": "https://commons.wikimedia.org/wiki/Special:FilePath/Human%20Language%20Families.png",
+            "20": "https://commons.wikimedia.org/wiki/Special:FilePath/Tanzanian%20Sign%20Language%20-%20Habari%20ya%20asubuhi%20%28Good%20Morning%29%20-%20greeting%2002.webm",
+            "21": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%A9%D5%B8%D6%82%D5%B5%D5%AC%20%D5%AC%D5%BD%D5%B8%D5%B2%20-%20bad%20hearing.webm",
+            "22": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%B8%D6%82%D5%BF%D5%A5%D5%AC%20-%20to%20eat.webm",
+            "23": "https://commons.wikimedia.org/wiki/Special:FilePath/No%20drink%20sign-es.svg",
+            "24": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D6%84%D5%B6%D5%A5%D5%AC%20-%20to%20sleep%20%282%29.webm",
+            "25": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%A1%D6%80%D5%A9%D5%B6%D5%A1%D5%B6%D5%A1%D5%AC%20-%20to%20wake%20up.webm",
+            "26": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign%20language%20alphabet%20%2859%29.png",
+            "27": "https://commons.wikimedia.org/wiki/Special:FilePath/Group%20of%20deaf%20people%2C%202010%20%2801%29.jpg",
+            "28": "https://commons.wikimedia.org/wiki/Special:FilePath/Bachelors%20Walk%20Dublin%20bilingual%20street%20sign%20%282024%29.jpg",
+            "29": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D6%83%D5%A1%D5%AD%D5%B9%D5%A5%D5%AC%20-%20to%20run%20away.webm",
+            "30": "https://commons.wikimedia.org/wiki/Special:FilePath/Colombia%20road%20sign%20SIT-02.svg",
+            "31": "https://commons.wikimedia.org/wiki/Special:FilePath/Macau%20road%20sign%20S02.svg",
+            "32": "https://commons.wikimedia.org/wiki/Special:FilePath/Warning%20sign%20in%20cologne.jpg",
+            "33": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_L.svg",
+            "34": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_T.svg",
+            "35": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_T.svg",
+            "36": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_K.svg",
+            "37": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_F.svg",
+            "38": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_R.svg",
+            "39": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_U.svg",
+            "40": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_C.svg",
+            "41": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_H.svg",
+            "42": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_F.svg",
+            "43": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_S.svg",
+            "44": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_O.svg",
+            "45": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_C.svg",
+            "46": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_E.svg",
+            "47": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_E.svg",
+            "48": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_B.svg",
+            "49": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_S.svg",
+            "50": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_P.svg",
+            "51": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_M.svg",
+            "52": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_P.svg",
+            "53": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_C.svg",
+            "54": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_E.svg",
+            "55": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_B.svg",
+            "56": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_S.svg",
+            "57": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_L.svg",
+            "58": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_S.svg",
+            "59": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_H.svg",
+            "60": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_L.svg",
+            "61": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_G.svg",
+            "62": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_I.svg",
+            "63": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_F.svg",
+            "64": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_M.svg",
+            "65": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_P.svg",
+            "66": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_A.svg",
+            "67": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_R.svg",
+            "68": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_M.svg",
+            "69": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_P.svg",
+            "70": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_A.svg",
+            "71": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_P.svg",
+            "72": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_D.svg",
+            "73": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_Q.svg",
+            "74": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_F.svg",
+            "75": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_Z.svg",
+            "76": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_H.svg",
+            "77": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_U.svg",
+            "78": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_C.svg",
+            "79": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_R.svg",
+            "80": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_S.svg",
+            "81": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_H.svg",
+            "82": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_H.svg",
+            "83": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_H.svg",
+            "84": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_H.svg",
+            "85": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_Q.svg",
+            "86": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_I.svg",
+            "87": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_F.svg",
+            "88": "https://commons.wikimedia.org/wiki/Special:FilePath/The%20language%20of%20flowers%20and%20floral%20conversation%20%28IA%20languageflowers00seela%29.pdf",
+            "89": "https://commons.wikimedia.org/wiki/Special:FilePath/The%20Language%20of%20flowers%20%28IA%20languageflowers00%29.pdf",
+            "90": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_A.svg",
+            "91": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_C.svg",
+            "92": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_I.svg",
+            "93": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D6%84%D5%A1%D6%80%D5%B8%D5%A6%20-%20sermon.webm",
+            "94": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign%20language%20interpreter%20at%20FridaysForFuture%20protest%20Berlin%202025-02-14%2014.jpg",
+            "95": "https://commons.wikimedia.org/wiki/Special:FilePath/Eid%20Blessings%20WDL6855.png",
+            "96": "https://commons.wikimedia.org/wiki/Special:FilePath/2025-03-01-Ramadan%20-%20Karneval-1676.jpg",
+            "97": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_S.svg",
+            "98": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_I.svg",
+            "99": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_S.svg",
+            "100": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_P.svg",
+            "101": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_G.svg",
+            "102": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_S.svg",
+            "103": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_R.svg",
+            "104": "https://commons.wikimedia.org/wiki/Special:FilePath/The%20loom%20of%20destiny%20%28IA%20loomofdestiny00stri%29.pdf",
+            "105": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%B0%D6%80%D5%A1%D5%B7%D6%84%20-%20miracle.webm",
+            "106": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_J.svg",
+            "107": "https://commons.wikimedia.org/wiki/Special:FilePath/The%20Baths%20%E2%80%94%20Devil%27s%20Bay%20Trail%20%28sign%29.JPG",
+            "108": "https://commons.wikimedia.org/wiki/Special:FilePath/Passengers.%20Doomsday.%20April.%20%28Stories%29%20%28IA%20passengersdoomsd00heme%29.pdf",
+            "109": "https://commons.wikimedia.org/wiki/Special:FilePath/AFTERLIFE%2C%20Kouros%20of%20Volomandra%20by%20Dionisis%20Christofilogiannis.jpg",
+            "110": "https://commons.wikimedia.org/wiki/Special:FilePath/Air%20pictures%20-%20sign%20language%20%28IA%20airpicturessignl00gulirich%29.pdf",
+            "111": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign%20by%20grave.jpg",
+            "112": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%8F%D5%B6%D6%85%D6%80%D5%B0%D5%B6%D5%A5%D6%84%20-%20house%20blessing.webm",
+            "113": "https://commons.wikimedia.org/wiki/Special:FilePath/The%20curse%20of%20Kehama%20%28IA%20curseofkehama00sout%29.pdf",
+            "114": "https://commons.wikimedia.org/wiki/Special:FilePath/...%20Introduction%20to%20the%20study%20of%20sign%20language%20among%20the%20North%20American%20Indians%20..%20%28IA%20introductiontost01mall%29.pdf",
+            "115": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_M.svg",
+            "116": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%BA%D5%BD%D5%A1%D5%AF%20-%20marriage.webm",
+            "117": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_D.svg",
+            "118": "https://commons.wikimedia.org/wiki/Special:FilePath/The%20...%20annual%20report%20of%20the%20Protestant%20Orphan%20Asylum%20Society%20of%20the%20City%20of%20San%20Francisco%20%28IA%20annualreportofpr186271pro%29.pdf",
+            "119": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_D.svg",
+            "120": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%A1%D5%B2%D6%84%D5%A1%D5%BF%20-%20poor.webm",
+            "121": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign%20language%20families.png",
+            "122": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_F.svg",
+            "123": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%BD%D5%AF%D5%A5%D5%BD%D5%B8%D6%82%D6%80%20-%20mother-in-law.webm",
+            "124": "https://commons.wikimedia.org/wiki/Special:FilePath/Abolish%20child%20slavery.jpg",
+            "125": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_O.svg",
+            "126": "https://commons.wikimedia.org/wiki/Special:FilePath/Long-term%20outcomes%20in%20two%20adult%20siblings%20with%20Fucosidosis.pdf",
+            "127": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%BA%D5%A1%D5%BA%D5%AB%D5%AF%20-%20grandfather.webm",
+            "128": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%BF%D5%A1%D5%BF%D5%AB%D5%AF%20-%20grandmother.webm",
+            "129": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%B0%D5%B8%D6%80%D5%A5%D5%B2%D5%A2%D5%A1%D5%B5%D6%80%20-%20uncle%20%28father%27s%20brother%29.webm",
+            "130": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%B0%D5%B8%D6%80%D5%A1%D6%84%D5%B8%D6%82%D5%B5%D6%80%20-%20aunt%20%28father%27s%20sister%29.webm",
+            "131": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_H.svg",
+            "132": "https://commons.wikimedia.org/wiki/Special:FilePath/David%20-%20Portrait%20of%20Monsieur%20Lavoisier%20and%20His%20Wife.jpg",
+            "133": "https://commons.wikimedia.org/wiki/Special:FilePath/Bicycle%20in%20Ghanaian%20sign%20language%20interpretation.webm",
+            "134": "https://commons.wikimedia.org/wiki/Special:FilePath/Woman%20Interpreting%20Sign%20Language%20GIF%20Animation%20Loop.gif",
+            "135": "https://commons.wikimedia.org/wiki/Special:FilePath/Drawing%20%28sign%20language%20friend%29%2C%202008.jpg",
+            "136": "https://commons.wikimedia.org/wiki/Special:FilePath/Air%20pictures%20-%20sign%20language%20%28IA%20airpicturessignl00gulirich%29.pdf",
+            "137": "https://commons.wikimedia.org/wiki/Special:FilePath/Our%20Neighbor-Mexico.djvu",
+            "138": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign%20language%20interpreter%2C%202012%20%2801%29.jpg",
+            "139": "https://commons.wikimedia.org/wiki/Special:FilePath/Baby%20sign%20language%2C%202009.jpg",
+            "140": "https://commons.wikimedia.org/wiki/Special:FilePath/ASL%20ILY%40Side-PalmForward%20%28Cut%20out%29.jpg",
+            "141": "https://commons.wikimedia.org/wiki/Special:FilePath/The%20language%20of%20flowers%20-%20The%20floral%20offering%20%3B%20a%20token%20of%20affection%20and%20esteem%20%3B%20comprising%20the%20language%20and%20poetry%20of%20flowers%20%28IA%20languageflowers00dumo%29.pdf",
+            "142": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%A1%D5%BF%D5%A5%D5%AC%20-%20to%20hate.webm",
+            "143": "https://commons.wikimedia.org/wiki/Special:FilePath/Four-language%20sign%20in%20Sharm%20el-Sheikh%2C%20Egypt.png",
+            "144": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%BF%D5%AD%D5%B8%D6%82%D6%80%20-%20sad.webm",
+            "145": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%BB%D5%B2%D5%A1%D5%B5%D5%AB%D5%B6%20-%20angry.webm",
+            "146": "https://commons.wikimedia.org/wiki/Special:FilePath/Air%20pictures%20-%20sign%20language%20%28IA%20airpicturessignl00gulirich%29.pdf",
+            "147": "https://commons.wikimedia.org/wiki/Special:FilePath/Air%20pictures%20-%20sign%20language%20%28IA%20airpicturessignl00gulirich%29.pdf",
+            "148": "https://commons.wikimedia.org/wiki/Special:FilePath/The%20Language%20of%20flowers%20%28IA%20languageflowers00i%29.pdf",
+            "149": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_P.svg",
+            "150": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_D.svg",
+            "151": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%A6%D5%A1%D6%80%D5%B4%D5%A1%D5%B6%D5%A1%D5%AC%20-%20to%20be%20surprised.webm",
+            "152": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_T.svg",
+            "153": "https://commons.wikimedia.org/wiki/Special:FilePath/Broke%2C%20baby%20sick%2C%20and%20car%20trouble%21%20-%20Dorothea%20Langes%20photo%20of%20a%20Missouri%20family%20of%20five%20in%20the%20vicinity%20of%20Tracy%2C%20California.jpg",
+            "154": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%A1%D5%BC%D5%B8%D5%B2%D5%BB%20-%20healthy.webm",
+            "155": "https://commons.wikimedia.org/wiki/Special:FilePath/Crazy%20Mary%27s%20Cafe%2C%20Home%20of%20the%20Uffda%20Burger%20in%20Finlayson%2C%20Minnesota.jpg",
+            "156": "https://commons.wikimedia.org/wiki/Special:FilePath/Funny%20sign%2C%20L%C3%BCderitz%20%283148029384%29.jpg",
+            "157": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_S.svg",
+            "158": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%B8%D6%82%D6%80%D5%A1%D5%AD%20-%20joyful.webm",
+            "159": "https://commons.wikimedia.org/wiki/Special:FilePath/Radclyffe%20Hall%20-%20The%20Well%20of%20Loneliness.pdf",
+            "160": "https://commons.wikimedia.org/wiki/Special:FilePath/Announcement%20of%20not%20crowded%20time%20in%20supermarket%20for%20protecting%20from%20infecting%20Covid-19.jpg",
+            "161": "https://commons.wikimedia.org/wiki/Special:FilePath/Tauchzeichen-Schwindel-Diving-Sign-Dizziness.png",
+            "162": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D6%84%D5%A1%D5%B2%D6%81%D5%A1%D5%AE%20-%20hungry.webm",
+            "163": "https://commons.wikimedia.org/wiki/Special:FilePath/The%20Language%20of%20the%20Salinan%20Indians.pdf",
+            "164": "https://commons.wikimedia.org/wiki/Special:FilePath/Hollywood%20Sign.jpg",
+            "165": "https://commons.wikimedia.org/wiki/Special:FilePath/Cold%20Response%202010%20-%20road%20sign%20in%20Norway.jpg",
+            "166": "https://commons.wikimedia.org/wiki/Special:FilePath/Hot%20water%20pool%20sign.jpg",
+            "167": "https://commons.wikimedia.org/wiki/Special:FilePath/Air%20pictures%20-%20sign%20language%20%28IA%20airpicturessignl00gulirich%29.pdf",
+            "168": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_C.svg",
+            "169": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%A1%D5%B4%D5%B8%D6%82%D6%80%20-%20strong.webm",
+            "170": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%A9%D5%B8%D6%82%D5%B5%D5%AC%20-%20weak.webm",
+            "171": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%A3%D5%A5%D5%B2%D5%A5%D6%81%D5%AB%D5%AF%20-%20beautiful.webm",
+            "172": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_H.svg",
+            "173": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%BF%D5%A3%D5%A5%D5%B2%20-%20ugly.webm",
+            "174": "https://commons.wikimedia.org/wiki/Special:FilePath/Berlin%2C%20Flughafen%20Tempelhof%2C%20Smart%20EQ%20Forfour%20--%202019%20--%204342.jpg",
+            "175": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%B0%D5%AB%D5%B4%D5%A1%D6%80%20-%20stupid.webm",
+            "176": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_D.svg",
+            "177": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_L.svg",
+            "178": "https://commons.wikimedia.org/wiki/Special:FilePath/Armenian%20Sign%20Language%20%28ArSL%29%20-%20%D5%A1%D5%A6%D5%B6%D5%AB%D5%BE%20-%20honest.webm",
+            "179": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_L.svg",
+            "180": "https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_L.svg",
+        };
+
         async function fetchKataGif(id, wordEn, category, cardElement) {
             const mediaContainer = document.getElementById(`media-container-${id}`);
             let mediaUrl = null;
+
+            if (STATIC_GIF_MAP[id]) {
+                mediaUrl = STATIC_GIF_MAP[id];
+                const isVideo = mediaUrl.toLowerCase().match(/\\.(webm|ogv|mp4)($|\\?)/);
+                if(isVideo) {
+                    mediaContainer.innerHTML = `
+                        <video src="${mediaUrl}" class="w-full h-full object-cover" autoplay loop muted playsinline></video>
+                    `;
+                } else {
+                    mediaContainer.innerHTML = `
+                        <img src="${mediaUrl}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
+                    `;
+                }
+                return;
+            }
 
             // Strategy for "Sehari-hari": Try Wikipedia MediaWiki API first
             if (category === 'Sehari-hari') {
@@ -8244,14 +8442,66 @@ SLB_TUNARUNGU_HTML = """
             <div class="mb-6">
                 <h4 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 border-b border-gray-100 pb-2">ANGKA ( 0 - 9 )</h4>
                 <div class="grid grid-cols-3 gap-3">
-                    {% for item in '0123456789' %}
                     <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
                         <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
-                            <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_{{item}}.svg" onerror="this.outerHTML='<i class=\\'fas fa-hands text-2xl\\'></i>'" class="w-full h-full object-contain">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/0.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/f/f9/Asl_alphabet_gallaudet_%28zero%29.svg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
                         </div>
-                        <span class="font-bold text-lg text-yellow-700">{{item}}</span>
+                        <span class="font-bold text-lg text-yellow-700">0</span>
                     </div>
-                    {% endfor %}
+                    <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
+                        <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/1.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/f/f3/Sign_language_1.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                        </div>
+                        <span class="font-bold text-lg text-yellow-700">1</span>
+                    </div>
+                    <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
+                        <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/2.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/a/a3/Sign_language_2.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                        </div>
+                        <span class="font-bold text-lg text-yellow-700">2</span>
+                    </div>
+                    <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
+                        <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/3.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/8/8b/Sign_language_3.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                        </div>
+                        <span class="font-bold text-lg text-yellow-700">3</span>
+                    </div>
+                    <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
+                        <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/4.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/c/cc/Sign_language_4.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                        </div>
+                        <span class="font-bold text-lg text-yellow-700">4</span>
+                    </div>
+                    <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
+                        <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/5.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/7/7a/Sign_language_5.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                        </div>
+                        <span class="font-bold text-lg text-yellow-700">5</span>
+                    </div>
+                    <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
+                        <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/6.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/3/31/Sign_language_6.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                        </div>
+                        <span class="font-bold text-lg text-yellow-700">6</span>
+                    </div>
+                    <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
+                        <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/7.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/0/0f/Sign_language_7.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                        </div>
+                        <span class="font-bold text-lg text-yellow-700">7</span>
+                    </div>
+                    <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
+                        <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/8.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/4/44/Sign_language_8.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                        </div>
+                        <span class="font-bold text-lg text-yellow-700">8</span>
+                    </div>
+                    <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
+                        <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/9.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/5/55/Sign_language_9.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                        </div>
+                        <span class="font-bold text-lg text-yellow-700">9</span>
+                    </div>
                 </div>
             </div>
         </div>
