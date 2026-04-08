@@ -8,7 +8,6 @@ import time
 import json
 import csv
 import urllib.request
-import pymysql
 from PIL import Image
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
 from reportlab.lib.pagesizes import letter
@@ -94,8 +93,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_pre_ping': True,
     'connect_args': {
         'connect_timeout': 10,
-        'charset': 'utf8mb4',
-        'init_command': "SET time_zone = '+08:00'"
+        'options': '-c timezone=Asia/Makassar'
     }
 }
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
