@@ -1231,7 +1231,7 @@ BASE_LAYOUT = """
     </div>
 
     <!-- Socket.IO globally for student receiving -->
-    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    {% if needs_socketio %}<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>{% endif %}
     <script>
         // CLIENT WEBSOCKET RECEPTION (for all pages)
         const socket = io();
@@ -2192,7 +2192,7 @@ HOME_HTML = """
 
             <p class="text-[10px] text-gray-500 font-serif">Just The Way You Are (2010) - Bruno Mars</p>
         </div>
-        <audio id="dev-audio" src="/static/kreasikoe_bruno-mars-just-the-way-you-are.mp3"></audio>
+        <audio id="dev-audio" src="/static/kreasikoe_bruno-mars-just-the-way-you-are.mp3" preload="none"></audio>
         <script>
             let devAudio = document.getElementById('dev-audio');
             let fadeInterval;
@@ -4219,7 +4219,7 @@ HOME_HTML = """
     <div class="fixed top-[72px] left-0 w-full bg-emerald-50 z-10 border-b border-emerald-100 px-5 py-3 flex flex-col gap-2">
         <div class="flex items-center justify-between w-full">
             <p class="text-xs text-emerald-800 font-bold"><i class="fas fa-volume-up mr-1"></i> Murottal (Misyari Rasyid)</p>
-            <audio id="quran-audio-player" controls class="h-8 w-48 md:w-64"></audio>
+            <audio id="quran-audio-player" controls class="h-8 w-48 md:w-64" preload="none"></audio>
         </div>
         <input type="range" id="quran-seeker" value="0" class="w-full h-1 bg-emerald-200 rounded-lg appearance-none cursor-pointer">
     </div>
@@ -4807,7 +4807,7 @@ def dashboard_validator():
         </div>
     </div>
     """
-    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='', content=cached_render('content_cb98a079', content, menunggu=menunggu, disetujui=disetujui), hide_nav=False, full_width=True, is_admin=session.get('is_admin', False), settings=get_settings())
+    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='', content=cached_render('content_cb98a079', content, menunggu=menunggu, disetujui=disetujui), hide_nav=False, full_width=True, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=True)
 
 @app.route('/kepala-sekolah')
 def kepala_sekolah_dashboard():
@@ -4902,7 +4902,7 @@ def kepala_sekolah_dashboard():
         </div>
     </div>
     """
-    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='validator', content=cached_render('content_dde416f6', content, akun_pending=akun_pending, akun_disetujui=akun_disetujui), hide_nav=False, is_admin=session.get('is_admin', False), settings=get_settings())
+    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='validator', content=cached_render('content_dde416f6', content, akun_pending=akun_pending, akun_disetujui=akun_disetujui), hide_nav=False, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
 @app.route('/validator/approve/<int:akun_id>', methods=['POST'])
 def validator_approve(akun_id):
@@ -7107,6 +7107,7 @@ def get_tantrum_data():
 import urllib.request
 import os
 
+import requests
 def prefetch_emoji_icons():
     def _download():
         try:
@@ -7118,10 +7119,10 @@ def prefetch_emoji_icons():
                 if not os.path.exists(file_path):
                     url = f"https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/{icon_hex}.png"
                     try:
-                        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                        with urllib.request.urlopen(req, timeout=10) as response:
+                        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+                        if response.status_code == 200:
                             with open(file_path, 'wb') as out_f:
-                                out_f.write(response.read())
+                                out_f.write(response.content)
                     except Exception as e:
                         app.logger.error(f"Failed to prefetch emoji {icon_hex}: {e}")
         except Exception as e:
@@ -8611,7 +8612,7 @@ SLB_TUNARUNGU_HTML = """
 
 @app.route('/slb/tunanetra')
 def slb_tunanetra():
-    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=SLB_TUNANETRA_HTML, theme={'nav_bg': 'bg-blue-100', 'title_text': 'text-blue-800'}, is_admin=session.get('is_admin', False), settings=get_settings())
+    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=SLB_TUNANETRA_HTML, theme={'nav_bg': 'bg-blue-100', 'title_text': 'text-blue-800'}, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
 @app.route('/slb/tunarungu', methods=['GET', 'POST'])
 def slb_tunarungu():
@@ -8626,7 +8627,7 @@ def slb_tunarungu():
                 url = entry.image_url if entry else None
                 words_data.append({'word': w, 'url': url})
     
-    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=cached_render('SLB_TUNARUNGU_HTML', SLB_TUNARUNGU_HTML, words_data=words_data, sentence=sentence), theme={'nav_bg': 'bg-yellow-100', 'title_text': 'text-yellow-800'}, is_admin=session.get('is_admin', False), settings=get_settings())
+    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=cached_render('SLB_TUNARUNGU_HTML', SLB_TUNARUNGU_HTML, words_data=words_data, sentence=sentence), theme={'nav_bg': 'bg-yellow-100', 'title_text': 'text-yellow-800'}, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
 SLB_TUNAGRAHITA_HTML = """
 <div class="min-h-[100dvh] bg-[#F3E8FF] pt-24 px-5 pb-32">
@@ -8817,11 +8818,10 @@ SLB_TUNAGRAHITA_HTML = """
         let isDragging = false;
         
         // Preload Sounds (Freesound CDN)
-        const sndPop = new Audio('https://cdn.freesound.org/previews/244/244655_3509815-lq.mp3'); 
-        const sndBounce = new Audio('https://cdn.freesound.org/previews/360/360601_6687700-lq.mp3');
-        const sndClap = new Audio('https://cdn.freesound.org/previews/277/277033_1735496-lq.mp3');
-        const boingSound = new Audio('https://cdn.freesound.org/previews/435/435238_8963499-lq.mp3');
-        boingSound.volume = 0.5;
+        let sndPop_url = 'https://cdn.freesound.org/previews/244/244655_3509815-lq.mp3'; let sndPop; function get_sndPop() { if(!sndPop) sndPop = new Audio(sndPop_url); return sndPop; }
+        let sndBounce_url = 'https://cdn.freesound.org/previews/360/360601_6687700-lq.mp3'; let sndBounce; function get_sndBounce() { if(!sndBounce) sndBounce = new Audio(sndBounce_url); return sndBounce; }
+        let sndClap_url = 'https://cdn.freesound.org/previews/277/277033_1735496-lq.mp3'; let sndClap; function get_sndClap() { if(!sndClap) sndClap = new Audio(sndClap_url); return sndClap; }
+        let boingSound_url = 'https://cdn.freesound.org/previews/435/435238_8963499-lq.mp3'; let boingSound; function get_boingSound() { if(!boingSound) { boingSound = new Audio(boingSound_url); boingSound.volume = 0.5; } return boingSound; }
 
         function shuffle(array) {
             let currentIndex = array.length, randomIndex;
@@ -8934,8 +8934,8 @@ SLB_TUNAGRAHITA_HTML = """
 
                     draggable.classList.add('opacity-90', 'scale-105', 'shadow-2xl');
                     
-                    sndPop.currentTime = 0;
-                    sndPop.play().catch(()=>{});
+                    get_sndPop().currentTime = 0;
+                    get_sndPop().play().catch(()=>{});
                 };
 
                 const onMove = (e) => {
@@ -9033,8 +9033,8 @@ SLB_TUNAGRAHITA_HTML = """
                             const textBox = draggable.querySelector('span:last-child');
                             textBox.classList.replace('text-purple-900', 'text-green-900');
 
-                            sndBounce.currentTime = 0;
-                            sndBounce.play().catch(()=>{}); 
+                            get_sndBounce().currentTime = 0;
+                            get_sndBounce().play().catch(()=>{});
                             
                             completedItems++;
                             if(completedItems === 4) {
@@ -9116,8 +9116,8 @@ SLB_TUNAGRAHITA_HTML = """
                         const textBox = draggable.querySelector('span:last-child');
                         textBox.classList.replace('text-purple-900', 'text-green-900');
 
-                        sndBounce.currentTime = 0;
-                        sndBounce.play().catch(()=>{}); 
+                        get_sndBounce().currentTime = 0;
+                        get_sndBounce().play().catch(()=>{});
                         
                         completedItems++;
                         if(completedItems === 4) {
@@ -9144,8 +9144,8 @@ SLB_TUNAGRAHITA_HTML = """
         }
         
         function snapBack(element) {
-            boingSound.currentTime = 0;
-            boingSound.play().catch(()=>{});
+            get_boingSound().currentTime = 0;
+            get_boingSound().play().catch(()=>{});
             
             const wrapper = document.querySelector('.cards-wrapper');
             if (wrapper) wrapper.appendChild(element);
@@ -9165,8 +9165,8 @@ SLB_TUNAGRAHITA_HTML = """
             setTimeout(() => {
                 document.getElementById('reward-modal').classList.remove('hidden');
                 
-                sndClap.currentTime = 0;
-                sndClap.play().catch(()=>{}); 
+                get_sndClap().currentTime = 0;
+                get_sndClap().play().catch(()=>{});
                 
                 var duration = 4 * 1000;
                 var animationEnd = Date.now() + duration;
@@ -9556,11 +9556,11 @@ SLB_TUNADAKSA_HTML = """
 
 @app.route('/slb/tunagrahita')
 def slb_tunagrahita():
-    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=SLB_TUNAGRAHITA_HTML, theme={'nav_bg': 'bg-purple-100', 'title_text': 'text-purple-800'}, is_admin=session.get('is_admin', False), settings=get_settings())
+    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=SLB_TUNAGRAHITA_HTML, theme={'nav_bg': 'bg-purple-100', 'title_text': 'text-purple-800'}, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
 @app.route('/slb/tunadaksa')
 def slb_tunadaksa():
-    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=SLB_TUNADAKSA_HTML, theme={'nav_bg': 'bg-green-100', 'title_text': 'text-green-800'}, is_admin=session.get('is_admin', False), settings=get_settings())
+    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=SLB_TUNADAKSA_HTML, theme={'nav_bg': 'bg-green-100', 'title_text': 'text-green-800'}, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
 SLB_TUNALARAS_HTML = """
 <div class="min-h-[100dvh] bg-emerald-50 pt-24 px-5 pb-32 transition-colors duration-1000" id="main-bg">
@@ -9768,7 +9768,7 @@ SLB_TUNALARAS_HTML = """
                 <div id="jar-glow" class="absolute inset-0 bg-amber-300/0 rounded-b-2xl transition-colors duration-1000"></div>
             </div>
         </div>
-        <audio id="audio-chime" src="https://cdn.freesound.org/previews/411/411639_5121236-lq.mp3"></audio>
+        <audio id="audio-chime" src="https://cdn.freesound.org/previews/411/411639_5121236-lq.mp3" preload="none"></audio>
     </div>
 
     <!-- Option 2: Tos Virtual -->
@@ -9779,7 +9779,7 @@ SLB_TUNALARAS_HTML = """
             <div class="absolute -inset-8 rounded-full border-4 border-emerald-400/30 animate-ping"></div>
         </div>
         <p class="mt-16 text-lg font-bold text-emerald-500 bg-emerald-100/50 px-8 py-3 rounded-full uppercase tracking-wider">Beri Aku Tos!</p>
-        <audio id="audio-clap" src="https://cdn.freesound.org/previews/277/277033_1735496-lq.mp3"></audio>
+        <audio id="audio-clap" src="https://cdn.freesound.org/previews/277/277033_1735496-lq.mp3" preload="none"></audio>
     </div>
 
     <!-- Option 3: Balon Napas Ceria -->
@@ -9800,8 +9800,8 @@ SLB_TUNALARAS_HTML = """
                 <div id="balon-text" class="absolute inset-0 flex items-center justify-center font-extrabold text-white text-3xl opacity-0 transition-opacity pb-10 tracking-widest">YEEEAYY!</div>
             </div>
         </div>
-        <audio id="audio-pump" src="https://cdn.freesound.org/previews/244/244655_3509815-lq.mp3"></audio>
-        <audio id="audio-yay" src="https://cdn.freesound.org/previews/337/337049_3232293-lq.mp3"></audio>
+        <audio id="audio-pump" src="https://cdn.freesound.org/previews/244/244655_3509815-lq.mp3" preload="none"></audio>
+        <audio id="audio-yay" src="https://cdn.freesound.org/previews/337/337049_3232293-lq.mp3" preload="none"></audio>
     </div>
 
 
@@ -12056,7 +12056,7 @@ ORANG_TUA_HTML = """
 def orang_tua_dashboard():
     if session.get('peran') not in ['orang_tua', 'kepala_sekolah'] and not session.get('is_admin'):
         return redirect(url_for('index'))
-    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=ORANG_TUA_HTML, hide_nav=False, full_width=True, is_admin=session.get('is_admin', False), settings=get_settings())
+    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=ORANG_TUA_HTML, hide_nav=False, full_width=True, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=True)
 
 @app.route('/orang-tua/api/buku', methods=['POST'])
 @limiter.limit("20 per minute")
@@ -12444,7 +12444,7 @@ def slb_tunalaras():
         history = q.order_by(EmotionJournal.date.desc()).limit(5).all()
     
     rendered_tunalaras = cached_render('SLB_TUNALARAS_HTML', SLB_TUNALARAS_HTML, history=history, csrf_token=lambda: "", peran=session.get('peran',''), anak_id=session.get('anak_id'))
-    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=rendered_tunalaras, theme={'nav_bg': 'bg-teal-100', 'title_text': 'text-teal-800'}, is_admin=session.get('is_admin', False), settings=get_settings())
+    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=rendered_tunalaras, theme={'nav_bg': 'bg-teal-100', 'title_text': 'text-teal-800'}, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
 @app.route('/api/tunalaras/guru-monitor')
 def api_tunalaras_guru_monitor():
@@ -12477,7 +12477,7 @@ def api_tunalaras_guru_monitor():
 
 @app.route('/slb/tunaganda')
 def slb_tunaganda():
-    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=SLB_TUNAGANDA_HTML, hide_nav=True, full_width=True, is_admin=session.get('is_admin', False), settings=get_settings())
+    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=SLB_TUNAGANDA_HTML, hide_nav=True, full_width=True, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
 def manifest():
     return jsonify({
@@ -13069,8 +13069,9 @@ with app.app_context():
         start_scheduler_if_primary()
         prefetch_emoji_icons()
         # TODO: Migrate to Flask-Migrate/Alembic for schema management. db.create_all() only creates new tables; it does NOT alter existing ones.
-        db.create_all()
-        seed_slb_data()
+        if os.environ.get('FLASK_INIT_DB'):
+            db.create_all()
+            seed_slb_data()
     except Exception as e:
         app.logger.error(f"CRITICAL: Failed to connect to the local PostgreSQL database or initialize tables on IDCloudHost. Check DATABASE_URL and PostgreSQL service status. Error: {e}")
 
