@@ -1,0 +1,77 @@
+[
+    {
+        "komposisi": "Monosodium Glutamat (MSG)",
+        "referensi_medis": "Studi: Excitotoxicity and Neurological Disorders (Journal of Neurochemistry).",
+        "rasionalisasi": "Eksitotoksisitas (Racun Pemicu Saraf). MSG adalah neurotransmiter eksitatori yang dapat menyebabkan stimulasi berlebihan pada sel saraf, berpotensi memicu hiperaktivitas dan tantrum pada anak dengan autisme atau ADHD."
+    },
+    {
+        "komposisi": "Aspartam",
+        "referensi_medis": "Studi: Aspartame and neurotoxicity (European Journal of Clinical Nutrition).",
+        "rasionalisasi": "Pemanis buatan yang memecah menjadi asam aspartat, fenilalanin, dan metanol dalam tubuh. Asam aspartat merupakan neurotransmiter eksitatori yang mirip MSG, menyebabkan overstimulasi sistem saraf."
+    },
+    {
+        "komposisi": "Tartrazin (E102 / Yellow 5)",
+        "referensi_medis": "Studi: Synthetic food colors and hyperactivity (The Lancet).",
+        "rasionalisasi": "Pewarna sintetis ini telah dikaitkan dengan peningkatan impulsivitas, defisit perhatian, dan hiperaktivitas, kemungkinan melalui penipisan zinc yang krusial untuk regulasi neurotransmiter."
+    },
+    {
+        "komposisi": "Natrium Benzoat (E211)",
+        "referensi_medis": "Studi: Food additives and hyperactive behaviour in 3-year-old and 8/9-year-old children (Archives of Disease in Childhood).",
+        "rasionalisasi": "Pengawet ini, terutama saat dikombinasikan dengan pewarna sintetis, secara signifikan terbukti meningkatkan perilaku hiperaktif pada anak-anak secara klinis."
+    },
+    {
+        "komposisi": "Kasein (Protein Susu)",
+        "referensi_medis": "Studi: The opioid peptide hypothesis of autism (Neuroscience & Biobehavioral Reviews).",
+        "rasionalisasi": "Pada beberapa anak autis dengan sistem pencernaan permeabel (leaky gut), kasein tidak terpecah sempurna menjadi asam amino, melainkan menjadi peptida opioid (casomorphin) yang menyeberangi sawar darah otak, menyebabkan 'brain fog' dan perilaku adiktif."
+    },
+    {
+        "komposisi": "Gluten",
+        "referensi_medis": "Studi: Diet and autism (Pediatrics).",
+        "rasionalisasi": "Serupa dengan kasein, gluten dapat terpecah menjadi gluteomorphin. Peptida ini berinteraksi dengan reseptor opioid di otak, yang dapat memperburuk gejala sosial dan perilaku repetitif."
+    },
+    {
+        "komposisi": "Kafein",
+        "referensi_medis": "Studi: Caffeine and neurodevelopment (Pediatrics).",
+        "rasionalisasi": "Stimulan sistem saraf pusat yang menghalangi reseptor adenosin. Dapat menyebabkan lonjakan detak jantung, kecemasan ekstrim, dan gangguan tidur pada anak berkebutuhan khusus yang sensitif."
+    },
+    {
+        "komposisi": "Sodium Nitrit (E250)",
+        "referensi_medis": "Studi: Nitrates/nitrites and neurological impacts (Environmental Health Perspectives).",
+        "rasionalisasi": "Pengawet pada daging olahan ini dapat menyebabkan pelebaran pembuluh darah otak mendadak (micromigraines), yang seringkali bermanifestasi sebagai ledakan emosi (tantrum) tak terduga akibat ketidaknyamanan fisik."
+    },
+    {
+        "komposisi": "BHA / BHT",
+        "referensi_medis": "Studi: Toxicological evaluation of BHA and BHT (Food and Chemical Toxicology).",
+        "rasionalisasi": "Antioksidan sintetis dalam kemasan makanan ini dapat memengaruhi komunikasi sel saraf dan dikaitkan dengan masalah neurologis fungsional serta gangguan hormon."
+    },
+    {
+        "komposisi": "Sukralosa",
+        "referensi_medis": "Studi: Sucralose and the gut microbiome (Journal of Toxicology and Environmental Health).",
+        "rasionalisasi": "Merusak mikrobioma usus menguntungkan. Karena aksis usus-otak (gut-brain axis) sangat penting dalam produksi serotonin, disrupsi mikrobioma sangat berdampak pada stabilitas mood anak neurodivergen."
+    },
+    {
+        "komposisi": "Pewarna Merah Allura (E129 / Red 40)",
+        "referensi_medis": "Studi: Red 40 and child behavior (Environmental Health Perspectives).",
+        "rasionalisasi": "Pewarna makanan ini sangat toksik bagi sebagian populasi genetik, memicu pelepasan histamin mendadak di otak yang bermanifestasi sebagai agresivitas dan hiperaktivitas ekstrem."
+    },
+    {
+        "komposisi": "Soy Protein Isolate",
+        "referensi_medis": "Studi: Soy isoflavones and neurodevelopment (Frontiers in Neuroendocrinology).",
+        "rasionalisasi": "Mengandung asam fitat tinggi dan meniru estrogen, serta seringkali tinggi residu aluminium dari proses pembuatannya, yang dapat menjadi neurotoksin penghambat perkembangan otak sehat."
+    },
+    {
+        "komposisi": "High Fructose Corn Syrup",
+        "referensi_medis": "Studi: Fructose and neuroinflammation (Brain, Behavior, and Immunity).",
+        "rasionalisasi": "Menyebabkan lonjakan gula darah sangat cepat, memicu pelepasan insulin masif yang diikuti oleh 'sugar crash', menghasilkan neuroinflamasi, iritabilitas parah, dan disregulasi emosi."
+    },
+    {
+        "komposisi": "Sodium Lauryl Sulfate",
+        "referensi_medis": "Studi: Additives and barrier disruption (Toxicology).",
+        "rasionalisasi": "Zat pembuih (sering di pasta gigi/makanan tertentu) yang dapat merusak membran mukosa dan memicu reaksi alergi sistemik, memperberat beban kerja sistem kekebalan yang berkaitan erat dengan fungsi saraf."
+    },
+    {
+        "komposisi": "Propylene Glycol",
+        "referensi_medis": "Studi: Neurological impact of propylene glycol in pediatrics (Pediatrics).",
+        "rasionalisasi": "Pelarut dalam banyak perisa makanan (dan kosmetik) yang pada dosis tertentu dapat menembus sawar darah otak anak yang belum matang, menyebabkan gejala mirip mabuk atau letargi."
+    }
+]
