@@ -1,0 +1,7 @@
+[
+    {"komposisi": "MSG (Monosodium Glutamat)", "kategori": "Flavor Enhancer", "rasionalisasi": "Excitotoxin, can trigger hyperactivity and neurological symptoms in sensitive children.", "referensi_medis": "Neurotoxicity studies"},
+    {"komposisi": "Gluten", "kategori": "Protein", "rasionalisasi": "Can cause inflammation and affect gut-brain axis, worsening behavioral symptoms in autism.", "referensi_medis": "Gastrointestinal studies"},
+    {"komposisi": "Kasein", "kategori": "Protein", "rasionalisasi": "Similar to gluten, broken down into casomorphins which can cross blood-brain barrier and affect behavior.", "referensi_medis": "Dietary intervention studies"},
+    {"komposisi": "Tartrazine", "kategori": "Food Coloring", "rasionalisasi": "Artificial dye linked to increased hyperactivity and attention deficits in children.", "referensi_medis": "Pediatric behavioral studies"},
+    {"komposisi": "Aspartam", "kategori": "Artificial Sweetener", "rasionalisasi": "Breaks down into aspartic acid and phenylalanine, which can act as neurotoxins and alter brain chemistry.", "referensi_medis": "Neurochemistry research"}
+]

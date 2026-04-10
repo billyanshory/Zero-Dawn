@@ -61,7 +61,7 @@ limiter = Limiter(
     storage_uri=os.getenv('REDIS_URL', 'memory://')
 )
 cache = Cache(app, config={
-    'CACHE_TYPE': 'RedisCache' if os.getenv('REDIS_URL') else 'SimpleCache', 
+    'CACHE_TYPE': 'RedisCache' if os.getenv('REDIS_URL') else 'SimpleCache',
     'CACHE_DEFAULT_TIMEOUT': 300,
     'CACHE_REDIS_URL': os.getenv('REDIS_URL', 'redis://localhost:6379/0') if os.getenv('REDIS_URL') else None
 })
@@ -95,7 +95,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'max_overflow': 20,
     'pool_timeout': 30,
     'pool_pre_ping': True,
-    
+
 }
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -331,8 +331,8 @@ STYLES_HTML = """
             border: 1px solid rgba(255, 255, 255, 0.8);
             border-top: 2px solid rgba(255, 255, 255, 1);
             border-left: 2px solid rgba(255, 255, 255, 0.9);
-            box-shadow: 
-                8px 12px 20px rgba(0, 0, 0, 0.25), 
+            box-shadow:
+                8px 12px 20px rgba(0, 0, 0, 0.25),
                 inset -2px -2px 10px rgba(0,0,0,0.05),
                 inset 2px 2px 10px rgba(255,255,255,1);
             border-radius: 1.5rem;
@@ -362,7 +362,7 @@ STYLES_HTML = """
             top: 12px;
             left: 50%;
             transform: translateX(-50%);
-            box-shadow: 
+            box-shadow:
                 2px 4px 6px rgba(0,0,0,0.4),
                 inset -1px -1px 3px rgba(0,0,0,0.5),
                 inset 1px 1px 3px rgba(255,255,255,0.9);
@@ -385,8 +385,8 @@ STYLES_HTML = """
         .neumorphic-btn {
             background: #f8fafc;
             border-radius: 1.5rem;
-            box-shadow: 
-                6px 6px 12px rgba(163, 177, 198, 0.6), 
+            box-shadow:
+                6px 6px 12px rgba(163, 177, 198, 0.6),
                 -6px -6px 12px rgba(255, 255, 255, 0.9),
                 inset 1px 1px 2px rgba(255, 255, 255, 0.8),
                 inset -1px -1px 2px rgba(163, 177, 198, 0.2);
@@ -398,8 +398,8 @@ STYLES_HTML = """
         }
 
         .neumorphic-btn:active {
-            box-shadow: 
-                inset 4px 4px 8px rgba(163, 177, 198, 0.7), 
+            box-shadow:
+                inset 4px 4px 8px rgba(163, 177, 198, 0.7),
                 inset -4px -4px 8px rgba(255, 255, 255, 0.9);
             transform: scale(0.96);
         }
@@ -407,7 +407,7 @@ STYLES_HTML = """
         /* Interaction Animation States */
         .card-pulled {
             transform: scale(1.05) translateY(-10px) rotate(-1deg);
-            box-shadow: 
+            box-shadow:
                 15px 25px 35px rgba(0, 0, 0, 0.3),
                 inset -2px -2px 10px rgba(0,0,0,0.05),
                 inset 2px 2px 10px rgba(255,255,255,1);
@@ -423,7 +423,7 @@ STYLES_HTML = """
         .bg-midnight { background-color: var(--midnight-blue); }
         .text-gold { color: var(--gold); }
         .border-gold { border-color: var(--gold); }
-        
+
         /* Floating Card */
         .floating-card {
             margin: 0 0.5rem;
@@ -449,13 +449,13 @@ STYLES_HTML = """
             border: 4px solid #0b1026; /* Dark Theme Border */
             z-index: 60;
         }
-        
+
         .dark-bottom-nav {
             background-color: #0b1026;
             border-top: 1px solid rgba(255, 215, 0, 0.2);
             border-radius: 20px 20px 0 0;
         }
-        
+
         /* Amalan Popup Animation */
         @keyframes popupFadeIn {
             from { opacity: 0; transform: scale(0.9); }
@@ -490,7 +490,7 @@ BASE_LAYOUT = """
             else if (h >= 11 && h <= 14) time = "Siang";
             else if (h >= 15 && h <= 18) time = "Sore";
             else time = "Malam"; // 19-23
-            
+
             const msg = `Assalamualaikum, Selamat ${time}, maaf mengganggu waktunya Pak ya... Saya butuh bantuan darurat.`;
             window.location.href = "https://wa.me/6282330890500?text=" + encodeURIComponent(msg);
         }
@@ -553,7 +553,7 @@ BASE_LAYOUT = """
                 <a href="/" class="text-emerald-800 font-bold text-[15px] hover:text-emerald-600 transition-colors border-b-2 border-transparent hover:border-emerald-500 py-2 {{ t_link_active if active_page == 'home' else '' }}">Beranda</a>
                 <a href="/jadwal" class="text-gray-600 font-medium text-[15px] hover:text-emerald-600 transition-colors py-2">Jadwal Kelas</a>
                 <a href="/galeri" class="text-gray-600 font-medium text-[15px] hover:text-emerald-600 transition-colors py-2">Galeri Karya</a>
-                
+
                 <div class="bg-emerald-50 px-4 py-2 rounded-xl shadow-sm border border-emerald-100 flex items-center justify-center space-x-2 ml-4">
                     <i class="fas fa-clock text-emerald-500"></i>
                     <span id="waktu-samarinda-header" class="text-emerald-800 font-bold tracking-wider font-mono">--:--:--</span>
@@ -617,7 +617,7 @@ BASE_LAYOUT = """
                 <h3 id="infaq-title" class="text-xl font-bold text-gray-800">Infaq Digital</h3>
                 <button onclick="closeModal('modal-infaq')" class="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center text-current hover:bg-black/10 transition">&times;</button>
             </div>
-            
+
             <!-- Tabs -->
             <div id="infaq-tabs" class="flex p-1 bg-gray-100 rounded-xl mb-6">
                 <button onclick="switchInfaqTab('masjid')" id="tab-btn-masjid" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-emerald-600 transition">Masjid</button>
@@ -697,7 +697,7 @@ BASE_LAYOUT = """
                     <summary class="text-xs font-bold text-gray-500 cursor-pointer">Admin Settings</summary>
                     <form action="/donate/update" method="POST" enctype="multipart/form-data" class="mt-2 space-y-2" onsubmit="combineBanks(event)">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        
+
                         <div class="flex gap-1">
                             <select id="bank_masjid" class="w-1/3 text-[10px] p-2 border rounded bg-white infaq-input-text">
                                 <option value="">Bank...</option>
@@ -745,7 +745,7 @@ BASE_LAYOUT = """
             function switchInfaqTab(tab) {
                 document.querySelectorAll('.infaq-tab-content').forEach(el => el.classList.add('hidden'));
                 document.getElementById('infaq-content-'+tab).classList.remove('hidden');
-                
+
                 // Reset buttons
                 ['masjid', 'qurban', 'zakat'].forEach(t => {
                     const btn = document.getElementById('tab-btn-'+t);
@@ -768,7 +768,7 @@ BASE_LAYOUT = """
             function formatBankDisplay(id) {
                 const el = document.getElementById(id);
                 if(!el || el.dataset.formatted) return;
-                
+
                 const text = el.innerText;
                 const match = text.match(/(\\d{6,})/);
                 if (match) {
@@ -778,7 +778,7 @@ BASE_LAYOUT = """
                     if(parts[0]) html += `<span style="user-select: none; opacity: 0.8;">${parts[0]}</span>`;
                     html += `<span>${num}</span>`;
                     if(parts[1]) html += `<span style="user-select: none; opacity: 0.8;">${parts[1]}</span>`;
-                    
+
                     el.innerHTML = html;
                     el.dataset.formatted = 'true';
                 }
@@ -793,7 +793,7 @@ BASE_LAYOUT = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-user-shield text-emerald-500 mr-2"></i>Portal Masuk & Registrasi</h3>
                 <button onclick="closeModal('modal-login-admin')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             <div class="flex p-1 bg-gray-100 rounded-xl mb-6">
                 <button onclick="switchAuthTab('login')" id="tab-btn-login" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-emerald-600 transition">Masuk</button>
                 <button onclick="switchAuthTab('register')" id="tab-btn-register" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition">Daftar</button>
@@ -854,7 +854,7 @@ BASE_LAYOUT = """
                     <button type="submit" class="w-full bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-600 transition">Daftar</button>
                 </form>
             </div>
-            
+
             <div id="auth-content-validator" class="hidden">
                 <div class="bg-gray-900 rounded-3xl p-6 text-center shadow-inner relative overflow-hidden" id="brankas-container">
                     <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-700 to-gray-900 opacity-50"></div>
@@ -865,12 +865,12 @@ BASE_LAYOUT = """
                             <svg id="icon-compress" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 14h4v4m0-4l-5 5m11-5h-4v4m0-4l5 5M10 10V6H6m4 4l-5-5m11 5h4V6m-4 4l5-5"></path></svg>
                         </button>
                     </div>
-                    
+
                     <div class="relative w-48 h-48 mx-auto mb-6 z-10" id="brankas-dial-wrapper">
                         <!-- Outer Rim & Fixed Top Marker -->
                         <div class="absolute inset-0 rounded-full border-8 border-gray-700 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] z-30 pointer-events-none"></div>
                         <div class="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-4 bg-red-500 z-40 rounded-sm shadow-md"></div>
-                        
+
                         <!-- Rotating Dial containing Ticks and Numbers -->
                         <div id="brankas-dial" class="absolute inset-2 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 shadow-[0_10px_20px_rgba(0,0,0,0.6),_inset_0_2px_5px_rgba(255,255,255,0.2)] cursor-grab active:cursor-grabbing touch-none z-20" style="transform: rotate(0deg);">
                             <svg id="brankas-ticks" class="absolute inset-0 w-full h-full" viewBox="0 0 100 100"></svg>
@@ -879,13 +879,13 @@ BASE_LAYOUT = """
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="relative z-10 flex justify-center gap-4 text-xs font-bold text-gray-500" id="brankas-status">
                         <span id="brankas-state-1" class="w-8 h-8 rounded-full border-2 border-gray-600 flex items-center justify-center"><i class="fas fa-lock text-[10px]"></i></span>
                         <span id="brankas-state-2" class="w-8 h-8 rounded-full border-2 border-gray-600 flex items-center justify-center"><i class="fas fa-lock text-[10px]"></i></span>
                         <span id="brankas-state-3" class="w-8 h-8 rounded-full border-2 border-gray-600 flex items-center justify-center"><i class="fas fa-lock text-[10px]"></i></span>
                     </div>
-                    
+
                     <p class="text-gray-500 text-[10px] mt-6 relative z-10" style="opacity: 0.6; font-family: serif;">Lupa kode brankas ? Bisa hubungi developer untuk kodenya.</p>
                 </div>
             </div>
@@ -896,18 +896,18 @@ BASE_LAYOUT = """
                     document.getElementById('auth-content-register').classList.add('hidden');
                     document.getElementById('auth-content-validator').classList.add('hidden');
                     document.getElementById('auth-content-' + tab).classList.remove('hidden');
-                    
+
                     const btnLogin = document.getElementById('tab-btn-login');
                     const btnRegister = document.getElementById('tab-btn-register');
                     const btnValidator = document.getElementById('tab-btn-validator');
-                    
+
                     [btnLogin, btnRegister, btnValidator].forEach(btn => {
                         btn.className = "flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition";
                         if(btn.querySelector('.fa-lock') && btn !== btnValidator) {
                             btn.className += " flex items-center justify-center gap-1";
                         }
                     });
-                    
+
                     if (tab === 'login') {
                         btnLogin.className = "flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-emerald-600 transition";
                     } else if (tab === 'register') {
@@ -917,7 +917,7 @@ BASE_LAYOUT = """
                         initBrankasDial();
                     }
                 }
-                
+
                 function toggleSiswaDropdown() {
                     const peran = document.getElementById('register-peran').value;
                     const container = document.getElementById('siswa-dropdown-container');
@@ -937,12 +937,12 @@ BASE_LAYOUT = """
                 let direction = null; // 'CCW' (Left) or 'CW' (Right)
                 let lastNumber = 0;
                 let ticksDrawn = false;
-                
+
                 let brankasAudioCtx = null;
 
                 function initBrankasDial() {
                     if (ticksDrawn) return;
-                    
+
                     const svg = document.getElementById('brankas-ticks');
                     const cx = 50, cy = 50, r = 45;
                     for (let i = 0; i < 100; i++) {
@@ -951,7 +951,7 @@ BASE_LAYOUT = """
                         const y1 = cy + (r - (i % 5 === 0 ? 5 : 2)) * Math.sin(angle);
                         const x2 = cx + r * Math.cos(angle);
                         const y2 = cy + r * Math.sin(angle);
-                        
+
                         const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
                         line.setAttribute('x1', x1);
                         line.setAttribute('y1', y1);
@@ -960,7 +960,7 @@ BASE_LAYOUT = """
                         line.setAttribute('stroke', i % 5 === 0 ? '#9CA3AF' : '#4B5563'); // Gray-400 / Gray-600
                         line.setAttribute('stroke-width', i % 5 === 0 ? '1' : '0.5');
                         svg.appendChild(line);
-                        
+
                         if (i % 10 === 0) {
                             const textAngle = (i * 3.6 - 90) * (Math.PI / 180);
                             const tx = cx + (r - 12) * Math.cos(textAngle);
@@ -978,9 +978,9 @@ BASE_LAYOUT = """
                         }
                     }
                     ticksDrawn = true;
-                    
+
                     const dial = document.getElementById('brankas-dial');
-                    
+
                     function updateCenter() {
                         const rect = dial.getBoundingClientRect();
                         centerPoint = {
@@ -997,7 +997,7 @@ BASE_LAYOUT = """
                         const startAngle = Math.atan2(clientY - centerPoint.y, clientX - centerPoint.x) * (180 / Math.PI);
                         lastAngle = startAngle - currentAngle;
                         e.preventDefault();
-                        
+
                         if (!brankasAudioCtx) {
                             brankasAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
                         }
@@ -1012,11 +1012,11 @@ BASE_LAYOUT = """
                         const gain = brankasAudioCtx.createGain();
                         osc.type = 'sine';
                         osc.frequency.setValueAtTime(1000, brankasAudioCtx.currentTime); // 1000Hz
-                        
+
                         gain.gain.setValueAtTime(0, brankasAudioCtx.currentTime);
                         gain.gain.linearRampToValueAtTime(0.5, brankasAudioCtx.currentTime + 0.01);
                         gain.gain.exponentialRampToValueAtTime(0.001, brankasAudioCtx.currentTime + 0.05);
-                        
+
                         osc.connect(gain);
                         gain.connect(brankasAudioCtx.destination);
                         osc.start();
@@ -1025,18 +1025,18 @@ BASE_LAYOUT = """
 
                     function playUnlock() {
                         if (!brankasAudioCtx) return;
-                        
+
                         // Heavy Mechanical Door - Oscillator Square (40Hz to 20Hz)
                         const osc = brankasAudioCtx.createOscillator();
                         const oscGain = brankasAudioCtx.createGain();
                         osc.type = 'square';
-                        osc.frequency.setValueAtTime(40, brankasAudioCtx.currentTime); 
+                        osc.frequency.setValueAtTime(40, brankasAudioCtx.currentTime);
                         osc.frequency.exponentialRampToValueAtTime(20, brankasAudioCtx.currentTime + 1.0);
-                        
+
                         oscGain.gain.setValueAtTime(0, brankasAudioCtx.currentTime);
                         oscGain.gain.linearRampToValueAtTime(0.8, brankasAudioCtx.currentTime + 0.1);
                         oscGain.gain.exponentialRampToValueAtTime(0.001, brankasAudioCtx.currentTime + 1.0);
-                        
+
                         osc.connect(oscGain);
                         oscGain.connect(brankasAudioCtx.destination);
                         osc.start(brankasAudioCtx.currentTime);
@@ -1080,42 +1080,42 @@ BASE_LAYOUT = """
                         if (!isDragging) return;
                         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                        
+
                         const angle = Math.atan2(clientY - centerPoint.y, clientX - centerPoint.x) * (180 / Math.PI);
                         let newAngle = angle - lastAngle;
-                        
+
                         // Calculate direction and delta
                         let deltaAngle = newAngle - currentAngle;
                         // Handle wraparound
                         if (deltaAngle > 180) deltaAngle -= 360;
                         if (deltaAngle < -180) deltaAngle += 360;
-                        
+
                         currentAngle += deltaAngle;
-                        
+
                         let currentDirection = null;
                         if (deltaAngle < 0) currentDirection = 'CCW';
                         if (deltaAngle > 0) currentDirection = 'CW';
-                        
+
                         if (currentDirection && currentDirection !== direction) {
                             direction = currentDirection;
                             // Checking if we overshot or changed direction improperly happens in checkCombination
                         }
 
                         // Apply visual rotation. The SVG has 0 at top, so angle needs adjustment if we want 0 up.
-                        // Our tick calculation puts 0 at the top. 
+                        // Our tick calculation puts 0 at the top.
                         // The dial's red marker is at the top initially.
                         dial.style.transform = `rotate(${currentAngle}deg)`;
-                        
+
                         // Map angle to numbers 0-99
                         // 360 degrees = 100 ticks. 1 tick = 3.6 degrees.
                         // Clockwise rotation (CW) positive degrees -> means numbers go up if CW, but standard safes numbers go down when turning right.
-                        // Let's make standard mapping: 0 at top. 
+                        // Let's make standard mapping: 0 at top.
                         let normalizedAngle = currentAngle % 360;
                         if (normalizedAngle < 0) normalizedAngle += 360;
-                        
+
                         // Current number under the top mark
                         let currentNumber = Math.round((360 - normalizedAngle) / 3.6) % 100;
-                        
+
                         if (currentNumber !== lastNumber) {
                             if (currentNumber % 1 === 0) playTick();
                             lastNumber = currentNumber;
@@ -1132,13 +1132,13 @@ BASE_LAYOUT = """
                         const s1 = document.getElementById('brankas-state-1');
                         const s2 = document.getElementById('brankas-state-2');
                         const s3 = document.getElementById('brankas-state-3');
-                        
+
                         s1.className = brankasState >= 1 ? "w-8 h-8 rounded-full border-2 border-green-500 bg-green-500 text-white flex items-center justify-center shadow-[0_0_10px_rgba(34,197,94,0.5)]" : "w-8 h-8 rounded-full border-2 border-gray-600 flex items-center justify-center";
                         s1.innerHTML = brankasState >= 1 ? '<i class="fas fa-unlock text-[10px]"></i>' : '<i class="fas fa-lock text-[10px]"></i>';
-                        
+
                         s2.className = brankasState >= 2 ? "w-8 h-8 rounded-full border-2 border-green-500 bg-green-500 text-white flex items-center justify-center shadow-[0_0_10px_rgba(34,197,94,0.5)]" : "w-8 h-8 rounded-full border-2 border-gray-600 flex items-center justify-center";
                         s2.innerHTML = brankasState >= 2 ? '<i class="fas fa-unlock text-[10px]"></i>' : '<i class="fas fa-lock text-[10px]"></i>';
-                        
+
                         s3.className = brankasState >= 3 ? "w-8 h-8 rounded-full border-2 border-green-500 bg-green-500 text-white flex items-center justify-center shadow-[0_0_10px_rgba(34,197,94,0.5)]" : "w-8 h-8 rounded-full border-2 border-gray-600 flex items-center justify-center";
                         s3.innerHTML = brankasState >= 3 ? '<i class="fas fa-unlock text-[10px]"></i>' : '<i class="fas fa-lock text-[10px]"></i>';
                     }
@@ -1150,7 +1150,7 @@ BASE_LAYOUT = """
 
                     function checkCombination(num, dir) {
                         // Kombinasi Absolut: 30 Kiri (CCW), 10 Kanan (CW), 50 Kiri (CCW)
-                        
+
                         if (brankasState === 0) {
                             if (dir === 'CCW' && num === 30) {
                                 brankasState = 1;
@@ -1158,7 +1158,7 @@ BASE_LAYOUT = """
                             } else if (dir === 'CW') {
                                 resetBrankas();
                             }
-                        } 
+                        }
                         else if (brankasState === 1) {
                             if (dir === 'CW' && num === 10) {
                                 brankasState = 2;
@@ -1185,7 +1185,7 @@ BASE_LAYOUT = """
                         container.style.transition = 'all 1s ease';
                         container.style.transform = 'scale(1.1)';
                         container.style.opacity = '0';
-                        
+
                         fetch('/brankas_unlock', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
@@ -1203,15 +1203,15 @@ BASE_LAYOUT = """
                     dial.addEventListener('mousedown', onDragStart);
                     document.addEventListener('mousemove', onDragMove);
                     document.addEventListener('mouseup', onDragEnd);
-                    
+
                     dial.addEventListener('touchstart', onDragStart, {passive: false});
                     document.addEventListener('touchmove', onDragMove, {passive: false});
                     document.addEventListener('touchend', onDragEnd);
-                    
+
                     const btnFullscreen = document.getElementById('btn-fullscreen');
                     const iconExpand = document.getElementById('icon-expand');
                     const iconCompress = document.getElementById('icon-compress');
-                    
+
                     btnFullscreen.addEventListener('click', () => {
                         if (!document.fullscreenElement) {
                             document.documentElement.requestFullscreen().catch(err => {
@@ -1240,7 +1240,7 @@ BASE_LAYOUT = """
         let globalNoiseNode = null;
         let globalFilterNode = null;
         let globalGainNode;
-        
+
         function initGlobalAudio() {
             if (!globalAudioCtx) {
                 globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1301,7 +1301,7 @@ BASE_LAYOUT = """
             globalNoiseNode = globalAudioCtx.createBufferSource();
             globalNoiseNode.buffer = buffer;
             globalNoiseNode.loop = true;
-            
+
             globalFilterNode = globalAudioCtx.createBiquadFilter();
             if(type === 'brown') {
                 globalFilterNode.type = 'lowpass';
@@ -1324,7 +1324,7 @@ BASE_LAYOUT = """
                 try { osc.stop(); } catch(e) {}
             });
             globalOscillators = [];
-            
+
             // Stop Noise Node
             if (globalNoiseNode) {
                 try { globalNoiseNode.stop(); } catch(e) {}
@@ -1336,7 +1336,7 @@ BASE_LAYOUT = """
                 globalFilterNode = null;
             }
         }
-        
+
         window.processFrequencyData = function(data) {
             initGlobalAudio();
             stopGlobalAudio();
@@ -1415,21 +1415,21 @@ BASE_LAYOUT = """
             function updateDate() {
                 const today = new Date();
                 // Set timezone to Asia/Makassar for Samarinda time
-                const options = { 
+                const options = {
                     timeZone: 'Asia/Makassar',
-                    weekday: 'long', 
-                    day: 'numeric', 
-                    month: 'long', 
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
                     year: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit',
                     second: '2-digit'
                 };
-                
+
                 // Format directly into "Senin, 10 Juli 2024 - 14:30:00" format depending on toLocaleString implementation
                 const formatter = new Intl.DateTimeFormat('id-ID', options);
                 const parts = formatter.formatToParts(today);
-                
+
                 let dayName = parts.find(p => p.type === 'weekday')?.value || '';
                 let day = parts.find(p => p.type === 'day')?.value || '';
                 let month = parts.find(p => p.type === 'month')?.value || '';
@@ -1437,9 +1437,9 @@ BASE_LAYOUT = """
                 let hour = parts.find(p => p.type === 'hour')?.value || '00';
                 let minute = parts.find(p => p.type === 'minute')?.value || '00';
                 let second = parts.find(p => p.type === 'second')?.value || '00';
-                
+
                 const dateString = `${dayName}, ${day} ${month} ${year} • ${hour}:${minute}:${second}`;
-                
+
                 const elements = document.querySelectorAll('[id^="hijri-date"]');
                 elements.forEach(el => {
                     el.innerText = dateString;
@@ -1474,7 +1474,7 @@ BASE_LAYOUT = """
             const title = document.getElementById('infaq-title');
             const tabs = document.getElementById('infaq-tabs');
             const path = window.location.pathname;
-            
+
             // Elements to style
             const boxes = [document.getElementById('infaq-box-masjid'), document.getElementById('infaq-box-qurban'), document.getElementById('infaq-box-zakat')];
             const labels = document.querySelectorAll('.infaq-label');
@@ -1492,7 +1492,7 @@ BASE_LAYOUT = """
                 container.classList.add('bg-white', 'text-white');
                 title.classList.add('text-[#FFD700]');
                 tabs.classList.add('bg-white/10');
-                
+
                 boxes.forEach(box => {
                     box.className = "p-4 rounded-2xl border flex justify-between items-center transition-colors duration-500 bg-white/5 border-[#FFD700]/30";
                 });
@@ -1506,7 +1506,7 @@ BASE_LAYOUT = """
                 container.classList.add('bg-[#F4E7E1]', 'text-[#2F4F4F]');
                 title.classList.add('text-[#A0B391]');
                 tabs.classList.add('bg-[#A0B391]/20');
-                
+
                 boxes.forEach(box => {
                     box.className = "p-4 rounded-2xl border flex justify-between items-center transition-colors duration-500 bg-white border-[#A0B391]/30";
                 });
@@ -1520,12 +1520,12 @@ BASE_LAYOUT = """
                 container.classList.add('bg-white', 'text-gray-800');
                 title.classList.add('text-emerald-600');
                 tabs.classList.add('bg-gray-100');
-                
+
                 // Reset boxes to distinct colors for Home
                 document.getElementById('infaq-box-masjid').className = "bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex justify-between items-center";
                 document.getElementById('infaq-box-qurban').className = "bg-orange-50 p-4 rounded-2xl border border-orange-100 flex justify-between items-center";
                 document.getElementById('infaq-box-zakat').className = "bg-blue-50 p-4 rounded-2xl border border-blue-100 flex justify-between items-center";
-                
+
                 // Helper to reset inner
                 const resetInner = (boxId, color) => {
                     const box = document.getElementById(boxId);
@@ -1535,7 +1535,7 @@ BASE_LAYOUT = """
                         box.querySelector('.infaq-icon').className = `hover:text-${color}-700 infaq-icon text-${color}-500`;
                     }
                 };
-                
+
                 resetInner('infaq-box-masjid', 'emerald');
                 resetInner('infaq-box-qurban', 'orange');
                 resetInner('infaq-box-zakat', 'blue');
@@ -1560,9 +1560,9 @@ BASE_LAYOUT = """
             if (h >= 0 && h < 11) time = "Pagi";
             else if (h >= 11 && h < 15) time = "Siang";
             else if (h >= 15 && h < 18) time = "Sore";
-            
+
             const msg = `Assalamaulaikum Pak, selamat ${time}, ijin konfirmasi Pak, saya sudah mengtransfer sebesar / jumlah Rp... di nomor rekening ${type.toLowerCase()} untuk keperluan ${type} ke masjid langsung, terima kasih Pak 🙏`;
-            
+
             window.location.href = "https://wa.me/6282330890500?text=" + encodeURIComponent(msg);
         }
 
@@ -1585,30 +1585,30 @@ BASE_LAYOUT = """
             if ('speechSynthesis' in window) {
                 // Hentikan suara yang sedang berjalan (jika ada) agar tidak menumpuk
                 window.speechSynthesis.cancel();
-                
+
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'id-ID';
                 utterance.rate = 0.9; // Sedikit lebih lambat agar jelas
                 utterance.pitch = 1.1; // Sedikit lebih tinggi untuk suara yang lebih "ramah"
-                
+
                 window.speechSynthesis.speak(utterance);
-                
+
                 // Tampilkan Popup Notifikasi Pastel
                 showAACPopup(text);
             } else {
                 alert("Maaf, browser Anda tidak mendukung fitur suara (Text-to-Speech).");
             }
         }
-        
+
         function showAACPopup(text) {
             const popup = document.getElementById('aac-popup');
             const popupText = document.getElementById('aac-popup-text');
-            
+
             if (popup && popupText) {
                 popupText.innerText = text;
                 popup.classList.remove('translate-y-[-150%]', 'opacity-0');
                 popup.classList.add('translate-y-0', 'opacity-100');
-                
+
                 // Sembunyikan kembali setelah 3 detik
                 setTimeout(() => {
                     popup.classList.remove('translate-y-0', 'opacity-100');
@@ -1637,7 +1637,7 @@ BASE_LAYOUT = """
                 // Fallback for when event didn't fire (iOS, or already installed, or browser blocked it)
                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
                 const isAndroid = /Android/.test(navigator.userAgent);
-                
+
                 if (isIOS) {
                     alert("Untuk menginstall di iOS:\\n1. Klik tombol Share (ikon panah ke atas/kotak)\\n2. Pilih 'Add to Home Screen' (Tambah ke Layar Utama)");
                 } else if (isAndroid) {
@@ -1666,7 +1666,7 @@ BASE_LAYOUT = """
             } else {
                  // Show all if not installed (Buttons are hidden by default in HTML to prevent FOUC, so we remove hidden here)
                  document.querySelectorAll('.pwa-btn-container').forEach(el => el.classList.remove('hidden'));
-                 
+
                  // Special check for iOS which doesn't fire beforeinstallprompt
                  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
                  if(isIOS) {
@@ -1682,7 +1682,7 @@ BASE_LAYOUT = """
             }
         });
     </script>
-    
+
 
     <script>
         function updateHeaderClock() {
@@ -1712,10 +1712,10 @@ HOME_HTML = """
         const userPeran = "{{ peran|default('') }}";
         const userAnakId = {{ anak_id|default('null') }};
     </script>
-    
+
     <!-- DESKTOP SPLIT HEADER -->
     <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-8 md:mb-12">
-        
+
         <!-- LEFT COLUMN: WELCOME (Desktop Only) -->
         <div class="hidden md:block pl-2">
             <p class="text-xl text-gray-500 font-medium mb-2">Salam Inklusi, Sahabat</p>
@@ -1731,10 +1731,10 @@ HOME_HTML = """
 
         <!-- RIGHT COLUMN: PRAYER CARD & RAMADHAN BANNER -->
         <div class="flex flex-col gap-6">
-            
+
             <!-- KARTU PROFIL SISWA DAN PAPAN KOMUNIKASI EKSPRES AAC (NEUMORPHISM CORK BOARD) -->
             <div class="cork-board p-6 md:p-8">
-                
+
                 {% if peran == 'guru' or peran == 'kepala_sekolah' %}
                 <!-- TEAHCER SEARCH CARD -->
                 <div class="acrylic-card group" id="student-acrylic-card">
@@ -1756,12 +1756,12 @@ HOME_HTML = """
                         <div id="teacher-search-results" class="bg-white rounded-xl shadow-lg border border-gray-100 hidden max-h-48 overflow-y-auto"></div>
                     </div>
                 </div>
-                
+
                 <script>
                     let searchTimeout;
                     const searchInput = document.getElementById('teacher-search-input');
                     const searchResults = document.getElementById('teacher-search-results');
-                    
+
                     if(searchInput) {
                         searchInput.addEventListener('input', (e) => {
                             clearTimeout(searchTimeout);
@@ -1782,10 +1782,10 @@ HOME_HTML = """
                                             return;
                                         }
                                         data.forEach(siswa => {
-                                            const statusHtml = siswa.profil_exists 
-                                                ? '<span class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">Data Lengkap</span>' 
+                                            const statusHtml = siswa.profil_exists
+                                                ? '<span class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">Data Lengkap</span>'
                                                 : '<span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-bold">Belum Diisi</span>';
-                                                
+
                                             const div = document.createElement('div');
                                             div.className = "p-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition-colors";
                                             div.innerHTML = `<span class="text-sm font-bold text-gray-800">${siswa.nama}</span>${statusHtml}`;
@@ -1802,14 +1802,14 @@ HOME_HTML = """
                         });
                     }
                 </script>
-                
+
                 {% else %}
-                
+
                 <!-- Acrylic Card (Polaroid Style) -->
                 <div class="acrylic-card cursor-pointer group" id="student-acrylic-card" onclick="openMedicalPanel()">
                     <!-- Metal Pin -->
                     <div class="metal-pin"></div>
-                    
+
                     <!-- Header Identitas Medis -->
                     <div class="px-6 py-6 flex items-center justify-between border-b border-gray-200/50">
                         <div class="flex items-center gap-4">
@@ -1863,7 +1863,7 @@ HOME_HTML = """
                     </div>
                 </div>
                 {% endif %}
-                
+
                 <!-- Papan Komunikasi Ekspres (AAC) Neumorphic -->
                 <div class="mt-6">
                     <h3 class="text-sm font-extrabold text-gray-800 mb-4 px-2 drop-shadow-sm flex items-center gap-2"><i class="fas fa-th-large text-indigo-600 opacity-80"></i> Papan Komunikasi Ekspres</h3>
@@ -1875,7 +1875,7 @@ HOME_HTML = """
                             </div>
                             <span class="text-[10px] font-bold text-gray-600 text-center leading-tight">Saya mau ke toilet</span>
                         </button>
-                        
+
                         <!-- Sakit -->
                         <button onclick="speakAAC('Saya merasa sakit')" class="neumorphic-btn p-4 flex flex-col items-center justify-center gap-2 aspect-square">
                             <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-2xl shadow-inner">
@@ -1922,17 +1922,17 @@ HOME_HTML = """
             <!-- DASHBOARD GURU BANNER -->
             <a href="/ramadhan" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-blue-200 mt-4">
                 <div class="absolute inset-0 bg-gradient-to-r from-blue-100 to-sky-100"></div>
-                
+
                 <div class="absolute right-12 top-1/2 transform -translate-y-1/2 opacity-20 text-blue-500 pointer-events-none">
                     <i class="fas fa-chalkboard-teacher text-9xl"></i>
                 </div>
-                
+
                 <div class="relative px-6 py-6 md:px-8 md:py-8 flex items-center justify-between">
                     <div>
                         <h2 class="text-2xl md:text-3xl font-bold text-blue-800 mb-1 font-sans tracking-wide leading-none">Dashboard Guru Sekolah</h2>
                         <p class="text-blue-600 text-xs md:text-sm font-medium">Akses Alat Bantu Guru SLB</p>
                     </div>
-                    
+
                     <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.4)] group-hover:scale-110 transition-transform duration-300 relative z-10">
                         <i class="fas fa-arrow-right text-lg"></i>
                     </div>
@@ -1942,24 +1942,24 @@ HOME_HTML = """
             <!-- DASHBOARD ORANG TUA BANNER -->
             <a href="/orang-tua" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-pink-200 mt-4">
                 <div class="absolute inset-0 bg-gradient-to-r from-pink-100 to-rose-100"></div>
-                
+
                 <div class="absolute right-12 top-1/2 transform -translate-y-1/2 opacity-20 text-pink-500 pointer-events-none">
                     <i class="fas fa-home text-9xl"></i>
                 </div>
-                
+
                 <div class="relative px-6 py-6 md:px-8 md:py-8 flex items-center justify-between">
                     <div>
                         <h2 class="text-2xl md:text-3xl font-bold text-pink-800 mb-1 font-sans tracking-wide leading-none">Dashboard Orang Tua</h2>
                         <p class="text-pink-600 text-xs md:text-sm font-medium">Asisten Digital Pendamping SLB</p>
                     </div>
-                    
+
                     <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-pink-500 shadow-[0_0_15px_rgba(244,114,182,0.4)] group-hover:scale-110 transition-transform duration-300 relative z-10">
                         <i class="fas fa-arrow-right text-lg"></i>
                     </div>
                 </div>
             </a>
 
-            
+
 
         </div>
     </div>
@@ -2027,7 +2027,7 @@ HOME_HTML = """
                  <i class="fas fa-chevron-down transform transition-transform duration-500"></i>
             </div>
         </button>
-        
+
         <div id="terapi-content" class="hidden mt-6 transition-all duration-1000 ease-in-out opacity-0 -translate-y-4">
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                  <!-- 1. Audio Healing -->
@@ -2080,7 +2080,7 @@ HOME_HTML = """
                  <i class="fas fa-chevron-down transform transition-transform duration-300"></i>
             </div>
         </button>
-        
+
         <div id="calc-content" class="hidden mt-6 animate-[slideDown_0.3s_ease-out]">
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                  <!-- IMT -->
@@ -2164,19 +2164,19 @@ HOME_HTML = """
                 <h2 class="text-xs font-bold text-gray-500 tracking-[0.3em] mb-2 uppercase">DEVELOPER</h2>
                 <h1 class="text-3xl font-extrabold text-emerald-800" style="white-space: nowrap; font-size: clamp(1.5rem, 5vw, 2.5rem);">SAMARINDA WEB CREATIVE</h1>
             </div>
-            
+
             <!-- Scrollable Content -->
             <div class="p-8 w-full max-w-sm mx-auto flex flex-col items-center">
             <div class="mb-8 mt-4">
                 <img src="/static/Samarinda_Web_Creative_Logo-removebg-preview.png" alt="Logo Developer" class="h-32 object-contain mx-auto drop-shadow-2xl">
             </div>
-            
+
             <h3 class="text-xs font-bold text-gray-500 tracking-[0.2em] mb-4 uppercase border-b border-gray-200 pb-2 w-24 mx-auto">PIHAK KETIGA</h3>
             <div class="flex flex-col gap-4 justify-center items-center mb-8">
                 <img src="/static/pythonlogo.png" class="h-5 object-contain">
                 <img src="/static/godaddylogo.png" class="h-8 object-contain">
             </div>
-            
+
             <div class="bg-gray-50 p-6 rounded-3xl border border-gray-100 mb-8 max-w-sm w-full">
                 <p class="text-sm text-gray-600 font-medium leading-relaxed mb-1">
                     Samarinda, Kalimantan Timur,<br>
@@ -2184,7 +2184,7 @@ HOME_HTML = """
                 </p>
                 <p class="text-xs text-gray-500 italic mt-2">"kalau butuh jasa pembuatan aplikasi website seperti ini, hubungi kami yaa hehee"</p>
             </div>
-            
+
             <div class="flex items-center gap-4 mb-8">
                 <a href="https://www.instagram.com/samarindawebcreative/" target="_blank" class="bg-gradient-to-tr from-purple-500 to-pink-500 text-white w-12 h-12 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition">
                     <i class="fab fa-instagram text-2xl"></i>
@@ -2206,7 +2206,7 @@ HOME_HTML = """
                 devAudio.volume = 0.3;
                 devAudio.currentTime = 0;
                 devAudio.play();
-                
+
                 // Fade In 0.3 -> 0.6 in 3s
                 let vol = 0.3;
                 clearInterval(fadeInterval);
@@ -2225,7 +2225,7 @@ HOME_HTML = """
                         if(devAudio.volume > 0.05) devAudio.volume -= 0.01;
                     }
                 };
-                
+
                 devAudio.onended = () => {
                     playDevAudio();
                 };
@@ -2328,7 +2328,7 @@ HOME_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-file-medical text-blue-500 mr-2"></i>Jurnal Kambuh</h3>
                 <button onclick="closeModal('modal-terapi-log')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             {% if peran == 'guru' or peran == 'kepala_sekolah' %}
             <div id="guru-kambuh-monitor">
                 <h4 class="text-sm font-bold text-gray-800 mb-4 pl-2 border-l-4 border-blue-500">Monitor Jurnal Kambuh Siswa</h4>
@@ -2349,11 +2349,11 @@ HOME_HTML = """
                             container.innerHTML = '<p class="text-center text-gray-500 text-xs py-4">Belum ada data rekaman.</p>';
                             return;
                         }
-                        
+
                         // remove old button
                         const oldBtn = document.getElementById('btn-more-kambuh');
                         if (oldBtn) oldBtn.remove();
-                        
+
                         data.items.forEach(log => {
                             container.innerHTML += `
                             <div class="bg-white p-4 rounded-2xl shadow-sm border border-blue-100 flex justify-between items-start">
@@ -2438,7 +2438,7 @@ HOME_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-capsules text-blue-500 mr-2"></i>Alarm Obat</h3>
                 <button onclick="closeModal('modal-terapi-alarm')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100 mb-6">
                 <p class="text-sm text-gray-700 mb-3 font-medium">Set Jam Minum Obat:</p>
                 <div class="flex gap-4">
@@ -2448,7 +2448,7 @@ HOME_HTML = """
                 <button onclick="saveAlarm()" class="mt-3 w-full bg-blue-500 text-white text-xs font-bold py-2 rounded-lg hover:bg-blue-600 transition">Simpan Pengaturan</button>
                 <p id="alarm-status" class="text-xs text-green-600 mt-2 hidden text-center font-bold">Alarm Aktif!</p>
             </div>
-            
+
             <p class="text-xs text-gray-500 text-center">
                 Alarm akan mengunci layar dan meminta Anda menyelesaikan soal matematika untuk memastikan Anda bangun.
             </p>
@@ -2463,7 +2463,7 @@ HOME_HTML = """
         <i class="fas fa-bell text-6xl mb-6 animate-bounce"></i>
         <h2 class="text-4xl font-bold mb-2">Waktunya Obat!</h2>
         <p class="mb-8 text-white/80">Selesaikan soal untuk mematikan alarm.</p>
-        
+
         <div class="bg-white text-gray-800 p-6 rounded-3xl w-full max-w-xs text-center shadow-2xl">
             <p class="text-2xl font-bold mb-4" id="math-problem">5 + 7 = ?</p>
             <input type="number" id="math-answer" class="w-full p-3 border-2 border-gray-300 rounded-xl text-center text-xl mb-4" placeholder="Jawab...">
@@ -2479,7 +2479,7 @@ HOME_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-apple-alt text-blue-500 mr-2"></i>Panduan Diet & Puasa</h3>
                 <button onclick="closeModal('modal-terapi-diet')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             <div class="space-y-6">
                 <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl p-5 text-white shadow-lg">
                     <h4 class="font-bold text-lg mb-1">Puasa Sunnah</h4>
@@ -2488,13 +2488,13 @@ HOME_HTML = """
                         <i class="fas fa-calendar-check mr-2"></i> Jadwal Terdekat: Senin & Kamis
                     </div>
                 </div>
-                
+
                 <div>
                     <h4 class="font-bold text-gray-800 mb-3 border-l-4 border-green-500 pl-2">Diet Ketogenik (Rendah Karbo)</h4>
                     <p class="text-sm text-gray-600 mb-4 leading-relaxed">
                         Diet tinggi lemak dan sangat rendah karbohidrat terbukti efektif mengurangi frekuensi kejang.
                     </p>
-                    
+
                     <div class="grid grid-cols-2 gap-3">
                         <div class="bg-green-50 p-3 rounded-xl border border-green-100">
                             <p class="text-xs font-bold text-green-700 uppercase mb-2">Dianjurkan <i class="fas fa-check float-right"></i></p>
@@ -2516,7 +2516,7 @@ HOME_HTML = """
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="bg-gray-50 p-4 rounded-xl text-xs text-gray-500 italic border border-gray-200">
                     <i class="fas fa-info-circle mr-1"></i> Konsultasikan dengan dokter gizi sebelum mengubah pola makan secara drastis.
                 </div>
@@ -2526,7 +2526,7 @@ HOME_HTML = """
             </button>
         </div>
     </div>
-    
+
     <!-- Modal IMT Down Syndrome -->
     <div id="modal-imt" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-imt')"></div>
@@ -2767,7 +2767,7 @@ HOME_HTML = """
     <div id="modal-medical-panel" class="fixed inset-0 z-[140] hidden">
         <div class="absolute inset-0 bg-indigo-900/60 backdrop-blur-md" onclick="closeModal('modal-medical-panel')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.4s_ease-out] md:relative md:max-w-xl md:mx-auto md:rounded-3xl md:top-10 max-h-[90dvh] overflow-y-auto border-t-4 border-indigo-500 flex flex-col">
-            
+
             <div class="flex justify-between items-start mb-4">
                 <div class="flex items-center gap-4">
                     <div class="w-14 h-14 rounded-full bg-white shadow-md border-2 border-indigo-100 flex items-center justify-center overflow-hidden shrink-0">
@@ -2799,10 +2799,10 @@ HOME_HTML = """
                         <p class="text-xs text-blue-600 font-bold tracking-widest uppercase text-center bg-blue-50 p-2 rounded-lg border border-blue-100 shadow-sm"><i class="fas fa-info-circle mr-1"></i> Login sebagai Orang Tua untuk melihat dan mengisi data medis anak Anda secara lengkap.</p>
                     {% endif %}
                 </div>
-                
+
                 <!-- Panel Instrumen Medis Masa Depan Layout -->
                 <div class="space-y-3 font-sans text-sm text-gray-700 bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
-                    
+
                     <div class="grid grid-cols-2 gap-3">
                         <!-- 1. Identitas Utama -->
                         <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-start gap-3 hover:-translate-y-0.5 transition-transform">
@@ -2821,7 +2821,7 @@ HOME_HTML = """
                                 {% endif %}
                             </div>
                         </div>
-                        
+
                         <!-- 2. Fase Perkembangan -->
                         <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-start gap-3 hover:-translate-y-0.5 transition-transform">
                             <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center shrink-0">
@@ -2871,7 +2871,7 @@ HOME_HTML = """
                                 {% endif %}
                             </div>
                         </div>
-                        
+
                         <!-- 5. Alergi & Medis Kritis -->
                         <div class="bg-red-50/50 p-4 rounded-xl shadow-sm border border-red-100 flex items-start gap-3 hover:-translate-y-0.5 transition-transform">
                             <div class="w-10 h-10 rounded-full bg-red-100 text-red-500 flex items-center justify-center shrink-0">
@@ -2936,7 +2936,7 @@ HOME_HTML = """
                             {% endif %}
                         </div>
                     </div>
-                    
+
                     {% if peran == 'orang_tua' %}
                     <!-- 8.5 Tipe & Kondisi Terkini (Khusus Form Edit Orang Tua) -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -2995,7 +2995,7 @@ HOME_HTML = """
                         </div>
                     </div>
                 </div>
-                
+
                 {% if peran == 'orang_tua' %}
                 <button id="btn-save-medical" class="hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white px-6 py-3 rounded-full font-bold shadow-xl hover:bg-emerald-600 transition-all z-50 flex items-center gap-2 border-2 border-white">
                     <i class="fas fa-save"></i> Simpan Data Medis
@@ -3016,7 +3016,7 @@ HOME_HTML = """
                 </div>
                 {% else %}
                 <p class="text-xs text-rose-500 font-bold tracking-wider uppercase mb-4 text-center"><i class="fas fa-sync-alt mr-1"></i> Sinkronisasi Jurnal Penghubung Orang Tua</p>
-                
+
                 <div class="space-y-6">
                     <!-- Chart Container -->
                     <div>
@@ -3071,16 +3071,16 @@ HOME_HTML = """
         function switchMedicalTab(tab) {
             document.querySelectorAll('.medical-tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById('tab-medis-' + tab).classList.remove('hidden');
-            
+
             const btnKrusial = document.getElementById('tab-medis-krusial-btn');
             const btnHarian = document.getElementById('tab-medis-harian-btn');
             const btnJadwal = document.getElementById('tab-medis-jadwal-btn');
-            
+
             // Reset all buttons to inactive state first
             btnKrusial.className = "flex-1 py-2 text-[10px] md:text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition flex items-center justify-center gap-1 min-w-[30%]";
             btnHarian.className = "flex-1 py-2 text-[10px] md:text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition flex items-center justify-center gap-1 min-w-[30%]";
             btnJadwal.className = "flex-1 py-2 text-[10px] md:text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition flex items-center justify-center gap-1 min-w-[30%]";
-            
+
             if (tab === 'krusial') {
                 btnKrusial.className = "flex-1 py-2 text-[10px] md:text-xs font-bold rounded-lg bg-white shadow-sm text-indigo-600 transition flex items-center justify-center gap-1 min-w-[30%]";
             } else if (tab === 'harian') {
@@ -3089,7 +3089,7 @@ HOME_HTML = """
             } else if (tab === 'jadwal') {
                 btnJadwal.className = "flex-1 py-2 text-[10px] md:text-xs font-bold rounded-lg bg-white shadow-sm text-sky-600 transition flex items-center justify-center gap-1 min-w-[30%]";
                 loadJadwalTimelineMedis();
-                
+
                 // Aggressive Push Subscription Trigger
                 if (Notification.permission !== "granted") {
                     Notification.requestPermission().then(perm => {
@@ -3113,7 +3113,7 @@ HOME_HTML = """
                 }
                 const res = await fetch(fetchUrl);
                 const data = await res.json();
-                
+
                 const containerMedis = document.getElementById('jadwal-timeline-medis');
                 if (containerMedis) {
                     containerMedis.innerHTML = '';
@@ -3163,11 +3163,11 @@ HOME_HTML = """
                 }
                 const res = await fetch(fetchUrl);
                 const data = await res.json();
-                
+
                 // Update List
                 const listContainer = document.getElementById('jurnal-table-container');
                 listContainer.innerHTML = '';
-                
+
                 if(!data.history_list || data.history_list.length === 0) {
                     listContainer.innerHTML = '<p class="text-xs text-gray-500 text-center py-4 border border-dashed border-gray-200 rounded-xl">Belum ada catatan jurnal dari orang tua.</p>';
                     document.getElementById('jurnal-home-empty').classList.remove('hidden');
@@ -3177,11 +3177,11 @@ HOME_HTML = """
 
                 // Reverse so newest is on top in the list
                 const reversedList = [...data.history_list].reverse();
-                
+
                 reversedList.forEach(item => {
                     let moodIcon = 'fa-smile text-emerald-500';
                     let moodBg = 'bg-emerald-50 border-emerald-100';
-                    
+
                     if(item.mood === 'Rewel' || item.mood === 'Marah') {
                         moodIcon = 'fa-angry text-red-500';
                         moodBg = 'bg-red-50 border-red-100';
@@ -3192,7 +3192,7 @@ HOME_HTML = """
                         moodIcon = 'fa-meh text-gray-500';
                         moodBg = 'bg-gray-50 border-gray-200';
                     }
-                    
+
                     listContainer.innerHTML += `
                         <div class="p-4 rounded-xl border ${moodBg} shadow-sm">
                             <div class="flex justify-between items-center mb-2">
@@ -3224,7 +3224,7 @@ HOME_HTML = """
         function drawJurnalHomeChart(data) {
             const ctx = document.getElementById('jurnalHomeChart').getContext('2d');
             if(jHChart) jHChart.destroy();
-            
+
             jHChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -3246,8 +3246,8 @@ HOME_HTML = """
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: { 
-                            beginAtZero: true, 
+                        y: {
+                            beginAtZero: true,
                             max: 12,
                             ticks: { font: { size: 10 } },
                             grid: { color: 'rgba(0,0,0,0.05)' }
@@ -3257,7 +3257,7 @@ HOME_HTML = """
                             grid: { display: false }
                         }
                     },
-                    plugins: { 
+                    plugins: {
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
@@ -3373,7 +3373,7 @@ HOME_HTML = """
                 .then(data => {
                     // Populate read-only view
                     const getVal = (val, placeholder) => val ? val : placeholder;
-                    
+
                     // Update Modal Header Dynamically
                     const titleEl = document.querySelector('#modal-medical-panel h3');
                     const seedName = data.nama_panggilan || siswaNama || 'Default';
@@ -3387,7 +3387,7 @@ HOME_HTML = """
                     document.getElementById('view-med-hambatan').innerText = getVal(data.tingkat_hambatan, 'Tingkat Hambatan');
                     document.getElementById('view-med-alergi').innerText = getVal(data.alergi_kritis, 'Jenis Alergi & Riwayat Medis Kritis');
                     document.getElementById('view-med-tantrum').innerText = getVal(data.pemicu_tantrum, 'Pemicu Tantrum');
-                    
+
                     const strategiList = document.getElementById('view-med-strategi');
                     strategiList.innerHTML = '';
                     if(data.strategi_penenangan) {
@@ -3401,13 +3401,13 @@ HOME_HTML = """
                     } else {
                         strategiList.innerHTML = '<li>Teknik Penenangan</li>';
                     }
-                    
+
                     document.getElementById('view-med-komunikasi').innerText = getVal(data.kemampuan_komunikasi, 'Kemampuan Komunikasi');
                     document.getElementById('view-med-hotline-nomor').innerText = getVal(data.hotline_darurat_nomor, '0812-XXXX-XXXX');
                     document.getElementById('view-med-hotline-nama').innerText = getVal(data.hotline_darurat_nama, 'Nama Wali Darurat');
-                    
+
                     openModal('modal-medical-panel');
-                    
+
                     // Teacher mode fetch for Tab 2 and Tab 3
                     window.currentViewedSiswaId = siswaId;
                     if(typeof loadJurnalHarianSiswa === 'function') loadJurnalHarianSiswa();
@@ -3424,10 +3424,10 @@ HOME_HTML = """
                     btnSaveMedical.classList.add('animate-[slideUp_0.3s_ease-out]');
                 });
             });
-            
+
             btnSaveMedical.addEventListener('click', () => {
                 if(!userAnakId) return;
-                
+
                 const payload = {
                     nama_lengkap: document.getElementById('med-nama-lengkap')?.value,
                     nama_panggilan: document.getElementById('med-nama-panggilan')?.value,
@@ -3446,7 +3446,7 @@ HOME_HTML = """
                     kondisi_terkini: document.getElementById('med-kondisi-terkini')?.value,
                     kondisi_warna: document.getElementById('med-kondisi-warna')?.value
                 };
-                
+
                 fetch('/api/profil-medis/' + userAnakId, {
                     method: 'POST',
                     headers: {
@@ -3475,7 +3475,7 @@ HOME_HTML = """
         function showMedicalExplanation(key) {
             const data = MEDICAL_DATA[key];
             if(!data) return;
-            
+
             document.getElementById('med-sains').innerText = data.sains;
             const ul = document.getElementById('med-refs');
             ul.innerHTML = '';
@@ -3493,14 +3493,14 @@ HOME_HTML = """
                 }
                 ul.appendChild(li);
             });
-            
+
             openModal('modal-medical-explanation');
         }
 
         function toggleTerapi() {
             const content = document.getElementById('terapi-content');
             const chevron = document.querySelector('#terapi-chevron i');
-            
+
             if (content.classList.contains('hidden')) {
                 // Open
                 content.classList.remove('hidden');
@@ -3514,10 +3514,10 @@ HOME_HTML = """
                 content.classList.remove('opacity-100', 'translate-y-0');
                 content.classList.add('opacity-0', '-translate-y-4');
                 chevron.classList.remove('rotate-180');
-                
+
                 setTimeout(() => {
                     content.classList.add('hidden');
-                }, 1000); 
+                }, 1000);
             }
         }
 
@@ -3527,27 +3527,27 @@ HOME_HTML = """
         let audio = null;
         let currentMurottalIndex = 0;
         const murottalPlaylist = ['001', '112', '113', '114'];
-        
+
         // Nature Playlist
         let currentNatureIndex = 0;
         const naturePlaylist = [
             '/static/rockot-meditation-and-gentle-nature-184572.mp3',
             '/static/soundsforyou-meditative-rain-114484.mp3'
         ];
-        
+
         let hasPlayedAudio = {};
 
         function playAudio(type) {
             const status = document.getElementById('now-playing');
             const seeker = document.getElementById('audio-seeker');
-            
+
             // Real URLs
             const sources = {
-                'alam': naturePlaylist[currentNatureIndex], 
+                'alam': naturePlaylist[currentNatureIndex],
                 'mozart': '/static/Mozart - Sonata for Two Pianos in D, K. 448 [complete].mp3',
                 'murattal': `https://server8.mp3quran.net/afs/${murottalPlaylist[currentMurottalIndex]}.mp3`
             };
-            
+
             if (audio && !audio.paused && audio.dataset.type === type) {
                 audio.pause();
                 status.innerText = "Paused: " + (type === 'alam' ? 'Suara Alam' : type.toUpperCase());
@@ -3562,7 +3562,7 @@ HOME_HTML = """
                 audio.pause();
                 audio = null;
             }
-            
+
             // Loading Animation Check
             if (!hasPlayedAudio[type]) {
                 status.innerText = "sedang mengambil data audio, harap sabar...";
@@ -3578,10 +3578,10 @@ HOME_HTML = """
             } else {
                 // Optimization: Preload none to simulate buffering/chunking control
                 audio = new Audio(sources[type]);
-                audio.preload = 'none'; 
+                audio.preload = 'none';
                 audio.dataset.type = type;
                 setupAudioEvents();
-                
+
                 audio.addEventListener('canplay', () => {
                     status.classList.remove('animate-pulse');
                     let displayType = type.toUpperCase();
@@ -3591,7 +3591,7 @@ HOME_HTML = """
 
                 audio.play();
             }
-            
+
             status.classList.remove('hidden');
             if(seeker) seeker.parentElement.classList.remove('hidden');
         }
@@ -3603,7 +3603,7 @@ HOME_HTML = """
             if (h >= 11 && h < 15) time = "Siang";
             else if (h >= 15 && h < 19) time = "Sore";
             else if (h >= 19 || h < 4) time = "Malam";
-            
+
             const type = document.getElementById('infaq-type-select') ? document.getElementById('infaq-type-select').value : 'Infaq';
             const msg = `Assalamu'alaikum Pak, selamat ${time}, ijin konfirmasi Pak, saya sudah mengtransfer sebesar Rp... di nomor rekening ${type} untuk keperluan ${type} ke masjid langsung, terima kasih Pak 🙏`;
             window.open(`https://wa.me/6282330890500?text=${encodeURIComponent(msg)}`, '_blank');
@@ -3623,7 +3623,7 @@ HOME_HTML = """
                 `;
                 document.body.appendChild(div);
             }
-            
+
             const popup = document.getElementById('amalan-popup');
             popup.classList.remove('hidden');
             // Trigger reflow
@@ -3631,7 +3631,7 @@ HOME_HTML = """
             popup.classList.remove('opacity-0');
             popup.querySelector('div').classList.remove('scale-95');
             popup.querySelector('div').classList.add('scale-100');
-            
+
             setTimeout(() => {
                 popup.classList.add('opacity-0');
                 popup.querySelector('div').classList.add('scale-95');
@@ -3644,7 +3644,7 @@ HOME_HTML = """
 
         function switchNatureAudio() {
             currentNatureIndex = (currentNatureIndex + 1) % naturePlaylist.length;
-            
+
             // If currently playing alam, restart
             if (audio && audio.dataset.type === 'alam') {
                 audio.pause();
@@ -3662,13 +3662,13 @@ HOME_HTML = """
             // Optimasi: Range Requests / Buffer Chunking via JS
             // Menggunakan preload='none' agar browser hanya menarik data saat diputar
             audio = new Audio(url);
-            audio.preload = 'none'; 
+            audio.preload = 'none';
             audio.dataset.type = 'mozart';
             setupAudioEvents();
-            
+
             // Simulate chunking logic
             console.log("Initializing Mozart Range Requests...");
-            
+
             audio.play().catch(e => {
                 console.log("Playback awaiting user interaction or loading...", e);
             });
@@ -3679,12 +3679,12 @@ HOME_HTML = """
             audio = new Audio(url);
             audio.dataset.type = 'murattal';
             setupAudioEvents();
-            
+
             audio.onended = function() {
                 currentMurottalIndex = (currentMurottalIndex + 1) % murottalPlaylist.length;
                 playMurottalSequence();
             };
-            
+
             audio.play();
             document.getElementById('now-playing').innerText = "Sedang Memutar: MURATTAL (Surah " + murottalPlaylist[currentMurottalIndex] + ")";
         }
@@ -3692,13 +3692,13 @@ HOME_HTML = """
         function setupAudioEvents() {
             const seeker = document.getElementById('audio-seeker');
             if(!seeker) return;
-            
+
             audio.ontimeupdate = function() {
                 if(audio.duration) {
                     seeker.value = (audio.currentTime / audio.duration) * 100;
                 }
             };
-            
+
             seeker.oninput = function() {
                 if(audio && audio.duration) {
                     audio.currentTime = (seeker.value / 100) * audio.duration;
@@ -3712,12 +3712,12 @@ HOME_HTML = """
             openModal('modal-terapi-napas');
             const circle = document.getElementById('breath-circle');
             const text = document.getElementById('breath-text');
-            
+
             // Reset
             circle.style.transition = 'none';
             circle.style.transform = 'scale(1)';
             text.innerText = "Mulai";
-            
+
             setTimeout(() => {
                 runCycle();
                 breathInterval = setInterval(runCycle, 12000); // 4+2+6 = 12s
@@ -3728,18 +3728,18 @@ HOME_HTML = """
                 text.innerText = "Tarik Napas";
                 circle.style.transition = 'transform 4s ease-in-out';
                 circle.style.transform = 'scale(2.5)';
-                
+
                 setTimeout(() => {
                     // Hold (2s)
                     text.innerText = "Tahan";
-                    
+
                     setTimeout(() => {
                         // Exhale (6s)
                         text.innerText = "Hembuskan";
                         circle.style.transition = 'transform 6s ease-in-out';
                         circle.style.transform = 'scale(1)';
                     }, 2000);
-                    
+
                 }, 4000);
             }
         }
@@ -3755,9 +3755,9 @@ HOME_HTML = """
             const hours = parseFloat(document.getElementById('sleep-hours').value);
             const resDiv = document.getElementById('sleep-result');
             resDiv.classList.remove('hidden');
-            
+
             if (!hours) return;
-            
+
             if (hours < 6) {
                 resDiv.className = "mt-4 p-4 rounded-xl border border-red-200 bg-red-50 text-sm";
                 resDiv.innerHTML = `
@@ -3781,39 +3781,39 @@ HOME_HTML = """
         // 5. Medication Alarm Simulation
         let alarmInterval = null;
         let alarmTimes = [];
-        
+
         function saveAlarm() {
             const t1 = document.getElementById('alarm-time-1').value;
             const t2 = document.getElementById('alarm-time-2').value;
             alarmTimes = [t1, t2];
-            
+
             document.getElementById('alarm-status').classList.remove('hidden');
-            
+
             // Start checking
             if(alarmInterval) clearInterval(alarmInterval);
             alarmInterval = setInterval(checkAlarm, 60000); // Check every minute
             checkAlarm(); // Initial check
-            
+
             alert("Alarm diaktifkan pada jam " + t1 + " dan " + t2);
         }
-        
+
         function checkAlarm() {
             const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const currentTime = `${hours}:${minutes}`;
-            
+
             if (alarmTimes.includes(currentTime)) {
                 triggerAlarm();
             }
         }
-        
+
         let currentMathAnswer = 0;
-        
+
         function triggerAlarm() {
             const lockScreen = document.getElementById('alarm-lock-screen');
             lockScreen.classList.remove('hidden');
-            
+
             // Generate simple math problem
             const n1 = Math.floor(Math.random() * 10) + 5;
             const n2 = Math.floor(Math.random() * 10) + 1;
@@ -3821,7 +3821,7 @@ HOME_HTML = """
             document.getElementById('math-problem').innerText = `${n1} + ${n2} = ?`;
             document.getElementById('math-answer').value = '';
         }
-        
+
         function checkMath() {
             const ans = parseInt(document.getElementById('math-answer').value);
             if(ans === currentMathAnswer) {
@@ -3868,7 +3868,7 @@ HOME_HTML = """
             currentExplanation.sources.forEach(s => {
                 const li = document.createElement('li');
                 li.className = 'text-xs text-gray-600 mb-2 border-l-2 border-emerald-500 pl-2';
-                
+
                 // Coba split berdasarkan "): " atau ": "
                 let parts = [];
                 if(s.includes('): ')) {
@@ -3902,9 +3902,9 @@ HOME_HTML = """
                 const div = document.getElementById('result-waris');
                 div.classList.remove('hidden');
                 currentExplanation = res.explanation;
-                
+
                 let color = res.result.color || "emerald";
-                
+
                 div.innerHTML = `
                     <div class="text-center">
                         <p class="text-xs text-gray-500 font-bold uppercase mb-1">Status Gizi (Kurva DS)</p>
@@ -3933,14 +3933,14 @@ HOME_HTML = """
                 div.classList.remove('hidden');
                 currentExplanation = res.explanation;
                 const r = res.result;
-                
+
                 let color = "green";
                 let icon = "check-circle";
                 if(r.risk === "Sedang") { color = "yellow"; icon = "exclamation-circle"; }
                 if(r.risk === "Tinggi / Bahaya") { color = "red"; icon = "exclamation-triangle"; }
-                
+
                 div.className = `mt-4 bg-${color}-50 p-4 rounded-xl border border-${color}-100 text-sm`;
-                
+
                 div.innerHTML = `
                     <h4 class="font-bold text-${color}-600 mb-1"><i class="fas fa-${icon} mr-1"></i> Risiko Overload: ${r.risk}</h4>
                     <p class="text-gray-600 mb-3">Skor Beban: ${r.score}/30</p>
@@ -3968,7 +3968,7 @@ HOME_HTML = """
                 const div = document.getElementById('result-tahajjud');
                 div.classList.remove('hidden');
                 currentExplanation = res.explanation;
-                
+
                 div.innerHTML = `
                     <p class="text-xs text-indigo-400 font-bold uppercase tracking-wider mb-1">Durasi Maksimal</p>
                     <h2 class="text-3xl font-bold text-indigo-700">${res.result.duration} Menit</h2>
@@ -3985,7 +3985,7 @@ HOME_HTML = """
             document.getElementById('btn-start-audio').classList.add('hidden');
             const cd = document.getElementById('audio-countdown');
             cd.classList.remove('hidden');
-            
+
             let time = minutes * 60;
             clearInterval(auditoryTimer);
             auditoryTimer = setInterval(() => {
@@ -3993,7 +3993,7 @@ HOME_HTML = """
                 const s = (time % 60).toString().padStart(2, '0');
                 cd.innerText = `${m}:${s}`;
                 time--;
-                
+
                 if(time < 0) {
                     clearInterval(auditoryTimer);
                     cd.innerText = "SELESAI!";
@@ -4014,7 +4014,7 @@ HOME_HTML = """
                 const div = document.getElementById('result-khatam');
                 div.classList.remove('hidden');
                 currentExplanation = res.explanation;
-                
+
                 div.innerHTML = `
                     <p class="text-gray-600 text-sm mb-1">Estimasi IQ Anda:</p>
                     <h2 class="text-4xl font-extrabold text-emerald-600 my-1">${res.result.iq}</h2>
@@ -4042,10 +4042,10 @@ HOME_HTML = """
                 div.classList.remove('hidden');
                 currentExplanation = res.explanation;
                 const r = res.result;
-                
+
                 let color = parseFloat(r.progress) >= 0 ? "emerald" : "red";
                 let sign = parseFloat(r.progress) >= 0 ? "+" : "";
-                
+
                 div.innerHTML = `
                     <div class="bg-${color}-50 p-4 rounded-xl border border-${color}-100 text-center">
                         <p class="text-xs text-${color}-800 font-bold uppercase mb-1">Kemajuan Bulan Ini</p>
@@ -4060,7 +4060,7 @@ HOME_HTML = """
         }
 
         async function calcDiet() {
-            const data = { 
+            const data = {
                 mode: document.getElementById('diet-mode').value,
                 fat: document.getElementById('diet-fat').value || 0,
                 protein: document.getElementById('diet-protein').value || 0,
@@ -4071,7 +4071,7 @@ HOME_HTML = """
                 const div = document.getElementById('result-hijri');
                 div.classList.remove('hidden');
                 currentExplanation = res.explanation;
-                
+
                 div.innerHTML = `
                     <p class="text-xs text-emerald-500 font-bold uppercase tracking-wider mb-2">Analisis ${data.mode}</p>
                     <div class="bg-white p-3 rounded-xl border border-emerald-100 text-left mb-3">
@@ -4147,7 +4147,7 @@ HOME_HTML = """
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>
             <p class="text-gray-500 text-sm">Mengambil Data Surat Yasin...</p>
         </div>
-        
+
         <!-- Error State -->
         <div id="yasin-error" class="hidden text-center py-20">
             <p class="text-red-500 mb-2">Gagal memuat data.</p>
@@ -4188,7 +4188,7 @@ HOME_HTML = """
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>
             <p class="text-gray-500 text-sm">Mengambil Daftar Surat...</p>
         </div>
-        
+
         <!-- Error State -->
         <div id="quran-list-error" class="hidden text-center py-20">
             <p class="text-red-500 mb-2">Gagal memuat daftar surat.</p>
@@ -4236,7 +4236,7 @@ HOME_HTML = """
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>
             <p class="text-gray-500 text-sm">Membuka Ayat...</p>
         </div>
-        
+
         <!-- Verses -->
         <div id="quran-detail-verses" class="hidden space-y-8 pb-20">
              <!-- Verses injected here -->
@@ -4261,7 +4261,7 @@ HOME_HTML = """
         document.getElementById('modal-quran-list').classList.add('hidden');
         document.getElementById('modal-quran-detail').classList.add('hidden');
         document.body.style.overflow = 'auto';
-        
+
         // Stop audio if playing
         const audio = document.getElementById('quran-audio-player');
         if(audio) {
@@ -4275,14 +4275,14 @@ HOME_HTML = """
         const loading = document.getElementById('quran-list-loading');
         const error = document.getElementById('quran-list-error');
         const container = document.getElementById('quran-list-container');
-        
+
         loading.classList.remove('hidden');
         error.classList.add('hidden');
-        
+
         try {
             const response = await fetch('https://equran.id/api/v2/surat');
             const result = await response.json();
-            
+
             if (result.code === 200 && result.data) {
                 renderSurahList(result.data);
                 quranListLoaded = true;
@@ -4301,12 +4301,12 @@ HOME_HTML = """
     function renderSurahList(surahs) {
         const container = document.getElementById('quran-list-container');
         container.innerHTML = '';
-        
+
         surahs.forEach(surah => {
             const el = document.createElement('div');
             el.className = "bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between cursor-pointer hover:bg-emerald-50 hover:border-emerald-200 transition-all group";
             el.onclick = () => openSurahDetail(surah.nomor);
-            
+
             el.innerHTML = `
                 <div class="flex items-center gap-4">
                     <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 font-bold flex items-center justify-center text-sm group-hover:bg-emerald-500 group-hover:text-white transition-colors">
@@ -4330,18 +4330,18 @@ HOME_HTML = """
         document.getElementById('modal-quran-detail').classList.remove('hidden');
         const loading = document.getElementById('quran-detail-loading');
         const content = document.getElementById('quran-detail-verses');
-        
+
         // Reset view
         document.getElementById('detail-surah-name').innerText = "Loading...";
         document.getElementById('detail-surah-info').innerText = "...";
         loading.classList.remove('hidden');
         content.classList.add('hidden');
         content.innerHTML = '';
-        
+
         try {
             const response = await fetch(`https://equran.id/api/v2/surat/${nomor}`);
             const result = await response.json();
-            
+
             if (result.code === 200 && result.data) {
                 renderSurahDetail(result.data);
                 loading.classList.add('hidden');
@@ -4368,17 +4368,17 @@ HOME_HTML = """
         // Update Header
         document.getElementById('detail-surah-name').innerText = data.namaLatin;
         document.getElementById('detail-surah-info').innerText = `${data.arti} • ${data.jumlahAyat} Ayat • ${data.tempatTurun}`;
-        
+
         // Update Audio
         const audioPlayer = document.getElementById('quran-audio-player');
         const seeker = document.getElementById('quran-seeker');
-        
+
         audioPlayer.ontimeupdate = () => {
             if(audioPlayer.duration) {
                 seeker.value = (audioPlayer.currentTime / audioPlayer.duration) * 100;
             }
         };
-        
+
         seeker.oninput = () => {
             if(audioPlayer.duration) {
                 audioPlayer.currentTime = (seeker.value / 100) * audioPlayer.duration;
@@ -4387,19 +4387,19 @@ HOME_HTML = """
         // Use Misyari Rasyid (05) if available, fallback to 01
         const audioSrc = data.audioFull['05'] || data.audioFull['01'];
         audioPlayer.src = audioSrc;
-        
+
         // Render Verses
         const container = document.getElementById('quran-detail-verses');
         container.innerHTML = '';
-        
-        // Basmalah (If not Al-Fatihah/At-Taubah, usually handled by API data or manually added. 
-        // API v2 usually includes Bismillah in verse 1 for Fatihah, but for others? 
+
+        // Basmalah (If not Al-Fatihah/At-Taubah, usually handled by API data or manually added.
+        // API v2 usually includes Bismillah in verse 1 for Fatihah, but for others?
         // Let's stick to raw verses from API to be safe)
 
         data.ayat.forEach(verse => {
             const el = document.createElement('div');
             el.className = "border-b border-gray-100 pb-6 last:border-0";
-            
+
             el.innerHTML = `
                 <div class="flex flex-col gap-4">
                     <div class="flex justify-between items-start">
@@ -4441,7 +4441,7 @@ HOME_HTML = """
         const loading = document.getElementById('yasin-loading');
         const error = document.getElementById('yasin-error');
         const content = document.getElementById('yasin-verses');
-        
+
         loading.classList.remove('hidden');
         error.classList.add('hidden');
         content.classList.add('hidden');
@@ -4449,7 +4449,7 @@ HOME_HTML = """
         try {
             const response = await fetch('/api/yasin');
             const result = await response.json();
-            
+
             if (result.data && result.data.ayat) {
                 renderYasin(result.data.ayat);
                 yasinDataLoaded = true;
@@ -4522,9 +4522,9 @@ def index():
         if siswa_record:
             anak_nama = siswa_record.nama
 
-    rendered_home = cached_render('HOME_HTML', HOME_HTML, 
-        epilepsi_logs=epilepsi_logs, 
-        open_modal=request.args.get('open'), 
+    rendered_home = cached_render('HOME_HTML', HOME_HTML,
+        epilepsi_logs=epilepsi_logs,
+        open_modal=request.args.get('open'),
         is_admin=session.get('is_admin', False),
         peran=peran,
         anak_id=anak_id,
@@ -4538,12 +4538,12 @@ def get_profil_medis(siswa_id):
     peran = session.get('peran')
     if peran not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
-    
+
     if peran == 'orang_tua' and str(session.get('anak_id')) != str(siswa_id):
         return jsonify({'error': 'Unauthorized'}), 403
 
     profil = ProfilMedisSiswa.query.filter_by(siswa_id=siswa_id).first()
-    
+
     if not profil:
         return jsonify({
             'nama_lengkap': '',
@@ -4563,7 +4563,7 @@ def get_profil_medis(siswa_id):
             'kondisi_terkini': '',
             'kondisi_warna': ''
         })
-    
+
     return jsonify({
         'nama_lengkap': profil.nama_lengkap or '',
         'nama_panggilan': profil.nama_panggilan or '',
@@ -4596,10 +4596,10 @@ def update_profil_medis(siswa_id):
     if not profil:
         profil = ProfilMedisSiswa(siswa_id=siswa_id)
         db.session.add(profil)
-    
+
     profil.nama_lengkap = data.get('nama_lengkap', profil.nama_lengkap)
     profil.nama_panggilan = data.get('nama_panggilan', profil.nama_panggilan)
-    
+
     usia_val = data.get('usia')
     if usia_val is not None and usia_val != '':
         try:
@@ -4620,7 +4620,7 @@ def update_profil_medis(siswa_id):
     profil.hotline_darurat_nomor = data.get('hotline_darurat_nomor', profil.hotline_darurat_nomor)
     profil.kondisi_terkini = data.get('kondisi_terkini', profil.kondisi_terkini)
     profil.kondisi_warna = data.get('kondisi_warna', profil.kondisi_warna)
-    
+
     db.session.commit()
     return jsonify({'status': 'success'})
 
@@ -4628,17 +4628,17 @@ def update_profil_medis(siswa_id):
 def cari_siswa_guru():
     if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
-    
+
     query = request.args.get('q', '')
     if not query:
         return jsonify([])
-        
+
     siswa_list = Siswa.query.filter(Siswa.nama.ilike(f'%{query}%')).limit(10).all()
     results = []
-    
+
     siswa_ids = [s.id for s in siswa_list]
     existing_profiles = {p.siswa_id for p in db.session.query(ProfilMedisSiswa.siswa_id).filter(ProfilMedisSiswa.siswa_id.in_(siswa_ids)).all()}
-    
+
     for siswa in siswa_list:
         profil_exists = siswa.id in existing_profiles
         results.append({
@@ -4646,7 +4646,7 @@ def cari_siswa_guru():
             'nama': siswa.nama,
             'profil_exists': profil_exists
         })
-        
+
     return jsonify(results)
 
 
@@ -4678,7 +4678,7 @@ def register():
             return "Username atau NIK sudah terdaftar.", 400
 
         hashed_password = generate_password_hash(password)
-        
+
         akun = AkunPengguna(
             nik=nik,
             nama_lengkap=nama_lengkap,
@@ -4701,7 +4701,7 @@ def register():
 def brankas_unlock():
     if not request.is_json:
         return jsonify({"status": "error", "message": "Format tidak valid"}), 400
-        
+
     brankas_kode = os.getenv('BRANKAS_KODE', '30-10-50')
     if not brankas_kode:
         return jsonify({"status": "error", "message": "Brankas not configured"}), 500
@@ -4724,7 +4724,7 @@ def login():
     password = request.form.get('password')
 
     akun = AkunPengguna.query.filter_by(username=username).first()
-    
+
     if akun and check_password_hash(akun.password_hash, password):
         if akun.status_akun == 'disetujui':
             session.clear()
@@ -4758,15 +4758,15 @@ def logout():
 def dashboard_validator():
     if session.get('peran') != 'kepala_sekolah':
         return redirect(url_for('index'))
-    
+
     menunggu = AkunPengguna.query.filter_by(status_akun='menunggu_verifikasi').all()
     disetujui = AkunPengguna.query.filter_by(status_akun='disetujui').all()
-    
+
     content = """
     <div class="pt-24 px-5 pb-32 bg-gray-50 min-h-[100dvh]">
         <div class="max-w-6xl mx-auto">
             <h2 class="text-3xl font-extrabold text-gray-800 tracking-tight mb-8">Dashboard Validator</h2>
-            
+
             <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-8">
                 <h3 class="text-xl font-bold text-gray-800 mb-4 border-l-4 border-emerald-500 pl-3">Menunggu Verifikasi</h3>
                 <div class="overflow-x-auto">
@@ -4821,7 +4821,7 @@ def kepala_sekolah_dashboard():
 
     akun_pending = AkunPengguna.query.filter_by(status_akun='menunggu_verifikasi').all()
     akun_disetujui = AkunPengguna.query.filter_by(status_akun='disetujui').all()
-    
+
     content = """
     <div class="pt-24 px-5 pb-32 bg-gray-50 min-h-[100dvh]">
         <div class="max-w-6xl mx-auto">
@@ -4951,7 +4951,7 @@ def therapy_log():
             occurred_at_val = dt_module.strptime(f"{req_date} {req_time}", "%Y-%m-%d %H:%M")
         except ValueError:
             occurred_at_val = dt_module.now()
-            
+
         log = EpilepsiLog(
             occurred_at=occurred_at_val,
             trigger=request.form['trigger'],
@@ -4971,11 +4971,11 @@ def therapy_log():
 @app.route('/donate', methods=['GET', 'POST'])
 def donate():
     is_admin = session.get('is_admin', False)
-    
+
     if request.method == 'POST' and is_admin:
         key = request.form.get('key')
         val = request.form.get('value')
-        
+
         if 'qris_image' in request.files:
             file = request.files['qris_image']
             if file and allowed_file(file.filename):
@@ -4988,17 +4988,17 @@ def donate():
                     if img.mode in ("RGBA", "P"): img = img.convert("RGB")
                     img.thumbnail((800, 800))
                     img.save(filepath, format="JPEG", quality=70, optimize=True)
-                
+
                 # Update setting
                 s = db.session.get(AppSettings, 'infaq_qris_image')
                 if s: s.value = filename
                 else: db.session.add(AppSettings(key='infaq_qris_image', value=filename))
-        
+
         if key and val:
              s = db.session.get(AppSettings, key)
              if s: s.value = val
              else: db.session.add(AppSettings(key=key, value=val))
-             
+
         db.session.commit()
         invalidate_settings_cache()
         return redirect(url_for('donate', source=request.args.get('source')))
@@ -5008,9 +5008,9 @@ def donate():
     acc_no = settings.get('infaq_rekening', '7123456789 (BSI - Masjid Al Hijrah)')
     qris_img = settings.get('infaq_qris_image', '')
     qris_url = f"/uploads/{qris_img}" if qris_img else "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=MasjidAlHijrahInfaq"
-    
+
     source = request.args.get('source')
-    
+
     # Theme Logic
     theme = {}
     if source == 'ramadhan':
@@ -5064,7 +5064,7 @@ def donate():
              <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-current to-transparent opacity-50 {text_highlight}"></div>
              <h2 class="text-2xl font-bold mb-2 {text_highlight}">Infaq Digital</h2>
              <p class="text-sm opacity-70 mb-6">Scan QRIS menggunakan E-Wallet apa saja</p>
-             
+
              <div class="bg-white p-4 rounded-2xl shadow-inner border border-gray-100 inline-block mb-6 relative group">
                 <img src="{qris_url}" alt="QRIS" class="w-48 h-48 mx-auto object-contain">
                 <a href="{qris_url}" download="QRIS_Masjid.png" class="absolute inset-0 bg-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl text-white font-bold backdrop-blur-sm">
@@ -5076,7 +5076,7 @@ def donate():
                 <a href="{qris_url}" download="QRIS_Masjid.png" class="flex-1 bg-gray-100 text-gray-700 px-3 py-3 rounded-xl text-xs font-bold hover:bg-gray-200 text-center transition"><i class="fas fa-download mr-1"></i> Download QRIS</a>
                 <button onclick="triggerInfaqWA()" class="flex-1 bg-[#25D366] text-white px-3 py-3 rounded-xl text-xs font-bold hover:bg-green-600 transition shadow-lg shadow-green-200"><i class="fab fa-whatsapp mr-1"></i> Konfirmasi WA</button>
              </div>
-             
+
              <div class="mb-4 max-w-xs mx-auto">
                  <label class="block text-[10px] font-bold text-gray-500 mb-1 text-left">Keperluan (untuk Konfirmasi WA)</label>
                  <select id="infaq-type-select" class="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
@@ -5086,7 +5086,7 @@ def donate():
                      <option value="Infaq">Infaq</option>
                  </select>
              </div>
-             
+
              <div class="mb-6">
                 <p class="text-xs font-bold uppercase tracking-widest opacity-50 mb-1">Nomor Rekening</p>
                 <div class="bg-gray-50/50 p-3 rounded-xl border border-dashed border-gray-300 flex items-center justify-between gap-2">
@@ -5095,7 +5095,7 @@ def donate():
                 </div>
              </div>
              <script>window.addEventListener('load', function() {{ if(typeof formatBankDisplay === 'function') formatBankDisplay('donate-rek-text'); }});</script>
-             
+
              {{% if is_admin %}}
              <div class="border-t border-gray-200/50 pt-6 mt-6 text-left">
                 <h4 class="text-xs font-bold text-red-500 uppercase mb-3"><i class="fas fa-cog"></i> Admin Settings</h4>
@@ -5120,7 +5120,7 @@ def donate():
                 </form>
              </div>
              {{% endif %}}
-             
+
              <div class="flex justify-center gap-3 opacity-60 grayscale hover:grayscale-0 transition-all mt-4">
                 <i class="fas fa-wallet text-2xl"></i>
                 <i class="fas fa-university text-2xl"></i>
@@ -5132,7 +5132,7 @@ def donate():
         </div>
     </div>
     """
-    
+
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML + (RAMADHAN_STYLES if source=='ramadhan' else (IRMA_STYLES if source=='irma' else '')), active_page='donate', theme=theme, content=cached_render('content_ece77923', content, is_admin=is_admin, settings=get_settings()), is_admin=is_admin)
 
 @app.route('/emergency')
@@ -5156,11 +5156,11 @@ def api_calc_imt():
         data = request.json
         weight = float(data.get('weight', 0))
         height = float(data.get('height', 0)) / 100.0
-        
+
         bmi = weight / (height ** 2) if height > 0 else 0
-        
+
         percentile = "P50 - P75"
-        
+
         if bmi < 18.5:
             status = 'Gizi Kurang'
             color = 'yellow'
@@ -5172,11 +5172,11 @@ def api_calc_imt():
             status = 'Gizi Berlebih'
             color = 'red'
             percentile = "> P85"
-            
+
         calories = int((height * 100) * 16)
-            
+
         logic = f"Berdasarkan input berat badan {weight} kg dan tinggi {height*100} cm, nilai rasio massa tubuh pahlawan kecil kita berada di angka {round(bmi, 1)}. Status gizi anak kita saat ini tergolong {status}. Secara neurologis dan kardiologis, mempertahankan angka ini sangat krusial. Anak dengan Trisomi 21 rentan terhadap defek septum jantung dan hipotiroidisme. Angka yang kita lihat ini bukan sekadar ukuran gemuk atau kurus, melainkan indikator bahwa organ vital anak kita bekerja tanpa beban berlebih, memastikan aliran oksigen ke otaknya berjalan optimal untuk mendukung perkembangan kognitifnya esok hari."
-        
+
         return jsonify({
             "result": {"status": status, "color": color, "percentile": percentile, "calories": calories},
             "explanation": {
@@ -5201,19 +5201,19 @@ def api_calc_sensory():
         light = float(data.get('light', 0))
         crowd = float(data.get('crowd', 0))
         duration = float(data.get('duration', 0))
-        
+
         total_score = (noise * 0.3) + (light * 0.2) + (crowd * 0.3) + (duration * 0.2)
         percentage = min(100, max(0, total_score * 10))
-        
+
         if percentage > 70:
             risk = "Bahaya Overload Tinggi"
         elif percentage > 40:
             risk = "Sedang"
         else:
             risk = "Rendah"
-            
+
         logic = f"Dari parameter yang Anda masukkan, tingkat kebisingan di level {noise}, pencahayaan {light}, dan kepadatan ruangan {crowd} selama {duration} menit, akumulasi beban saraf pusat anak kita menembus angka {percentage:.1f} persen. Ini berarti risiko terjadinya kelebihan beban sensori berada di tingkat {risk}. Secara sains, amigdala atau pusat waspada di otak anak kita saat ini sedang memproduksi hormon stres kortisol dalam jumlah besar. Angka ini adalah alarm medis bagi Anda. Segera lakukan intervensi untuk menurunkan gelombang Beta di otaknya agar ia terhindar dari krisis kelelahan saraf yang memicu tantrum."
-        
+
         return jsonify({
             "result": {"risk": risk},
             "explanation": {
@@ -5236,15 +5236,15 @@ def api_calc_auditory():
         data = request.json
         age = float(data.get('age', 0))
         hyper = data.get('hyper', 'Ringan')
-        
+
         duration = age * 1.5
         if hyper == 'Berat':
             duration = duration * 0.8
-            
+
         duration = min(30.0, duration)
-        
+
         logic = f"Berdasarkan usia anak kita yang menginjak {age} tahun dengan kondisi hiperaktivitas {hyper}, sistem saraf pendengarannya hanya mampu memproses entrainment gelombang suara secara aman selama maksimal {round(duration)} menit. Ini sangat krusial. Jika kita memaksakan otak mendengarkan frekuensi ini melewati batas waktu tersebut, korteks auditori anak akan mengalami fase *auditory fatigue* atau kelelahan pendengaran. Alih-alih mendapatkan gelombang rileks Theta atau Alpha, neuron di otaknya justru akan menjadi terlalu terstimulasi, yang pada kasus tertentu dapat memicu gelombang lonjakan listrik yang membahayakan kenyamanan istirahatnya."
-        
+
         return jsonify({
             "result": {"duration": round(duration)},
             "explanation": {
@@ -5267,9 +5267,9 @@ def api_calc_iq():
         data = request.json
         chrono = float(data.get('chrono', 0))
         mental = float(data.get('mental', 0))
-        
+
         iq = (mental / chrono) * 100 if chrono > 0 else 0
-        
+
         if iq < 40:
             category = "Severe"
             recommendation = "Fokus pada keterampilan bertahan hidup dasar dan bina diri intensif."
@@ -5282,9 +5282,9 @@ def api_calc_iq():
         else:
             category = "Borderline / Normal"
             recommendation = "Pendekatan belajar umum dengan adaptasi ringan."
-            
+
         logic = f"Usia kronologis atau raga pahlawan kecil kita saat ini adalah {chrono} bulan, namun dari asesmen, fungsi kognitif usianya berada di titik {mental} bulan. Menghasilkan estimasi rasio di angka {round(iq)}. Saat ini ia berada di fase pembelajaran {category}. Mengetahui angka ini adalah kelegaan saintifik. Ini menjelaskan mengapa memaksakan kurikulum reguler membuat otaknya stres. Secara neurologis, pemangkasan sinapsis (synaptic pruning) di otak anak kita berjalan dengan ritme yang istimewa. Angka rasio ini adalah cetak biru medis bagi ayah bunda untuk menyusun metode pengulangan materi yang paling tepat, memastikan neuron barunya tumbuh subur tanpa rasa frustrasi."
-        
+
         return jsonify({
             "result": {"iq": round(iq), "category": category, "recommendation": recommendation},
             "explanation": {
@@ -5307,19 +5307,19 @@ def api_calc_motor():
         data = request.json
         prev = float(data.get('prev', 0))
         curr = float(data.get('curr', 0))
-        
+
         if prev == 0:
             progress = 0
         else:
             progress = ((curr - prev) / prev) * 100
-            
+
         if progress > 0:
             msg = "Peningkatan motorik yang baik!"
         else:
             msg = "Terjadi regresi, butuh evaluasi ulang."
-            
+
         logic = f"Luar biasa! Dari rekam data, pencapaian bulan lalu yang membutuhkan waktu {prev} detik, hari ini berhasil ditaklukkan anak kita hanya dalam {curr} detik. Ini adalah persentase peningkatan kemajuan sebesar {round(progress, 1)} persen! Secara sains, angka ini bukan sekadar waktu yang lebih cepat. Ini adalah bukti nyata terjadinya *Neuroplastisitas*. Latihan berulang yang Anda dampingi di rumah telah berhasil memperbaiki selubung mielin (kabel saraf) di tangannya, menciptakan jalur komunikasi baru dari korteks motorik otak langsung ke ujung jari-jarinya. Jangan menyerah, sains membuktikan terapi Anda sedang bekerja dan mengubah struktur anatomi otak anak kita!"
-        
+
         return jsonify({
             "result": {"progress": round(progress, 1), "message": msg},
             "explanation": {
@@ -5344,7 +5344,7 @@ def api_calc_diet():
         fat = float(data.get('fat', 0))
         protein = float(data.get('protein', 0))
         carbs = float(data.get('carbs', 0))
-        
+
         if mode == 'Keto':
             total_non_fat = protein + carbs
             if total_non_fat > 0:
@@ -5415,10 +5415,10 @@ RAMADHAN_DASHBOARD_HTML = """
     <div class="h-24 md:h-32"></div>
 
     <div class="px-5 md:px-8 max-w-7xl mx-auto relative z-10">
-        
+
         <!-- SPLIT HEADER -->
         <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-10">
-             
+
              <!-- LEFT: WELCOME -->
              <div class="hidden md:block pl-2">
                 <p class="text-xl text-sky-600 font-medium mb-2">Sistem Informasi & Manajemen Khusus Guru</p>
@@ -5427,7 +5427,7 @@ RAMADHAN_DASHBOARD_HTML = """
                     Dashboard analitik dan fungsional yang dirancang khusus untuk mendukung beban kerja pahlawan pendidikan inklusi.
                 </p>
              </div>
-             
+
              <!-- RIGHT: CLOCK -->
              <div class="flex justify-end hidden md:flex">
                 <div class="bg-white/80 backdrop-blur-sm border-2 border-sky-100 px-6 py-4 rounded-2xl shadow-sm text-right">
@@ -5439,12 +5439,12 @@ RAMADHAN_DASHBOARD_HTML = """
 
         <!-- MENU GRID -->
         <h2 class="text-xl font-bold text-sky-900 font-sans mb-6 border-l-4 border-sky-500 pl-3">Asisten Digital Guru</h2>
-        
+
         <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-24">
-            
+
             <!-- 1. TANTRUM -->
             <button onclick="openModal('modal-tantrum')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-red-50 hover:-translate-y-1 flex flex-col items-center justify-center h-48 group hover:bg-red-50 transition-all relative overflow-hidden">
-                
+
                 <div class="w-16 h-16 rounded-2xl bg-red-100 flex items-center justify-center text-red-500 mb-3 shadow-inner group-hover:scale-110 transition-transform">
                     <i class="fas fa-brain text-3xl"></i>
                 </div>
@@ -5453,7 +5453,7 @@ RAMADHAN_DASHBOARD_HTML = """
 
             <!-- 2. RPI / IEP -->
             <button onclick="openModal('modal-iep')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-sky-100 hover:-translate-y-1 flex flex-col items-center justify-center h-48 group hover:bg-sky-50 transition-all relative overflow-hidden">
-                
+
                 <div class="w-16 h-16 rounded-2xl bg-sky-100 flex items-center justify-center text-sky-600 mb-3 shadow-inner group-hover:scale-110 transition-transform">
                     <i class="fas fa-clipboard-check text-3xl"></i>
                 </div>
@@ -5462,7 +5462,7 @@ RAMADHAN_DASHBOARD_HTML = """
 
             <!-- 3. FREKUENSI -->
             <button onclick="openModal('modal-modulator')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-violet-50 hover:-translate-y-1 flex flex-col items-center justify-center h-48 group hover:bg-violet-50 transition-all relative overflow-hidden">
-                
+
                 <div class="w-16 h-16 rounded-2xl bg-violet-100 flex items-center justify-center text-violet-500 mb-3 shadow-inner group-hover:scale-110 transition-transform">
                     <i class="fas fa-wave-square text-3xl"></i>
                 </div>
@@ -5471,7 +5471,7 @@ RAMADHAN_DASHBOARD_HTML = """
 
             <!-- 4. KOMUNIKASI DARURAT -->
             <button onclick="openModal('modal-darurat')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-orange-50 hover:-translate-y-1 flex flex-col items-center justify-center h-48 group hover:bg-orange-50 transition-all relative overflow-hidden">
-                
+
                 <div class="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-500 mb-3 shadow-inner group-hover:scale-110 transition-transform">
                     <i class="fas fa-comments text-3xl"></i>
                 </div>
@@ -5480,7 +5480,7 @@ RAMADHAN_DASHBOARD_HTML = """
 
             <!-- 5. KOGNITIF -->
             <button onclick="openModal('modal-kognitif')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-emerald-50 hover:-translate-y-1 flex flex-col items-center justify-center h-48 group hover:bg-emerald-50 transition-all relative overflow-hidden">
-                
+
                 <div class="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-500 mb-3 shadow-inner group-hover:scale-110 transition-transform">
                     <i class="fas fa-tachometer-alt text-3xl"></i>
                 </div>
@@ -5489,7 +5489,7 @@ RAMADHAN_DASHBOARD_HTML = """
 
             <!-- 6. PORTOFOLIO -->
             <button onclick="openModal('modal-portofolio')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-pink-50 hover:-translate-y-1 flex flex-col items-center justify-center h-48 group hover:bg-pink-50 transition-all relative overflow-hidden">
-                
+
                 <div class="w-16 h-16 rounded-2xl bg-pink-100 flex items-center justify-center text-pink-500 mb-3 shadow-inner group-hover:scale-110 transition-transform">
                     <i class="fas fa-folder-open text-3xl"></i>
                 </div>
@@ -5507,17 +5507,17 @@ RAMADHAN_DASHBOARD_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-clipboard-list text-rose-500 mr-2"></i>Log Tantrum</h3>
                 <button onclick="closeModal('modal-tantrum')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Log Form -->
                 <div class="bg-rose-50 p-4 rounded-2xl border border-rose-100 mb-6">
                     <h4 class="text-gray-800 font-bold mb-4 flex items-center gap-2"><i class="fas fa-plus-circle text-rose-400"></i> Catat Insiden Baru</h4>
-                    
+
                     <div class="flex gap-4 mb-6">
                         <button onclick="startTantrumTimer()" id="btn-start-tantrum" class="flex-1 bg-rose-500 text-white font-bold py-4 rounded-2xl shadow-md hover:bg-rose-600 active:scale-95 transition-all text-lg border border-rose-400">MULAI TANTRUM (STOPWATCH)</button>
                         <div id="tantrum-timer-display" class="hidden flex-1 bg-white border border-rose-200 rounded-2xl flex items-center justify-center text-3xl font-mono text-rose-500 font-bold shadow-inner">00:00</div>
                     </div>
-                    
+
                     <form id="form-tantrum" onsubmit="submitTantrum(event)" class="space-y-4 hidden">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <input type="hidden" id="t-start-time">
@@ -5531,7 +5531,7 @@ RAMADHAN_DASHBOARD_HTML = """
                                 <input type="time" id="t-time" required class="w-full bg-white border border-rose-100 rounded-xl p-3 text-gray-800 focus:ring-2 focus:ring-rose-400">
                             </div>
                         </div>
-                        
+
                         <div>
                             <label class="block text-xs text-gray-500 mb-1">Pemicu Kemarahan</label>
                             <select id="t-trigger" required class="w-full bg-white border border-rose-100 rounded-xl p-3 text-gray-800 focus:ring-2 focus:ring-rose-400">
@@ -5542,7 +5542,7 @@ RAMADHAN_DASHBOARD_HTML = """
                                 <option value="Lainnya">Lainnya</option>
                             </select>
                         </div>
-                        
+
                         <div>
                             <label class="block text-xs text-gray-500 mb-1">Durasi (Menit)</label>
                             <input type="number" id="t-duration" required placeholder="Contoh: 15" min="1" class="w-full bg-white border border-rose-100 rounded-xl p-3 text-gray-800 focus:ring-2 focus:ring-rose-400">
@@ -5669,7 +5669,7 @@ RAMADHAN_DASHBOARD_HTML = """
                     <button type="submit" id="btn-iep-submit" class="w-full bg-sky-500 text-white font-bold py-4 rounded-xl hover:bg-sky-600 transition shadow-[0_0_15px_rgba(14,165,233,0.4)] hover:shadow-[0_0_20px_rgba(14,165,233,0.6)] flex justify-center items-center gap-2">
                         <i class="fas fa-magic"></i> Rakit Dokumen IEP (PDF)
                     </button>
-                    
+
                     <div id="iep-loading" class="hidden text-center text-sky-500 font-medium text-sm py-2">
                         <i class="fas fa-circle-notch fa-spin mr-2"></i> Merakit dari database silabus...
                     </div>
@@ -5688,7 +5688,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 </div>
                 <button onclick="closeModal('modal-modulator')" class="text-gray-500 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
-            
+
             <div class="bg-violet-50 border border-violet-100 p-6 rounded-2xl text-center relative overflow-hidden mb-6">
                 <!-- Status Ripple -->
                 <div id="modulator-ripple" class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-violet-500/20 rounded-full blur-xl transition-all duration-1000 opacity-0 pointer-events-none"></div>
@@ -5729,7 +5729,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-stethoscope text-violet-500 mr-2"></i>Penjelasan Medis Modulator</h3>
                 <button onclick="closeModal('modal-info-frekuensi')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             <div class="space-y-6">
                 <!-- White Noise -->
                 <div>
@@ -5738,7 +5738,7 @@ RAMADHAN_DASHBOARD_HTML = """
                         Suara statis yang berisi semua frekuensi pendengaran secara seimbang (mirip suara TV rusak atau gemercik hujan deras). Sangat efektif memblokir (masking) suara bising dari luar yang tiba-tiba, sehingga mencegah anak dari <em>Sensory Overload</em> (kelebihan beban sensorik).
                     </p>
                 </div>
-                
+
                 <!-- Pink Noise -->
                 <div>
                     <h4 class="text-sm font-bold text-pink-700 flex items-center gap-2 mb-2"><span class="w-3 h-3 rounded-full bg-pink-400"></span> Pink Noise</h4>
@@ -5774,7 +5774,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <h3 class="text-lg font-bold text-orange-800"><i class="fas fa-comments text-orange-500 mr-2"></i>Papan Komunikasi</h3>
                 <button onclick="closeModal('modal-darurat')" class="text-orange-500 hover:text-orange-700 bg-orange-50 w-8 h-8 rounded-full">&times;</button>
             </div>
-            
+
             <div class="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-6">
                 <!-- 1. Duduk -->
                 <button onclick="speakCommand('Duduk Sekarang')" class="bg-orange-50 p-4 rounded-[2rem] border border-orange-200 flex flex-col items-center justify-center active:scale-95 transition-transform hover:bg-orange-100 hover:shadow-lg aspect-square group shadow-sm">
@@ -5881,12 +5881,12 @@ RAMADHAN_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-emerald-800"><i class="fas fa-brain text-emerald-500 mr-2"></i>Uji Kognitif</h3>
                 <button onclick="closeModal('modal-kognitif'); backToKognitifMenu();" class="text-emerald-600 hover:text-emerald-800 bg-white shadow-sm w-10 h-10 rounded-full border border-emerald-100">&times;</button>
             </div>
-            
+
             <div class="flex-1 relative overflow-y-auto" id="kognitif-arena">
                 <!-- MENU UTAMA KOGNITIF -->
                 <div id="kognitif-menu" class="flex flex-col gap-4 z-10 w-full px-2">
                     <p class="text-emerald-700 mb-4 text-sm font-medium text-center">Pilih modul uji kognitif interaktif</p>
-                    
+
                     <button onclick="openReactionTest()" class="w-full bg-white p-6 rounded-[2rem] shadow-sm border border-emerald-100 flex items-center gap-5 hover:bg-emerald-100 transition transform hover:scale-[1.02] group">
                         <div class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors shadow-inner">
                             <i class="fas fa-hand-pointer text-3xl"></i>
@@ -5897,7 +5897,7 @@ RAMADHAN_DASHBOARD_HTML = """
                         </div>
                         <i class="fas fa-chevron-right text-emerald-400 group-hover:text-emerald-600"></i>
                     </button>
-                    
+
                     <button onclick="openEmotionTest()" class="w-full bg-white p-6 rounded-[2rem] shadow-sm border border-emerald-100 flex items-center gap-5 hover:bg-emerald-100 transition transform hover:scale-[1.02] group">
                         <div class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors shadow-inner">
                             <i class="fas fa-smile text-3xl"></i>
@@ -5908,7 +5908,7 @@ RAMADHAN_DASHBOARD_HTML = """
                         </div>
                         <i class="fas fa-chevron-right text-emerald-400 group-hover:text-emerald-600"></i>
                     </button>
-                    
+
                     <button onclick="openShapeTest()" class="w-full bg-white p-6 rounded-[2rem] shadow-sm border border-emerald-100 flex items-center gap-5 hover:bg-emerald-100 transition transform hover:scale-[1.02] group">
                         <div class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors shadow-inner">
                             <i class="fas fa-shapes text-3xl"></i>
@@ -5934,27 +5934,27 @@ RAMADHAN_DASHBOARD_HTML = """
                     </div>
 
                     <div id="reaction-dot" class="hidden absolute w-24 h-24 bg-red-500 rounded-full shadow-[0_0_30px_rgba(239,68,68,0.6)] cursor-pointer touch-none hover:scale-110 active:scale-90 transition-transform" onmousedown="dotTapped(event)" ontouchstart="dotTapped(event)"></div>
-                    
+
                     <div id="reaction-result" class="hidden text-center z-10 pointer-events-none bg-emerald-50/90 backdrop-blur rounded-3xl p-8 border border-emerald-200 w-full mx-4">
                         <p class="text-emerald-600 text-xs font-bold uppercase tracking-widest mb-2">Waktu Reaksi</p>
                         <h2 class="text-5xl font-extrabold font-mono text-emerald-800 mb-2" id="reaction-time-display">0 <span class="text-xl text-emerald-600">detik</span></h2>
                         <p class="text-emerald-600 font-bold bg-white inline-block px-4 py-1 rounded-full border border-emerald-200 mt-2" id="reaction-feedback">Luar biasa!</p>
                     </div>
                 </div>
-                
+
                 <!-- 2. UJI PENGENALAN EMOSI ARENA -->
                 <div id="emotion-arena" class="hidden absolute inset-0 bg-white rounded-3xl flex flex-col items-center justify-between shadow-inner border border-emerald-100 p-6 overflow-hidden">
                     <button onclick="backToKognitifMenu()" class="absolute top-4 left-4 w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600 hover:bg-emerald-100 z-50 shadow-sm border border-emerald-100">
                         <i class="fas fa-arrow-left"></i>
                     </button>
-                    
+
                     <div id="emotion-start-screen" class="absolute inset-0 bg-white rounded-3xl flex flex-col items-center justify-center z-20">
                         <i class="fas fa-smile text-6xl text-emerald-400 mb-6"></i>
                         <h4 class="text-2xl font-bold text-emerald-800 mb-2">Pengenalan Emosi</h4>
                         <p class="text-emerald-600 text-sm mb-8 text-center px-8 font-medium">Tebak ekspresi wajah dengan menekan tombol yang sesuai secepat mungkin.</p>
                         <button onclick="startEmotionTest()" class="bg-emerald-500 text-white font-bold py-5 px-14 rounded-full text-xl hover:bg-emerald-600 transition shadow-[0_10px_20px_rgba(16,185,129,0.3)]">Mulai Tes</button>
                     </div>
-                    
+
                     <div class="w-full flex justify-between items-center z-10 mt-10 px-4">
                         <span class="text-emerald-600 font-bold bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 text-xs" id="emotion-counter">1/9</span>
                         <span class="text-emerald-600 font-mono font-bold bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 text-xs" id="emotion-timer">0.00s</span>
@@ -5969,7 +5969,7 @@ RAMADHAN_DASHBOARD_HTML = """
                         <button onclick="emotionTapped('Sedih')" class="bg-emerald-50 text-emerald-700 font-bold py-6 rounded-3xl border border-emerald-200 hover:bg-emerald-500 hover:text-white transition shadow-sm active:scale-95 text-sm md:text-base">Sedih</button>
                         <button onclick="emotionTapped('Marah')" class="bg-emerald-50 text-emerald-700 font-bold py-6 rounded-3xl border border-emerald-200 hover:bg-emerald-500 hover:text-white transition shadow-sm active:scale-95 text-sm md:text-base">Marah</button>
                     </div>
-                    
+
                     <div id="emotion-result" class="hidden absolute inset-0 bg-white/95 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-8 rounded-3xl">
                         <i class="fas fa-check-circle text-6xl text-emerald-500 mb-4"></i>
                         <h2 class="text-3xl font-bold text-emerald-800 mb-2">Selesai!</h2>
@@ -5984,20 +5984,20 @@ RAMADHAN_DASHBOARD_HTML = """
                         <button onclick="backToKognitifMenu()" class="mt-8 bg-emerald-500 text-white font-bold py-4 w-full rounded-full hover:bg-emerald-600 transition shadow-md">Kembali ke Menu</button>
                     </div>
                 </div>
-                
+
                 <!-- 3. UJI COCOK BENTUK ARENA -->
                 <div id="shape-arena" class="hidden absolute inset-0 bg-white rounded-3xl flex flex-col items-center justify-between shadow-inner border border-emerald-100 p-6 overflow-hidden select-none touch-none">
                     <button onclick="backToKognitifMenu()" class="absolute top-4 left-4 w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600 hover:bg-emerald-100 z-50 shadow-sm border border-emerald-100">
                         <i class="fas fa-arrow-left"></i>
                     </button>
-                    
+
                     <div id="shape-start-screen" class="absolute inset-0 bg-white rounded-3xl flex flex-col items-center justify-center z-20">
                         <i class="fas fa-shapes text-6xl text-emerald-400 mb-6"></i>
                         <h4 class="text-2xl font-bold text-emerald-800 mb-2">Cocok Bentuk</h4>
                         <p class="text-emerald-600 text-sm mb-8 text-center px-8 font-medium">Perhatikan bentuk di atas dan pilih jawaban yang sama persis di bawah.</p>
                         <button onclick="startShapeTest()" class="bg-emerald-500 text-white font-bold py-5 px-14 rounded-full text-xl hover:bg-emerald-600 transition shadow-[0_10px_20px_rgba(16,185,129,0.3)]">Mulai Tes</button>
                     </div>
-                    
+
                     <div class="w-full flex justify-between items-center z-10 mt-10 px-4">
                         <span class="text-emerald-600 font-bold bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 text-xs" id="shape-counter">1/9</span>
                         <span class="text-emerald-600 font-mono font-bold bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 text-xs" id="shape-timer">0.00s</span>
@@ -6008,13 +6008,13 @@ RAMADHAN_DASHBOARD_HTML = """
                         <div class="bg-gray-50 p-6 rounded-[2rem] border-2 border-dashed border-gray-300 mb-8 flex items-center justify-center min-h-[160px] min-w-[160px] shadow-sm">
                             <div id="shape-target" class="w-24 h-24"></div>
                         </div>
-                        
+
                         <!-- Choices -->
                         <div class="grid grid-cols-3 gap-4 w-full" id="shape-choices">
                             <!-- Injected by JS -->
                         </div>
                     </div>
-                    
+
                     <div id="shape-result" class="hidden absolute inset-0 bg-white/95 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-8 rounded-3xl">
                         <i class="fas fa-check-circle text-6xl text-emerald-500 mb-4"></i>
                         <h2 class="text-3xl font-bold text-emerald-800 mb-2">Selesai!</h2>
@@ -6033,7 +6033,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 </div>
 
             </div>
-            
+
             <!-- Graph Overlay -->
             <div id="reaction-graph-overlay" class="hidden absolute inset-0 bg-white z-50 flex flex-col pt-8 px-5 rounded-[2.5rem]">
                 <div class="flex justify-between items-center mb-6">
@@ -6066,7 +6066,7 @@ RAMADHAN_DASHBOARD_HTML = """
                     <button onclick="closeModal('modal-portofolio')" class="text-rose-500 hover:text-white hover:bg-rose-400 bg-rose-100 w-10 h-10 rounded-full flex items-center justify-center transition-colors">&times;</button>
                 </div>
             </div>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <!-- Upload Panel -->
                 <div class="bg-white border border-rose-100 p-6 rounded-[2rem] md:col-span-1 h-fit shadow-sm">
@@ -6117,7 +6117,7 @@ RAMADHAN_DASHBOARD_HTML = """
                             <div class="relative group rounded-2xl overflow-hidden aspect-square border border-rose-100 bg-rose-50 port-card shadow-sm hover:shadow-md transition-shadow cursor-pointer" data-siswa="{{ port.student_id|lower }}">
                                 {% set ext = port.filename.rsplit('.', 1)[1]|lower if '.' in port.filename else '' %}
                                 {% set is_video = ext in ['mp4', 'avi', 'mov', 'mkv', 'wmv', 'flv', 'webm', 'm4v', 'mpeg'] %}
-                                
+
                                 {% if is_video %}
                                     <video class="w-full h-full object-cover" muted playsinline>
                                         <source src="/uploads/{{ port.filename }}" type="video/mp4">
@@ -6128,7 +6128,7 @@ RAMADHAN_DASHBOARD_HTML = """
                                 {% else %}
                                     <img src="/uploads/{{ port.filename }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" loading="lazy">
                                 {% endif %}
-                                
+
                                 <div class="absolute inset-0 bg-gradient-to-t from-rose-900/90 via-rose-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
                                     <span class="text-white font-bold text-base truncate drop-shadow-md">{{ port.student_id }}</span>
                                     <span class="text-rose-200 font-medium text-[11px] drop-shadow-md">{{ port.semester }}</span>
@@ -6156,14 +6156,14 @@ RAMADHAN_DASHBOARD_HTML = """
         const open = '{{ open_modal }}';
         if(open && open !== 'None') openModal(open);
     });
-    
+
     // HIJRI DATE (REUSE fetchHijri but target different ID)
     function fetchHijriRamadhan() {
         function updateDate() {
             const today = new Date();
             const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
             const dateString = today.toLocaleDateString('id-ID', options);
-            
+
             const elements = document.querySelectorAll('[id^="hijri-date-ramadhan"]');
             elements.forEach(el => {
                 el.innerText = dateString;
@@ -6181,7 +6181,7 @@ RAMADHAN_DASHBOARD_HTML = """
             const response = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
             const result = await response.json();
             const timings = result.data.timings;
-            
+
             if(document.getElementById('r-fajr')) {
                 document.getElementById('r-fajr').innerText = timings.Fajr;
                 document.getElementById('r-dhuhr').innerText = timings.Dhuhr;
@@ -6205,7 +6205,7 @@ RAMADHAN_DASHBOARD_HTML = """
             document.getElementById(id).classList.add('hidden');
         }
     }
-    
+
     // 1. TANTRUM LOGIC
     let tantrumStartTime = 0;
     let tantrumInterval;
@@ -6233,15 +6233,15 @@ RAMADHAN_DASHBOARD_HTML = """
             clearInterval(tantrumInterval);
             const duration = Date.now() - tantrumStartTime;
             const durationMinutes = Math.max(1, Math.round(duration / 60000));
-            
+
             // Use current time as explicit start time per user requirements
             const now = new Date();
             const timeString = now.toTimeString().substring(0, 5); // "HH:MM"
             document.getElementById('t-time').value = timeString;
-            
+
             document.getElementById('t-start-time').value = Date.now();
             document.getElementById('t-duration').value = durationMinutes; // Pre-fill the form with timer data, but allow editing
-            
+
             btn.innerText = 'MULAI TANTRUM (STOPWATCH)';
             btn.classList.replace('bg-gray-500', 'bg-rose-500');
             btn.classList.replace('hover:bg-gray-600', 'hover:bg-rose-600');
@@ -6254,10 +6254,10 @@ RAMADHAN_DASHBOARD_HTML = """
 
     async function submitTantrum(e) {
         e.preventDefault();
-        
+
         // Using explicit time from input, but passing as 'start' to keep backend happy.
         // For 'duration', using the input value.
-        
+
         const timeInput = document.getElementById('t-time').value;
         const now = new Date();
         const parts = timeInput.split(':');
@@ -6265,7 +6265,7 @@ RAMADHAN_DASHBOARD_HTML = """
             now.setHours(parseInt(parts[0], 10));
             now.setMinutes(parseInt(parts[1], 10));
         }
-        
+
         const data = {
             student: document.getElementById('t-student').value,
             trigger: document.getElementById('t-trigger').value,
@@ -6294,7 +6294,7 @@ RAMADHAN_DASHBOARD_HTML = """
         try {
             const res = await fetch('/guru/tantrum/data');
             const data = await res.json();
-            
+
             // Render History Table
             const tbody = document.getElementById('tantrum-history-tbody');
             if (tbody) {
@@ -6317,7 +6317,7 @@ RAMADHAN_DASHBOARD_HTML = """
                     tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-400 italic">Belum ada riwayat.</td></tr>';
                 }
             }
-            
+
             if(!data.values || data.values.every(v => v === 0)) {
                 document.getElementById('tantrum-empty').classList.remove('hidden');
                 return;
@@ -6339,7 +6339,7 @@ RAMADHAN_DASHBOARD_HTML = """
     function drawTantrumChart(data) {
         const ctx = document.getElementById('tantrumChart').getContext('2d');
         if(tChart) tChart.destroy();
-        
+
         tChart = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -6413,7 +6413,7 @@ RAMADHAN_DASHBOARD_HTML = """
             connectSocket();
         }
     }
-    
+
     function connectSocket() {
         if(!socket) {
             socket = io();
@@ -6431,7 +6431,7 @@ RAMADHAN_DASHBOARD_HTML = """
     function broadcastFrequency(type) {
         const ripple = document.getElementById('modulator-ripple');
         let data = {};
-        
+
         // Reset buttons visually
         document.querySelectorAll('[id^="btn-freq-"]').forEach(btn => {
             btn.classList.remove('bg-violet-500', 'text-white');
@@ -6449,17 +6449,17 @@ RAMADHAN_DASHBOARD_HTML = """
         } else {
             ripple.classList.remove('opacity-0');
             ripple.classList.add('opacity-100', 'animate-pulse');
-            
+
             const activeBtn = document.getElementById('btn-freq-' + type);
             if(activeBtn) activeBtn.classList.add('bg-violet-500', 'text-white');
-            
+
             if (type === 'theta') {
                 data = { mode: 'calm' };
             } else {
                 data = { mode: 'noise', type: type };
             }
         }
-        
+
         if(socket) socket.emit('set_frequency', data);
         if(window.processFrequencyData) window.processFrequencyData(data); // Play locally
     }
@@ -6517,19 +6517,19 @@ RAMADHAN_DASHBOARD_HTML = """
         document.getElementById('reaction-start-screen').classList.add('hidden');
         document.getElementById('reaction-result').classList.add('hidden');
         document.getElementById('reaction-dot').classList.add('hidden');
-        
+
         const delay = Math.random() * 3000 + 1000; // 1-4s delay
-        
+
         reactionTimer = setTimeout(() => {
             const dot = document.getElementById('reaction-dot');
             const arena = document.getElementById('reaction-arena');
             const maxW = arena.clientWidth - 100;
             const maxH = arena.clientHeight - 100;
-            
+
             dot.style.left = Math.random() * maxW + 50 + 'px';
             dot.style.top = Math.random() * maxH + 50 + 'px';
             dot.classList.remove('hidden');
-            
+
             reactionStart = performance.now();
         }, delay);
     }
@@ -6538,12 +6538,12 @@ RAMADHAN_DASHBOARD_HTML = """
         if(e) e.preventDefault();
         const reactTime = performance.now() - reactionStart;
         document.getElementById('reaction-dot').classList.add('hidden');
-        
+
         const seconds = (reactTime / 1000).toFixed(2);
-        
+
         document.getElementById('reaction-time-display').innerHTML = `${seconds} <span class="text-xl text-emerald-600">detik</span>`;
         document.getElementById('reaction-result').classList.remove('hidden');
-        
+
         setTimeout(() => {
             document.getElementById('reaction-start-screen').classList.remove('hidden');
             document.getElementById('reaction-result').classList.add('hidden');
@@ -6570,7 +6570,7 @@ RAMADHAN_DASHBOARD_HTML = """
         try {
             const res = await fetch('/guru/reaction/data');
             const data = await res.json();
-            
+
             if(data.values.length === 0) {
                 document.getElementById('reaction-empty').classList.remove('hidden');
                 return;
@@ -6603,7 +6603,7 @@ RAMADHAN_DASHBOARD_HTML = """
             const targetColor = shapeColors[Math.floor(Math.random() * shapeColors.length)];
             const targetForm = shapeForms[Math.floor(Math.random() * shapeForms.length)];
             const targetObj = { color: targetColor, form: targetForm };
-            
+
             // Create options
             let options = [targetObj];
             while (options.length < 3) {
@@ -6628,24 +6628,24 @@ RAMADHAN_DASHBOARD_HTML = """
         shapeQuestions = generateShapeQuestions();
         document.getElementById('shape-start-screen').classList.add('hidden');
         document.getElementById('shape-result').classList.add('hidden');
-        
+
         shapeCurrentIdx = 0;
         shapeMistakes = 0;
         shapeStartTime = performance.now();
-        
+
         clearInterval(shapeInterval);
         shapeInterval = setInterval(() => {
             const elapsed = (performance.now() - shapeStartTime) / 1000;
             document.getElementById('shape-timer').innerText = elapsed.toFixed(2) + 's';
         }, 100);
-        
+
         showShapeQuestion();
     }
 
     function showShapeQuestion() {
         document.getElementById('shape-counter').innerText = (shapeCurrentIdx + 1) + '/' + shapeQuestions.length;
         const currentQ = shapeQuestions[shapeCurrentIdx];
-        
+
         // Render target
         const targetDiv = document.getElementById('shape-target');
         targetDiv.className = `w-24 h-24 ${currentQ.target.color} ${currentQ.target.form} shadow-md`;
@@ -6661,7 +6661,7 @@ RAMADHAN_DASHBOARD_HTML = """
             const innerDiv = document.createElement('div');
             innerDiv.className = `w-16 h-16 ${opt.color} ${opt.form} shadow-md`;
             btn.appendChild(innerDiv);
-            
+
             btn.onclick = () => shapeTapped(opt, currentQ.target, btn);
             choicesContainer.appendChild(btn);
         });
@@ -6684,7 +6684,7 @@ RAMADHAN_DASHBOARD_HTML = """
             setTimeout(() => {
                 btnElement.classList.remove('bg-red-100', 'border-red-400', 'animate-pulse');
             }, 500);
-            
+
             // Haptic error if supported
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         }
@@ -6693,11 +6693,11 @@ RAMADHAN_DASHBOARD_HTML = """
     async function endShapeTest() {
         clearInterval(shapeInterval);
         const durationSec = (performance.now() - shapeStartTime) / 1000;
-        
+
         document.getElementById('shape-mistakes').innerText = shapeMistakes;
         document.getElementById('shape-total-time').innerText = durationSec.toFixed(2) + ' detik';
         document.getElementById('shape-result').classList.remove('hidden');
-        
+
         try {
             await fetch('/guru/kognitif/bentuk', {
                 method: 'POST',
@@ -6735,22 +6735,22 @@ RAMADHAN_DASHBOARD_HTML = """
             const j = Math.floor(Math.random() * (i + 1));
             [emotionQuestions[i], emotionQuestions[j]] = [emotionQuestions[j], emotionQuestions[i]];
         }
-        
+
         document.getElementById('emotion-start-screen').classList.add('hidden');
         document.getElementById('emotion-result').classList.add('hidden');
-        
+
         emotionCurrentIdx = 0;
         emotionScore = 0;
         emotionHistory = [];
         emotionStartTime = performance.now();
-        
+
         // Timer display
         clearInterval(emotionInterval);
         emotionInterval = setInterval(() => {
             const elapsed = (performance.now() - emotionStartTime) / 1000;
             document.getElementById('emotion-timer').innerText = elapsed.toFixed(2) + 's';
         }, 100);
-        
+
         showEmotionQuestion();
     }
 
@@ -6759,7 +6759,7 @@ RAMADHAN_DASHBOARD_HTML = """
         const display = document.getElementById('emotion-display');
         display.style.transform = 'scale(0.5)';
         display.style.opacity = '0';
-        
+
         setTimeout(() => {
             display.innerText = emotionQuestions[emotionCurrentIdx].emoji;
             display.style.transform = 'scale(1)';
@@ -6770,16 +6770,16 @@ RAMADHAN_DASHBOARD_HTML = """
     function emotionTapped(selected) {
         const currentQ = emotionQuestions[emotionCurrentIdx];
         const isCorrect = (selected === currentQ.answer);
-        
+
         if (isCorrect) emotionScore++;
-        
+
         emotionHistory.push({
             emoji: currentQ.emoji,
             expected: currentQ.answer,
             selected: selected,
             correct: isCorrect
         });
-        
+
         emotionCurrentIdx++;
         if (emotionCurrentIdx >= emotionQuestions.length) {
             endEmotionTest();
@@ -6791,11 +6791,11 @@ RAMADHAN_DASHBOARD_HTML = """
     async function endEmotionTest() {
         clearInterval(emotionInterval);
         const durationSec = (performance.now() - emotionStartTime) / 1000;
-        
+
         document.getElementById('emotion-score-display').innerText = `${emotionScore}/${emotionQuestions.length}`;
         document.getElementById('emotion-total-time').innerText = durationSec.toFixed(2) + ' detik';
         document.getElementById('emotion-result').classList.remove('hidden');
-        
+
         try {
             await fetch('/guru/kognitif/emosi', {
                 method: 'POST',
@@ -6813,7 +6813,7 @@ RAMADHAN_DASHBOARD_HTML = """
     function drawReactionChart(data) {
         const ctx = document.getElementById('reactionChart').getContext('2d');
         if(rChart) rChart.destroy();
-        
+
         rChart = new Chart(ctx, {
             type: 'line',
             data: {
@@ -6843,7 +6843,7 @@ RAMADHAN_DASHBOARD_HTML = """
     function filterPortofolio() {
         const input = document.getElementById("filter-siswa").value.toLowerCase();
         const cards = document.querySelectorAll('.port-card');
-        
+
         cards.forEach(card => {
             const siswa = card.getAttribute('data-siswa');
             if (siswa.includes(input)) {
@@ -6860,7 +6860,7 @@ RAMADHAN_DASHBOARD_HTML = """
             const el = document.getElementById(id);
             if (el) el.classList.remove('hidden');
             history.pushState({modal: id}, null, "");
-            
+
             // Custom hooks
             if(id === 'modal-tantrum') loadTantrumChart();
             if(id === 'modal-modulator') initSocket();
@@ -6874,12 +6874,12 @@ RAMADHAN_DASHBOARD_HTML = """
         };
     }
 
-    
+
     // Real-Time Clock Waktu Samarinda
     function initDashboardGuruClock() {
         const clockEl = document.getElementById('waktu-samarinda');
         if (!clockEl) return;
-        
+
         setInterval(() => {
             const now = new Date();
             const timeString = new Intl.DateTimeFormat('id-ID', {
@@ -6891,7 +6891,7 @@ RAMADHAN_DASHBOARD_HTML = """
             }).format(now).replace(/[.]/g, ':');
             clockEl.innerHTML = timeString;
         }, 1000);
-        
+
         const now = new Date();
         const timeString = new Intl.DateTimeFormat('id-ID', {
             timeZone: 'Asia/Makassar',
@@ -7023,9 +7023,9 @@ def ramadhan_dashboard():
     if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return redirect(url_for('index'))
     portfolios = StudentPortfolio.query.limit(100).order_by(StudentPortfolio.created_at.desc()).all()
-    
+
     settings = get_settings()
-        
+
     # Render CONTENT first
     rendered_content = cached_render('RAMADHAN_DASHBOARD_HTML', RAMADHAN_DASHBOARD_HTML,
                                               portfolios=portfolios,
@@ -7033,9 +7033,9 @@ def ramadhan_dashboard():
                                               is_admin=session.get('is_admin', False),
                                               settings=settings)
 
-    return cached_render('BASE_LAYOUT', BASE_LAYOUT, 
-                                  styles=STYLES_HTML + RAMADHAN_STYLES, 
-                                  active_page='ramadhan', 
+    return cached_render('BASE_LAYOUT', BASE_LAYOUT,
+                                  styles=STYLES_HTML + RAMADHAN_STYLES,
+                                  active_page='ramadhan',
                                   content=rendered_content,
                                   hide_nav=False,
                                   full_width=True,
@@ -7068,12 +7068,12 @@ def get_tantrum_data():
         return jsonify({'error': 'Unauthorized'}), 403
     # Fetch all logs
     logs = TantrumLog.query.filter(TantrumLog.created_at >= datetime.datetime.now() - datetime.timedelta(days=30)).order_by(TantrumLog.created_at.desc()).all()
-    
+
     # Initialize hours map 0-23
     hours_count = {str(i).zfill(2) + ":00": 0 for i in range(24)}
-    
+
     history_data = []
-    
+
     for log in logs:
         # Determine time and duration for history
         display_time = log.created_at.strftime("%H:%M")
@@ -7083,7 +7083,7 @@ def get_tantrum_data():
                 display_time = dt.strftime("%H:%M")
         except:
             pass
-            
+
         display_duration = 0
         if log.duration_ms:
             display_duration = max(1, round(log.duration_ms / 60000))
@@ -7096,7 +7096,7 @@ def get_tantrum_data():
             "action": log.action,
             "date": log.created_at.strftime("%Y-%m-%d")
         })
-        
+
         try:
             hour_key = display_time.split(':')[0] + ":00"
             if hour_key in hours_count:
@@ -7132,7 +7132,7 @@ def prefetch_emoji_icons():
                         app.logger.error(f"Failed to prefetch emoji {icon_hex}: {e}")
         except Exception as e:
             app.logger.error(f"Background thread error in prefetch_emoji_icons: {e}")
-            
+
     threading.Thread(target=_download, daemon=True).start()
 
 @app.route('/guru/iep', methods=['POST'])
@@ -7142,10 +7142,10 @@ def generate_iep():
     student_class = request.form.get('student_class')
     conditions = request.form.getlist('condition')
     scores = {cond: request.form.get(f'score_{cond}', '0') for cond in conditions}
-    
+
     # Fetch real-time date
     date_text = datetime.datetime.now().strftime("%d %B %Y %H:%M:%S")
-    
+
     def add_item_with_icon(title, body, rationale, icon_hex):
         emoji_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'emoji_cache')
         file_path = os.path.join(emoji_dir, f"{icon_hex}.png")
@@ -7155,13 +7155,13 @@ def generate_iep():
                 img = RLImage(file_path, width=36, height=36)
         except Exception:
             pass
-        
+
         text_content = [
             Paragraph(title, styles['ItemTitle']),
             Paragraph(body, styles['ItemBody']),
             Paragraph(rationale, styles['Rationale'])
         ]
-        
+
         if img:
             t = Table([[img, text_content]], colWidths=[50, 418])
             t.setStyle(TableStyle([
@@ -7178,7 +7178,7 @@ def generate_iep():
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
-    
+
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(name='CenterHeading', parent=styles['Heading1'], alignment=1, spaceAfter=20, fontSize=24, textColor=colors.HexColor('#1E3A8A')))
     styles.add(ParagraphStyle(name='DateStyle', parent=styles['Normal'], alignment=1, spaceAfter=20, fontSize=10, textColor=colors.HexColor('#6B7280')))
@@ -7189,19 +7189,19 @@ def generate_iep():
     styles.add(ParagraphStyle(name='Rationale', parent=styles['Normal'], fontName='Helvetica-Oblique', textColor=colors.HexColor('#4B5563'), leading=14, spaceAfter=12))
 
     Story = []
-    
+
     # Letterhead
     Story.append(Paragraph("SEKOLAH LUAR BIASA", styles['CenterHeading']))
     Story.append(Paragraph("RENCANA PENDIDIKAN INDIVIDUAL (IEP)", styles['CenterHeading']))
     Story.append(Paragraph(f"Dicetak pada: {date_text}", styles['DateStyle']))
     Story.append(Spacer(1, 12))
-    
+
     # Student Info
     Story.append(Paragraph(f"<b>Nama Siswa:</b> {student_name}", styles['NormalText']))
     Story.append(Paragraph(f"<b>Kelas / Usia:</b> {student_class}", styles['NormalText']))
     Story.append(Spacer(1, 12))
 
-    
+
     # Conditions mapping with icon hex codes (Twemoji)
     cond_data = {
         "Visual": {"rat": "Hambatan visual pada anak bukan sekadar perkara mata yang tidak bisa melihat jelas, melainkan terganggunya jalur optik menuju korteks otak. Anak seringkali merasa terisolasi dalam ruang hampa cahaya. Pendekatan ini merangsang neuroplastisitas untuk membentuk kembali peta visual mereka secara perlahan.", "icon": "1f441"}, # Eye
@@ -7285,7 +7285,7 @@ def generate_iep():
         "<b>Dasar Medis:</b> Prinsip Arsitektur Perilaku yang memberikan ruang aman bagi anak untuk melakukan regulasi sensorik mandiri.",
         "26fa" # Tent
     ))
-    
+
     doc.build(Story)
     buffer.seek(0)
     return Response(buffer, mimetype='application/pdf', headers={'Content-Disposition': f'attachment;filename=IEP_{student_name}.pdf'})
@@ -7368,11 +7368,11 @@ def upload_portfolio():
         return "Unauthorized", 403
     if 'image' not in request.files:
         return redirect(url_for('ramadhan_dashboard', open='modal-portofolio'))
-    
+
     file = request.files['image']
     if file.filename == '':
         return redirect(url_for('ramadhan_dashboard', open='modal-portofolio'))
-        
+
     if file and allowed_file(file.filename):
         try:
             file_bytes = file.read(2048)
@@ -7383,25 +7383,25 @@ def upload_portfolio():
 
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            
+
             ext = filename.rsplit('.', 1)[1].lower()
             video_extensions = {'mp4', 'avi', 'mov', 'mkv', 'wmv', 'flv', 'webm', 'm4v', 'mpeg'}
-            
+
             if ext in video_extensions or ext == 'svg':
                 file.save(filepath)
             else:
                 img = Image.open(file)
-                if img.mode in ("RGBA", "P"): 
+                if img.mode in ("RGBA", "P"):
                     img = img.convert("RGB")
                 img.thumbnail((800, 800))
-                
+
                 # Image compression loop to ensure file size is under 500KB
                 quality = 85
                 img.save(filepath, format="JPEG", quality=quality, optimize=True)
                 while os.path.getsize(filepath) > 500 * 1024 and quality > 10:
                     quality -= 5
                     img.save(filepath, format="JPEG", quality=quality, optimize=True)
-                
+
             port = StudentPortfolio(
                 student_id=request.form.get('student_id'),
                 semester=request.form.get('semester'),
@@ -7411,7 +7411,7 @@ def upload_portfolio():
             db.session.commit()
         except Exception as e:
             db.session.rollback()
-        
+
     return redirect(url_for('ramadhan_dashboard', open='modal-portofolio'))
 
 # --- SOCKET IO EVENTS FOR DASHBOARD GURU ---
@@ -7421,7 +7421,7 @@ connected_clients_dict = {}
 def handle_connect():
     global connected_clients_dict
     user_agent = request.headers.get('User-Agent', '')
-    
+
     device_name = "Perangkat Tidak Dikenal"
     if "Android" in user_agent:
         device_name = "Android"
@@ -7431,7 +7431,7 @@ def handle_connect():
         device_name = "Windows PC"
     elif "Mac" in user_agent:
         device_name = "Mac OS"
-    
+
     if "Chrome" in user_agent and "Edg" not in user_agent:
         device_name += " (Chrome)"
     elif "Safari" in user_agent and "Chrome" not in user_agent:
@@ -7441,7 +7441,7 @@ def handle_connect():
 
     # Handle duplicates by appending SID slice
     device_id = f"{device_name} [{request.sid[:4]}]"
-    
+
     connected_clients_dict[request.sid] = device_id
     emit('client_count', {'count': len(connected_clients_dict), 'clients': list(connected_clients_dict.values())}, broadcast=True)
 
@@ -7480,7 +7480,7 @@ SLB_TUNANETRA_HTML = """
             <h2 class="text-3xl font-extrabold text-sky-800 tracking-tight">Audio Panduan</h2>
             <p class="text-sm font-medium text-sky-600">Aktivitas Fisik Spasial</p>
         </div>
-        
+
         <!-- Big Play Button Minimalist Pastel -->
         <button id="main-play-btn" onclick="toggleAudioGuide()" class="w-full h-48 bg-white text-emerald-500 rounded-[2.5rem] shadow-lg shadow-emerald-100/50 flex flex-col items-center justify-center active:scale-95 transition-all duration-300 border-2 border-emerald-50 group" aria-label="Tombol Putar Panduan Suara. Ketuk untuk memutar atau menjeda." aria-live="polite">
             <div class="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mb-3 group-hover:bg-emerald-100 transition-colors">
@@ -7532,12 +7532,12 @@ SLB_TUNANETRA_HTML = """
                 <span class="text-sm font-bold text-gray-700 text-center leading-tight">Berjalan<br>Aman</span>
             </button>
         </div>
-        
+
         <button onclick="openModal('modal-medis-tunanetra')" class="w-full bg-sky-100 text-sky-700 text-xs font-bold py-4 rounded-2xl hover:bg-sky-200 transition uppercase tracking-widest mt-2 flex items-center justify-center gap-2" aria-label="Buka Penjelasan Medis">
             <i class="fas fa-stethoscope" aria-hidden="true"></i> PENJELASAN MEDIS
         </button>
     </div>
-    
+
     <!-- Modal Medis Tunanetra -->
     <div id="modal-medis-tunanetra" class="fixed inset-0 z-[100] hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title-tunanetra">
         <div class="absolute inset-0 bg-sky-900/60 backdrop-blur-md transition-opacity" onclick="closeModal('modal-medis-tunanetra')"></div>
@@ -7546,7 +7546,7 @@ SLB_TUNANETRA_HTML = """
                 <h3 id="modal-title-tunanetra" class="text-xl font-bold text-sky-800"><i class="fas fa-notes-medical text-sky-500 mr-2"></i>PENJELASAN MEDIS</h3>
                 <button onclick="closeModal('modal-medis-tunanetra')" class="bg-gray-100 text-gray-500 w-8 h-8 rounded-full hover:bg-gray-200 flex items-center justify-center" aria-label="Tutup Modal">&times;</button>
             </div>
-            
+
             <div class="mb-6">
                 <h4 class="text-xs font-bold text-sky-600 uppercase tracking-widest mb-2 border-b border-sky-100 pb-1">Dasar Medis Sains</h4>
                 <p class="text-sm text-gray-700 leading-relaxed text-justify font-medium">
@@ -7582,28 +7582,28 @@ SLB_TUNANETRA_HTML = """
         const text = document.getElementById('play-text');
         const displayBox = document.getElementById('reading-display');
         const displayText = document.getElementById('reading-text');
-        
+
         // Text Sources
         const sources = {
-            'shalat': "Panduan Shalat. Satu, Berdiri tegak menghadap kiblat dan niat. Dua, Takbiratul Ihram, ucapkan Allahu Akbar. Tiga, Baca doa Iftitah dan Al-Fatihah. Empat, Ruku dengan tuma'ninah. Lima, I'tidal dengan tuma'ninah. Enam, Sujud dengan tuma'ninah. Tujuh, Duduk di antara dua sujud. Delapan, Sujud kedua. Sembilan, Duduk tasyahud akhir dan salam.", 
+            'shalat': "Panduan Shalat. Satu, Berdiri tegak menghadap kiblat dan niat. Dua, Takbiratul Ihram, ucapkan Allahu Akbar. Tiga, Baca doa Iftitah dan Al-Fatihah. Empat, Ruku dengan tuma'ninah. Lima, I'tidal dengan tuma'ninah. Enam, Sujud dengan tuma'ninah. Tujuh, Duduk di antara dua sujud. Delapan, Sujud kedua. Sembilan, Duduk tasyahud akhir dan salam.",
             'wudhu': "Panduan Wudhu. Satu, Niat dalam hati dan membaca Basmalah. Dua, Membasuh kedua telapak tangan. Tiga, Berkumur-kumur. Empat, Membersihkan lubang hidung. Lima, Membasuh wajah. Enam, Membasuh kedua tangan hingga siku. Tujuh, Mengusap sebagian kepala. Delapan, Membasuh kedua telinga. Sembilan, Membasuh kedua kaki hingga mata kaki. Sepuluh, Tertib dan doa setelah wudhu.",
-            'makan': "Duduk tegak di kursi. Raba letak piring tepat di depan perutmu. Sendok ada di sebelah kanan piring, dan garpu di sebelah kiri. Ambil makanan pelan pelan, lalu suapkan ke arah mulut. Kunyah makanan sampai benar benar lembut sebelum ditelan.", 
+            'makan': "Duduk tegak di kursi. Raba letak piring tepat di depan perutmu. Sendok ada di sebelah kanan piring, dan garpu di sebelah kiri. Ambil makanan pelan pelan, lalu suapkan ke arah mulut. Kunyah makanan sampai benar benar lembut sebelum ditelan.",
             'sikatGigi': "Pegang gagang sikat gigi dengan tangan kanan. Minta bantuan untuk memberi pasta gigi sebesar biji jagung. Sikat gigi bagian depan dengan gerakan naik turun, lalu sikat bagian samping kiri dan kanan dengan gerakan memutar. Kumur kumur dengan air bersih, lalu buang airnya. Selesai, gigimu sudah bersih.",
             'berpakaian': "Pegang bajumu. Raba bagian kerah leher untuk mencari label, letakkan label itu di bagian belakang. Masukkan tangan kananmu ke lubang lengan kanan, lalu masukkan tangan kirimu ke lubang lengan kiri. Tarik baju ke bawah perlahan sampai menutupi perutmu.",
             'berjalan': "Berdirilah dengan tegak. Rentangkan satu tanganmu agak menekuk ke depan dada sebagai pelindung. Berjalanlah pelan pelan. Gunakan tangan satunya untuk meraba dinding atau pinggiran meja untuk mengenali arah. Jika kamu menabrak sesuatu, berhenti sebentar, rasakan sekelilingmu, lalu melangkah lagi pelan pelan."
         };
-        
+
         function hapticFeedback() {
             if (navigator.vibrate) {
                 navigator.vibrate(200); // 200ms vibration
             }
         }
-        
+
         function setGuide(type) {
             hapticFeedback();
             currentText = sources[type];
             currentType = type;
-            
+
             // Show display box
             displayBox.classList.remove('hidden');
             displayText.innerText = currentText;
@@ -7612,11 +7612,11 @@ SLB_TUNANETRA_HTML = """
             if(synth.speaking) synth.cancel();
             isSpeaking = false;
             updateUI();
-            
+
             // Auto start speech
             speak(currentText);
         }
-        
+
         function toggleAudioGuide() {
             hapticFeedback();
             if(!currentText) {
@@ -7625,7 +7625,7 @@ SLB_TUNANETRA_HTML = """
                 synth.speak(msg);
                 return;
             }
-            
+
             if (synth.speaking) {
                 if (synth.paused) {
                     synth.resume();
@@ -7639,20 +7639,20 @@ SLB_TUNANETRA_HTML = """
             }
             updateUI();
         }
-        
+
         function speak(textStr) {
             if (synth.speaking) synth.cancel();
-            
+
             utterance = new SpeechSynthesisUtterance(textStr);
             utterance.lang = 'id-ID';
             utterance.rate = 0.9;
             utterance.pitch = 1.0;
-            
+
             utterance.onend = () => {
                 isSpeaking = false;
                 updateUI();
             };
-            
+
             utterance.onstart = () => {
                 isSpeaking = true;
                 updateUI();
@@ -7660,7 +7660,7 @@ SLB_TUNANETRA_HTML = """
 
             synth.speak(utterance);
         }
-        
+
         function updateUI() {
             const iconWrapper = btn.querySelector('div');
             if(isSpeaking) {
@@ -7722,9 +7722,9 @@ SLB_TUNARUNGU_HTML = """
             100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
     </style>
-    
+
     <h2 class="text-3xl font-bold text-yellow-800 mb-6 border-l-4 border-yellow-500 pl-3">Kamus Isyarat</h2>
-    
+
     <form onsubmit="handleSearch(event)" class="mb-8 relative flex items-center gap-2">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="relative flex-1">
@@ -7737,7 +7737,7 @@ SLB_TUNARUNGU_HTML = """
             <i class="fas fa-microphone text-2xl"></i>
         </button>
     </form>
-    
+
     <div class="flex justify-end mb-4">
         <button id="clear-btn" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-xl flex items-center gap-2 transition" onclick="clearResults()">
             <i class="fas fa-trash-alt"></i> Bersihkan
@@ -7745,7 +7745,7 @@ SLB_TUNARUNGU_HTML = """
     </div>
 
     <div id="result-container" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-12"></div>
-    
+
     <button onclick="openModal('modal-education')" class="w-full bg-yellow-600 text-white p-6 rounded-3xl shadow-lg border-2 border-yellow-500 flex justify-between items-center group hover:bg-yellow-700 transition-all duration-300">
         <div class="flex items-center gap-4 text-left">
             <div class="bg-yellow-500 p-3 rounded-xl text-yellow-100 shadow-sm">
@@ -7775,7 +7775,7 @@ SLB_TUNARUNGU_HTML = """
             <i class="fas fa-arrow-right"></i>
         </div>
     </button>
-    
+
     <script>
         const API_KEY = "dc6zaTOxFJmzC"; // Public Beta Key
         const FALLBACK_DATA = {
@@ -7847,7 +7847,7 @@ SLB_TUNARUNGU_HTML = """
             { id: '58', katagori: 'Sehari-hari', indonesia: 'Pendek', inggris: 'Short' },
             { id: '59', katagori: 'Sehari-hari', indonesia: 'Berat', inggris: 'Heavy' },
             { id: '60', katagori: 'Sehari-hari', indonesia: 'Ringan', inggris: 'Light' },
-            
+
             // Kategori 2: Ibadah dan Agama (60 kata)
             { id: '61', katagori: 'Ibadah dan Agama', indonesia: 'Allah', inggris: 'God' },
             { id: '62', katagori: 'Ibadah dan Agama', indonesia: 'Islam', inggris: 'Islam' },
@@ -8037,7 +8037,7 @@ SLB_TUNARUNGU_HTML = """
                 card.setAttribute('data-en', item.inggris);
                 card.setAttribute('data-cat', item.katagori);
                 card.style.animationDelay = (Math.random() * 0.2) + 's';
-                
+
                 card.innerHTML = `
                     <div id="media-container-${item.id}" class="w-full aspect-square bg-orange-50 rounded-xl mb-2 overflow-hidden relative shadow-inner flex items-center justify-center">
                         <div class="skeleton w-full h-full absolute inset-0"></div>
@@ -8293,7 +8293,7 @@ SLB_TUNARUNGU_HTML = """
             if (mediaUrl) {
                 // Determine if it's a video file (webm, ogv, mp4 from Wikipedia) or an image/gif
                 const isVideo = mediaUrl.toLowerCase().match(/\\.(webm|ogv|mp4)($|\\?)/);
-                
+
                 if(isVideo) {
                     mediaContainer.innerHTML = `
                         <video src="${mediaUrl}" class="w-full h-full object-cover" autoplay loop muted playsinline></video>
@@ -8311,18 +8311,18 @@ SLB_TUNARUNGU_HTML = """
                 `;
             }
         }
-        
+
         // Voice to Sign (Web Speech API)
         let recognition;
         let isRecording = false;
-        
+
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
             recognition.continuous = false;
             recognition.interimResults = false;
             recognition.lang = 'id-ID';
-            
+
             recognition.onresult = function(event) {
                 const text = event.results[0][0].transcript;
                 document.getElementById('search-input').value = text;
@@ -8331,13 +8331,13 @@ SLB_TUNARUNGU_HTML = """
                 // Auto execute search
                 handleSearch(new Event('submit'));
             };
-            
+
             recognition.onerror = function(event) {
                 console.error("Speech error", event.error);
                 document.getElementById('mic-btn').classList.remove('mic-active');
                 isRecording = false;
             };
-            
+
             recognition.onend = function() {
                 document.getElementById('mic-btn').classList.remove('mic-active');
                 isRecording = false;
@@ -8366,11 +8366,11 @@ SLB_TUNARUNGU_HTML = """
             if (!query) return;
 
             const container = document.getElementById('result-container');
-            
+
             // Render Skeleton
             const words = query.split(' ');
             container.innerHTML = '';
-            
+
             for(let i=0; i<words.length; i++) {
                 container.innerHTML += `
                     <div class="bg-white p-4 rounded-3xl shadow-sm border border-yellow-100 flex flex-col items-center">
@@ -8432,7 +8432,7 @@ SLB_TUNARUNGU_HTML = """
                         </div>
                     `;
                 }
-                
+
                 const cardHTML = `
                     <div class="bg-white p-4 rounded-3xl shadow-sm border border-yellow-100 flex flex-col items-center opacity-0 animate-pop" style="animation-delay: ${i * 0.1}s">
                         ${content}
@@ -8444,7 +8444,7 @@ SLB_TUNARUNGU_HTML = """
                 `;
                 newCards.push(cardHTML);
             }
-            
+
             // Replace Skeletons
             setTimeout(() => {
                 container.innerHTML = newCards.join('');
@@ -8589,7 +8589,7 @@ SLB_TUNARUNGU_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-notes-medical text-yellow-500 mr-2"></i>PENJELASAN MEDIS</h3>
                 <button onclick="closeModal('modal-medis-tunarungu')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             <div class="mb-6">
                 <h4 class="text-xs font-bold text-yellow-600 uppercase tracking-widest mb-2 border-b border-yellow-100 pb-1">Dasar Medis Sains</h4>
                 <p class="text-sm text-gray-600 leading-relaxed text-justify">
@@ -8631,7 +8631,7 @@ def slb_tunarungu():
                 entry = SignLanguageDictionary.query.filter_by(word=w).first()
                 url = entry.image_url if entry else None
                 words_data.append({'word': w, 'url': url})
-    
+
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=cached_render('SLB_TUNARUNGU_HTML', SLB_TUNARUNGU_HTML, words_data=words_data, sentence=sentence), theme={'nav_bg': 'bg-yellow-100', 'title_text': 'text-yellow-800'}, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
 SLB_TUNAGRAHITA_HTML = """
@@ -8640,9 +8640,9 @@ SLB_TUNAGRAHITA_HTML = """
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <h2 class="text-3xl font-bold text-purple-900 mb-6 border-l-4 border-purple-500 pl-3">Game Runtutan Kognitif</h2>
-    
+
     <p class="text-purple-700 mb-8 font-medium">Pilih aktivitas dan susun kartunya dengan benar!</p>
-    
+
     <!-- Game Selection Menu -->
     <div id="game-selection" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8 transition-all duration-500">
         <button onclick="startGame('wudhu')" class="bg-white p-4 rounded-3xl shadow-sm border border-purple-100 flex flex-col items-center justify-center hover:bg-purple-50 hover:scale-105 hover:shadow-lg transition-all group">
@@ -8707,7 +8707,7 @@ SLB_TUNAGRAHITA_HTML = """
             </div>
         </div>
     </div>
-    
+
     <!-- Reward Modal -->
     <div id="reward-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black/60 backdrop-blur-md">
         <div class="bg-white p-10 rounded-[3rem] text-center shadow-[0_0_50px_rgba(168,85,247,0.5)] animate-bounce relative overflow-hidden max-w-sm w-11/12">
@@ -8732,7 +8732,7 @@ SLB_TUNAGRAHITA_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-notes-medical text-purple-500 mr-2"></i>PENJELASAN MEDIS</h3>
                 <button onclick="closeModal('modal-medis-tunagrahita')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             <div class="mb-6">
                 <h4 class="text-xs font-bold text-purple-600 uppercase tracking-widest mb-2 border-b border-purple-100 pb-1">Dasar Medis Sains</h4>
                 <p class="text-sm text-gray-600 leading-relaxed text-justify">
@@ -8821,9 +8821,9 @@ SLB_TUNAGRAHITA_HTML = """
         let currentDropZones = [];
         let startX, startY, initialLeft, initialTop;
         let isDragging = false;
-        
+
         // Preload Sounds (Freesound CDN)
-        let sndPop_url = 'https://cdn.freesound.org/previews/244/244655_3509815-lq.mp3'; let sndPop; function get_sndPop() { if(!sndPop) sndPop = new Audio(sndPop_url); return sndPop; } 
+        let sndPop_url = 'https://cdn.freesound.org/previews/244/244655_3509815-lq.mp3'; let sndPop; function get_sndPop() { if(!sndPop) sndPop = new Audio(sndPop_url); return sndPop; }
         let sndBounce_url = 'https://cdn.freesound.org/previews/360/360601_6687700-lq.mp3'; let sndBounce; function get_sndBounce() { if(!sndBounce) sndBounce = new Audio(sndBounce_url); return sndBounce; }
         let sndClap_url = 'https://cdn.freesound.org/previews/277/277033_1735496-lq.mp3'; let sndClap; function get_sndClap() { if(!sndClap) sndClap = new Audio(sndClap_url); return sndClap; }
         let boingSound_url = 'https://cdn.freesound.org/previews/435/435238_8963499-lq.mp3'; let boingSound; function get_boingSound() { if(!boingSound) { boingSound = new Audio(boingSound_url); boingSound.volume = 0.5; } return boingSound; }
@@ -8843,18 +8843,18 @@ SLB_TUNAGRAHITA_HTML = """
             if (!gameData) return;
 
             document.getElementById('game-title').innerText = gameData.title;
-            
+
             // Hide Menu, Show Game Area
             const menu = document.getElementById('game-selection');
             const area = document.getElementById('game-area');
-            
+
             menu.classList.add('hidden');
             area.classList.remove('hidden');
             setTimeout(() => { area.classList.remove('opacity-0'); }, 50);
 
             // Reset state
             completedItems = 0;
-            
+
             // Render Target Zones
             const targetContainer = document.getElementById('target-container');
             targetContainer.innerHTML = '';
@@ -8870,7 +8870,7 @@ SLB_TUNAGRAHITA_HTML = """
             // Render Source Cards (Shuffled)
             const sourceContainer = document.getElementById('cards-wrapper');
             sourceContainer.innerHTML = '';
-            
+
             let items = [...gameData.items];
             shuffle(items);
 
@@ -8891,10 +8891,10 @@ SLB_TUNAGRAHITA_HTML = """
 
         function resetToMenu() {
             document.getElementById('reward-modal').classList.add('hidden');
-            
+
             const menu = document.getElementById('game-selection');
             const area = document.getElementById('game-area');
-            
+
             area.classList.add('opacity-0');
             setTimeout(() => {
                 area.classList.add('hidden');
@@ -8916,29 +8916,29 @@ SLB_TUNAGRAHITA_HTML = """
 
                 const onStart = (e) => {
                     if(draggable.classList.contains('completed')) return;
-                    
+
                     isDragging = true;
                     activeDraggable = draggable;
-                    
+
                     const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
                     const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-                    
+
                     const rect = draggable.getBoundingClientRect();
                     startX = clientX - rect.left;
                     startY = clientY - rect.top;
 
                     document.body.appendChild(draggable);
-                    
+
                     draggable.style.width = rect.width + 'px';
                     draggable.style.height = rect.height + 'px';
                     draggable.style.position = 'fixed';
                     draggable.style.zIndex = '9999';
-                    
+
                     draggable.style.left = (clientX - startX) + 'px';
                     draggable.style.top = (clientY - startY) + 'px';
 
                     draggable.classList.add('opacity-90', 'scale-105', 'shadow-2xl');
-                    
+
                     get_sndPop().currentTime = 0;
                     get_sndPop().play().catch(()=>{});
                 };
@@ -8946,7 +8946,7 @@ SLB_TUNAGRAHITA_HTML = """
                 const onMove = (e) => {
                     if (!isDragging || activeDraggable !== draggable) return;
                     e.preventDefault();
-                    
+
                     const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
                     const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
                     window.currentDragY = clientY;
@@ -8994,17 +8994,17 @@ SLB_TUNAGRAHITA_HTML = """
                     if (!isDragging || activeDraggable !== draggable) return;
                     isDragging = false;
                     activeDraggable = null;
-                    
+
                     if (window.autoScrollFrame) {
                         cancelAnimationFrame(window.autoScrollFrame);
                         window.autoScrollFrame = null;
                     }
-                    
+
                     const clientX = e.type.includes('touch') ? e.changedTouches[0].clientX : e.clientX;
                     const clientY = e.type.includes('touch') ? e.changedTouches[0].clientY : e.clientY;
 
                     draggable.classList.remove('opacity-90', 'scale-105', 'shadow-2xl');
-                    
+
                     let droppedZone = null;
                     currentDropZones.forEach(zone => {
                         zone.classList.remove('border-purple-500', 'bg-purple-100', 'scale-[1.02]');
@@ -9017,30 +9017,30 @@ SLB_TUNAGRAHITA_HTML = """
                     if (droppedZone) {
                         const expected = droppedZone.getAttribute('data-expected');
                         const actual = draggable.getAttribute('data-id');
-                        
+
                         if (expected === actual) {
                             draggable.style.position = 'relative';
                             draggable.style.left = '0';
                             draggable.style.top = '0';
                             draggable.style.zIndex = '1';
                             draggable.style.width = '100%';
-                            
+
                             droppedZone.innerHTML = '';
                             droppedZone.appendChild(draggable);
-                            
+
                             draggable.classList.add('completed', 'bg-green-100', 'border-green-400');
                             draggable.classList.remove('border-purple-300');
-                            
+
                             const iconBox = draggable.querySelector('span:first-child');
                             iconBox.classList.replace('bg-purple-100', 'bg-green-200');
                             iconBox.classList.replace('text-purple-600', 'text-green-700');
-                            
+
                             const textBox = draggable.querySelector('span:last-child');
                             textBox.classList.replace('text-purple-900', 'text-green-900');
 
                             get_sndBounce().currentTime = 0;
-                            get_sndBounce().play().catch(()=>{}); 
-                            
+                            get_sndBounce().play().catch(()=>{});
+
                             completedItems++;
                             if(completedItems === 4) {
                                 triggerVictory();
@@ -9082,12 +9082,12 @@ SLB_TUNAGRAHITA_HTML = """
                 isDragging = false;
                 let draggable = activeDraggable;
                 activeDraggable = null;
-                
+
                 const clientX = e.type.includes('touch') ? e.changedTouches[0].clientX : e.clientX;
                 const clientY = e.type.includes('touch') ? e.changedTouches[0].clientY : e.clientY;
 
                 draggable.classList.remove('opacity-90', 'scale-105', 'shadow-2xl');
-                
+
                 let droppedZone = null;
                 currentDropZones.forEach(zone => {
                     zone.classList.remove('border-purple-500', 'bg-purple-100', 'scale-[1.02]');
@@ -9100,30 +9100,30 @@ SLB_TUNAGRAHITA_HTML = """
                 if (droppedZone) {
                     const expected = droppedZone.getAttribute('data-expected');
                     const actual = draggable.getAttribute('data-id');
-                    
+
                     if (expected === actual) {
                         draggable.style.position = 'relative';
                         draggable.style.left = '0';
                         draggable.style.top = '0';
                         draggable.style.zIndex = '1';
                         draggable.style.width = '100%';
-                        
+
                         droppedZone.innerHTML = '';
                         droppedZone.appendChild(draggable);
-                        
+
                         draggable.classList.add('completed', 'bg-green-100', 'border-green-400');
                         draggable.classList.remove('border-purple-300');
-                        
+
                         const iconBox = draggable.querySelector('span:first-child');
                         iconBox.classList.replace('bg-purple-100', 'bg-green-200');
                         iconBox.classList.replace('text-purple-600', 'text-green-700');
-                        
+
                         const textBox = draggable.querySelector('span:last-child');
                         textBox.classList.replace('text-purple-900', 'text-green-900');
 
                         get_sndBounce().currentTime = 0;
-                        get_sndBounce().play().catch(()=>{}); 
-                        
+                        get_sndBounce().play().catch(()=>{});
+
                         completedItems++;
                         if(completedItems === 4) {
                             triggerVictory();
@@ -9147,20 +9147,20 @@ SLB_TUNAGRAHITA_HTML = """
             window.addEventListener('mouseup', handleGlobalEnd);
             window.addEventListener('touchend', handleGlobalEnd);
         }
-        
+
         function snapBack(element) {
             get_boingSound().currentTime = 0;
             get_boingSound().play().catch(()=>{});
-            
+
             const wrapper = document.querySelector('.cards-wrapper');
             if (wrapper) wrapper.appendChild(element);
-            
+
             element.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
             element.style.position = 'relative';
             element.style.left = '0';
             element.style.top = '0';
             element.style.zIndex = '1';
-            
+
             setTimeout(() => {
                 element.style.transition = 'transform 0.3s';
             }, 400);
@@ -9169,10 +9169,10 @@ SLB_TUNAGRAHITA_HTML = """
         function triggerVictory() {
             setTimeout(() => {
                 document.getElementById('reward-modal').classList.remove('hidden');
-                
+
                 get_sndClap().currentTime = 0;
-                get_sndClap().play().catch(()=>{}); 
-                
+                get_sndClap().play().catch(()=>{});
+
                 var duration = 4 * 1000;
                 var animationEnd = Date.now() + duration;
                 var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
@@ -9187,7 +9187,7 @@ SLB_TUNAGRAHITA_HTML = """
                     confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
                     confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
                 }, 250);
-                
+
             }, 600);
         }
     </script>
@@ -9225,7 +9225,7 @@ SLB_TUNADAKSA_HTML = """
         <!-- Button Delta -->
         <div class="bg-white p-6 rounded-[3rem] shadow-lg border-2 border-blue-100 text-center relative overflow-hidden group">
             <h3 class="text-xl font-bold text-gray-700 mb-4 pointer-events-none">Relaksasi Delta (Tidur)</h3>
-            <button onclick="toggleAudio('delta')" id="btn-delta" 
+            <button onclick="toggleAudio('delta')" id="btn-delta"
                     onmouseenter="startDwell('delta')" onmouseleave="stopDwell('delta')" onmousedown="startDwell('delta')" onmouseup="stopDwell('delta')"
                     class="relative w-full h-40 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center text-5xl shadow-inner transition-transform z-10 p-12">
                 <i class="fas fa-play pointer-events-none"></i>
@@ -9239,7 +9239,7 @@ SLB_TUNADAKSA_HTML = """
         <!-- Button Theta -->
         <div class="bg-white p-6 rounded-[3rem] shadow-lg border-2 border-blue-100 text-center relative overflow-hidden group">
             <h3 class="text-xl font-bold text-gray-700 mb-4 pointer-events-none">Fokus Theta (Tenang)</h3>
-            <button onclick="toggleAudio('theta')" id="btn-theta" 
+            <button onclick="toggleAudio('theta')" id="btn-theta"
                     onmouseenter="startDwell('theta')" onmouseleave="stopDwell('theta')" onmousedown="startDwell('theta')" onmouseup="stopDwell('theta')"
                     class="relative w-full h-40 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center text-5xl shadow-inner transition-transform z-10 p-12">
                 <i class="fas fa-play pointer-events-none"></i>
@@ -9318,7 +9318,7 @@ SLB_TUNADAKSA_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-notes-medical text-blue-500 mr-2"></i>PENJELASAN MEDIS</h3>
                 <button onclick="closeModal('modal-medis-tunadaksa')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             <div class="mb-6">
                 <h4 class="text-xs font-bold text-blue-600 uppercase tracking-widest mb-2 border-b border-blue-100 pb-1">Dasar Medis Sains</h4>
                 <p class="text-sm text-gray-600 leading-relaxed text-justify">
@@ -9351,7 +9351,7 @@ SLB_TUNADAKSA_HTML = """
         let gainNode;
         let currentPlayingType = null;
         let dwellTimer = null;
-        
+
         // Web Audio API Setup
         function initAudio() {
             if (!audioCtx) {
@@ -9413,7 +9413,7 @@ SLB_TUNADAKSA_HTML = """
             noiseNode = audioCtx.createBufferSource();
             noiseNode.buffer = buffer;
             noiseNode.loop = true;
-            
+
             filterNode = audioCtx.createBiquadFilter();
             if(type === 'brown') {
                 filterNode.type = 'lowpass';
@@ -9434,7 +9434,7 @@ SLB_TUNADAKSA_HTML = """
             // Stop Oscillators
             oscillators.forEach(osc => osc.stop());
             oscillators = [];
-            
+
             // Stop Noise Node
             if (noiseNode) {
                 noiseNode.stop();
@@ -9445,7 +9445,7 @@ SLB_TUNADAKSA_HTML = """
                 filterNode.disconnect();
                 filterNode = null;
             }
-            
+
             // Stop HTML5 Audios
             const htmlAudios = ['zikir-audio'];
             htmlAudios.forEach(id => {
@@ -9536,7 +9536,7 @@ SLB_TUNADAKSA_HTML = """
         function startDwell(type) {
             const circle = document.querySelector('#loader-' + type + ' .dwell-circle');
             if (circle) circle.style.strokeDashoffset = '0'; // Animate to 0
-            
+
             dwellTimer = setTimeout(() => {
                 toggleAudio(type);
                 stopDwell(type); // Reset after click
@@ -9573,10 +9573,10 @@ SLB_TUNALARAS_HTML = """
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <h2 class="text-3xl font-bold text-emerald-800 mb-6 border-l-4 border-emerald-500 pl-3">Jurnal Emosi</h2>
-    
+
     <div id="emotion-selector" class="block">
         <p class="text-emerald-700 mb-8 text-lg font-medium">Apa yang kamu rasakan hari ini?</p>
-        
+
         <div class="grid grid-cols-1 gap-6">
             <form method="POST" class="w-full" onsubmit="return handleSenang(event)">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -9586,7 +9586,7 @@ SLB_TUNALARAS_HTML = """
                     <span class="text-2xl font-bold text-emerald-700">Senang</span>
                 </button>
             </form>
-            
+
             <form method="POST" class="w-full" id="form-sedih" onsubmit="return handleSedih(event)">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="emotion" value="Sedih">
@@ -9595,7 +9595,7 @@ SLB_TUNALARAS_HTML = """
                     <span class="text-2xl font-bold text-emerald-700 pointer-events-none">Sedih</span>
                 </button>
             </form>
-            
+
             <form method="POST" class="w-full" onsubmit="return handleMarah(event)">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="emotion" value="Marah">
@@ -9605,7 +9605,7 @@ SLB_TUNALARAS_HTML = """
                 </button>
             </form>
         </div>
-        
+
         {% if peran == 'orang_tua' or peran == 'kepala_sekolah' %}
         <div class="mt-12">
             <h3 class="font-bold text-emerald-800 mb-4 pl-2 border-l-4 border-emerald-500">Riwayat Perasaan</h3>
@@ -9621,7 +9621,7 @@ SLB_TUNALARAS_HTML = """
             </div>
         </div>
         {% endif %}
-        
+
         {% if peran == 'guru' %}
         <div class="mt-8 bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
             <h3 class="font-bold text-emerald-800 mb-4 pl-2 border-l-4 border-emerald-500">Monitor Jurnal Emosi Siswa</h3>
@@ -9650,11 +9650,11 @@ SLB_TUNALARAS_HTML = """
                                 </div>
                             </div>
                             <div class="flex gap-2 flex-wrap">`;
-                        
+
                         item.recent_emotions.forEach(emo => {
                             html += `<span class="bg-white border border-emerald-100 px-2 py-1 rounded-lg text-xs font-bold text-emerald-700 shadow-sm">${emo.emotion} <span class="text-[9px] text-emerald-500 ml-1 font-normal">${emo.date}</span></span>`;
                         });
-                        
+
                         html += `</div></div>`;
                         container.innerHTML += html;
                     });
@@ -9668,7 +9668,7 @@ SLB_TUNALARAS_HTML = """
             <i class="fas fa-stethoscope mr-2 text-sm"></i> PENJELASAN MEDIS
         </button>
     </div>
-    
+
     <!-- Modal Medis Tunalaras -->
     <div id="modal-medis-tunalaras" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-emerald-900/40 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-medis-tunalaras')"></div>
@@ -9677,7 +9677,7 @@ SLB_TUNALARAS_HTML = """
                 <h3 class="text-lg font-bold text-emerald-800"><i class="fas fa-notes-medical text-emerald-500 mr-2"></i>PENJELASAN MEDIS</h3>
                 <button onclick="closeModal('modal-medis-tunalaras')" class="bg-emerald-50 w-8 h-8 rounded-full text-emerald-600 hover:bg-emerald-100 transition-colors">&times;</button>
             </div>
-            
+
             <div class="mb-6">
                 <h4 class="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-2 border-b border-emerald-100 pb-1">Dasar Medis Sains</h4>
                 <p class="text-sm text-emerald-800/80 leading-relaxed text-justify">
@@ -9704,13 +9704,13 @@ SLB_TUNALARAS_HTML = """
     <!-- Breathing Exercise (Marah) -->
     <div id="breathing-exercise" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden">
         <div class="absolute inset-0 bg-emerald-900/90 backdrop-blur-xl transition-all duration-1000"></div>
-        
+
         <div class="relative z-10 flex flex-col items-center w-full max-w-sm">
             <div class="relative w-72 h-72 flex items-center justify-center">
                 <div id="breath-circle" class="w-48 h-48 bg-emerald-300 rounded-full blur-sm opacity-90 shadow-[0_0_60px_rgba(110,231,183,0.6)] will-change-transform transition-all duration-[4000ms] cubic-bezier(0.4, 0, 0.2, 1)"></div>
                 <div class="absolute text-white font-extrabold text-3xl tracking-[0.25em] drop-shadow-md" id="breath-text">TARIK</div>
             </div>
-            
+
             <p class="mt-16 text-emerald-50 font-medium text-center px-8 tracking-wide text-lg">Ikuti irama cahaya.<br><span class="opacity-70 text-sm">Tenangkan pikiranmu.</span></p>
             <button onclick="finishBreathing()" class="mt-10 border-2 border-emerald-400/30 text-emerald-100 px-10 py-3 rounded-full hover:bg-emerald-800/50 hover:border-emerald-400 transition-all backdrop-blur-md font-bold text-sm tracking-widest shadow-lg">SELESAI</button>
         </div>
@@ -9749,14 +9749,14 @@ SLB_TUNALARAS_HTML = """
                     <circle id="hug-progress" cx="128" cy="128" r="120" fill="none" stroke="#f472b6" stroke-width="6" stroke-dasharray="754" stroke-dashoffset="754" class="transition-all duration-100" stroke-linecap="round" />
                 </svg>
             </div>
-            
+
             <h3 id="hug-title" class="text-2xl font-bold text-pink-800 mb-2 transition-opacity duration-500">Pelukan Virtual</h3>
             <p id="hug-instruction" class="text-pink-600 font-medium bg-pink-50 px-6 py-3 rounded-2xl border border-pink-100 shadow-sm animate-pulse">Tahan layar selama 5 detik untuk memeluk</p>
         </div>
     </div>
 
     <!-- Senang Options Containers -->
-    
+
     <!-- Option 1: Celengan Bintang -->
     <div id="senang-bintang" class="hidden fixed inset-0 z-50 bg-amber-50 flex flex-col items-center justify-center overflow-hidden">
         <h3 class="text-3xl font-extrabold text-amber-600 mb-12 drop-shadow-sm text-center px-4" id="bintang-title">Simpan Rasa Senangmu!</h3>
@@ -9766,7 +9766,7 @@ SLB_TUNALARAS_HTML = """
                 ⭐
             </div>
             <p id="bintang-tap-hint" class="absolute top-12 text-xs font-bold text-amber-500 animate-bounce pointer-events-none uppercase tracking-widest">Sentuh Bintangnya</p>
-            
+
             <!-- Jar -->
             <div class="absolute bottom-0 w-48 h-56 bg-white/40 border-4 border-white/80 rounded-b-3xl rounded-t-lg backdrop-blur-sm shadow-xl flex items-end justify-center pb-4 z-10">
                 <div class="w-full h-4 bg-white/60 absolute top-[-4px] rounded-t-lg"></div> <!-- Jar lid -->
@@ -9791,7 +9791,7 @@ SLB_TUNALARAS_HTML = """
     <div id="senang-balon" class="hidden fixed inset-0 z-50 bg-sky-50 flex flex-col items-center justify-center overflow-hidden touch-none select-none">
         <h3 class="text-2xl font-bold text-sky-600 mb-8 text-center px-4" id="balon-title">Ayo Pompa Balonnya!</h3>
         <p class="text-sky-500 mb-16 font-medium bg-sky-100/50 px-6 py-2 rounded-full text-sm">Ketuk layar berkali-kali secepat mungkin</p>
-        
+
         <div class="relative w-full h-96 flex justify-center items-end" id="balon-area">
             <!-- Balloon -->
             <div id="the-balloon" class="relative transition-all duration-100 ease-out origin-bottom transform scale-50">
@@ -9872,26 +9872,26 @@ SLB_TUNALARAS_HTML = """
             e.preventDefault();
             document.getElementById('emotion-selector').classList.add('hidden');
             document.getElementById('breathing-exercise').classList.remove('hidden');
-            
+
             const circle = document.getElementById('breath-circle');
             const text = document.getElementById('breath-text');
-            
+
             isMarahActive = true;
             createNoise();
-            
+
             // 3-Phase Logic: Tarik (4s) -> Tahan (4s) -> Hembus (4s)
             let phase = 0; // 0: Tarik, 1: Tahan, 2: Hembus
-            
+
             // Initial Start (Tarik)
             circle.style.transitionDuration = "4000ms";
             circle.style.transform = "scale(1.3)";
             circle.style.opacity = "1";
             text.innerText = "TARIK";
-            
+
             marahInterval = setInterval(() => {
                 if(!isMarahActive) return;
                 phase = (phase + 1) % 3;
-                
+
                 if (phase === 0) {
                     // Tarik
                     circle.style.transitionDuration = "4000ms";
@@ -9910,7 +9910,7 @@ SLB_TUNALARAS_HTML = """
                     text.innerText = "HEMBUS";
                 }
             }, 4000);
-            
+
             return false;
         }
 
@@ -9926,13 +9926,13 @@ SLB_TUNALARAS_HTML = """
         let hugStartTime;
         let isHugging = false;
         const HUG_DURATION = 5000; // 5 seconds
-        
+
         function handleSedih(e) {
             e.preventDefault();
             // Start Interaction, show overlay
             document.getElementById('emotion-selector').classList.add('hidden');
             document.getElementById('virtual-hug-exercise').classList.remove('hidden');
-            
+
             const btn = document.getElementById('btn-sedih');
             // Remove click listener from btn, we use the whole overlay
             return false;
@@ -9945,14 +9945,14 @@ SLB_TUNALARAS_HTML = """
         const armRight = document.getElementById('bear-arm-right');
         const hugInstruction = document.getElementById('hug-instruction');
         const hugTitle = document.getElementById('hug-title');
-        
+
         const circumference = 2 * Math.PI * 120; // r=120
 
         function updateHugProgress() {
             if(!isHugging) return;
             const elapsed = Date.now() - hugStartTime;
             const percent = Math.min(elapsed / HUG_DURATION, 1);
-            
+
             // Dash offset goes from circumference to 0
             const offset = circumference - (percent * circumference);
             hugProgress.style.strokeDashoffset = offset;
@@ -9975,20 +9975,20 @@ SLB_TUNALARAS_HTML = """
         function startHug(e) {
             if(e) e.preventDefault();
             if(hugOverlay.classList.contains('hidden')) return;
-            
+
             isHugging = true;
             hugStartTime = Date.now();
-            
+
             // Vibrate if supported
             if(navigator.vibrate) {
                 navigator.vibrate([1000, 1000, 1000, 1000, 1000]); // Gentle continuous vibration
             }
-            
+
             // Visual feedback
             hugOverlay.classList.replace('bg-blue-50', 'bg-rose-50');
             hugInstruction.innerText = "Terus tahan...";
             hugInstruction.classList.remove('animate-pulse');
-            
+
             updateHugProgress();
         }
 
@@ -9997,15 +9997,15 @@ SLB_TUNALARAS_HTML = """
             if(!isHugging) return;
             isHugging = false;
             cancelAnimationFrame(hugTimer);
-            
+
             if(navigator.vibrate) navigator.vibrate(0);
-            
+
             // Reset visuals
             hugProgress.style.strokeDashoffset = circumference;
             hugOverlay.classList.replace('bg-rose-50', 'bg-blue-50');
             hugInstruction.innerText = "Tahan layar selama 5 detik untuk memeluk";
             hugInstruction.classList.add('animate-pulse');
-            
+
             armLeft.setAttribute('d', 'M 30 130 Q 10 160 20 180');
             armRight.setAttribute('d', 'M 170 130 Q 190 160 180 180');
         }
@@ -10014,11 +10014,11 @@ SLB_TUNALARAS_HTML = """
             isHugging = false;
             cancelAnimationFrame(hugTimer);
             if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
-            
+
             hugTitle.innerText = "Semua akan baik-baik saja 💖";
             hugInstruction.classList.add('hidden');
             document.getElementById('bear-container').classList.add('scale-110');
-            
+
             setTimeout(() => {
                 submitFormByName('Sedih');
             }, 2000);
@@ -10040,21 +10040,21 @@ SLB_TUNALARAS_HTML = """
         function handleSenang(e) {
             e.preventDefault();
             document.getElementById('emotion-selector').classList.add('hidden');
-            
+
             const options = ['bintang', 'tos', 'balon'];
             const randomOpt = options[Math.floor(Math.random() * options.length)];
-            
+
             if(randomOpt === 'bintang') initBintang();
             else if(randomOpt === 'tos') initTos();
             else if(randomOpt === 'balon') initBalon();
-            
+
             return false;
         }
 
         // Senang Option 1: Bintang
         function initBintang() {
             document.getElementById('senang-bintang').classList.remove('hidden');
-            
+
             // TTS
             if ('speechSynthesis' in window) {
                 const utterance = new SpeechSynthesisUtterance("Wah kamu sedang senang. Hebat sekali. Ayo simpan rasa senangmu ke dalam toples.");
@@ -10067,21 +10067,21 @@ SLB_TUNALARAS_HTML = """
             const star = document.getElementById('bintang-star');
             star.addEventListener('click', function onClick() {
                 star.removeEventListener('click', onClick);
-                
+
                 document.getElementById('bintang-tap-hint').classList.add('hidden');
                 document.getElementById('bintang-title').innerText = "Hebat!";
-                
+
                 // Animate star dropping into jar
                 star.style.transition = "all 1s cubic-bezier(0.68, -0.55, 0.265, 1.55)";
                 star.style.transform = "translateY(150px) scale(0.6)";
-                
+
                 setTimeout(() => {
                     const audio = document.getElementById('audio-chime');
                     audio.volume = 0.5;
                     audio.play().catch(()=>{});
-                    
+
                     document.getElementById('jar-glow').classList.replace('bg-amber-300/0', 'bg-amber-300/60');
-                    
+
                     var duration = 2000;
                     var end = Date.now() + duration;
                     (function frame() {
@@ -10089,7 +10089,7 @@ SLB_TUNALARAS_HTML = """
                         confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#fbbf24', '#fde68a'] });
                         if (Date.now() < end) requestAnimationFrame(frame);
                     }());
-                    
+
                     setTimeout(() => submitFormByName('Senang'), 2500);
                 }, 800);
             });
@@ -10098,24 +10098,24 @@ SLB_TUNALARAS_HTML = """
         // Senang Option 2: Tos
         function initTos() {
             document.getElementById('senang-tos').classList.remove('hidden');
-            
+
             const hand = document.getElementById('tos-hand');
             hand.addEventListener('click', function onClick() {
                 hand.removeEventListener('click', onClick);
-                
+
                 const audio = document.getElementById('audio-clap');
                 audio.volume = 0.6;
                 audio.play().catch(()=>{});
-                
+
                 hand.classList.add('scale-125');
-                
+
                 confetti({
                     particleCount: 150,
                     spread: 100,
                     origin: { y: 0.6 },
                     colors: ['#34d399', '#6ee7b7', '#a7f3d0', '#ffffff'] // Pastel greens
                 });
-                
+
                 setTimeout(() => submitFormByName('Senang'), 2500);
             });
         }
@@ -10123,50 +10123,50 @@ SLB_TUNALARAS_HTML = """
         // Senang Option 3: Balon
         let balonTaps = 0;
         const maxTaps = 15;
-        
+
         function initBalon() {
             const container = document.getElementById('senang-balon');
             container.classList.remove('hidden');
-            
+
             const balloonArea = document.getElementById('balon-area');
             const balloonElement = document.getElementById('the-balloon');
             const audioPump = document.getElementById('audio-pump');
-            
+
             // Reset states
             balonTaps = 0;
             balloonElement.style.transform = "scale(0.5) translateY(0)";
             document.getElementById('balon-text').style.opacity = "0";
-            
+
             balloonArea.addEventListener('pointerdown', function onTap(e) {
                 if(balonTaps >= maxTaps) return;
                 e.preventDefault();
-                
+
                 balonTaps++;
-                
+
                 // Clone audio for overlapping rapid taps
                 const p = audioPump.cloneNode();
                 p.volume = 0.3;
                 p.play().catch(()=>{});
-                
+
                 // Grow balloon
                 const scale = 0.5 + (balonTaps / maxTaps) * 0.7; // 0.5 to 1.2
                 balloonElement.style.transform = `scale(${scale})`;
-                
+
                 if(balonTaps >= maxTaps) {
                     // Fly away
                     balloonArea.removeEventListener('pointerdown', onTap);
                     document.getElementById('balon-title').innerText = "Luar Biasa!";
                     document.getElementById('balon-text').style.opacity = "1";
-                    
+
                     const audioYay = document.getElementById('audio-yay');
                     audioYay.volume = 0.6;
                     audioYay.play().catch(()=>{});
-                    
+
                     balloonElement.style.transitionDuration = "2s";
                     balloonElement.style.transform = `scale(1.2) translateY(-400px)`;
-                    
+
                     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#38bdf8', '#7dd3fc', '#bae6fd'] });
-                    
+
                     setTimeout(() => submitFormByName('Senang'), 3000);
                 }
             });
@@ -10178,7 +10178,7 @@ SLB_TUNALARAS_HTML = """
 
 SLB_TUNAGANDA_HTML = """
 <div class="fixed inset-0 bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 flex flex-col overflow-hidden touch-none select-none">
-    
+
     <!-- Top Bar (Pastel Theme) -->
     <div class="bg-white/60 backdrop-blur-md border-b border-white/50 px-6 py-4 flex items-center justify-between shrink-0 shadow-sm z-50">
         <div class="flex items-center gap-4">
@@ -10210,7 +10210,7 @@ SLB_TUNAGANDA_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-notes-medical text-indigo-500 mr-2"></i>PENJELASAN MEDIS</h3>
                 <button onclick="closeModal('modal-medis-tunaganda')" class="bg-indigo-50 w-8 h-8 rounded-full text-indigo-600 hover:bg-indigo-100 transition-colors">&times;</button>
             </div>
-            
+
             <div class="mb-6">
                 <h4 class="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-2 border-b border-indigo-100 pb-1">Dasar Medis Sains</h4>
                 <p class="text-sm text-gray-600 leading-relaxed text-justify">
@@ -10238,7 +10238,7 @@ SLB_TUNAGANDA_HTML = """
     <script>
         const container = document.getElementById('canvas-container');
         const hintText = document.getElementById('hint-text');
-        
+
         // Beautiful Pastel Colors
         const pastelColors = [
             'rgba(253, 164, 175, 0.9)', // Rose
@@ -10253,11 +10253,11 @@ SLB_TUNAGANDA_HTML = """
         function spawnParticle(x, y) {
             const el = document.createElement('div');
             el.className = 'absolute rounded-full pointer-events-none will-change-transform';
-            
+
             // Random size 20 to 60px
             const size = Math.random() * 40 + 20;
             const colorStr = pastelColors[Math.floor(Math.random() * pastelColors.length)];
-            
+
             el.style.width = size + 'px';
             el.style.height = size + 'px';
             // Glowing pastel sphere
@@ -10265,19 +10265,19 @@ SLB_TUNAGANDA_HTML = """
             el.style.left = (x - size/2) + 'px';
             el.style.top = (y - size/2) + 'px';
             el.style.boxShadow = `0 0 ${size/2}px ${colorStr}, inset 0 0 ${size/4}px rgba(255,255,255,0.8)`;
-            
+
             el.style.transform = `scale(0.2) translate(${Math.random()*40-20}px, ${Math.random()*40-20}px)`;
             el.style.opacity = '1';
             el.style.transition = 'transform 1.2s cubic-bezier(0.25, 1, 0.5, 1), opacity 1.2s ease-out';
-            
+
             container.appendChild(el);
-            
+
             // Trigger animation
             requestAnimationFrame(() => {
                 el.style.transform = `scale(${Math.random() * 1.5 + 1}) translate(${Math.random()*100-50}px, ${Math.random()*100-50}px)`;
                 el.style.opacity = '0';
             });
-            
+
             setTimeout(() => {
                 if(el.parentNode) el.remove();
             }, 1200);
@@ -10285,7 +10285,7 @@ SLB_TUNAGANDA_HTML = """
 
         // Web Audio API Logic
         let audioCtx;
-        
+
         function initAudio() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -10300,18 +10300,18 @@ SLB_TUNAGANDA_HTML = """
             if(!audioCtx) return;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            
+
             osc.type = 'sine';
             osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            
+
             // Envelope
             gain.gain.setValueAtTime(0, audioCtx.currentTime);
             gain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.02);
             gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
-            
+
             osc.connect(gain);
             gain.connect(audioCtx.destination);
-            
+
             osc.start();
             osc.stop(audioCtx.currentTime + 1.0);
         }
@@ -10321,19 +10321,19 @@ SLB_TUNAGANDA_HTML = """
             if(!audioCtx) return;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            
+
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(freq * 0.5, audioCtx.currentTime + 0.1);
-            
+
             // Envelope
             gain.gain.setValueAtTime(0, audioCtx.currentTime);
             gain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.01);
             gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
-            
+
             osc.connect(gain);
             gain.connect(audioCtx.destination);
-            
+
             osc.start();
             osc.stop(audioCtx.currentTime + 0.2);
         }
@@ -10341,7 +10341,7 @@ SLB_TUNAGANDA_HTML = """
         // Pentatonic scale frequencies for harmony (C major pentatonic: C, D, E, G, A)
         // using higher octaves for bell/water sounds
         const pentatonicFrequencies = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1174.66, 1318.51];
-        
+
         let lastAudioTime = 0;
         const AUDIO_THROTTLE_MS = 150; // rate limit: one note every 150ms max to prevent cacophony
 
@@ -10350,9 +10350,9 @@ SLB_TUNAGANDA_HTML = """
             const now = Date.now();
             if(now - lastAudioTime < AUDIO_THROTTLE_MS) return; // Throttled
             lastAudioTime = now;
-            
+
             const freq = pentatonicFrequencies[Math.floor(Math.random() * pentatonicFrequencies.length)];
-            
+
             // Randomly choose between Bell/Water and Wood/Bamboo
             if (Math.random() > 0.4) {
                 playBell(freq);
@@ -10385,14 +10385,14 @@ SLB_TUNAGANDA_HTML = """
         function handlePointerEnd(e) {
             isDrawing = false;
         }
-        
+
         // Throttling for particles to avoid lagging
         let lastParticleTime = 0;
         const PARTICLE_THROTTLE_MS = 20;
 
         function processEvent(e) {
             const now = Date.now();
-            
+
             let clientX, clientY;
             if (e.touches && e.touches.length > 0) {
                 // Loop through all active touches for multi-touch support
@@ -10400,7 +10400,7 @@ SLB_TUNAGANDA_HTML = """
                     let rect = container.getBoundingClientRect();
                     let x = e.touches[i].clientX - rect.left;
                     let y = e.touches[i].clientY - rect.top;
-                    
+
                     if (now - lastParticleTime > PARTICLE_THROTTLE_MS) {
                         spawnParticle(x, y);
                     }
@@ -10411,13 +10411,13 @@ SLB_TUNAGANDA_HTML = """
                 let rect = container.getBoundingClientRect();
                 clientX = e.clientX - rect.left;
                 clientY = e.clientY - rect.top;
-                
+
                 if (now - lastParticleTime > PARTICLE_THROTTLE_MS) {
                     spawnParticle(clientX, clientY);
                     lastParticleTime = now;
                 }
             }
-            
+
             triggerSound();
         }
 
@@ -10426,7 +10426,7 @@ SLB_TUNAGANDA_HTML = """
         container.addEventListener('touchmove', handlePointerMove, {passive: false});
         container.addEventListener('touchend', handlePointerEnd);
         container.addEventListener('touchcancel', handlePointerEnd);
-        
+
         container.addEventListener('mousedown', handlePointerStart);
         window.addEventListener('mousemove', (e) => {
             if(isDrawing && e.target === container) {
@@ -10442,7 +10442,7 @@ SLB_TUNAGANDA_HTML = """
 
 ORANG_TUA_HTML = """
 <div class="min-h-[100dvh] bg-[#fff0f5] pb-32 transition-colors duration-1000" id="ot-main-bg">
-    
+
     <!-- HEADER -->
     <div class="pt-20 px-6 pb-4 bg-gradient-to-b from-pink-100/50 to-transparent">
         <div class="flex items-center gap-4 mb-2">
@@ -10461,16 +10461,16 @@ ORANG_TUA_HTML = """
         <div class="bg-slate-800 rounded-[2.5rem] p-6 shadow-2xl border border-slate-700 relative overflow-hidden">
             <div class="absolute -right-4 -top-4 w-32 h-32 bg-violet-500/20 rounded-full blur-3xl pointer-events-none"></div>
             <div class="absolute -left-4 -bottom-4 w-32 h-32 bg-rose-500/20 rounded-full blur-3xl pointer-events-none"></div>
-            
+
             <div class="relative z-10 text-center">
                 <i class="fas fa-heart text-4xl text-rose-400 mb-4 animate-bounce"></i>
                 <h3 class="text-2xl font-extrabold text-white mb-2">Anda Tidak Sendirian.</h3>
                 <p class="text-slate-300 text-sm mb-6 leading-relaxed">Sistem mendeteksi tingkat stres Anda sangat tinggi berturut-turut. Mengurus anak istimewa tidaklah mudah. Mari ambil napas sejenak.</p>
-                
+
                 <div class="bg-white/5 p-4 rounded-2xl border border-white/10 mb-6 backdrop-blur-sm">
                     <p class="text-lg font-serif text-slate-200 italic" id="zen-quote-inline">"Loading quote..."</p>
                 </div>
-                
+
                 <a href="https://wa.me/6282330890500?text=Halo%20Psikolog%20Sekolah,%20saya%20butuh%20sesi%20konseling%20segera." class="inline-flex items-center justify-center gap-3 w-full bg-rose-500/20 text-rose-400 border border-rose-500/50 px-6 py-4 rounded-full font-bold shadow-lg hover:bg-rose-500 hover:text-white transition-all">
                     <i class="fas fa-user-md text-xl"></i> Konsultasi Psikolog Sekarang
                 </a>
@@ -10491,7 +10491,7 @@ ORANG_TUA_HTML = """
 
     <!-- MAIN GRID -->
     <div class="px-5 grid grid-cols-1 md:grid-cols-2 gap-5">
-        
+
         <!-- Feature 1: Buku Penghubung -->
         <button onclick="openModal('modal-ot-buku')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-pink-50 flex items-center gap-5 hover:bg-pink-50 hover:-translate-y-1 transition-all group">
             <div class="w-16 h-16 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-500 shadow-inner group-hover:scale-110 transition-transform">
@@ -10560,7 +10560,7 @@ ORANG_TUA_HTML = """
     <div id="modal-ot-buku" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-rose-900/60 backdrop-blur-md transition-opacity" onclick="closeModal('modal-ot-buku')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto border-t-4 border-rose-500 relative">
-            
+
             <!-- Loading State Animasi Emosional Keluarga -->
             <div id="ot-buku-loading" class="absolute inset-0 bg-white/95 backdrop-blur-xl z-50 hidden flex-col items-center justify-center rounded-t-3xl md:rounded-3xl overflow-hidden transition-opacity duration-500">
                 <div class="relative w-48 h-48 mb-6 flex items-center justify-center">
@@ -10568,10 +10568,10 @@ ORANG_TUA_HTML = """
                     <svg viewBox="0 0 200 200" class="absolute inset-0 w-full h-full text-rose-100" fill="currentColor">
                         <path d="M 60 180 C 60 140, 80 120, 100 120 C 120 120, 140 140, 140 180 Z" />
                         <circle cx="100" cy="90" r="25" />
-                        
+
                         <path d="M 120 180 C 120 150, 135 135, 150 135 C 165 135, 180 150, 180 180 Z" />
                         <circle cx="150" cy="115" r="18" />
-                        
+
                         <!-- Connecting hands -->
                         <path d="M 130 150 Q 140 160 140 150" stroke="currentColor" stroke-width="8" stroke-linecap="round" fill="none" />
                     </svg>
@@ -10581,10 +10581,10 @@ ORANG_TUA_HTML = """
                         <clipPath id="familyClip">
                             <path d="M 60 180 C 60 140, 80 120, 100 120 C 120 120, 140 140, 140 180 Z" />
                             <circle cx="100" cy="90" r="25" />
-                            
+
                             <path d="M 120 180 C 120 150, 135 135, 150 135 C 165 135, 180 150, 180 180 Z" />
                             <circle cx="150" cy="115" r="18" />
-                            
+
                             <path d="M 130 150 Q 140 160 140 150" stroke="white" stroke-width="8" stroke-linecap="round" fill="none" />
                         </clipPath>
                         <rect id="liquid-fill-rect" x="0" y="200" width="200" height="200" fill="currentColor" clip-path="url(#familyClip)" class="transition-all duration-[2000ms] ease-in-out" />
@@ -10611,7 +10611,7 @@ ORANG_TUA_HTML = """
                 </div>
                 <button onclick="closeModal('modal-ot-buku')" class="bg-gray-50 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 transition border border-gray-100 flex items-center justify-center">&times;</button>
             </div>
-            
+
             <form onsubmit="submitBukuPenghubung(event)" class="space-y-6 mb-8">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <!-- Mood Selection using Radio Cards -->
@@ -10691,7 +10691,7 @@ ORANG_TUA_HTML = """
                 <h3 class="text-xl font-bold text-red-500 flex items-center gap-2 animate-pulse"><i class="fas fa-exclamation-triangle"></i> DARURAT TANTRUM</h3>
                 <button onclick="closeModal('modal-ot-tantrum'); stopTantrumAudio();" class="bg-gray-800 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-700">&times;</button>
             </div>
-            
+
             <div class="text-center mb-6">
                 <div class="inline-block relative">
                     <div class="w-24 h-24 rounded-full bg-red-500/20 absolute inset-0 animate-ping"></div>
@@ -10709,7 +10709,7 @@ ORANG_TUA_HTML = """
                     <li>Sedang memuat protokol profil anak...</li>
                 </ul>
             </div>
-            
+
             <button onclick="closeModal('modal-ot-tantrum'); stopTantrumAudio();" class="w-full border border-red-500/50 text-red-400 font-bold py-3 rounded-xl hover:bg-red-500/10 transition">Selesai / Terkendali</button>
         </div>
     </div>
@@ -10722,7 +10722,7 @@ ORANG_TUA_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-pills text-sky-500 mr-2"></i>Jadwal Medis & Terapi</h3>
                 <button onclick="closeModal('modal-ot-jadwal')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             <form onsubmit="submitJadwalMedis(event)" class="flex gap-2 mb-6">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="time" id="med-time" class="bg-sky-50 border border-sky-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400" required>
@@ -10758,7 +10758,7 @@ ORANG_TUA_HTML = """
                 </div>
                 <button onclick="closeModal('modal-ot-nutrisi')" class="bg-white w-10 h-10 rounded-full text-emerald-500 hover:bg-emerald-50 transition border border-emerald-100 flex items-center justify-center shadow-sm">&times;</button>
             </div>
-            
+
             <button onclick="openModal('modal-ot-kamus-alergi')" class="w-full bg-white px-5 py-4 rounded-2xl shadow-sm border border-emerald-100 flex items-center justify-between hover:-translate-y-1 hover:shadow-md transition-all group mb-6 shrink-0">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-500 flex items-center justify-center group-hover:bg-teal-500 group-hover:text-white transition-colors">
@@ -10783,7 +10783,7 @@ ORANG_TUA_HTML = """
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
-                    
+
                     <!-- Tooltip Peringatan Halus -->
                     <div id="nutrisi_warning_box" style="display: none;" class="absolute left-0 -top-12 w-full bg-red-600 text-white text-[10px] font-bold px-4 py-2 rounded-xl shadow-[0_4px_15px_rgba(220,38,38,0.4)] flex items-center gap-2 transform translate-y-2 transition-all duration-300 z-20">
                         <i class="fas fa-exclamation-triangle animate-bounce"></i>
@@ -10806,7 +10806,7 @@ ORANG_TUA_HTML = """
     <div id="modal-ot-kamus-alergi" class="fixed inset-0 z-[150] hidden">
         <div class="absolute inset-0 bg-teal-900/80 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-ot-kamus-alergi')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-[2.5rem] p-6 shadow-2xl animate-[slideUp_0.4s_ease-out] md:relative md:max-w-xl md:mx-auto md:rounded-[3rem] md:top-10 max-h-[95dvh] overflow-y-auto border-t-4 border-teal-500 flex flex-col">
-            
+
             <div class="flex justify-between items-center mb-6 shrink-0 bg-white sticky top-0 z-20 py-2">
                 <div class="flex items-center gap-3">
                     <div class="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 shadow-inner border border-teal-100">
@@ -10828,7 +10828,7 @@ ORANG_TUA_HTML = """
             <div class="flex-1 overflow-y-auto pr-1 space-y-4 pb-10" id="kamus_modal_content">
                 <!-- Data Kamus will be injected here via JS -->
             </div>
-            
+
             <div class="shrink-0 mt-4 pt-4 border-t border-teal-100 text-center">
                 <p class="text-[10px] font-bold text-teal-400 tracking-widest uppercase">Total <span id="kamus_count">0</span> Data Tersedia</p>
             </div>
@@ -10843,7 +10843,7 @@ ORANG_TUA_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-video text-amber-500 mr-2"></i>Modul Terapi Mandiri</h3>
                 <button onclick="closeModal('modal-ot-modul')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             <div class="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide shrink-0 snap-x" id="modul-filters">
                 <button onclick="filterModul('Semua')" class="modul-filter-btn active snap-center whitespace-nowrap px-4 py-2 rounded-xl text-sm font-bold bg-amber-500 text-white shadow-md transition-colors" data-filter="Semua">Semua</button>
                 <button onclick="filterModul('Motorik Halus')" class="modul-filter-btn snap-center whitespace-nowrap px-4 py-2 rounded-xl text-sm font-bold bg-amber-50 text-amber-600 border border-amber-200 transition-colors" data-filter="Motorik Halus">Motorik Halus</button>
@@ -10867,7 +10867,7 @@ ORANG_TUA_HTML = """
             <i class="fas fa-spa text-6xl text-violet-400 mb-4 animate-pulse"></i>
             <h3 class="text-2xl font-extrabold text-violet-900 mb-2">Halo Ibu/Bapak</h3>
             <p class="text-sm text-violet-600 mb-8 font-medium">Seberapa lelah perasaan Anda hari ini? (1-10)</p>
-            
+
             <form onsubmit="submitBurnout(event)">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="relative w-full h-2 bg-violet-100 rounded-full mb-10">
@@ -10880,7 +10880,7 @@ ORANG_TUA_HTML = """
                     <span id="burnout-display" class="text-xl text-violet-600">5</span>
                     <span>10 (Sangat Lelah)</span>
                 </div>
-                
+
                 <button type="submit" class="w-full bg-violet-500 text-white font-bold py-3.5 rounded-2xl shadow-lg hover:bg-violet-600 active:scale-95 transition-all">Simpan Perasaan</button>
             </form>
         </div>
@@ -10902,9 +10902,9 @@ ORANG_TUA_HTML = """
                 </div>
                 <button onclick="closeModal('modal-ot-burnout-menu')" class="bg-white w-10 h-10 rounded-full text-violet-500 hover:bg-violet-50 transition border border-violet-100 flex items-center justify-center shadow-sm">&times;</button>
             </div>
-            
+
             <p class="text-sm text-violet-700 mb-6 font-medium text-justify px-2">Pilih salah satu terapi interaktif di bawah ini untuk meredakan ketegangan dan memulihkan energi Anda.</p>
-            
+
             <div class="space-y-4">
                 <button onclick="openTherapy('lentera')" class="w-full bg-white p-5 rounded-3xl shadow-sm border border-violet-100 flex items-center gap-4 hover:shadow-md hover:-translate-y-1 transition-all group">
                     <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center text-2xl group-hover:bg-amber-100 transition-colors">
@@ -10916,7 +10916,7 @@ ORANG_TUA_HTML = """
                     </div>
                     <i class="fas fa-chevron-right text-violet-300 group-hover:text-violet-500"></i>
                 </button>
-                
+
                 <button onclick="openTherapy('napas')" class="w-full bg-white p-5 rounded-3xl shadow-sm border border-violet-100 flex items-center gap-4 hover:shadow-md hover:-translate-y-1 transition-all group">
                     <div class="w-12 h-12 rounded-2xl bg-teal-50 text-teal-500 flex items-center justify-center text-2xl group-hover:bg-teal-100 transition-colors">
                         <i class="fas fa-lungs"></i>
@@ -10927,7 +10927,7 @@ ORANG_TUA_HTML = """
                     </div>
                     <i class="fas fa-chevron-right text-violet-300 group-hover:text-violet-500"></i>
                 </button>
-                
+
                 <button onclick="openTherapy('riak')" class="w-full bg-white p-5 rounded-3xl shadow-sm border border-violet-100 flex items-center gap-4 hover:shadow-md hover:-translate-y-1 transition-all group">
                     <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center text-2xl group-hover:bg-indigo-100 transition-colors">
                         <i class="fas fa-water"></i>
@@ -10947,20 +10947,20 @@ ORANG_TUA_HTML = """
         <button onclick="closeTherapy('lentera')" class="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/10 text-white/50 flex items-center justify-center hover:bg-white/20 transition z-50">
             <i class="fas fa-times"></i>
         </button>
-        
+
         <div id="lentera-phase-1" class="text-center px-6 w-full max-w-md transition-opacity duration-1000">
             <h3 class="text-white text-xl font-serif mb-6 opacity-80 leading-relaxed tracking-wide">Tuliskan satu beban atau kesedihan yang paling mengganggu Anda hari ini...</h3>
             <textarea id="lentera-input" rows="4" class="w-full bg-transparent border-b-2 border-white/20 text-white text-center text-lg focus:outline-none focus:border-amber-400 resize-none placeholder-white/20 transition-colors" placeholder="Ketik di sini..."></textarea>
             <button onclick="createLentera()" class="mt-8 px-8 py-3 rounded-full border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 transition uppercase tracking-widest text-xs font-bold">Wujudkan Lentera</button>
         </div>
-        
+
         <div id="lentera-phase-2" class="absolute inset-0 hidden flex flex-col items-center justify-center">
             <p id="lentera-instruction" class="absolute top-20 text-white/50 text-sm tracking-widest uppercase animate-pulse">Usap layar ke atas untuk melepaskan</p>
-            
+
             <div id="lentera-obj" class="relative transition-transform duration-[4000ms] ease-in cursor-pointer touch-none">
                 <!-- Glowing effect -->
                 <div class="absolute inset-0 bg-amber-400 blur-3xl rounded-full opacity-30 scale-150 animate-pulse"></div>
-                
+
                 <!-- Lantern body -->
                 <div class="w-32 h-40 bg-gradient-to-b from-amber-200 to-amber-500 rounded-2xl relative shadow-[0_0_50px_rgba(251,191,36,0.6)] flex items-center justify-center overflow-hidden border border-amber-300">
                     <p id="lentera-text" class="text-amber-900 font-serif text-center px-2 text-sm font-bold opacity-80 break-words line-clamp-4"></p>
@@ -10977,24 +10977,24 @@ ORANG_TUA_HTML = """
         <button onclick="closeTherapyNapas()" class="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/10 text-white/50 flex items-center justify-center hover:bg-white/20 transition z-50">
             <i class="fas fa-times"></i>
         </button>
-        
+
         <div class="text-center z-10 pointer-events-none mb-12">
             <h3 class="text-violet-300 text-xl font-bold mb-2">Resonansi Napas Presisi</h3>
             <p class="text-slate-400 text-sm">Tahan jempol Anda di layar untuk memulai</p>
         </div>
-        
+
         <div id="napas-hitbox" class="absolute inset-0 z-0 flex items-center justify-center">
             <div class="relative w-64 h-64 flex items-center justify-center pointer-events-none">
                 <!-- Inner Thumb guide -->
                 <div class="absolute w-20 h-20 bg-violet-500/20 rounded-full border-2 border-violet-400/50 flex items-center justify-center">
                     <i class="fas fa-fingerprint text-3xl text-violet-400/50"></i>
                 </div>
-                
+
                 <!-- Expanding Ring -->
                 <div id="napas-ring" class="absolute w-24 h-24 border-4 border-violet-400 rounded-full shadow-[0_0_30px_rgba(167,139,250,0.4)] transition-all ease-linear"></div>
             </div>
         </div>
-        
+
         <div class="absolute bottom-20 text-center pointer-events-none">
             <p id="napas-instruction" class="text-3xl font-extrabold text-white tracking-widest uppercase opacity-0 transition-opacity duration-500"></p>
         </div>
@@ -11005,12 +11005,12 @@ ORANG_TUA_HTML = """
         <button onclick="closeTherapy('riak')" class="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/10 text-white/50 flex items-center justify-center hover:bg-white/20 transition z-50">
             <i class="fas fa-times"></i>
         </button>
-        
+
         <div id="riak-instruction" class="absolute top-20 text-center z-10 pointer-events-none transition-opacity duration-1000">
             <h3 class="text-indigo-300 text-xl font-serif mb-2">Riak Air Ketenangan</h3>
             <p class="text-indigo-400/50 text-sm tracking-widest uppercase animate-pulse">Sentuh permukaan air</p>
         </div>
-        
+
         <canvas id="riak-canvas" class="absolute inset-0 w-full h-full cursor-pointer touch-none"></canvas>
     </div>
 
@@ -11106,11 +11106,11 @@ ORANG_TUA_HTML = """
         function releaseLentera() {
             playLenteraWindAudio();
             document.getElementById('lentera-instruction').style.opacity = '0';
-            
+
             lenteraObj.style.transition = "transform 4s cubic-bezier(0.25, 1, 0.5, 1), opacity 4s ease-out";
             lenteraObj.style.transform = "translateY(-1200px) scale(0)";
             lenteraObj.style.opacity = "0";
-            
+
             setTimeout(() => {
                 closeTherapy('lentera');
                 // Reset states
@@ -11142,32 +11142,32 @@ ORANG_TUA_HTML = """
 
         function runNapasCycle() {
             if(!isBreathing) return;
-            
+
             // Phase 1: Tarik Napas (4s)
             napasPhase = 1;
             napasInstruction.innerText = "Tarik Napas";
             napasRing.style.transitionDuration = '4s';
             napasRing.style.transform = 'scale(2.5)';
             napasRing.classList.replace('border-violet-400', 'border-violet-300');
-            
+
             napasTimer = setTimeout(() => {
                 if(!isBreathing) return;
-                
+
                 // Phase 2: Tahan Napas (7s)
                 napasPhase = 2;
                 napasInstruction.innerText = "Tahan";
                 napasRing.classList.replace('border-violet-300', 'border-indigo-400');
-                
+
                 napasTimer = setTimeout(() => {
                     if(!isBreathing) return;
-                    
+
                     // Phase 3: Hembuskan (8s)
                     napasPhase = 3;
                     napasInstruction.innerText = "Hembuskan";
                     napasRing.style.transitionDuration = '8s';
                     napasRing.style.transform = 'scale(1)';
                     napasRing.classList.replace('border-indigo-400', 'border-violet-400');
-                    
+
                     napasTimer = setTimeout(() => {
                         if(!isBreathing) return;
                         runNapasCycle(); // Loop
@@ -11180,7 +11180,7 @@ ORANG_TUA_HTML = """
             if(!isBreathing) return;
             isBreathing = false;
             clearTimeout(napasTimer);
-            
+
             if(interrupted && napasPhase !== 0 && napasPhase !== 3) {
                 // If let go during Inhale or Hold, vibrate (haptic feedback)
                 if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
@@ -11188,7 +11188,7 @@ ORANG_TUA_HTML = """
             } else {
                 napasInstruction.style.opacity = '0';
             }
-            
+
             napasPhase = 0;
             napasRing.style.transitionDuration = '0.5s';
             napasRing.style.transform = 'scale(1)';
@@ -11205,10 +11205,10 @@ ORANG_TUA_HTML = """
         napasHitbox.addEventListener('touchstart', (e) => {
             if(e.target === napasHitbox || e.target.closest('#napas-hitbox')) startNapasSession();
         }, {passive: false});
-        
+
         napasHitbox.addEventListener('touchend', () => stopNapasSession(true));
         napasHitbox.addEventListener('touchcancel', () => stopNapasSession(true));
-        
+
         napasHitbox.addEventListener('mousedown', (e) => {
             if(e.target === napasHitbox || e.target.closest('#napas-hitbox')) startNapasSession();
         });
@@ -11238,18 +11238,18 @@ ORANG_TUA_HTML = """
             if(!riakAudioCtx) return;
             const osc = riakAudioCtx.createOscillator();
             const gain = riakAudioCtx.createGain();
-            
+
             osc.type = 'sine';
             osc.frequency.setValueAtTime(freq, riakAudioCtx.currentTime);
-            
+
             // Very slow, soft attack and very long decay for calming effect
             gain.gain.setValueAtTime(0, riakAudioCtx.currentTime);
             gain.gain.linearRampToValueAtTime(0.2, riakAudioCtx.currentTime + 0.1);
             gain.gain.exponentialRampToValueAtTime(0.001, riakAudioCtx.currentTime + 3.0);
-            
+
             osc.connect(gain);
             gain.connect(riakAudioCtx.destination);
-            
+
             osc.start();
             osc.stop(riakAudioCtx.currentTime + 3.0);
         }
@@ -11259,14 +11259,14 @@ ORANG_TUA_HTML = """
         function createRipple(x, y) {
             initRiakAudio();
             document.getElementById('riak-instruction').style.opacity = '0';
-            
+
             ripples.push({
                 x: x,
                 y: y,
                 radius: 0,
                 alpha: 1
             });
-            
+
             const now = Date.now();
             if(now - lastRiakAudioTime > 400) { // Throttle audio
                 lastRiakAudioTime = now;
@@ -11277,30 +11277,30 @@ ORANG_TUA_HTML = """
 
         function drawRipples() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
+
             // Dark purple base with very subtle gradient
             const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
             bgGrad.addColorStop(0, '#0b0416');
             bgGrad.addColorStop(1, '#1a0b2e');
             ctx.fillStyle = bgGrad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+
             for (let i = ripples.length - 1; i >= 0; i--) {
                 const r = ripples[i];
                 r.radius += 1.5; // Slow ripple
                 r.alpha -= 0.005; // Slow fade
-                
+
                 if (r.alpha <= 0) {
                     ripples.splice(i, 1);
                     continue;
                 }
-                
+
                 ctx.beginPath();
                 ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
                 ctx.strokeStyle = `rgba(167, 139, 250, ${r.alpha})`; // Violet-400
                 ctx.lineWidth = 2 + (r.alpha * 2);
                 ctx.stroke();
-                
+
                 // Secondary inner ripple
                 if (r.radius > 30) {
                     ctx.beginPath();
@@ -11310,7 +11310,7 @@ ORANG_TUA_HTML = """
                     ctx.stroke();
                 }
             }
-            
+
             rAF = requestAnimationFrame(drawRipples);
         }
 
@@ -11342,7 +11342,7 @@ ORANG_TUA_HTML = """
         canvas.addEventListener('pointerdown', (e) => {
             createRipple(e.clientX, e.clientY);
         });
-        
+
         let lastRiakTouch = 0;
         canvas.addEventListener('pointermove', (e) => {
             // Create drag ripples but heavily throttled to avoid visual/audio chaos
@@ -11359,7 +11359,7 @@ ORANG_TUA_HTML = """
         // --- FEATURE 1: BUKU PENGHUBUNG LOGIC ---
         async function submitBukuPenghubung(e) {
             e.preventDefault();
-            
+
             let selectedMood = null;
             const moodRadios = document.getElementsByName('buku-mood-radio');
             for(let i=0; i<moodRadios.length; i++) {
@@ -11430,7 +11430,7 @@ ORANG_TUA_HTML = """
                         overlay.style.display = 'none';
                     }, 2500);
                 }
-            } catch(err) { 
+            } catch(err) {
                 console.error(err);
                 loadingText.innerText = "Gagal mengirim data.";
                 setTimeout(() => {
@@ -11444,7 +11444,7 @@ ORANG_TUA_HTML = """
             try {
                 const res = await fetch('/orang-tua/api/chart-data');
                 const data = await res.json();
-                
+
                 if(data.labels.length === 0) {
                     document.getElementById('buku-empty').classList.remove('hidden');
                     return;
@@ -11466,7 +11466,7 @@ ORANG_TUA_HTML = """
         function drawBukuChart(data) {
             const ctx = document.getElementById('bukuChart').getContext('2d');
             if(bChart) bChart.destroy();
-            
+
             bChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -11530,7 +11530,7 @@ ORANG_TUA_HTML = """
         function triggerTantrumAudio() {
             const btn = document.getElementById('btn-tantrum-audio');
             const status = document.getElementById('tantrum-audio-status');
-            
+
             if(!tantrumAudioCtx) {
                 tantrumAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
@@ -11550,18 +11550,18 @@ ORANG_TUA_HTML = """
                     lastOut = data[i];
                     data[i] *= 3.5;
                 }
-                
+
                 tantrumNoise = tantrumAudioCtx.createBufferSource();
                 tantrumNoise.buffer = buffer;
                 tantrumNoise.loop = true;
-                
+
                 const filter = tantrumAudioCtx.createBiquadFilter();
                 filter.type = 'lowpass';
                 filter.frequency.value = 300; // Deep rumble
-                
+
                 const gain = tantrumAudioCtx.createGain();
                 gain.gain.value = 0.5;
-                
+
                 tantrumNoise.connect(filter);
                 filter.connect(gain);
                 gain.connect(tantrumAudioCtx.destination);
@@ -11579,10 +11579,10 @@ ORANG_TUA_HTML = """
         function stopTantrumAudio() {
             if(tantrumNoise) tantrumNoise.stop();
             isTantrumPlaying = false;
-            
+
             const btn = document.getElementById('btn-tantrum-audio');
             const status = document.getElementById('tantrum-audio-status');
-            
+
             if(btn) {
                 btn.classList.replace('from-green-500', 'from-red-600');
                 btn.classList.replace('to-green-700', 'to-red-800');
@@ -11625,7 +11625,7 @@ ORANG_TUA_HTML = """
             try {
                 const res = await fetch('/orang-tua/api/jadwal');
                 const data = await res.json();
-                
+
                 // Update Parent Dashboard Timeline
                 const containerOT = document.getElementById('jadwal-timeline');
                 if (containerOT) {
@@ -11710,16 +11710,16 @@ ORANG_TUA_HTML = """
             const input = rawInput.toLowerCase();
             const tooltip = document.getElementById('nutrisi_warning_box');
             const inputEl = document.getElementById('jurnal_makanan_input');
-            
+
             let matchedObj = null;
-            
+
             if (input.trim() !== "") {
                 for (let item of globalKamusData) {
                     if (item.komposisi) {
                         const itemKomposisi = item.komposisi.toLowerCase();
                         const keywords = itemKomposisi.replace(/\\([^()]*\\)/g, '').split(/[\\s,-]+/).filter(w => w.length > 2);
                         if (itemKomposisi.includes("msg")) keywords.push("msg");
-                        
+
                         let found = false;
                         for (let keyword of keywords) {
                             if (input.includes(keyword)) {
@@ -11727,7 +11727,7 @@ ORANG_TUA_HTML = """
                                 break;
                             }
                         }
-                        
+
                         if (found || itemKomposisi.includes(input) || input.includes(itemKomposisi)) {
                             matchedObj = item;
                             break;
@@ -11735,18 +11735,18 @@ ORANG_TUA_HTML = """
                     }
                 }
             }
-            
+
             if (matchedObj) {
                 tooltip.style.display = 'block';
                 tooltip.className = "absolute left-0 -top-auto bottom-full mb-2 w-full bg-rose-100 text-rose-800 text-[10px] md:text-xs font-bold px-4 py-3 rounded-xl shadow-[0_4px_15px_rgba(225,29,72,0.4)] flex flex-col gap-1 opacity-100 translate-y-0 transition-all duration-300 z-20 border border-rose-300";
                 tooltip.innerHTML = `<div><i class="fas fa-exclamation-triangle text-rose-600 animate-bounce mr-1"></i> <strong class="uppercase tracking-wider text-red-600">${matchedObj.komposisi}</strong></div><p class="font-medium text-justify mt-1 text-rose-700">${matchedObj.rasionalisasi}</p>`;
-                
+
                 inputEl.classList.remove('border-emerald-100', 'focus:border-emerald-400');
                 inputEl.classList.add('border-rose-400', 'focus:border-rose-500', 'text-rose-700', 'bg-rose-50');
             } else {
                 tooltip.style.display = 'none';
                 tooltip.className = "absolute left-0 -top-12 w-full bg-red-600 text-white text-[10px] font-bold px-4 py-2 rounded-xl shadow-[0_4px_15px_rgba(220,38,38,0.4)] flex items-center gap-2 opacity-0 pointer-events-none transform translate-y-2 transition-all duration-300 z-20";
-                
+
                 inputEl.classList.add('border-emerald-100', 'focus:border-emerald-400');
                 inputEl.classList.remove('border-rose-400', 'focus:border-rose-500', 'text-rose-700', 'bg-rose-50');
             }
@@ -11762,7 +11762,7 @@ ORANG_TUA_HTML = """
                     const itemKomposisi = item.komposisi.toLowerCase();
                     const keywords = itemKomposisi.replace(/\\([^()]*\\)/g, '').split(/[\\s,-]+/).filter(w => w.length > 2);
                     if (itemKomposisi.includes("msg")) keywords.push("msg");
-                    
+
                     let found = false;
                     for (let keyword of keywords) {
                         if (input.includes(keyword)) {
@@ -11776,7 +11776,7 @@ ORANG_TUA_HTML = """
                     }
                 }
             }
-            
+
             try {
                 const res = await fetch('/orang-tua/api/nutrisi', {
                     method: 'POST',
@@ -11797,7 +11797,7 @@ ORANG_TUA_HTML = """
                 const data = await res.json();
                 const container = document.getElementById('nutrisi-list');
                 container.innerHTML = '';
-                
+
                 if(data.length === 0) {
                     container.innerHTML = '<div class="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 text-center"><p class="text-[10px] text-emerald-500 font-bold tracking-widest uppercase">Belum ada jurnal</p></div>';
                     return;
@@ -11809,7 +11809,7 @@ ORANG_TUA_HTML = """
                     const iconClass = isAllergen ? 'text-red-500 fa-exclamation-triangle' : 'text-emerald-500 fa-check-circle';
                     const badgeClass = isAllergen ? 'bg-red-100 text-red-600' : 'bg-emerald-50 text-emerald-600';
                     const badgeText = isAllergen ? 'Awas' : 'Aman';
-                    
+
                     container.innerHTML += `
                         <div class="p-4 rounded-2xl border ${borderClass} flex justify-between items-center shadow-sm">
                             <div class="flex items-center gap-3">
@@ -11824,7 +11824,7 @@ ORANG_TUA_HTML = """
                 });
             } catch(e) {}
         }
-        
+
         // KAMUS ALERGI LOGIC
         function renderKamusAlergi(data) {
             const container = document.getElementById('kamus_modal_content');
@@ -11860,7 +11860,7 @@ ORANG_TUA_HTML = """
         function filterKamusAlergi() {
             const query = document.getElementById('search-kamus-alergi').value.toLowerCase();
             const filtered = globalKamusData.filter(item => {
-                return (item.komposisi && item.komposisi.toLowerCase().includes(query)) || 
+                return (item.komposisi && item.komposisi.toLowerCase().includes(query)) ||
                        (item.referensi_medis && item.referensi_medis.toLowerCase().includes(query)) ||
                        (item.rasionalisasi && item.rasionalisasi.toLowerCase().includes(query));
             });
@@ -11871,7 +11871,7 @@ ORANG_TUA_HTML = """
         async function fetchYouTubeModules() {
             const container = document.getElementById('modul-container');
             const loading = document.getElementById('yt-loading');
-            
+
             // Simulating a real YouTube Data API v3 fetch for playlist items.
             // Since we don't have the user's actual API key, we mock the successful response structure
             // to fulfill the prompt's requirement without breaking the app.
@@ -11885,7 +11885,7 @@ ORANG_TUA_HTML = """
             setTimeout(() => { // Simulate network delay
                 if(loading) loading.remove();
                 let html = '';
-                
+
                 // 1. Render Videos from "API"
                 mockApiResponse.items.forEach(item => {
                     html += `
@@ -11916,7 +11916,7 @@ ORANG_TUA_HTML = """
                         </a>
                     </div>
                 `;
-                
+
                 container.innerHTML = html;
             }, 800);
         }
@@ -11950,7 +11950,7 @@ ORANG_TUA_HTML = """
             const percent = (val - 1) / 9 * 100;
             document.getElementById('burnout-fill').style.width = `${percent}%`;
             document.getElementById('burnout-thumb').style.left = `${percent}%`;
-            
+
             // Color grading (1: Green, 5: Violet, 10: Red)
             const fill = document.getElementById('burnout-fill');
             const thumb = document.getElementById('burnout-thumb');
@@ -11972,17 +11972,17 @@ ORANG_TUA_HTML = """
         async function submitBurnout(e) {
             e.preventDefault();
             const val = document.getElementById('burnout-slider').value;
-            
+
             try {
                 await fetch('/orang-tua/api/burnout', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')},
                     body: JSON.stringify({ stress_level: val })
                 });
-                
+
                 closeModal('modal-ot-burnout-slider');
                 checkBurnoutStatus();
-                
+
             } catch(err) { console.error(err); }
         }
 
@@ -11990,12 +11990,12 @@ ORANG_TUA_HTML = """
             try {
                 const res = await fetch('/orang-tua/api/burnout-check');
                 const data = await res.json();
-                
+
                 if(data.is_burnout) {
                     // Trigger Emergency Protocol Instantly
                     document.getElementById('burnout-emergency-container').classList.remove('hidden');
                     document.getElementById('ot-main-bg').className = "min-h-[100dvh] bg-slate-900 pb-32 transition-colors duration-1000"; // Cooler theme
-                    
+
                     // Fetch ZenQuote
                     try {
                         const quoteRes = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://zenquotes.io/api/random'));
@@ -12018,17 +12018,17 @@ ORANG_TUA_HTML = """
                 const el = document.getElementById(id);
                 if(el) el.classList.remove('hidden');
             }
-            
+
             if(id === 'modal-ot-buku') loadBukuChart();
             if(id === 'modal-ot-tantrum') fetchTantrumProfile();
             if(id === 'modal-ot-jadwal') loadJadwalTimeline();
             if(id === 'modal-ot-nutrisi') {
-                if (KAMUS_ALERGI_DATA.length === 0) await fetchKamusAlergiData();
+                if (globalKamusData.length === 0) await fetchKamusAlergiData();
                 loadNutrisiList();
             }
             if(id === 'modal-ot-kamus-alergi') {
-                if (KAMUS_ALERGI_DATA.length === 0) await fetchKamusAlergiData();
-                renderKamusAlergi(KAMUS_ALERGI_DATA);
+                if (globalKamusData.length === 0) await fetchKamusAlergiData();
+                renderKamusAlergi(globalKamusData);
             }
             if(id === 'modal-ot-modul') fetchYouTubeModules();
         };
@@ -12092,11 +12092,11 @@ def api_jurnal_harian():
             q = q.filter_by(anak_id=session.get('anak_id'))
         elif session.get('peran') in ['guru', 'kepala_sekolah'] and request.args.get('anak_id'):
             q = q.filter_by(anak_id=request.args.get('anak_id'))
-        
+
         buku_logs = q.order_by(OrangTuaBuku.created_at.desc()).limit(7).all()
         # Reverse to show chronological left to right
         buku_logs.reverse()
-        
+
         labels = [f"Hari {i+1}" for i in range(len(buku_logs))]
         sleep_data = [l.sleep_duration for l in buku_logs]
         history_list = []
@@ -12107,7 +12107,7 @@ def api_jurnal_harian():
                 "morning_behavior": l.morning_behavior,
                 "date": l.created_at.strftime("%d %b %Y") if l.created_at else "Unknown"
             })
-            
+
         return jsonify({
             "labels": labels,
             "sleep_data": sleep_data,
@@ -12126,19 +12126,19 @@ def get_ot_chart_data():
         q_buku = q_buku.filter_by(anak_id=session.get('anak_id'))
     buku_logs = q_buku.order_by(OrangTuaBuku.created_at.desc()).limit(7).all()
     reaction_logs = ReactionTimeLog.query.order_by(ReactionTimeLog.created_at.desc()).limit(7).all()
-    
+
     # Reverse to show chronological left to right
     buku_logs.reverse()
     reaction_logs.reverse()
-    
+
     labels = [f"Hari {i+1}" for i in range(max(len(buku_logs), len(reaction_logs)))]
     sleep_data = [l.sleep_duration for l in buku_logs]
-    
+
     # Pad reaction data if unequal
     focus_data = [l.time_ms for l in reaction_logs]
     while len(focus_data) < len(labels):
         focus_data.append(None)
-        
+
     return jsonify({
         "labels": labels,
         "sleep_data": sleep_data,
@@ -12147,7 +12147,7 @@ def get_ot_chart_data():
 
 @app.route('/orang-tua/api/tantrum-profile')
 def get_tantrum_profile():
-    # In a real app, fetch based on student ID. 
+    # In a real app, fetch based on student ID.
     # Here we return a static mock protocol written by a teacher.
     return jsonify({
         "steps": [
@@ -12177,14 +12177,14 @@ def handle_ot_jadwal():
         except Exception as e:
             db.session.rollback()
             return jsonify({'error': 'Terjadi kesalahan saat memproses data. Silakan coba lagi.'}), 500
-    
+
     # GET method
     q = OrangTuaJadwal.query
     if session.get('peran') == 'orang_tua':
         q = q.filter_by(anak_id=session.get('anak_id'))
     elif session.get('peran') in ['guru', 'kepala_sekolah'] and request.args.get('anak_id'):
         q = q.filter_by(anak_id=request.args.get('anak_id'))
-    
+
     logs = q.order_by(OrangTuaJadwal.schedule_time.asc()).all()
     res = []
     for l in logs:
@@ -12217,7 +12217,7 @@ def api_kamus_nutrisi_underscore():
     try:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         target_path = os.path.join(current_dir, 'static', 'kamus_alergi_neuro.json')
-            
+
         with open(target_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         return jsonify(data)
@@ -12230,7 +12230,7 @@ def api_kamus_nutrisi():
     try:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         target_path = os.path.join(current_dir, 'static', 'kamus_alergi_neuro.json')
-            
+
         with open(target_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         return jsonify(data)
@@ -12257,7 +12257,7 @@ def handle_ot_nutrisi():
         except Exception as e:
             db.session.rollback()
             return jsonify({'error': 'Terjadi kesalahan saat memproses data. Silakan coba lagi.'}), 500
-    
+
     q = OrangTuaNutrisi.query
     if session.get('peran') == 'orang_tua':
         q = q.filter_by(anak_id=session.get('anak_id'))
@@ -12287,13 +12287,13 @@ def subscribe():
         sub_info = request.json
         if not sub_info:
             return jsonify({'error': 'no info'}), 400
-        
+
         # Store subscription if not exists
         existing = PushSubscription.query.filter_by(subscription_info=json.dumps(sub_info)).first()
         if not existing:
             db.session.add(PushSubscription(subscription_info=json.dumps(sub_info)))
             db.session.commit()
-        
+
         return jsonify({'status': 'success'})
     except Exception as e:
         db.session.rollback()
@@ -12336,18 +12336,18 @@ def check_medications():
         window_start = (now - datetime.timedelta(minutes=1)).time()
         window_end = (now + datetime.timedelta(minutes=1)).time()
         today = now.date()
-        
+
         schedules = OrangTuaJadwal.query.filter(
             OrangTuaJadwal.schedule_time.between(window_start, window_end),
             OrangTuaJadwal.notified == False,
             db.or_(OrangTuaJadwal.notified_date == None, OrangTuaJadwal.notified_date < today)
         ).all()
-        
+
         if not schedules:
             return
-            
+
         subscriptions = PushSubscription.query.all()
-        
+
         schedules_data = []
         for sched in schedules:
             schedules_data.append({
@@ -12356,14 +12356,14 @@ def check_medications():
             })
             sched.notified = True
             sched.notified_date = today
-            
+
         subscriptions_data = []
         for sub in subscriptions:
             try:
                 subscriptions_data.append(json.loads(sub.subscription_info))
             except:
                 pass
-                
+
         db.session.commit()
         threading.Thread(target=send_all_pushes, args=(schedules_data, subscriptions_data), daemon=True).start()
 
@@ -12418,15 +12418,15 @@ def download_modul():
     filename = request.args.get('file')
     if not filename:
         return "No file specified", 400
-        
+
     filename = secure_filename(filename)
     modul_dir = os.path.join(app.root_path, 'static', 'modul')
     os.makedirs(modul_dir, exist_ok=True)
     filepath = os.path.join(modul_dir, filename)
-    
+
     if not os.path.exists(filepath):
         return "File not found", 404
-            
+
     return send_from_directory(modul_dir, filename, as_attachment=True)
 
 @app.route('/slb/tunalaras', methods=['GET', 'POST'])
@@ -12441,13 +12441,13 @@ def slb_tunalaras():
         except Exception as e:
             db.session.rollback()
             return "Terjadi kesalahan saat memproses data. Silakan coba lagi.", 500
-    
+
     q = EmotionJournal.query
     if session.get('peran') == 'orang_tua' and session.get('anak_id'):
         history = q.filter_by(anak_id=session.get('anak_id')).order_by(EmotionJournal.date.desc()).limit(20).all()
     else:
         history = q.order_by(EmotionJournal.date.desc()).limit(5).all()
-    
+
     rendered_tunalaras = cached_render('SLB_TUNALARAS_HTML', SLB_TUNALARAS_HTML, history=history, csrf_token=lambda: "", peran=session.get('peran',''), anak_id=session.get('anak_id'))
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=rendered_tunalaras, theme={'nav_bg': 'bg-teal-100', 'title_text': 'text-teal-800'}, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
@@ -12456,13 +12456,13 @@ def api_tunalaras_guru_monitor():
     if session.get('peran') not in ['guru', 'kepala_sekolah']:
         return jsonify({'error': 'Unauthorized'}), 403
     q = request.args.get('q', '').lower()
-    
+
     entries = db.session.query(EmotionJournal).filter(EmotionJournal.anak_id != None).all()
     grouped = {}
     for e in entries:
         if e.anak_id not in grouped: grouped[e.anak_id] = []
         grouped[e.anak_id].append(e)
-        
+
     results = []
     for a_id, evs in grouped.items():
         evs.sort(key=lambda x: x.date, reverse=True)
@@ -12471,7 +12471,7 @@ def api_tunalaras_guru_monitor():
         if q and q not in siswa.nama.lower(): continue
         parent = AkunPengguna.query.filter_by(anak_id=a_id, peran='orang_tua').first()
         parent_name = parent.nama_lengkap if parent else "Unknown"
-        
+
         recent_emotions = [{"emotion": x.emotion, "date": x.date.strftime('%Y-%m-%d %H:%M') if x.date else ''} for x in evs[:3]]
         results.append({
             "parent_name": parent_name,
@@ -12605,7 +12605,7 @@ self.addEventListener('fetch', (event) => {
 def donate_update():
     if not session.get('is_admin'):
         return redirect(url_for('index'))
-    
+
     keys = ['infaq_rekening_masjid', 'infaq_rekening_qurban', 'infaq_rekening_zakat']
     for k in keys:
         val = request.form.get(k)
@@ -12613,7 +12613,7 @@ def donate_update():
             s = db.session.get(AppSettings, k)
             if s: s.value = val
             else: db.session.add(AppSettings(key=k, value=val))
-            
+
     if 'qris_image' in request.files:
         file = request.files['qris_image']
         if file and allowed_file(file.filename):
@@ -12629,7 +12629,7 @@ def donate_update():
             s = db.session.get(AppSettings, 'infaq_qris_image')
             if s: s.value = filename
             else: db.session.add(AppSettings(key='infaq_qris_image', value=filename))
-            
+
     db.session.commit()
     invalidate_settings_cache()
     return redirect(request.referrer)
@@ -12642,7 +12642,7 @@ def jadwal_kelas():
     for j in jadwal:
         if j.hari in grouped:
             grouped[j.hari].append(j)
-    
+
     content = """
     <div class="pt-24 px-5 pb-32 bg-indigo-50/50 min-h-[100dvh]">
         <div class="max-w-4xl mx-auto">
@@ -12653,7 +12653,7 @@ def jadwal_kelas():
                 <h2 class="text-3xl font-extrabold text-indigo-800 tracking-tight">Jadwal Kelas</h2>
                 <p class="text-indigo-600 mt-2 font-medium">Informasi Kegiatan Belajar Mengajar SLB</p>
             </div>
-            
+
             {% if is_admin %}
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-indigo-100 mb-10">
                 <h3 class="text-lg font-bold text-indigo-700 mb-4 border-l-4 border-indigo-500 pl-3">Tambah Jadwal Baru</h3>
@@ -12727,20 +12727,20 @@ def jadwal_kelas():
 def add_jadwal():
     if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return redirect(url_for('jadwal_kelas'))
-    
+
     try:
         hari = request.form.get('hari')
         jam = request.form.get('jam')
         mata_pelajaran = request.form.get('mata_pelajaran')
         guru = request.form.get('guru')
         ruangan = request.form.get('ruangan')
-        
+
         new_jadwal = JadwalKelas(hari=hari, jam=jam, mata_pelajaran=mata_pelajaran, guru=guru, ruangan=ruangan)
         db.session.add(new_jadwal)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        
+
     return redirect(url_for('jadwal_kelas'))
 
 @app.route('/galeri')
@@ -12748,7 +12748,7 @@ def galeri_karya():
     page = request.args.get('page', 1, type=int)
     pagination = GaleriKarya.query.order_by(GaleriKarya.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
     karya = pagination.items
-    
+
     content = """
     <div class="pt-24 px-5 pb-32 bg-rose-50/50 min-h-[100dvh]">
         <div class="max-w-6xl mx-auto">
@@ -12759,7 +12759,7 @@ def galeri_karya():
                 <h2 class="text-3xl font-extrabold text-rose-800 tracking-tight">Galeri Karya</h2>
                 <p class="text-rose-600 mt-2 font-medium">Pameran Seni Anak Hebat</p>
             </div>
-            
+
             {% if is_admin %}
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-rose-100 mb-10 max-w-2xl mx-auto">
                 <h3 class="text-lg font-bold text-rose-700 mb-4 border-l-4 border-rose-500 pl-3">Unggah Karya Baru</h3>
@@ -12801,7 +12801,7 @@ def galeri_karya():
                 </div>
                 {% endfor %}
             </div>
-            
+
             {% if not karya %}
             <div class="text-center py-16">
                 <div class="w-20 h-20 mx-auto bg-gray-50 text-gray-300 rounded-full flex items-center justify-center text-3xl mb-4"><i class="fas fa-images"></i></div>
@@ -12856,7 +12856,7 @@ def arsip_portofolio():
     page = request.args.get('page', 1, type=int)
     pagination = StudentPortfolio.query.limit(100).order_by(StudentPortfolio.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
     portfolios = pagination.items
-    
+
     content = """
     <div class="pt-24 px-5 pb-32 bg-rose-50/50 min-h-[100dvh]">
         <div class="max-w-6xl mx-auto">
@@ -12867,7 +12867,7 @@ def arsip_portofolio():
                 <h2 class="text-3xl font-extrabold text-rose-800 tracking-tight leading-none mb-2">Arsip Portofolio<br>Siswa SLB</h2>
                 <p class="text-rose-600 font-medium text-sm">Museum Jejak Visual Pertumbuhan Anak</p>
             </div>
-            
+
             <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white p-4 rounded-3xl shadow-sm border border-rose-100">
                 <div class="flex items-center gap-3 w-full md:w-auto">
                     <i class="fas fa-search text-rose-400 pl-2"></i>
@@ -12881,7 +12881,7 @@ def arsip_portofolio():
                     <div class="aspect-square bg-gray-50 relative overflow-hidden">
                         {% set ext = port.filename.rsplit('.', 1)[1]|lower if '.' in port.filename else '' %}
                         {% set is_video = ext in ['mp4', 'avi', 'mov', 'mkv', 'wmv', 'flv', 'webm', 'm4v', 'mpeg'] %}
-                        
+
                         {% if is_video %}
                             <video class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" muted playsinline>
                                 <source src="/uploads/{{ port.filename }}" type="video/mp4">
@@ -12892,7 +12892,7 @@ def arsip_portofolio():
                         {% else %}
                             <img src="/uploads/{{ port.filename }}" alt="{{ port.student_id }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
                         {% endif %}
-                        
+
                         <div class="absolute inset-0 bg-gradient-to-t from-rose-900/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
                             <div class="w-8 h-8 rounded-full bg-white/30 backdrop-blur-md text-white flex items-center justify-center border border-white/50 ml-auto">
                                 <i class="fas fa-expand text-xs"></i>
@@ -12906,7 +12906,7 @@ def arsip_portofolio():
                 </div>
                 {% endfor %}
             </div>
-            
+
             {% if not portfolios %}
             <div class="text-center py-20 bg-white rounded-[3rem] shadow-sm border border-rose-100">
                 <div class="w-24 h-24 mx-auto bg-rose-50 text-rose-300 rounded-full flex items-center justify-center text-4xl mb-4"><i class="fas fa-folder-open"></i></div>
@@ -12929,7 +12929,7 @@ def arsip_portofolio():
             <div id="modal-arsip-view" class="fixed inset-0 z-[150] hidden flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-rose-900/90 backdrop-blur-xl" onclick="closeArsipModal()"></div>
                 <div class="relative w-full max-w-4xl bg-white rounded-[2rem] overflow-hidden shadow-2xl animate-[slideUp_0.3s_ease-out] flex flex-col md:flex-row">
-                    
+
                     <!-- Media Container -->
                     <div class="w-full md:w-2/3 bg-gray-50 relative flex items-center justify-center min-h-[40dvh] md:min-h-[70dvh]" id="arsip-media-container">
                         <!-- Media Injected via JS -->
@@ -12945,11 +12945,11 @@ def arsip_portofolio():
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
-                        
+
                         <div class="flex-1">
                             <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Identitas Siswa</p>
                             <h3 id="modal-arsip-student" class="text-2xl font-extrabold text-rose-900 mb-6 leading-tight"></h3>
-                            
+
                             <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Periode Pembelajaran</p>
                             <p id="modal-arsip-semester" class="text-sm text-rose-600 font-bold bg-rose-50 px-4 py-2 rounded-xl inline-block border border-rose-100"></p>
                         </div>
@@ -12967,9 +12967,9 @@ def arsip_portofolio():
                     const container = document.getElementById('arsip-media-container');
                     const ext = src.split('.').pop().toLowerCase();
                     const videoExts = ['mp4', 'avi', 'mov', 'mkv', 'wmv', 'flv', 'webm', 'm4v', 'mpeg'];
-                    
+
                     container.innerHTML = ''; // Clear existing
-                    
+
                     if (videoExts.includes(ext)) {
                         const vid = document.createElement('video');
                         vid.src = src;
@@ -12988,7 +12988,7 @@ def arsip_portofolio():
                     document.getElementById('modal-arsip-semester').innerText = semester;
                     document.getElementById('modal-arsip-view').classList.remove('hidden');
                 }
-                
+
                 function closeArsipModal() {
                     const container = document.getElementById('arsip-media-container');
                     container.innerHTML = ''; // Stops video playback
@@ -12998,7 +12998,7 @@ def arsip_portofolio():
                 function filterArsip() {
                     const input = document.getElementById('arsip-search').value.toLowerCase();
                     const items = document.querySelectorAll('.arsip-item');
-                    
+
                     items.forEach(item => {
                         const title = item.getAttribute('data-siswa');
                         if (title.includes(input)) {
@@ -13019,11 +13019,11 @@ def arsip_portofolio():
 def upload_karya():
     if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return redirect(url_for('galeri_karya'))
-        
+
     title = request.form.get('title')
     student_name = request.form.get('student_name')
     file = request.files.get('image')
-    
+
     if file and allowed_file(file.filename):
         try:
             file_bytes = file.read(2048)
@@ -13034,27 +13034,27 @@ def upload_karya():
 
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            
+
             if filename.rsplit('.', 1)[1].lower() == 'mp4':
                 file.save(filepath)
             else:
                 img = Image.open(file)
                 if img.mode in ("RGBA", "P"): img = img.convert("RGB")
                 img.thumbnail((800, 800))
-                
+
                 # Image compression loop to ensure file size is under 500KB
                 quality = 85
                 img.save(filepath, format="JPEG", quality=quality, optimize=True)
                 while os.path.getsize(filepath) > 500 * 1024 and quality > 10:
                     quality -= 5
                     img.save(filepath, format="JPEG", quality=quality, optimize=True)
-                
+
             new_karya = GaleriKarya(image_filename=filename, title=title, student_name=student_name)
             db.session.add(new_karya)
             db.session.commit()
         except Exception as e:
             db.session.rollback()
-            
+
     return redirect(url_for('galeri_karya'))
 
 
