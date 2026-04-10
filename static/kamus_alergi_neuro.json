@@ -1,0 +1,27 @@
+[
+    {
+        "komposisi": "Monosodium Glutamat (MSG)",
+        "referensi_medis": "Neurotoksisitas & Hiperaktivitas Ekstra (FDA: GRAS tapi memicu lonjakan impuls pada SLB)",
+        "rasionalisasi": "Sebagai eksitotoksin yang merangsang sel saraf berlebih, dapat menyebabkan tantrum berat atau impulsivitas tak terkontrol pada anak neurodivergen."
+    },
+    {
+        "komposisi": "Gluten",
+        "referensi_medis": "Efek Opioid-Like (Reaksi GFCF)",
+        "rasionalisasi": "Pada beberapa anak autisme atau ADHD, tidak tercerna sempurna menjadi gluteomorfin, memberikan efek memabukkan yang merusak konsentrasi."
+    },
+    {
+        "komposisi": "Kasein",
+        "referensi_medis": "Efek Kaseomorfin (Reaksi GFCF)",
+        "rasionalisasi": "Protein susu sapi yang dapat masuk ke aliran darah & mencapai otak, mengurangi kewaspadaan & menghambat perkembangan kognitif atau wicara."
+    },
+    {
+        "komposisi": "Pewarna Sintetis",
+        "referensi_medis": "Efek Perilaku (Southampton Study)",
+        "rasionalisasi": "Pewarna buatan telah dikaitkan dengan peningkatan hiperaktif dan kurangnya perhatian (inattentiveness) pada anak neurodivergen."
+    },
+    {
+        "komposisi": "Aspartam",
+        "referensi_medis": "Pemanis Buatan (Neurotoksin)",
+        "rasionalisasi": "Asam aspartat dapat bekerja sebagai eksitotoksin yang mengganggu neurotransmitter, memicu sakit kepala, kecemasan, atau kesulitan tidur."
+    }
+]
