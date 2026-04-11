@@ -127,12 +127,12 @@ db = SQLAlchemy(app)
 # --- DATA SUMBER HUKUM (DALIL) ---
 # --- DATA SUMBER HUKUM (DALIL) ---
 DALIL_DATA = {
-    "imt": [],
-    "sensory": [],
-    "auditori": [],
-    "iq": [],
-    "motorik": [],
-    "diet": []
+    "waris": [],
+    "zakat": [],
+    "tahajjud": [],
+    "khatam": [],
+    "fidyah": [],
+    "hijri": []
 }
 
 # --- DATABASE SETUP ---
@@ -413,6 +413,58 @@ STYLES_HTML = """
                 inset 2px 2px 10px rgba(255,255,255,1);
             z-index: 100;
         }
+
+        /* RAMADHAN MODE UTILS */
+        :root {
+            --midnight-blue: #0b1026;
+            --gold: #FFD700;
+            --light-navy: #151e3f;
+        }
+        .bg-midnight { background-color: var(--midnight-blue); }
+        .text-gold { color: var(--gold); }
+        .border-gold { border-color: var(--gold); }
+
+        /* Floating Card */
+        .floating-card {
+            margin: 0 0.5rem;
+            border-radius: 2.5rem;
+            background-color: #0b162c;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        /* FAB Center Button */
+        .fab-center {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4.5rem;
+            height: 4.5rem;
+            background-color: var(--gold);
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            border: 4px solid #0b1026; /* Dark Theme Border */
+            z-index: 60;
+        }
+
+        .dark-bottom-nav {
+            background-color: #0b1026;
+            border-top: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 20px 20px 0 0;
+        }
+
+        /* Amalan Popup Animation */
+        @keyframes popupFadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes popupFadeOut {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.9); }
+        }
     </style>
 """
 
@@ -427,8 +479,8 @@ BASE_LAYOUT = """
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="/manifest.json">
-    <link rel="icon" type="image/png" href="/static/logoslb.png">
-    <link rel="apple-touch-icon" href="/static/logoslb.png">
+    <link rel="icon" type="image/png" href="/static/logomasjidalhijrah.png">
+    <link rel="apple-touch-icon" href="/static/logomasjidalhijrah.png">
     <script>
         function triggerEmergency() {
             const now = new Date();
@@ -439,7 +491,7 @@ BASE_LAYOUT = """
             else if (h >= 15 && h <= 18) time = "Sore";
             else time = "Malam"; // 19-23
 
-            const msg = `Halo, Selamat ${time}, saya butuh bantuan darurat terkait SLB Waktu Samarinda.`;
+            const msg = `Assalamualaikum, Selamat ${time}, maaf mengganggu waktunya Pak ya... Saya butuh bantuan darurat.`;
             window.location.href = "https://wa.me/6282330890500?text=" + encodeURIComponent(msg);
         }
     </script>
@@ -518,6 +570,7 @@ BASE_LAYOUT = """
         </div>
         <div class="text-right">
             <p class="text-[8px] text-gray-500 font-bold mb-0.5 uppercase tracking-wider"><i class="fas fa-clock text-emerald-500"></i> Waktu Samarinda</p>
+            <p class="text-[10px] font-bold {{ t_icon_text }} {{ t_icon_bg }} px-2 py-1 rounded-full border border-emerald-200" id="hijri-date">Loading...</p>
         </div>
     </header>
     {% endif %}
@@ -558,6 +611,180 @@ BASE_LAYOUT = """
     {% endif %}
 
     <!-- MODAL INFAQ REVOLUTION -->
+    <div id="modal-infaq" class="fixed inset-0 z-[150] hidden">
+        <div id="infaq-modal-content" class="fixed inset-0 w-full h-full bg-white p-6 overflow-y-auto flex flex-col animate-[slideUp_0.3s_ease-out]">
+            <div class="flex justify-between items-center mb-6">
+                <h3 id="infaq-title" class="text-xl font-bold text-gray-800">Infaq Digital</h3>
+                <button onclick="closeModal('modal-infaq')" class="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center text-current hover:bg-black/10 transition">&times;</button>
+            </div>
+
+            <!-- Tabs -->
+            <div id="infaq-tabs" class="flex p-1 bg-gray-100 rounded-xl mb-6">
+                <button onclick="switchInfaqTab('masjid')" id="tab-btn-masjid" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-emerald-600 transition">Masjid</button>
+                <button onclick="switchInfaqTab('qurban')" id="tab-btn-qurban" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition">Qurban</button>
+                <button onclick="switchInfaqTab('zakat')" id="tab-btn-zakat" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition">Zakat</button>
+            </div>
+
+            <!-- Content Masjid -->
+            <div id="infaq-content-masjid" class="infaq-tab-content">
+                <div class="text-center mb-6">
+                    <img src="/uploads/{{ settings.get('infaq_qris_image', '') if settings else '' }}" onerror="this.src='https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=MasjidAlHijrahInfaq'" class="w-48 h-48 mx-auto object-contain bg-white p-2 rounded-xl border border-gray-200">
+                    <p class="text-xs text-gray-500 mt-2">Scan QRIS (Masjid)</p>
+                </div>
+                <div id="infaq-box-masjid" class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex justify-between items-center">
+                    <div>
+                        <p class="text-[10px] text-emerald-600 font-bold uppercase infaq-label">Rekening Masjid</p>
+                        <p class="font-mono font-bold text-gray-800 text-sm infaq-text" id="rek-masjid-text">{{ settings.get('infaq_rekening_masjid', '7123456789 (BSI)') if settings else 'Loading...' }}</p>
+                    </div>
+                    <button onclick="copyText('rek-masjid-text')" class="text-emerald-500 hover:text-emerald-700 infaq-icon"><i class="fas fa-copy"></i></button>
+                </div>
+            </div>
+
+            <!-- Content Qurban -->
+            <div id="infaq-content-qurban" class="infaq-tab-content hidden">
+                 <div class="text-center mb-6">
+                    <div class="w-48 h-48 mx-auto bg-orange-100 rounded-xl flex items-center justify-center text-orange-500">
+                        <i class="fas fa-cow text-5xl"></i>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Salurkan untuk Sapi/Kambing</p>
+                </div>
+                <div id="infaq-box-qurban" class="bg-orange-50 p-4 rounded-2xl border border-orange-100 flex justify-between items-center">
+                    <div>
+                        <p class="text-[10px] text-orange-600 font-bold uppercase infaq-label">Rekening Qurban</p>
+                        <p class="font-mono font-bold text-gray-800 text-sm infaq-text" id="rek-qurban-text">{{ settings.get('infaq_rekening_qurban', 'Hubungi Panitia') if settings else '...' }}</p>
+                    </div>
+                    <button onclick="copyText('rek-qurban-text')" class="text-orange-500 hover:text-orange-700 infaq-icon"><i class="fas fa-copy"></i></button>
+                </div>
+            </div>
+
+            <!-- Content Zakat -->
+            <div id="infaq-content-zakat" class="infaq-tab-content hidden">
+                 <div class="text-center mb-6">
+                    <div class="w-48 h-48 mx-auto bg-blue-100 rounded-xl flex items-center justify-center text-blue-500">
+                        <i class="fas fa-hand-holding-heart text-5xl"></i>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Zakat Maal / Fitrah</p>
+                </div>
+                <div id="infaq-box-zakat" class="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex justify-between items-center">
+                    <div>
+                        <p class="text-[10px] text-blue-600 font-bold uppercase infaq-label">Rekening Zakat</p>
+                        <p class="font-mono font-bold text-gray-800 text-sm infaq-text" id="rek-zakat-text">{{ settings.get('infaq_rekening_zakat', 'Hubungi Panitia') if settings else '...' }}</p>
+                    </div>
+                    <button onclick="copyText('rek-zakat-text')" class="text-blue-500 hover:text-blue-700 infaq-icon"><i class="fas fa-copy"></i></button>
+                </div>
+            </div>
+
+            <!-- Global Action Buttons -->
+            <div class="mt-6 pt-4 border-t border-gray-100">
+                <div class="mb-3">
+                    <label class="block text-[10px] font-bold text-gray-500 mb-1">Keperluan (untuk Konfirmasi WA)</label>
+                    <select id="infaq-type-select" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="Masjid">Masjid</option>
+                        <option value="Qurban">Qurban</option>
+                        <option value="Zakat">Zakat</option>
+                        <option value="Infaq">Infaq</option>
+                    </select>
+                </div>
+                <div class="flex gap-2 justify-center">
+                    <a href="/uploads/{{ settings.get('infaq_qris_image', '') if settings else '' }}" download="QRIS_Masjid.png" class="flex-1 bg-gray-100 text-gray-700 px-3 py-3 rounded-xl text-xs font-bold hover:bg-gray-200 text-center transition"><i class="fas fa-download mr-1"></i> Download QRIS</a>
+                    <button onclick="triggerInfaqWA()" class="flex-1 bg-[#25D366] text-white px-3 py-3 rounded-xl text-xs font-bold hover:bg-green-600 transition shadow-lg shadow-green-200"><i class="fab fa-whatsapp mr-1"></i> Konfirmasi WA</button>
+                </div>
+            </div>
+
+            {% if is_admin %}
+            <div class="mt-6 border-t pt-4">
+                <details>
+                    <summary class="text-xs font-bold text-gray-500 cursor-pointer">Admin Settings</summary>
+                    <form action="/donate/update" method="POST" enctype="multipart/form-data" class="mt-2 space-y-2" onsubmit="combineBanks(event)">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                        <div class="flex gap-1">
+                            <select id="bank_masjid" class="w-1/3 text-[10px] p-2 border rounded bg-white infaq-input-text">
+                                <option value="">Bank...</option>
+                                <option value="BRI">BRI</option><option value="BCA">BCA</option><option value="Mandiri">Mandiri</option><option value="BNI">BNI</option><option value="BSI">BSI</option><option value="CIMB Niaga">CIMB Niaga</option><option value="Permata">Permata</option><option value="Danamon">Danamon</option><option value="Muamalat">Muamalat</option><option value="BTN">BTN</option><option value="BTPN">BTPN</option><option value="Jenius">Jenius</option><option value="Jago">Jago</option><option value="Neo">Neo</option><option value="SeaBank">SeaBank</option><option value="OCBC NISP">OCBC NISP</option><option value="Panin">Panin</option><option value="Maybank">Maybank</option><option value="Bukopin">Bukopin</option><option value="Mega">Mega</option><option value="Sinarmas">Sinarmas</option>
+                            </select>
+                            <input type="text" name="infaq_rekening_masjid" value="{{ settings.get('infaq_rekening_masjid', '') }}" placeholder="Rek Masjid" class="w-2/3 text-xs p-2 border rounded infaq-input-text">
+                        </div>
+
+                        <div class="flex gap-1">
+                            <select id="bank_qurban" class="w-1/3 text-[10px] p-2 border rounded bg-white infaq-input-text">
+                                <option value="">Bank...</option>
+                                <option value="BRI">BRI</option><option value="BCA">BCA</option><option value="Mandiri">Mandiri</option><option value="BNI">BNI</option><option value="BSI">BSI</option><option value="CIMB Niaga">CIMB Niaga</option><option value="Permata">Permata</option><option value="Danamon">Danamon</option><option value="Muamalat">Muamalat</option><option value="BTN">BTN</option><option value="BTPN">BTPN</option><option value="Jenius">Jenius</option><option value="Jago">Jago</option><option value="Neo">Neo</option><option value="SeaBank">SeaBank</option><option value="OCBC NISP">OCBC NISP</option><option value="Panin">Panin</option><option value="Maybank">Maybank</option><option value="Bukopin">Bukopin</option><option value="Mega">Mega</option><option value="Sinarmas">Sinarmas</option>
+                            </select>
+                            <input type="text" name="infaq_rekening_qurban" value="{{ settings.get('infaq_rekening_qurban', '') }}" placeholder="Rek Qurban" class="w-2/3 text-xs p-2 border rounded infaq-input-text">
+                        </div>
+
+                        <div class="flex gap-1">
+                            <select id="bank_zakat" class="w-1/3 text-[10px] p-2 border rounded bg-white infaq-input-text">
+                                <option value="">Bank...</option>
+                                <option value="BRI">BRI</option><option value="BCA">BCA</option><option value="Mandiri">Mandiri</option><option value="BNI">BNI</option><option value="BSI">BSI</option><option value="CIMB Niaga">CIMB Niaga</option><option value="Permata">Permata</option><option value="Danamon">Danamon</option><option value="Muamalat">Muamalat</option><option value="BTN">BTN</option><option value="BTPN">BTPN</option><option value="Jenius">Jenius</option><option value="Jago">Jago</option><option value="Neo">Neo</option><option value="SeaBank">SeaBank</option><option value="OCBC NISP">OCBC NISP</option><option value="Panin">Panin</option><option value="Maybank">Maybank</option><option value="Bukopin">Bukopin</option><option value="Mega">Mega</option><option value="Sinarmas">Sinarmas</option>
+                            </select>
+                            <input type="text" name="infaq_rekening_zakat" value="{{ settings.get('infaq_rekening_zakat', '') }}" placeholder="Rek Zakat" class="w-2/3 text-xs p-2 border rounded infaq-input-text">
+                        </div>
+
+                        <label class="text-[10px]">Upload QRIS (Masjid)</label>
+                        <input type="file" name="qris_image" class="text-xs">
+                        <button class="w-full bg-blue-500 text-white text-xs py-2 rounded">Save Changes</button>
+                    </form>
+                    <script>
+                        function combineBanks(e) {
+                            ['masjid', 'qurban', 'zakat'].forEach(type => {
+                                const sel = document.getElementById('bank_' + type);
+                                const inp = document.getElementsByName('infaq_rekening_' + type)[0];
+                                if(sel.value && inp.value && !inp.value.includes(sel.value)) {
+                                    inp.value = sel.value + ' - ' + inp.value;
+                                }
+                            });
+                        }
+                    </script>
+                </details>
+            </div>
+            {% endif %}
+        </div>
+        <script>
+            function switchInfaqTab(tab) {
+                document.querySelectorAll('.infaq-tab-content').forEach(el => el.classList.add('hidden'));
+                document.getElementById('infaq-content-'+tab).classList.remove('hidden');
+
+                // Reset buttons
+                ['masjid', 'qurban', 'zakat'].forEach(t => {
+                    const btn = document.getElementById('tab-btn-'+t);
+                    if(t === tab) {
+                        btn.className = "flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-emerald-600 transition";
+                    } else {
+                        btn.className = "flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition";
+                    }
+                });
+            }
+            function copyText(id) {
+                const el = document.getElementById(id);
+                if(!el) return;
+                const txt = el.innerText;
+                const digits = txt.replace(/\\D/g, '');
+                navigator.clipboard.writeText(digits);
+                alert('Tersalin: ' + digits);
+            }
+
+            function formatBankDisplay(id) {
+                const el = document.getElementById(id);
+                if(!el || el.dataset.formatted) return;
+
+                const text = el.innerText;
+                const match = text.match(/(\\d{6,})/);
+                if (match) {
+                    const num = match[0];
+                    const parts = text.split(num);
+                    let html = '';
+                    if(parts[0]) html += `<span style="user-select: none; opacity: 0.8;">${parts[0]}</span>`;
+                    html += `<span>${num}</span>`;
+                    if(parts[1]) html += `<span style="user-select: none; opacity: 0.8;">${parts[1]}</span>`;
+
+                    el.innerHTML = html;
+                    el.dataset.formatted = 'true';
+                }
+            }
+        </script>
+    </div>
     <!-- PORTAL MASUK & REGISTRASI MODAL -->
     <div id="modal-login-admin" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-login-admin')"></div>
@@ -1184,6 +1411,7 @@ BASE_LAYOUT = """
         }
 
         // MASEHI DATE WITH MOTIVATION AND SAMARINDA CLOCK
+        function fetchHijri() {
             function updateDate() {
                 const today = new Date();
                 const options = {
@@ -1208,6 +1436,7 @@ BASE_LAYOUT = """
             }
             updateDate();
             setInterval(updateDate, 1000); // Update every second for real-time clock
+        }
 
         // GLOBAL MODAL UTILS
         function openModal(id) {
@@ -1215,12 +1444,93 @@ BASE_LAYOUT = """
             if(el) {
                 el.classList.remove('hidden');
                 history.pushState({modal: id}, null, "");
+
+                if(id === 'modal-infaq') {
+                    adjustInfaqTheme();
+                    setTimeout(() => {
+                        ['rek-masjid-text', 'rek-qurban-text', 'rek-zakat-text'].forEach(formatBankDisplay);
+                    }, 50);
+                }
             }
         }
 
         window.addEventListener('popstate', (event) => {
             document.querySelectorAll('[id^="modal-"]').forEach(el => el.classList.add('hidden'));
         });
+
+        function adjustInfaqTheme() {
+            const container = document.getElementById('infaq-modal-content');
+            const title = document.getElementById('infaq-title');
+            const tabs = document.getElementById('infaq-tabs');
+            const path = window.location.pathname;
+
+            // Elements to style
+            const boxes = [document.getElementById('infaq-box-masjid'), document.getElementById('infaq-box-qurban'), document.getElementById('infaq-box-zakat')];
+            const labels = document.querySelectorAll('.infaq-label');
+            const texts = document.querySelectorAll('.infaq-text');
+            const icons = document.querySelectorAll('.infaq-icon');
+            const inputs = document.querySelectorAll('.infaq-input-text');
+
+            // Reset Base
+            container.className = "fixed inset-0 w-full h-full p-6 overflow-y-auto flex flex-col animate-[slideUp_0.3s_ease-out] transition-colors duration-500";
+            title.className = "text-xl font-bold";
+            tabs.className = "flex p-1 rounded-xl mb-6 transition-colors duration-500";
+
+            if (path.includes('/ramadhan')) {
+                // RAMADHAN THEME (Midnight Blue & Gold)
+                container.classList.add('bg-white', 'text-white');
+                title.classList.add('text-[#FFD700]');
+                tabs.classList.add('bg-white/10');
+
+                boxes.forEach(box => {
+                    box.className = "p-4 rounded-2xl border flex justify-between items-center transition-colors duration-500 bg-white/5 border-[#FFD700]/30";
+                });
+                labels.forEach(l => l.className = "text-[10px] font-bold uppercase infaq-label text-[#FFD700]");
+                texts.forEach(t => t.className = "font-mono font-bold text-sm infaq-text text-white");
+                icons.forEach(i => i.className = "hover:opacity-80 infaq-icon text-[#FFD700]");
+                inputs.forEach(i => i.className = "w-full text-xs p-2 border rounded infaq-input-text text-[#0b1026] bg-white");
+
+            } else if (path.includes('/irma')) {
+                // IRMA THEME (Sage Green & Pink)
+                container.classList.add('bg-[#F4E7E1]', 'text-[#2F4F4F]');
+                title.classList.add('text-[#A0B391]');
+                tabs.classList.add('bg-[#A0B391]/20');
+
+                boxes.forEach(box => {
+                    box.className = "p-4 rounded-2xl border flex justify-between items-center transition-colors duration-500 bg-white border-[#A0B391]/30";
+                });
+                labels.forEach(l => l.className = "text-[10px] font-bold uppercase infaq-label text-[#A0B391]");
+                texts.forEach(t => t.className = "font-mono font-bold text-sm infaq-text text-[#2F4F4F]");
+                icons.forEach(i => i.className = "hover:opacity-80 infaq-icon text-[#FFB6C1]");
+                inputs.forEach(i => i.className = "w-full text-xs p-2 border rounded infaq-input-text text-[#2F4F4F] bg-white");
+
+            } else {
+                // DEFAULT HOME (Emerald)
+                container.classList.add('bg-white', 'text-gray-800');
+                title.classList.add('text-emerald-600');
+                tabs.classList.add('bg-gray-100');
+
+                // Reset boxes to distinct colors for Home
+                document.getElementById('infaq-box-masjid').className = "bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex justify-between items-center";
+                document.getElementById('infaq-box-qurban').className = "bg-orange-50 p-4 rounded-2xl border border-orange-100 flex justify-between items-center";
+                document.getElementById('infaq-box-zakat').className = "bg-blue-50 p-4 rounded-2xl border border-blue-100 flex justify-between items-center";
+
+                // Helper to reset inner
+                const resetInner = (boxId, color) => {
+                    const box = document.getElementById(boxId);
+                    if(box) {
+                        box.querySelector('.infaq-label').className = `text-[10px] font-bold uppercase infaq-label text-${color}-600`;
+                        box.querySelector('.infaq-text').className = `font-mono font-bold text-sm infaq-text text-gray-800`;
+                        box.querySelector('.infaq-icon').className = `hover:text-${color}-700 infaq-icon text-${color}-500`;
+                    }
+                };
+
+                resetInner('infaq-box-masjid', 'emerald');
+                resetInner('infaq-box-qurban', 'orange');
+                resetInner('infaq-box-zakat', 'blue');
+                inputs.forEach(i => i.className = "w-full text-xs p-2 border rounded infaq-input-text text-emerald-800 bg-white");
+            }
+        }
 
         function closeModal(id) {
             if (history.state && history.state.modal === id) {
@@ -1229,6 +1539,20 @@ BASE_LAYOUT = """
                 const el = document.getElementById(id);
                 if(el) el.classList.add('hidden');
             }
+        }
+
+        function triggerInfaqWA() {
+            const type = document.getElementById('infaq-type-select').value;
+            const now = new Date();
+            const h = now.getHours();
+            let time = "Malam";
+            if (h >= 0 && h < 11) time = "Pagi";
+            else if (h >= 11 && h < 15) time = "Siang";
+            else if (h >= 15 && h < 18) time = "Sore";
+
+            const msg = `Assalamaulaikum Pak, selamat ${time}, ijin konfirmasi Pak, saya sudah mengtransfer sebesar / jumlah Rp... di nomor rekening ${type.toLowerCase()} untuk keperluan ${type} ke masjid langsung, terima kasih Pak 🙏`;
+
+            window.location.href = "https://wa.me/6282330890500?text=" + encodeURIComponent(msg);
         }
 
         async function postCalc(url, data) {
@@ -1283,6 +1607,7 @@ BASE_LAYOUT = """
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            fetchHijri();
         });
 
         // --- PWA INSTALL LOGIC (GLOBAL) ---
@@ -1393,7 +1718,7 @@ HOME_HTML = """
             </div>
         </div>
 
-        <!-- RIGHT COLUMN: KARTU PROFIL & PAPAN KOMUNIKASI -->
+        <!-- RIGHT COLUMN: PRAYER CARD & RAMADHAN BANNER -->
         <div class="flex flex-col gap-6">
 
             <!-- KARTU PROFIL SISWA DAN PAPAN KOMUNIKASI EKSPRES AAC (NEUMORPHISM CORK BOARD) -->
@@ -1584,6 +1909,24 @@ HOME_HTML = """
             </div>
 
             <!-- DASHBOARD GURU BANNER -->
+            <a href="/ramadhan" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-blue-200 mt-4">
+                <div class="absolute inset-0 bg-gradient-to-r from-blue-100 to-sky-100"></div>
+
+                <div class="absolute right-12 top-1/2 transform -translate-y-1/2 opacity-20 text-blue-500 pointer-events-none">
+                    <i class="fas fa-chalkboard-teacher text-9xl"></i>
+                </div>
+
+                <div class="relative px-6 py-6 md:px-8 md:py-8 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-blue-800 mb-1 font-sans tracking-wide leading-none">Dashboard Guru Sekolah</h2>
+                        <p class="text-blue-600 text-xs md:text-sm font-medium">Akses Alat Bantu Guru SLB</p>
+                    </div>
+
+                    <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.4)] group-hover:scale-110 transition-transform duration-300 relative z-10">
+                        <i class="fas fa-arrow-right text-lg"></i>
+                    </div>
+                </div>
+            </a>
 
             <!-- DASHBOARD ORANG TUA BANNER -->
             <a href="/orang-tua" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-pink-200 mt-4">
@@ -2200,7 +2543,7 @@ HOME_HTML = """
                     </div>
                 </div>
                 <button onclick="calcIMT()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Status Gizi</button>
-                <div id="result-imt" class="hidden mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-sm"></div>
+                <div id="result-waris" class="hidden mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-sm"></div>
             </div>
         </div>
     </div>
@@ -2234,7 +2577,7 @@ HOME_HTML = """
                     <input type="number" id="sensory-duration" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
                 <button onclick="calcSensory()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Prediksi Overload</button>
-                <div id="result-sensory" class="hidden mt-4 p-4 rounded-xl border text-sm"></div>
+                <div id="result-zakat" class="hidden mt-4 p-4 rounded-xl border text-sm"></div>
             </div>
         </div>
     </div>
@@ -2270,7 +2613,7 @@ HOME_HTML = """
                     </select>
                 </div>
                 <button onclick="calcAuditory()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Durasi</button>
-                <div id="result-auditori" class="hidden mt-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-center"></div>
+                <div id="result-tahajjud" class="hidden mt-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-center"></div>
             </div>
         </div>
     </div>
@@ -2298,7 +2641,7 @@ HOME_HTML = """
                     </div>
                 </div>
                 <button onclick="calcIQ()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung IQ</button>
-                <div id="result-iq" class="hidden mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-center"></div>
+                <div id="result-khatam" class="hidden mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-center"></div>
             </div>
         </div>
     </div>
@@ -2324,7 +2667,7 @@ HOME_HTML = """
                     <input type="number" id="motor-curr" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
                 <button onclick="calcMotor()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Progress</button>
-                <div id="result-motorik" class="hidden mt-4 space-y-2"></div>
+                <div id="result-fidyah" class="hidden mt-4 space-y-2"></div>
             </div>
         </div>
     </div>
@@ -2363,7 +2706,7 @@ HOME_HTML = """
                     </div>
                 </div>
                 <button onclick="calcDiet()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Kalkulasi</button>
-                <div id="result-diet" class="hidden mt-4 bg-emerald-50 p-6 rounded-xl border border-emerald-100 text-center"></div>
+                <div id="result-hijri" class="hidden mt-4 bg-emerald-50 p-6 rounded-xl border border-emerald-100 text-center"></div>
             </div>
         </div>
     </div>
@@ -3545,7 +3888,7 @@ HOME_HTML = """
             if(!data.age || !data.weight || !data.height) return alert("Lengkapi data");
             const res = await postCalc('/api/calc/imt', data);
             if(res) {
-                const div = document.getElementById('result-imt');
+                const div = document.getElementById('result-waris');
                 div.classList.remove('hidden');
                 currentExplanation = res.explanation;
 
@@ -3575,7 +3918,7 @@ HOME_HTML = """
             if(!data.noise || !data.light || !data.crowd || !data.duration) return alert("Lengkapi data");
             const res = await postCalc('/api/calc/sensory', data);
             if(res) {
-                const div = document.getElementById('result-sensory');
+                const div = document.getElementById('result-zakat');
                 div.classList.remove('hidden');
                 currentExplanation = res.explanation;
                 const r = res.result;
@@ -3611,7 +3954,7 @@ HOME_HTML = """
             if(!data.age) return alert("Masukkan usia");
             const res = await postCalc('/api/calc/auditory', data);
             if(res) {
-                const div = document.getElementById('result-auditori');
+                const div = document.getElementById('result-tahajjud');
                 div.classList.remove('hidden');
                 currentExplanation = res.explanation;
 
@@ -3657,7 +4000,7 @@ HOME_HTML = """
             if(!data.chrono || !data.mental) return alert("Lengkapi data");
             const res = await postCalc('/api/calc/iq', data);
             if(res) {
-                const div = document.getElementById('result-iq');
+                const div = document.getElementById('result-khatam');
                 div.classList.remove('hidden');
                 currentExplanation = res.explanation;
 
@@ -3684,7 +4027,7 @@ HOME_HTML = """
             if(!data.prev || !data.curr) return alert("Lengkapi data");
             const res = await postCalc('/api/calc/motor', data);
             if(res) {
-                const div = document.getElementById('result-motorik');
+                const div = document.getElementById('result-fidyah');
                 div.classList.remove('hidden');
                 currentExplanation = res.explanation;
                 const r = res.result;
@@ -3714,7 +4057,7 @@ HOME_HTML = """
             };
             const res = await postCalc('/api/calc/diet', data);
             if(res) {
-                const div = document.getElementById('result-diet');
+                const div = document.getElementById('result-hijri');
                 div.classList.remove('hidden');
                 currentExplanation = res.explanation;
 
@@ -4614,6 +4957,177 @@ def therapy_log():
         app.logger.error(f"Error logging therapy: {e}", exc_info=True)
     return redirect(url_for('index', open='modal-terapi-log'))
 
+@app.route('/donate', methods=['GET', 'POST'])
+def donate():
+    is_admin = session.get('is_admin', False)
+
+    if request.method == 'POST' and is_admin:
+        key = request.form.get('key')
+        val = request.form.get('value')
+
+        if 'qris_image' in request.files:
+            file = request.files['qris_image']
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                if filename.rsplit('.', 1)[1].lower() == 'mp4':
+                    file.save(filepath)
+                else:
+                    img = Image.open(file)
+                    if img.mode in ("RGBA", "P"): img = img.convert("RGB")
+                    img.thumbnail((800, 800))
+                    img.save(filepath, format="JPEG", quality=70, optimize=True)
+
+                # Update setting
+                s = db.session.get(AppSettings, 'infaq_qris_image')
+                if s: s.value = filename
+                else: db.session.add(AppSettings(key='infaq_qris_image', value=filename))
+
+        if key and val:
+             s = db.session.get(AppSettings, key)
+             if s: s.value = val
+             else: db.session.add(AppSettings(key=key, value=val))
+
+        db.session.commit()
+        invalidate_settings_cache()
+        return redirect(url_for('donate', source=request.args.get('source')))
+
+    # Fetch settings
+    settings = get_settings()
+    acc_no = settings.get('infaq_rekening', '7123456789 (BSI - Masjid Al Hijrah)')
+    qris_img = settings.get('infaq_qris_image', '')
+    qris_url = f"/uploads/{qris_img}" if qris_img else "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=MasjidAlHijrahInfaq"
+
+    source = request.args.get('source')
+
+    # Theme Logic
+    theme = {}
+    if source == 'ramadhan':
+        theme = {
+            'nav_bg': 'glass-gold bg-white',
+            'icon_bg': 'bg-[#FFD700]/20',
+            'icon_text': 'text-[#FFD700]',
+            'title_text': 'text-[#FFD700]',
+            'link_hover': 'hover:text-[#FFD700]',
+            'link_active': 'text-[#FFD700] font-bold',
+            'btn_primary': 'bg-[#FFD700] text-[#0b1026] hover:bg-white',
+            'bottom_nav_bg': 'bg-white border-t border-[#FFD700]/20',
+            'bottom_active': 'text-[#FFD700]',
+            'bottom_btn_bg': 'bg-[#FFD700]',
+            'bottom_btn_text': 'text-[#0b1026]',
+            'bottom_text_inactive': 'text-gray-500'
+        }
+        bg_class = "bg-white text-white"
+        card_class = "bg-[#151e3f] border-[#FFD700]/30"
+        text_highlight = "text-[#FFD700]"
+        btn_action = "bg-[#FFD700] text-[#0b1026]"
+    elif source == 'irma':
+        theme = {
+            'nav_bg': 'bg-[#F4E7E1]/90 backdrop-blur-md border-b border-[#A0B391]/20',
+            'icon_bg': 'bg-[#A0B391]/20',
+            'icon_text': 'text-[#A0B391]',
+            'title_text': 'text-[#A0B391]',
+            'link_hover': 'hover:text-[#FFB6C1]',
+            'link_active': 'text-[#FFB6C1] font-bold',
+            'btn_primary': 'bg-[#A0B391] text-white hover:bg-[#FFB6C1]',
+            'bottom_nav_bg': 'bg-[#A0B391]',
+            'bottom_active': 'text-[#FFB6C1]',
+            'bottom_btn_bg': 'bg-[#FFB6C1]',
+            'bottom_btn_text': 'text-white',
+            'bottom_text_inactive': 'text-[#F4E7E1]'
+        }
+        bg_class = "bg-[#F4E7E1] text-gray-800"
+        card_class = "bg-white border-[#A0B391]/30"
+        text_highlight = "text-[#A0B391]"
+        btn_action = "bg-[#A0B391] text-white"
+    else:
+        # Default Home
+        bg_class = "bg-[#F8FAFC] text-gray-800"
+        card_class = "bg-white border-emerald-50"
+        text_highlight = "text-emerald-600"
+        btn_action = "bg-emerald-500 text-white"
+
+    content = f"""
+    <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8 text-center min-h-[100dvh] flex flex-col items-center justify-center {bg_class}">
+        <div class="{card_class} p-8 rounded-[40px] shadow-2xl border max-w-md w-full relative overflow-hidden">
+             <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-current to-transparent opacity-50 {text_highlight}"></div>
+             <h2 class="text-2xl font-bold mb-2 {text_highlight}">Infaq Digital</h2>
+             <p class="text-sm opacity-70 mb-6">Scan QRIS menggunakan E-Wallet apa saja</p>
+
+             <div class="bg-white p-4 rounded-2xl shadow-inner border border-gray-100 inline-block mb-6 relative group">
+                <img src="{qris_url}" alt="QRIS" class="w-48 h-48 mx-auto object-contain">
+                <a href="{qris_url}" download="QRIS_Masjid.png" class="absolute inset-0 bg-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl text-white font-bold backdrop-blur-sm">
+                    <i class="fas fa-download mr-2"></i> Download
+                </a>
+             </div>
+
+             <div class="flex gap-2 justify-center mb-6 max-w-xs mx-auto w-full">
+                <a href="{qris_url}" download="QRIS_Masjid.png" class="flex-1 bg-gray-100 text-gray-700 px-3 py-3 rounded-xl text-xs font-bold hover:bg-gray-200 text-center transition"><i class="fas fa-download mr-1"></i> Download QRIS</a>
+                <button onclick="triggerInfaqWA()" class="flex-1 bg-[#25D366] text-white px-3 py-3 rounded-xl text-xs font-bold hover:bg-green-600 transition shadow-lg shadow-green-200"><i class="fab fa-whatsapp mr-1"></i> Konfirmasi WA</button>
+             </div>
+
+             <div class="mb-4 max-w-xs mx-auto">
+                 <label class="block text-[10px] font-bold text-gray-500 mb-1 text-left">Keperluan (untuk Konfirmasi WA)</label>
+                 <select id="infaq-type-select" class="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                     <option value="Masjid">Masjid</option>
+                     <option value="Qurban">Qurban</option>
+                     <option value="Zakat">Zakat</option>
+                     <option value="Infaq">Infaq</option>
+                 </select>
+             </div>
+
+             <div class="mb-6">
+                <p class="text-xs font-bold uppercase tracking-widest opacity-50 mb-1">Nomor Rekening</p>
+                <div class="bg-gray-50/50 p-3 rounded-xl border border-dashed border-gray-300 flex items-center justify-between gap-2">
+                    <span id="donate-rek-text" class="font-mono font-bold text-lg select-all text-gray-800">{acc_no}</span>
+                    <button onclick="copyText('donate-rek-text')" class="p-2 rounded-lg hover:bg-gray-200 transition text-gray-500"><i class="fas fa-copy"></i></button>
+                </div>
+             </div>
+             <script>window.addEventListener('load', function() {{ if(typeof formatBankDisplay === 'function') formatBankDisplay('donate-rek-text'); }});</script>
+
+             {{% if is_admin %}}
+             <div class="border-t border-gray-200/50 pt-6 mt-6 text-left">
+                <h4 class="text-xs font-bold text-red-500 uppercase mb-3"><i class="fas fa-cog"></i> Admin Settings</h4>
+                <form method="POST" enctype="multipart/form-data" class="space-y-3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div>
+                        <label class="text-[10px] font-bold opacity-70">Update No. Rekening</label>
+                        <input type="hidden" name="key" value="infaq_rekening">
+                        <div class="flex gap-2">
+                            <input type="text" name="value" value="{acc_no}" class="w-full text-xs p-2 rounded-lg border border-gray-300 text-black">
+                            <button class="bg-blue-500 text-white px-3 rounded-lg text-xs">Save</button>
+                        </div>
+                    </div>
+                </form>
+                <form method="POST" enctype="multipart/form-data" class="mt-3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <label class="text-[10px] font-bold opacity-70 block mb-1">Update QRIS Image</label>
+                    <div class="flex gap-2">
+                        <input type="file" name="qris_image" class="w-full text-xs text-gray-500">
+                        <button class="bg-blue-500 text-white px-3 rounded-lg text-xs">Upload</button>
+                    </div>
+                </form>
+             </div>
+             {{% endif %}}
+
+             <div class="flex justify-center gap-3 opacity-60 grayscale hover:grayscale-0 transition-all mt-4">
+                <i class="fas fa-wallet text-2xl"></i>
+                <i class="fas fa-university text-2xl"></i>
+                <i class="fas fa-mobile-alt text-2xl"></i>
+             </div>
+        </div>
+        <br>
+        <a href="/" class="opacity-50 text-sm font-medium hover:opacity-100 transition">Kembali ke Beranda</a>
+        </div>
+    </div>
+    """
+
+    return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML + (RAMADHAN_STYLES if source=='ramadhan' else (IRMA_STYLES if source=='irma' else '')), active_page='donate', theme=theme, content=cached_render('content_ece77923', content, is_admin=is_admin, settings=get_settings()), is_admin=is_admin)
+
+@app.route('/emergency')
+def emergency():
+    return redirect("https://wa.me/6281241865310?text=Halo%20Takmir%20Masjid,%20Ada%20Keadaan%20Darurat!")
+
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
     if secure_filename(os.path.basename(filename)) != os.path.basename(filename):
@@ -4875,6 +5389,1530 @@ def api_yasin():
         app.logger.error("API error", exc_info=True)
         return jsonify({"error": "Gagal mengambil data. Coba lagi nanti."}), 500
 
+# --- RAMADHAN SPECIAL FEATURES ---
+
+RAMADHAN_STYLES = """
+
+# """
+
+RAMADHAN_DASHBOARD_HTML = """
+<div class="bg-sky-50 min-h-[100dvh] pb-24 relative overflow-hidden font-sans">
+    <!-- BACKGROUND PATTERN -->
+    <div class="fixed inset-0 opacity-5 pointer-events-none" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+
+    <!-- SPACER -->
+    <div class="h-24 md:h-32"></div>
+
+    <div class="px-5 md:px-8 max-w-7xl mx-auto relative z-10">
+
+        <!-- SPLIT HEADER -->
+        <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-10">
+
+             <!-- LEFT: WELCOME -->
+             <div class="hidden md:block pl-2">
+                <p class="text-xl text-sky-600 font-medium mb-2">Sistem Informasi & Manajemen Khusus Guru</p>
+                <h1 class="text-5xl font-extrabold text-sky-900 tracking-tight leading-none mb-6">Pusat Kendali<br>Guru Sekolah Luar Biasa</h1>
+                <p class="text-sky-800 text-lg font-medium leading-relaxed mb-8">
+                    Dashboard analitik dan fungsional yang dirancang khusus untuk mendukung beban kerja pahlawan pendidikan inklusi.
+                </p>
+             </div>
+
+             <!-- RIGHT: CLOCK -->
+             <div class="flex justify-end hidden md:flex">
+                <div class="bg-white/80 backdrop-blur-sm border-2 border-sky-100 px-6 py-4 rounded-2xl shadow-sm text-right">
+                    <p class="text-sm text-sky-500 font-bold tracking-wider mb-1">WAKTU SAMARINDA</p>
+                    <p id="waktu-samarinda" class="text-3xl font-extrabold text-sky-900 tracking-tight font-mono">--:--:--</p>
+                </div>
+             </div>
+        </div>
+
+        <!-- MENU GRID -->
+        <h2 class="text-xl font-bold text-sky-900 font-sans mb-6 border-l-4 border-sky-500 pl-3">Asisten Digital Guru</h2>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-24">
+
+            <!-- 1. TANTRUM -->
+            <button onclick="openModal('modal-tantrum')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-red-50 hover:-translate-y-1 flex flex-col items-center justify-center h-48 group hover:bg-red-50 transition-all relative overflow-hidden">
+
+                <div class="w-16 h-16 rounded-2xl bg-red-100 flex items-center justify-center text-red-500 mb-3 shadow-inner group-hover:scale-110 transition-transform">
+                    <i class="fas fa-brain text-3xl"></i>
+                </div>
+                <span class="font-bold text-sm text-center text-gray-800 leading-tight group-hover:text-red-500 transition-colors">Log Tantrum</span>
+            </button>
+
+            <!-- 2. RPI / IEP -->
+            <button onclick="openModal('modal-iep')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-sky-100 hover:-translate-y-1 flex flex-col items-center justify-center h-48 group hover:bg-sky-50 transition-all relative overflow-hidden">
+
+                <div class="w-16 h-16 rounded-2xl bg-sky-100 flex items-center justify-center text-sky-600 mb-3 shadow-inner group-hover:scale-110 transition-transform">
+                    <i class="fas fa-clipboard-check text-3xl"></i>
+                </div>
+                <span class="font-bold text-sm text-center text-sky-900 leading-tight group-hover:text-sky-600 transition-colors">Rakit IEP</span>
+            </button>
+
+            <!-- 3. FREKUENSI -->
+            <button onclick="openModal('modal-modulator')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-violet-50 hover:-translate-y-1 flex flex-col items-center justify-center h-48 group hover:bg-violet-50 transition-all relative overflow-hidden">
+
+                <div class="w-16 h-16 rounded-2xl bg-violet-100 flex items-center justify-center text-violet-500 mb-3 shadow-inner group-hover:scale-110 transition-transform">
+                    <i class="fas fa-wave-square text-3xl"></i>
+                </div>
+                <span class="font-bold text-sm text-center text-gray-800 leading-tight group-hover:text-violet-500 transition-colors">Modulator Frekuensi</span>
+            </button>
+
+            <!-- 4. KOMUNIKASI DARURAT -->
+            <button onclick="openModal('modal-darurat')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-orange-50 hover:-translate-y-1 flex flex-col items-center justify-center h-48 group hover:bg-orange-50 transition-all relative overflow-hidden">
+
+                <div class="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-500 mb-3 shadow-inner group-hover:scale-110 transition-transform">
+                    <i class="fas fa-comments text-3xl"></i>
+                </div>
+                <span class="font-bold text-sm text-center text-gray-800 leading-tight group-hover:text-orange-500 transition-colors">Papan Komunikasi</span>
+            </button>
+
+            <!-- 5. KOGNITIF -->
+            <button onclick="openModal('modal-kognitif')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-emerald-50 hover:-translate-y-1 flex flex-col items-center justify-center h-48 group hover:bg-emerald-50 transition-all relative overflow-hidden">
+
+                <div class="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-500 mb-3 shadow-inner group-hover:scale-110 transition-transform">
+                    <i class="fas fa-tachometer-alt text-3xl"></i>
+                </div>
+                <span class="font-bold text-sm text-center text-gray-800 leading-tight group-hover:text-emerald-500 transition-colors">Uji Kognitif</span>
+            </button>
+
+            <!-- 6. PORTOFOLIO -->
+            <button onclick="openModal('modal-portofolio')" class="bg-white p-6 rounded-[2rem] shadow-sm border border-pink-50 hover:-translate-y-1 flex flex-col items-center justify-center h-48 group hover:bg-pink-50 transition-all relative overflow-hidden">
+
+                <div class="w-16 h-16 rounded-2xl bg-pink-100 flex items-center justify-center text-pink-500 mb-3 shadow-inner group-hover:scale-110 transition-transform">
+                    <i class="fas fa-folder-open text-3xl"></i>
+                </div>
+                <span class="font-bold text-sm text-center text-gray-800 leading-tight group-hover:text-pink-500 transition-colors">Arsip Portofolio</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MODALS SECTION -->
+
+    <!-- 1. MODAL TANTRUM -->
+    <div id="modal-tantrum" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-tantrum')"></div><div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-4xl md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-clipboard-list text-rose-500 mr-2"></i>Log Tantrum</h3>
+                <button onclick="closeModal('modal-tantrum')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Log Form -->
+                <div class="bg-rose-50 p-4 rounded-2xl border border-rose-100 mb-6">
+                    <h4 class="text-gray-800 font-bold mb-4 flex items-center gap-2"><i class="fas fa-plus-circle text-rose-400"></i> Catat Insiden Baru</h4>
+
+                    <div class="flex gap-4 mb-6">
+                        <button onclick="startTantrumTimer()" id="btn-start-tantrum" class="flex-1 bg-rose-500 text-white font-bold py-4 rounded-2xl shadow-md hover:bg-rose-600 active:scale-95 transition-all text-lg border border-rose-400">MULAI TANTRUM (STOPWATCH)</button>
+                        <div id="tantrum-timer-display" class="hidden flex-1 bg-white border border-rose-200 rounded-2xl flex items-center justify-center text-3xl font-mono text-rose-500 font-bold shadow-inner">00:00</div>
+                    </div>
+
+                    <form id="form-tantrum" onsubmit="submitTantrum(event)" class="space-y-4 hidden">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" id="t-start-time">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Nama Siswa</label>
+                                <input type="text" id="t-student" required class="w-full bg-white border border-rose-100 rounded-xl p-3 text-gray-800 focus:ring-2 focus:ring-rose-400">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Waktu Kejadian</label>
+                                <input type="time" id="t-time" required class="w-full bg-white border border-rose-100 rounded-xl p-3 text-gray-800 focus:ring-2 focus:ring-rose-400">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Pemicu Kemarahan</label>
+                            <select id="t-trigger" required class="w-full bg-white border border-rose-100 rounded-xl p-3 text-gray-800 focus:ring-2 focus:ring-rose-400">
+                                <option value="Sensorik Overload">Sensorik Overload</option>
+                                <option value="Perubahan Rutinitas">Perubahan Rutinitas</option>
+                                <option value="Kesulitan Komunikasi">Kesulitan Komunikasi</option>
+                                <option value="Kelelahan/Lapar">Kelelahan / Lapar</option>
+                                <option value="Lainnya">Lainnya</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Durasi (Menit)</label>
+                            <input type="number" id="t-duration" required placeholder="Contoh: 15" min="1" class="w-full bg-white border border-rose-100 rounded-xl p-3 text-gray-800 focus:ring-2 focus:ring-rose-400">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Tindakan Penenangan</label>
+                            <select id="t-action" required class="w-full bg-white border border-rose-100 rounded-xl p-3 text-gray-800 focus:ring-2 focus:ring-rose-400">
+                                <option value="Pelukan Kompresi Dalam">Pelukan Kompresi Dalam</option>
+                                <option value="Mendengarkan Audio Penenang">Mendengarkan Audio Penenang</option>
+                                <option value="Ruang Sunyi / Isolasi Sensori">Ruang Sunyi / Isolasi Sensori</option>
+                                <option value="Pengalihan Perhatian">Pengalihan Perhatian</option>
+                                <option value="Latihan Napas">Latihan Napas</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="w-full bg-rose-500 text-white font-bold py-3 rounded-xl hover:bg-rose-600 shadow-md transition">Simpan Log</button>
+                    </form>
+                </div>
+
+                <!-- Right Column: Graph and Table -->
+                <div class="flex flex-col gap-6">
+                    <!-- Heatmap Graph -->
+                    <div class="bg-rose-50 p-4 rounded-2xl border border-rose-100">
+                        <h4 class="text-gray-800 font-bold mb-4 flex items-center gap-2"><i class="fas fa-chart-line text-rose-400"></i> Heatmap Frekuensi Jam</h4>
+                        <div class="w-full h-48 bg-white rounded-xl border border-rose-100 flex items-center justify-center relative overflow-hidden">
+                            <canvas id="tantrumChart"></canvas>
+                            <p id="tantrum-empty" class="absolute text-gray-500 text-sm hidden">Menunggu data log...</p>
+                        </div>
+                    </div>
+
+                    <!-- History Table -->
+                    <div class="bg-white p-4 rounded-2xl border border-rose-100 shadow-sm overflow-x-auto flex-1 max-h-64 overflow-y-auto">
+                        <h4 class="text-gray-800 font-bold mb-4 flex items-center gap-2 border-b border-rose-50 pb-2"><i class="fas fa-history text-rose-400"></i> Riwayat Pencatatan</h4>
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-rose-50 text-rose-700">
+                                    <th class="p-2 border-b border-rose-100 font-bold rounded-tl-lg">Nama</th>
+                                    <th class="p-2 border-b border-rose-100 font-bold">Waktu</th>
+                                    <th class="p-2 border-b border-rose-100 font-bold">Durasi</th>
+                                    <th class="p-2 border-b border-rose-100 font-bold rounded-tr-lg">Tindakan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tantrum-history-tbody">
+                                <!-- Populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. MODAL IEP -->
+    <div id="modal-iep" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal(\'modal-iep\')"></div><div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 border-b border-sky-100 pb-4">
+                <h3 class="text-xl font-bold text-sky-600 font-sans">Generator Rencana Pembelajaran (IEP)</h3>
+                <button onclick="closeModal('modal-iep')" class="text-gray-500 hover:bg-gray-100 w-8 h-8 rounded-full transition">&times;</button>
+            </div>
+
+            <div class="bg-sky-50 border border-sky-100 p-6 rounded-3xl max-w-2xl mx-auto shadow-sm">
+                <form id="form-iep" onsubmit="generateIEP(event)" class="space-y-6">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-sky-700 mb-1 font-semibold uppercase tracking-wider">Nama Lengkap Siswa</label>
+                            <input type="text" name="student_name" required class="w-full bg-white border border-sky-200 rounded-xl p-3 text-gray-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-sky-700 mb-1 font-semibold uppercase tracking-wider">Kelas / Usia</label>
+                            <input type="text" name="student_class" required class="w-full bg-white border border-sky-200 rounded-xl p-3 text-gray-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-sky-700 mb-3 font-semibold uppercase tracking-wider">Matriks Kondisi Anak (Pilih yang relevan)</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="flex items-center justify-between bg-white p-3 rounded-xl border border-sky-100 hover:border-sky-400 hover:shadow-sm transition">
+                                <label class="flex items-center gap-3 cursor-pointer flex-1">
+                                    <input type="checkbox" name="condition" value="Visual" class="w-5 h-5 accent-sky-500 rounded border-sky-300">
+                                    <span class="text-sm font-medium text-gray-700">Batasan Visual</span>
+                                </label>
+                                <input type="number" name="score_Visual" min="0" max="10" placeholder="Skor" class="w-16 bg-sky-50 border border-sky-200 rounded-lg p-1 text-xs text-center focus:ring-1 focus:ring-sky-500 outline-none text-sky-800 font-bold">
+                            </div>
+                            <div class="flex items-center justify-between bg-white p-3 rounded-xl border border-sky-100 hover:border-sky-400 hover:shadow-sm transition">
+                                <label class="flex items-center gap-3 cursor-pointer flex-1">
+                                    <input type="checkbox" name="condition" value="Auditori" class="w-5 h-5 accent-sky-500 rounded border-sky-300">
+                                    <span class="text-sm font-medium text-gray-700">Batasan Auditori</span>
+                                </label>
+                                <input type="number" name="score_Auditori" min="0" max="10" placeholder="Skor" class="w-16 bg-sky-50 border border-sky-200 rounded-lg p-1 text-xs text-center focus:ring-1 focus:ring-sky-500 outline-none text-sky-800 font-bold">
+                            </div>
+                            <div class="flex items-center justify-between bg-white p-3 rounded-xl border border-sky-100 hover:border-sky-400 hover:shadow-sm transition">
+                                <label class="flex items-center gap-3 cursor-pointer flex-1">
+                                    <input type="checkbox" name="condition" value="Motorik Kasar" class="w-5 h-5 accent-sky-500 rounded border-sky-300">
+                                    <span class="text-sm font-medium text-gray-700">Motorik Kasar</span>
+                                </label>
+                                <input type="number" name="score_Motorik Kasar" min="0" max="10" placeholder="Skor" class="w-16 bg-sky-50 border border-sky-200 rounded-lg p-1 text-xs text-center focus:ring-1 focus:ring-sky-500 outline-none text-sky-800 font-bold">
+                            </div>
+                            <div class="flex items-center justify-between bg-white p-3 rounded-xl border border-sky-100 hover:border-sky-400 hover:shadow-sm transition">
+                                <label class="flex items-center gap-3 cursor-pointer flex-1">
+                                    <input type="checkbox" name="condition" value="Motorik Halus" class="w-5 h-5 accent-sky-500 rounded border-sky-300">
+                                    <span class="text-sm font-medium text-gray-700">Motorik Halus</span>
+                                </label>
+                                <input type="number" name="score_Motorik Halus" min="0" max="10" placeholder="Skor" class="w-16 bg-sky-50 border border-sky-200 rounded-lg p-1 text-xs text-center focus:ring-1 focus:ring-sky-500 outline-none text-sky-800 font-bold">
+                            </div>
+                            <div class="flex items-center justify-between bg-white p-3 rounded-xl border border-sky-100 hover:border-sky-400 hover:shadow-sm transition">
+                                <label class="flex items-center gap-3 cursor-pointer flex-1">
+                                    <input type="checkbox" name="condition" value="Atensi" class="w-5 h-5 accent-sky-500 rounded border-sky-300">
+                                    <span class="text-sm font-medium text-gray-700">Defisit Atensi</span>
+                                </label>
+                                <input type="number" name="score_Atensi" min="0" max="10" placeholder="Skor" class="w-16 bg-sky-50 border border-sky-200 rounded-lg p-1 text-xs text-center focus:ring-1 focus:ring-sky-500 outline-none text-sky-800 font-bold">
+                            </div>
+                            <div class="flex items-center justify-between bg-white p-3 rounded-xl border border-sky-100 hover:border-sky-400 hover:shadow-sm transition">
+                                <label class="flex items-center gap-3 cursor-pointer flex-1">
+                                    <input type="checkbox" name="condition" value="Komunikasi" class="w-5 h-5 accent-sky-500 rounded border-sky-300">
+                                    <span class="text-sm font-medium text-gray-700">Non-Verbal</span>
+                                </label>
+                                <input type="number" name="score_Komunikasi" min="0" max="10" placeholder="Skor" class="w-16 bg-sky-50 border border-sky-200 rounded-lg p-1 text-xs text-center focus:ring-1 focus:ring-sky-500 outline-none text-sky-800 font-bold">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btn-iep-submit" class="w-full bg-sky-500 text-white font-bold py-4 rounded-xl hover:bg-sky-600 transition shadow-[0_0_15px_rgba(14,165,233,0.4)] hover:shadow-[0_0_20px_rgba(14,165,233,0.6)] flex justify-center items-center gap-2">
+                        <i class="fas fa-magic"></i> Rakit Dokumen IEP (PDF)
+                    </button>
+
+                    <div id="iep-loading" class="hidden text-center text-sky-500 font-medium text-sm py-2">
+                        <i class="fas fa-circle-notch fa-spin mr-2"></i> Merakit dari database silabus...
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. MODAL MODULATOR FREKUENSI (WEBSOCKETS) -->
+    <div id="modal-modulator" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal(\'modal-modulator\')"></div><div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                <div class="flex items-center gap-2">
+                    <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-wave-square text-violet-500 mr-2"></i>Modulator Frekuensi</h3>
+                    <button onclick="openModal('modal-info-frekuensi')" class="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center text-violet-500 hover:bg-violet-200 transition" title="Penjelasan Medis"><i class="fas fa-info text-xs"></i></button>
+                </div>
+                <button onclick="closeModal('modal-modulator')" class="text-gray-500 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
+            </div>
+
+            <div class="bg-violet-50 border border-violet-100 p-6 rounded-2xl text-center relative overflow-hidden mb-6">
+                <!-- Status Ripple -->
+                <div id="modulator-ripple" class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-violet-500/20 rounded-full blur-xl transition-all duration-1000 opacity-0 pointer-events-none"></div>
+
+                <i class="fas fa-wifi text-6xl text-violet-400 mb-6 drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]"></i>
+                <p class="text-gray-700 text-sm mb-8">Pancarkan Binaural Beats gelombang Theta (4-8 Hz) ke seluruh perangkat tablet siswa di kelas secara real-time via WebSockets.</p>
+
+                <div class="grid grid-cols-2 gap-3 mb-6 relative z-10">
+                    <button id="btn-freq-theta" onclick="broadcastFrequency('theta')" class="bg-white border-2 border-violet-200 text-violet-600 rounded-2xl p-3 font-bold hover:bg-violet-500 hover:text-white transition hover:scale-105 active:scale-95 shadow-sm text-sm">Binaural Theta</button>
+                    <button id="btn-freq-white" onclick="broadcastFrequency('white')" class="bg-white border-2 border-violet-200 text-violet-600 rounded-2xl p-3 font-bold hover:bg-violet-500 hover:text-white transition hover:scale-105 active:scale-95 shadow-sm text-sm">White Noise</button>
+                    <button id="btn-freq-pink" onclick="broadcastFrequency('pink')" class="bg-white border-2 border-violet-200 text-violet-600 rounded-2xl p-3 font-bold hover:bg-violet-500 hover:text-white transition hover:scale-105 active:scale-95 shadow-sm text-sm">Pink Noise</button>
+                    <button id="btn-freq-brown" onclick="broadcastFrequency('brown')" class="bg-white border-2 border-violet-200 text-violet-600 rounded-2xl p-3 font-bold hover:bg-violet-500 hover:text-white transition hover:scale-105 active:scale-95 shadow-sm text-sm">Brown Noise</button>
+                </div>
+                <button id="btn-freq-off" onclick="broadcastFrequency('off')" class="w-full bg-red-50 text-red-500 border-2 border-red-200 rounded-2xl p-3 font-bold hover:bg-red-500 hover:text-white transition mb-8 shadow-sm relative z-10 tracking-widest">MATIKAN TERAPI</button>
+
+                <div class="bg-white p-4 rounded-xl border border-violet-100 text-left relative z-10">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-xs text-gray-500 uppercase tracking-wider font-bold">Status Koneksi Siswa</p>
+                        <button onclick="document.getElementById('device-list').classList.toggle('hidden')" class="text-[10px] bg-violet-100 text-violet-600 px-3 py-1 rounded-lg font-bold hover:bg-violet-200 transition">Pantau Perangkat</button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                        <span class="text-gray-800 text-sm font-bold" id="connected-clients">0 Perangkat Terhubung di Kelas</span>
+                    </div>
+                    <ul id="device-list" class="hidden mt-3 pt-3 border-t border-violet-50 text-xs text-gray-600 space-y-2 max-h-32 overflow-y-auto">
+                        <!-- Fetched via JS -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL INFO FREKUENSI -->
+    <div id="modal-info-frekuensi" class="fixed inset-0 z-[110] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-info-frekuensi')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto border border-violet-100">
+            <div class="flex justify-between items-center mb-6 border-b border-violet-50 pb-4">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-stethoscope text-violet-500 mr-2"></i>Penjelasan Medis Modulator</h3>
+                <button onclick="closeModal('modal-info-frekuensi')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
+            </div>
+
+            <div class="space-y-6">
+                <!-- White Noise -->
+                <div>
+                    <h4 class="text-sm font-bold text-gray-800 flex items-center gap-2 mb-2"><span class="w-3 h-3 rounded-full bg-gray-300"></span> White Noise</h4>
+                    <p class="text-xs text-gray-600 leading-relaxed text-justify bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        Suara statis yang berisi semua frekuensi pendengaran secara seimbang (mirip suara TV rusak atau gemercik hujan deras). Sangat efektif memblokir (masking) suara bising dari luar yang tiba-tiba, sehingga mencegah anak dari <em>Sensory Overload</em> (kelebihan beban sensorik).
+                    </p>
+                </div>
+
+                <!-- Pink Noise -->
+                <div>
+                    <h4 class="text-sm font-bold text-pink-700 flex items-center gap-2 mb-2"><span class="w-3 h-3 rounded-full bg-pink-400"></span> Pink Noise</h4>
+                    <p class="text-xs text-gray-600 leading-relaxed text-justify bg-pink-50 p-3 rounded-xl border border-pink-100">
+                        Mirip dengan White Noise, namun dengan frekuensi tinggi yang lebih diperhalus, menghasilkan suara yang lebih "dalam" (seperti deru angin kencang). Secara medis, Pink Noise terbukti memperlambat aktivitas gelombang otak dan sangat direkomendasikan untuk menenangkan anak yang sedang berada di fase awal tantrum.
+                    </p>
+                </div>
+
+                <!-- Brown Noise -->
+                <div>
+                    <h4 class="text-sm font-bold text-amber-900 flex items-center gap-2 mb-2"><span class="w-3 h-3 rounded-full bg-amber-700"></span> Brown Noise</h4>
+                    <p class="text-xs text-gray-600 leading-relaxed text-justify bg-amber-50 p-3 rounded-xl border border-amber-100">
+                        Versi paling "berat" dan "dalam" (mirip suara gemuruh ombak laut atau badai guntur). Bass yang kuat ini menstimulasi respons menenangkan pada saraf vagus. Sangat direkomendasikan bagi anak ADHD atau Autisme untuk meningkatkan fokus saat mengerjakan tugas.
+                    </p>
+                </div>
+
+                <!-- Binaural Theta -->
+                <div>
+                    <h4 class="text-sm font-bold text-violet-800 flex items-center gap-2 mb-2"><span class="w-3 h-3 rounded-full bg-violet-500"></span> Binaural Theta (4-8 Hz)</h4>
+                    <p class="text-xs text-gray-600 leading-relaxed text-justify bg-violet-50 p-3 rounded-xl border border-violet-100">
+                        Dua frekuensi yang sedikit berbeda dikirim ke masing-masing telinga (contoh: 432Hz dan 439Hz). Otak akan "mendengar" selisihnya, yaitu 7Hz (Gelombang Theta). Gelombang ini merangsang status <strong>meditatif dalam</strong> dan meregulasi ulang sistem saraf pusat, menjadikannya penawar utama saat terjadi ledakan emosi (Tantrum) yang hebat.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. MODAL KOMUNIKASI DARURAT -->
+    <div id="modal-darurat" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-orange-900/40 backdrop-blur-sm transition-opacity" onclick="closeModal(\'modal-darurat\')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 border-b border-orange-100 pb-4">
+                <h3 class="text-lg font-bold text-orange-800"><i class="fas fa-comments text-orange-500 mr-2"></i>Papan Komunikasi</h3>
+                <button onclick="closeModal('modal-darurat')" class="text-orange-500 hover:text-orange-700 bg-orange-50 w-8 h-8 rounded-full">&times;</button>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-6">
+                <!-- 1. Duduk -->
+                <button onclick="speakCommand('Duduk Sekarang')" class="bg-orange-50 p-4 rounded-[2rem] border border-orange-200 flex flex-col items-center justify-center active:scale-95 transition-transform hover:bg-orange-100 hover:shadow-lg aspect-square group shadow-sm">
+                    <div class="w-16 h-16 rounded-full bg-orange-200 text-orange-600 flex items-center justify-center text-3xl mb-3 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                        <i class="fas fa-chair"></i>
+                    </div>
+                    <span class="text-sm md:text-base font-bold text-orange-800 tracking-wide text-center">Duduk</span>
+                </button>
+                <!-- 2. Tenang -->
+                <button onclick="speakCommand('Tolong Tenang')" class="bg-orange-50 p-4 rounded-[2rem] border border-orange-200 flex flex-col items-center justify-center active:scale-95 transition-transform hover:bg-orange-100 hover:shadow-lg aspect-square group shadow-sm">
+                    <div class="w-16 h-16 rounded-full bg-orange-200 text-orange-600 flex items-center justify-center text-3xl mb-3 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                        <i class="fas fa-volume-mute"></i>
+                    </div>
+                    <span class="text-sm md:text-base font-bold text-orange-800 tracking-wide text-center">Tenang</span>
+                </button>
+                <!-- 3. Lihat -->
+                <button onclick="speakCommand('Lihat Kesini')" class="bg-orange-50 p-4 rounded-[2rem] border border-orange-200 flex flex-col items-center justify-center active:scale-95 transition-transform hover:bg-orange-100 hover:shadow-lg aspect-square group shadow-sm">
+                    <div class="w-16 h-16 rounded-full bg-orange-200 text-orange-600 flex items-center justify-center text-3xl mb-3 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                        <i class="fas fa-eye"></i>
+                    </div>
+                    <span class="text-sm md:text-base font-bold text-orange-800 tracking-wide text-center">Lihat</span>
+                </button>
+                <!-- 4. Bahaya -->
+                <button onclick="speakCommand('Awas Bahaya')" class="bg-orange-50 p-4 rounded-[2rem] border border-orange-200 flex flex-col items-center justify-center active:scale-95 transition-transform hover:bg-orange-100 hover:shadow-lg aspect-square group shadow-sm">
+                    <div class="w-16 h-16 rounded-full bg-red-100 text-red-500 flex items-center justify-center text-3xl mb-3 group-hover:bg-red-500 group-hover:text-white transition-colors">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <span class="text-sm md:text-base font-bold text-orange-800 tracking-wide text-center">Bahaya</span>
+                </button>
+
+                <!-- 5. Haus -->
+                <button onclick="speakCommand('Saya Haus Ingin Minum')" class="bg-orange-50 p-4 rounded-[2rem] border border-orange-200 flex flex-col items-center justify-center active:scale-95 transition-transform hover:bg-orange-100 hover:shadow-lg aspect-square group shadow-sm">
+                    <div class="w-16 h-16 rounded-full bg-orange-200 text-orange-600 flex items-center justify-center text-3xl mb-3 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                        <i class="fas fa-glass-water"></i>
+                    </div>
+                    <span class="text-sm md:text-base font-bold text-orange-800 tracking-wide text-center">Haus</span>
+                </button>
+                <!-- 6. Toilet -->
+                <button onclick="speakCommand('Saya Mau Ke Toilet')" class="bg-orange-50 p-4 rounded-[2rem] border border-orange-200 flex flex-col items-center justify-center active:scale-95 transition-transform hover:bg-orange-100 hover:shadow-lg aspect-square group shadow-sm">
+                    <div class="w-16 h-16 rounded-full bg-orange-200 text-orange-600 flex items-center justify-center text-3xl mb-3 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                        <i class="fas fa-toilet"></i>
+                    </div>
+                    <span class="text-sm md:text-base font-bold text-orange-800 tracking-wide text-center">Toilet</span>
+                </button>
+                <!-- 7. Sakit -->
+                <button onclick="speakCommand('Saya Merasa Sakit')" class="bg-orange-50 p-4 rounded-[2rem] border border-orange-200 flex flex-col items-center justify-center active:scale-95 transition-transform hover:bg-orange-100 hover:shadow-lg aspect-square group shadow-sm">
+                    <div class="w-16 h-16 rounded-full bg-orange-200 text-orange-600 flex items-center justify-center text-3xl mb-3 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                        <i class="fas fa-head-side-cough"></i>
+                    </div>
+                    <span class="text-sm md:text-base font-bold text-orange-800 tracking-wide text-center">Sakit</span>
+                </button>
+                <!-- 8. Tolong -->
+                <button onclick="speakCommand('Tolong Bantu Saya Mengerjakan Ini')" class="bg-orange-50 p-4 rounded-[2rem] border border-orange-200 flex flex-col items-center justify-center active:scale-95 transition-transform hover:bg-orange-100 hover:shadow-lg aspect-square group shadow-sm">
+                    <div class="w-16 h-16 rounded-full bg-orange-200 text-orange-600 flex items-center justify-center text-3xl mb-3 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                        <i class="fas fa-hands-helping"></i>
+                    </div>
+                    <span class="text-sm md:text-base font-bold text-orange-800 tracking-wide text-center">Tolong</span>
+                </button>
+                <!-- 9. Istirahat -->
+                <button onclick="speakCommand('Saya Butuh Istirahat')" class="bg-orange-50 p-4 rounded-[2rem] border border-orange-200 flex flex-col items-center justify-center active:scale-95 transition-transform hover:bg-orange-100 hover:shadow-lg aspect-square group shadow-sm">
+                    <div class="w-16 h-16 rounded-full bg-orange-200 text-orange-600 flex items-center justify-center text-3xl mb-3 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                        <i class="fas fa-bed"></i>
+                    </div>
+                    <span class="text-sm md:text-base font-bold text-orange-800 tracking-wide text-center">Istirahat</span>
+                </button>
+                <!-- 10. Tidak Mengerti -->
+                <button onclick="speakCommand('Saya Tidak Mengerti Guru')" class="bg-orange-50 p-4 rounded-[2rem] border border-orange-200 flex flex-col items-center justify-center active:scale-95 transition-transform hover:bg-orange-100 hover:shadow-lg aspect-square group shadow-sm">
+                    <div class="w-16 h-16 rounded-full bg-orange-200 text-orange-600 flex items-center justify-center text-3xl mb-3 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                        <i class="fas fa-question"></i>
+                    </div>
+                    <span class="text-sm md:text-base font-bold text-orange-800 tracking-wide text-center">Bingung</span>
+                </button>
+                <!-- 11. Senang -->
+                <button onclick="speakCommand('Saya Merasa Senang Hari Ini')" class="bg-orange-50 p-4 rounded-[2rem] border border-orange-200 flex flex-col items-center justify-center active:scale-95 transition-transform hover:bg-orange-100 hover:shadow-lg aspect-square group shadow-sm">
+                    <div class="w-16 h-16 rounded-full bg-orange-200 text-orange-600 flex items-center justify-center text-3xl mb-3 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                        <i class="fas fa-smile-beam"></i>
+                    </div>
+                    <span class="text-sm md:text-base font-bold text-orange-800 tracking-wide text-center">Senang</span>
+                </button>
+                <!-- 12. Maaf -->
+                <button onclick="speakCommand('Maafkan Saya')" class="bg-orange-50 p-4 rounded-[2rem] border border-orange-200 flex flex-col items-center justify-center active:scale-95 transition-transform hover:bg-orange-100 hover:shadow-lg aspect-square group shadow-sm">
+                    <div class="w-16 h-16 rounded-full bg-orange-200 text-orange-600 flex items-center justify-center text-3xl mb-3 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                        <i class="fas fa-praying-hands"></i>
+                    </div>
+                    <span class="text-sm md:text-base font-bold text-orange-800 tracking-wide text-center">Maaf</span>
+                </button>
+                <!-- 13. Terima Kasih -->
+                <button onclick="speakCommand('Terima Kasih Banyak Guru')" class="bg-orange-50 p-4 rounded-[2rem] border border-orange-200 flex flex-col items-center justify-center active:scale-95 transition-transform hover:bg-orange-100 hover:shadow-lg aspect-square group shadow-sm">
+                    <div class="w-16 h-16 rounded-full bg-orange-200 text-orange-600 flex items-center justify-center text-3xl mb-3 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                        <i class="fas fa-thumbs-up"></i>
+                    </div>
+                    <span class="text-sm md:text-base font-bold text-orange-800 tracking-wide text-center">Terima Kasih</span>
+                </button>
+            </div>
+            <p class="text-center text-orange-600/70 mt-4 text-xs font-medium">Ketuk kartu untuk mengeluarkan instruksi suara bersuara lantang (Web Speech API).</p>
+        </div>
+    </div>
+
+    <!-- 5. MODAL REAKSI KOGNITIF -->
+    <div id="modal-kognitif" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-emerald-900/40 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-kognitif')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-emerald-50 rounded-t-[2.5rem] p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 h-[85dvh] flex flex-col overflow-hidden border border-emerald-200">
+            <div class="flex justify-between items-center mb-6 shrink-0 z-10">
+                <h3 class="text-xl font-bold text-emerald-800"><i class="fas fa-brain text-emerald-500 mr-2"></i>Uji Kognitif</h3>
+                <button onclick="closeModal('modal-kognitif'); backToKognitifMenu();" class="text-emerald-600 hover:text-emerald-800 bg-white shadow-sm w-10 h-10 rounded-full border border-emerald-100">&times;</button>
+            </div>
+
+            <div class="flex-1 relative overflow-y-auto" id="kognitif-arena">
+                <!-- MENU UTAMA KOGNITIF -->
+                <div id="kognitif-menu" class="flex flex-col gap-4 z-10 w-full px-2">
+                    <p class="text-emerald-700 mb-4 text-sm font-medium text-center">Pilih modul uji kognitif interaktif</p>
+
+                    <button onclick="openReactionTest()" class="w-full bg-white p-6 rounded-[2rem] shadow-sm border border-emerald-100 flex items-center gap-5 hover:bg-emerald-100 transition transform hover:scale-[1.02] group">
+                        <div class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors shadow-inner">
+                            <i class="fas fa-hand-pointer text-3xl"></i>
+                        </div>
+                        <div class="text-left flex-1">
+                            <h3 class="font-bold text-emerald-800 text-lg leading-tight">Uji Waktu Reaksi</h3>
+                            <p class="text-xs text-emerald-600 mt-1">Mengukur respon motorik dalam detik.</p>
+                        </div>
+                        <i class="fas fa-chevron-right text-emerald-400 group-hover:text-emerald-600"></i>
+                    </button>
+
+                    <button onclick="openEmotionTest()" class="w-full bg-white p-6 rounded-[2rem] shadow-sm border border-emerald-100 flex items-center gap-5 hover:bg-emerald-100 transition transform hover:scale-[1.02] group">
+                        <div class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors shadow-inner">
+                            <i class="fas fa-smile text-3xl"></i>
+                        </div>
+                        <div class="text-left flex-1">
+                            <h3 class="font-bold text-emerald-800 text-lg leading-tight">Pengenalan Emosi</h3>
+                            <p class="text-xs text-emerald-600 mt-1">Terapi empati dan pengenalan sosial.</p>
+                        </div>
+                        <i class="fas fa-chevron-right text-emerald-400 group-hover:text-emerald-600"></i>
+                    </button>
+
+                    <button onclick="openShapeTest()" class="w-full bg-white p-6 rounded-[2rem] shadow-sm border border-emerald-100 flex items-center gap-5 hover:bg-emerald-100 transition transform hover:scale-[1.02] group">
+                        <div class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors shadow-inner">
+                            <i class="fas fa-shapes text-3xl"></i>
+                        </div>
+                        <div class="text-left flex-1">
+                            <h3 class="font-bold text-emerald-800 text-lg leading-tight">Cocok Bentuk & Warna</h3>
+                            <p class="text-xs text-emerald-600 mt-1">Mengukur fungsi eksekutif & spasial.</p>
+                        </div>
+                        <i class="fas fa-chevron-right text-emerald-400 group-hover:text-emerald-600"></i>
+                    </button>
+                </div>
+
+                <!-- 1. UJI WAKTU REAKSI ARENA -->
+                <div id="reaction-arena" class="hidden absolute inset-0 bg-white rounded-3xl flex items-center justify-center shadow-inner border border-emerald-100">
+                    <button onclick="backToKognitifMenu()" class="absolute top-4 left-4 w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600 hover:bg-emerald-100 z-50 shadow-sm border border-emerald-100">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div id="reaction-start-screen" class="text-center z-10 absolute inset-0 bg-white rounded-3xl flex flex-col items-center justify-center">
+                        <i class="fas fa-hand-pointer text-6xl text-emerald-400 mb-6 animate-pulse"></i>
+                        <p class="text-emerald-800 text-lg mb-8 max-w-xs font-medium">Bersiaplah. Sentuh titik merah secepat mungkin saat muncul di layar.</p>
+                        <button onclick="startReactionTest()" class="bg-emerald-500 text-white font-bold py-5 px-14 rounded-full text-xl hover:bg-emerald-600 transition shadow-[0_10px_20px_rgba(16,185,129,0.3)]">Mulai Tes</button>
+                        <button onclick="showReactionGraph()" class="mt-8 text-emerald-600 text-sm font-bold bg-emerald-50 px-6 py-2 rounded-full border border-emerald-100 shadow-sm">Lihat Grafik Kemajuan</button>
+                    </div>
+
+                    <div id="reaction-dot" class="hidden absolute w-24 h-24 bg-red-500 rounded-full shadow-[0_0_30px_rgba(239,68,68,0.6)] cursor-pointer touch-none hover:scale-110 active:scale-90 transition-transform" onmousedown="dotTapped(event)" ontouchstart="dotTapped(event)"></div>
+
+                    <div id="reaction-result" class="hidden text-center z-10 pointer-events-none bg-emerald-50/90 backdrop-blur rounded-3xl p-8 border border-emerald-200 w-full mx-4">
+                        <p class="text-emerald-600 text-xs font-bold uppercase tracking-widest mb-2">Waktu Reaksi</p>
+                        <h2 class="text-5xl font-extrabold font-mono text-emerald-800 mb-2" id="reaction-time-display">0 <span class="text-xl text-emerald-600">detik</span></h2>
+                        <p class="text-emerald-600 font-bold bg-white inline-block px-4 py-1 rounded-full border border-emerald-200 mt-2" id="reaction-feedback">Luar biasa!</p>
+                    </div>
+                </div>
+
+                <!-- 2. UJI PENGENALAN EMOSI ARENA -->
+                <div id="emotion-arena" class="hidden absolute inset-0 bg-white rounded-3xl flex flex-col items-center justify-between shadow-inner border border-emerald-100 p-6 overflow-hidden">
+                    <button onclick="backToKognitifMenu()" class="absolute top-4 left-4 w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600 hover:bg-emerald-100 z-50 shadow-sm border border-emerald-100">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+
+                    <div id="emotion-start-screen" class="absolute inset-0 bg-white rounded-3xl flex flex-col items-center justify-center z-20">
+                        <i class="fas fa-smile text-6xl text-emerald-400 mb-6"></i>
+                        <h4 class="text-2xl font-bold text-emerald-800 mb-2">Pengenalan Emosi</h4>
+                        <p class="text-emerald-600 text-sm mb-8 text-center px-8 font-medium">Tebak ekspresi wajah dengan menekan tombol yang sesuai secepat mungkin.</p>
+                        <button onclick="startEmotionTest()" class="bg-emerald-500 text-white font-bold py-5 px-14 rounded-full text-xl hover:bg-emerald-600 transition shadow-[0_10px_20px_rgba(16,185,129,0.3)]">Mulai Tes</button>
+                    </div>
+
+                    <div class="w-full flex justify-between items-center z-10 mt-10 px-4">
+                        <span class="text-emerald-600 font-bold bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 text-xs" id="emotion-counter">1/9</span>
+                        <span class="text-emerald-600 font-mono font-bold bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 text-xs" id="emotion-timer">0.00s</span>
+                    </div>
+
+                    <div id="emotion-display" class="flex-1 flex items-center justify-center text-9xl transform transition-transform duration-300 z-10 drop-shadow-md">
+                        😀
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-3 w-full z-10 pb-4">
+                        <button onclick="emotionTapped('Senang')" class="bg-emerald-50 text-emerald-700 font-bold py-6 rounded-3xl border border-emerald-200 hover:bg-emerald-500 hover:text-white transition shadow-sm active:scale-95 text-sm md:text-base">Senang</button>
+                        <button onclick="emotionTapped('Sedih')" class="bg-emerald-50 text-emerald-700 font-bold py-6 rounded-3xl border border-emerald-200 hover:bg-emerald-500 hover:text-white transition shadow-sm active:scale-95 text-sm md:text-base">Sedih</button>
+                        <button onclick="emotionTapped('Marah')" class="bg-emerald-50 text-emerald-700 font-bold py-6 rounded-3xl border border-emerald-200 hover:bg-emerald-500 hover:text-white transition shadow-sm active:scale-95 text-sm md:text-base">Marah</button>
+                    </div>
+
+                    <div id="emotion-result" class="hidden absolute inset-0 bg-white/95 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-8 rounded-3xl">
+                        <i class="fas fa-check-circle text-6xl text-emerald-500 mb-4"></i>
+                        <h2 class="text-3xl font-bold text-emerald-800 mb-2">Selesai!</h2>
+                        <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 text-center mb-6 w-full">
+                            <p class="text-sm text-emerald-600 mb-1 font-medium">Skor Benar</p>
+                            <p class="text-4xl font-extrabold text-emerald-700" id="emotion-score-display">9/9</p>
+                        </div>
+                        <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 text-center w-full">
+                            <p class="text-sm text-emerald-600 mb-1 font-medium">Total Waktu</p>
+                            <p class="text-2xl font-mono font-bold text-emerald-700" id="emotion-total-time">0.00 detik</p>
+                        </div>
+                        <button onclick="backToKognitifMenu()" class="mt-8 bg-emerald-500 text-white font-bold py-4 w-full rounded-full hover:bg-emerald-600 transition shadow-md">Kembali ke Menu</button>
+                    </div>
+                </div>
+
+                <!-- 3. UJI COCOK BENTUK ARENA -->
+                <div id="shape-arena" class="hidden absolute inset-0 bg-white rounded-3xl flex flex-col items-center justify-between shadow-inner border border-emerald-100 p-6 overflow-hidden select-none touch-none">
+                    <button onclick="backToKognitifMenu()" class="absolute top-4 left-4 w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600 hover:bg-emerald-100 z-50 shadow-sm border border-emerald-100">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+
+                    <div id="shape-start-screen" class="absolute inset-0 bg-white rounded-3xl flex flex-col items-center justify-center z-20">
+                        <i class="fas fa-shapes text-6xl text-emerald-400 mb-6"></i>
+                        <h4 class="text-2xl font-bold text-emerald-800 mb-2">Cocok Bentuk</h4>
+                        <p class="text-emerald-600 text-sm mb-8 text-center px-8 font-medium">Perhatikan bentuk di atas dan pilih jawaban yang sama persis di bawah.</p>
+                        <button onclick="startShapeTest()" class="bg-emerald-500 text-white font-bold py-5 px-14 rounded-full text-xl hover:bg-emerald-600 transition shadow-[0_10px_20px_rgba(16,185,129,0.3)]">Mulai Tes</button>
+                    </div>
+
+                    <div class="w-full flex justify-between items-center z-10 mt-10 px-4">
+                        <span class="text-emerald-600 font-bold bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 text-xs" id="shape-counter">1/9</span>
+                        <span class="text-emerald-600 font-mono font-bold bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 text-xs" id="shape-timer">0.00s</span>
+                    </div>
+
+                    <div class="flex-1 flex flex-col items-center justify-center w-full z-10 mt-4">
+                        <!-- Target Shape -->
+                        <div class="bg-gray-50 p-6 rounded-[2rem] border-2 border-dashed border-gray-300 mb-8 flex items-center justify-center min-h-[160px] min-w-[160px] shadow-sm">
+                            <div id="shape-target" class="w-24 h-24"></div>
+                        </div>
+
+                        <!-- Choices -->
+                        <div class="grid grid-cols-3 gap-4 w-full" id="shape-choices">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+
+                    <div id="shape-result" class="hidden absolute inset-0 bg-white/95 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-8 rounded-3xl">
+                        <i class="fas fa-check-circle text-6xl text-emerald-500 mb-4"></i>
+                        <h2 class="text-3xl font-bold text-emerald-800 mb-2">Selesai!</h2>
+                        <div class="grid grid-cols-2 gap-4 w-full mb-6">
+                            <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 text-center w-full">
+                                <p class="text-xs text-emerald-600 mb-1 font-medium">Kesalahan Sentuh</p>
+                                <p class="text-3xl font-extrabold text-red-500" id="shape-mistakes">0</p>
+                            </div>
+                            <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 text-center w-full">
+                                <p class="text-xs text-emerald-600 mb-1 font-medium">Durasi Kebingungan</p>
+                                <p class="text-xl font-mono font-bold text-emerald-700 mt-2" id="shape-total-time">0.00 s</p>
+                            </div>
+                        </div>
+                        <button onclick="backToKognitifMenu()" class="mt-2 bg-emerald-500 text-white font-bold py-4 w-full rounded-full hover:bg-emerald-600 transition shadow-md">Kembali ke Menu</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Graph Overlay -->
+            <div id="reaction-graph-overlay" class="hidden absolute inset-0 bg-white z-50 flex flex-col pt-8 px-5 rounded-[2.5rem]">
+                <div class="flex justify-between items-center mb-6">
+                    <h4 class="text-emerald-800 font-bold text-lg"><i class="fas fa-chart-line text-emerald-500 mr-2"></i>Trend Kognitif-Motorik</h4>
+                    <button onclick="document.getElementById('reaction-graph-overlay').classList.add('hidden')" class="w-10 h-10 bg-emerald-50 text-emerald-600 font-bold rounded-full border border-emerald-100 hover:bg-emerald-100">&times;</button>
+                </div>
+                <div class="w-full h-64 bg-emerald-50 rounded-3xl border border-emerald-100 p-4 flex items-center justify-center relative shadow-inner">
+                    <canvas id="reactionChart"></canvas>
+                    <p id="reaction-empty" class="absolute text-emerald-600 text-sm font-medium bg-white px-4 py-2 rounded-full border border-emerald-100">Belum ada data tes tersimpan.</p>
+                </div>
+                <p class="text-[10px] text-emerald-500 mt-6 text-center font-bold uppercase tracking-widest border-t border-emerald-100 pt-4">Data disimpan per sesi menggunakan SQLAlchemy.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. MODAL CLOUD PORTOFOLIO -->
+    <div id="modal-portofolio" class="hidden fixed inset-0 z-40 bg-rose-50/95 overflow-y-auto">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-portofolio')"></div>
+        <div class="absolute bottom-0 left-0 w-full bg-rose-50 rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-4xl md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto border border-rose-100">
+            <div class="flex justify-between items-center mb-6 border-b border-rose-200 pb-4">
+                <div class="flex items-center gap-3">
+                    <div class="bg-rose-100 p-2 rounded-xl text-rose-500"><i class="fas fa-folder-open text-xl"></i></div>
+                    <h3 class="text-2xl font-bold text-rose-800 font-sans tracking-tight">Cloud Arsip Portofolio Visual</h3>
+                </div>
+                <div class="flex items-center gap-3">
+                    <!-- Navigasi Pintasan Arsip Portofolio -->
+                    <a href="/arsip-portofolio" class="bg-white border border-rose-200 text-rose-500 hover:text-white hover:bg-rose-500 w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-sm" title="Buka Galeri Penuh">
+                        <i class="fas fa-external-link-alt text-sm"></i>
+                    </a>
+                    <button onclick="closeModal('modal-portofolio')" class="text-rose-500 hover:text-white hover:bg-rose-400 bg-rose-100 w-10 h-10 rounded-full flex items-center justify-center transition-colors">&times;</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Upload Panel -->
+                <div class="bg-white border border-rose-100 p-6 rounded-[2rem] md:col-span-1 h-fit shadow-sm">
+                    <h4 class="text-rose-800 font-bold mb-5 flex items-center gap-2 text-lg"><i class="fas fa-cloud-upload-alt text-rose-400"></i> Upload Karya</h4>
+                    <form action="/guru/portofolio/upload" method="POST" enctype="multipart/form-data" class="space-y-5">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div>
+                            <label class="block text-xs font-bold text-rose-700 mb-1.5 uppercase tracking-wider">ID / Nama Siswa</label>
+                            <input type="text" name="student_id" required class="w-full bg-rose-50/50 border border-rose-200 rounded-2xl p-4 text-gray-800 focus:ring-2 focus:ring-rose-400 focus:border-rose-400 outline-none transition-all placeholder-rose-300 font-medium" placeholder="Masukkan ID atau Nama...">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-rose-700 mb-1.5 uppercase tracking-wider">Semester</label>
+                            <select name="semester" class="w-full bg-rose-50/50 border border-rose-200 rounded-2xl p-4 text-gray-800 focus:ring-2 focus:ring-rose-400 focus:border-rose-400 outline-none transition-all font-medium appearance-none">
+                                <option value="Ganjil 2026">Ganjil 2026</option>
+                                <option value="Genap 2026">Genap 2026</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-rose-700 mb-1.5 uppercase tracking-wider">File Media</label>
+                            <div class="relative border-2 border-dashed border-rose-300 rounded-2xl p-8 text-center hover:border-rose-500 hover:bg-rose-50 transition-all cursor-pointer bg-rose-50/30 group">
+                                <i class="fas fa-file-upload text-4xl text-rose-300 group-hover:text-rose-500 mb-3 transition-colors"></i>
+                                <p class="text-sm text-gray-600 font-medium">Tap atau tarik file ke sini</p>
+                                <p class="text-[10px] text-gray-400 mt-1">Mendukung Foto (JPG, PNG, WEBP, dll) & Video</p>
+                                <input type="file" name="image" accept="image/*" required class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                            </div>
+                            <p class="text-[10px] text-rose-500 mt-3 font-medium bg-rose-50 p-2 rounded-lg"><i class="fas fa-compress-arrows-alt mr-1"></i> File gambar otomatis dikompres ke ukuran optimal di backend.</p>
+                        </div>
+                        <button type="submit" class="w-full bg-rose-500 text-white font-bold py-4 rounded-2xl hover:bg-rose-600 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2 text-lg">
+                            <i class="fas fa-paper-plane text-sm"></i> Simpan Arsip
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Gallery Panel -->
+                <div class="bg-white border border-rose-100 p-6 rounded-[2rem] md:col-span-2 flex flex-col shadow-sm">
+                    <div class="flex justify-between items-center mb-5 gap-4">
+                        <h4 class="text-rose-800 font-bold flex items-center gap-2 shrink-0 text-lg"><i class="fas fa-images text-rose-400"></i> Pratinjau Cepat</h4>
+                        <div class="flex-1 max-w-sm relative">
+                            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-rose-400"></i>
+                            <input type="text" id="filter-siswa" onkeyup="filterPortofolio()" placeholder="Cari ID/Nama Siswa..." class="w-full bg-rose-50/50 border border-rose-200 rounded-full py-3 pl-10 pr-4 text-sm text-gray-800 focus:ring-2 focus:ring-rose-400 focus:border-rose-400 outline-none font-medium placeholder-rose-300 transition-all">
+                        </div>
+                    </div>
+
+                    <div class="overflow-y-auto flex-1 h-[50dvh] pr-2 custom-scrollbar">
+                        <div id="portofolio-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <!-- Injected by JS or Jinja -->
+                            {% for port in portfolios %}
+                            <div class="relative group rounded-2xl overflow-hidden aspect-square border border-rose-100 bg-rose-50 port-card shadow-sm hover:shadow-md transition-shadow cursor-pointer" data-siswa="{{ port.student_id|lower }}">
+                                {% set ext = port.filename.rsplit('.', 1)[1]|lower if '.' in port.filename else '' %}
+                                {% set is_video = ext in ['mp4', 'avi', 'mov', 'mkv', 'wmv', 'flv', 'webm', 'm4v', 'mpeg'] %}
+
+                                {% if is_video %}
+                                    <video class="w-full h-full object-cover" muted playsinline>
+                                        <source src="/uploads/{{ port.filename }}" type="video/mp4">
+                                    </video>
+                                    <div class="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
+                                        <i class="fas fa-play-circle text-white/80 text-4xl drop-shadow-lg"></i>
+                                    </div>
+                                {% else %}
+                                    <img src="/uploads/{{ port.filename }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" loading="lazy">
+                                {% endif %}
+
+                                <div class="absolute inset-0 bg-gradient-to-t from-rose-900/90 via-rose-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                                    <span class="text-white font-bold text-base truncate drop-shadow-md">{{ port.student_id }}</span>
+                                    <span class="text-rose-200 font-medium text-[11px] drop-shadow-md">{{ port.semester }}</span>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="col-span-full flex flex-col items-center justify-center text-rose-400 py-16">
+                                <i class="fas fa-folder-open text-5xl mb-4 opacity-50"></i>
+                                <span class="text-sm font-medium">Belum ada karya yang diunggah.</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- RAMADHAN JS UTILS ---
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const open = '{{ open_modal }}';
+        if(open && open !== 'None') openModal(open);
+    });
+
+    // HIJRI DATE (REUSE fetchHijri but target different ID)
+    function fetchHijriRamadhan() {
+        function updateDate() {
+            const today = new Date();
+            const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            const dateString = today.toLocaleDateString('id-ID', options);
+
+            const elements = document.querySelectorAll('[id^="hijri-date-ramadhan"]');
+            elements.forEach(el => {
+                el.innerText = dateString;
+            });
+        }
+        updateDate();
+        setInterval(updateDate, 60000);
+    }
+    fetchHijriRamadhan();
+
+    // PRAYER TIMES FOR HEADER (FETCH SAME AS HOME BUT DISPLAY HERE)
+    async function fetchRamadhanPrayer() {
+         try {
+            // Using Aladhan for Samarinda (Current)
+            const response = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
+            const result = await response.json();
+            const timings = result.data.timings;
+
+            if(document.getElementById('r-fajr')) {
+                document.getElementById('r-fajr').innerText = timings.Fajr;
+                document.getElementById('r-dhuhr').innerText = timings.Dhuhr;
+                document.getElementById('r-asr').innerText = timings.Asr;
+                document.getElementById('r-maghrib').innerText = timings.Maghrib;
+                document.getElementById('r-isha').innerText = timings.Isha;
+            }
+        } catch(e) { console.error(e); }
+    }
+    fetchRamadhanPrayer();
+
+    // MODAL UTILS
+    function openModal(id) {
+        document.getElementById(id).classList.remove('hidden');
+        history.pushState({modal: id}, null, "");
+    }
+    function closeModal(id) {
+        if (history.state && history.state.modal === id) {
+            history.back();
+        } else {
+            document.getElementById(id).classList.add('hidden');
+        }
+    }
+
+    // 1. TANTRUM LOGIC
+    let tantrumStartTime = 0;
+    let tantrumInterval;
+
+    function startTantrumTimer() {
+        const btn = document.getElementById('btn-start-tantrum');
+        const display = document.getElementById('tantrum-timer-display');
+        const form = document.getElementById('form-tantrum');
+
+        if (!tantrumStartTime) {
+            tantrumStartTime = Date.now();
+            btn.innerText = 'SELESAI TANTRUM';
+            btn.classList.replace('bg-rose-500', 'bg-gray-500');
+            btn.classList.replace('hover:bg-rose-600', 'hover:bg-gray-600');
+            display.classList.remove('hidden');
+            form.classList.add('hidden');
+
+            tantrumInterval = setInterval(() => {
+                const diff = Date.now() - tantrumStartTime;
+                const m = Math.floor(diff / 60000).toString().padStart(2, '0');
+                const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+                display.innerText = `${m}:${s}`;
+            }, 1000);
+        } else {
+            clearInterval(tantrumInterval);
+            const duration = Date.now() - tantrumStartTime;
+            const durationMinutes = Math.max(1, Math.round(duration / 60000));
+
+            // Use current time as explicit start time per user requirements
+            const now = new Date();
+            const timeString = now.toTimeString().substring(0, 5); // "HH:MM"
+            document.getElementById('t-time').value = timeString;
+
+            document.getElementById('t-start-time').value = Date.now();
+            document.getElementById('t-duration').value = durationMinutes; // Pre-fill the form with timer data, but allow editing
+
+            btn.innerText = 'MULAI TANTRUM (STOPWATCH)';
+            btn.classList.replace('bg-gray-500', 'bg-rose-500');
+            btn.classList.replace('hover:bg-gray-600', 'hover:bg-rose-600');
+            display.classList.add('hidden');
+            form.classList.remove('hidden');
+            tantrumStartTime = 0;
+            display.innerText = "00:00";
+        }
+    }
+
+    async function submitTantrum(e) {
+        e.preventDefault();
+
+        // Using explicit time from input, but passing as 'start' to keep backend happy.
+        // For 'duration', using the input value.
+
+        const timeInput = document.getElementById('t-time').value;
+        const now = new Date();
+        const parts = timeInput.split(':');
+        if(parts.length === 2) {
+            now.setHours(parseInt(parts[0], 10));
+            now.setMinutes(parseInt(parts[1], 10));
+        }
+
+        const data = {
+            student: document.getElementById('t-student').value,
+            trigger: document.getElementById('t-trigger').value,
+            start: now.getTime(),
+            duration: document.getElementById('t-duration').value * 60000, // Back to MS
+            action: document.getElementById('t-action').value
+        };
+
+        try {
+            const res = await fetch('/guru/tantrum', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')},
+                body: JSON.stringify(data)
+            });
+            if(res.ok) {
+                alert('Log Tersimpan!');
+                document.getElementById('form-tantrum').reset();
+                loadTantrumChart();
+            }
+        } catch(err) {
+            console.error(err);
+        }
+    }
+
+    async function loadTantrumChart() {
+        try {
+            const res = await fetch('/guru/tantrum/data');
+            const data = await res.json();
+
+            // Render History Table
+            const tbody = document.getElementById('tantrum-history-tbody');
+            if (tbody) {
+                tbody.innerHTML = '';
+                if(data.history && data.history.length > 0) {
+                    data.history.forEach(log => {
+                        tbody.innerHTML += `
+                            <tr class="hover:bg-rose-50/50 transition">
+                                <td class="p-2 border-b border-rose-50 text-gray-700">${log.student}</td>
+                                <td class="p-2 border-b border-rose-50 text-gray-700">
+                                    <span class="bg-rose-100 text-rose-600 px-2 py-0.5 rounded-md font-bold">${log.time}</span><br>
+                                    <span class="text-[10px] text-gray-400">${log.date}</span>
+                                </td>
+                                <td class="p-2 border-b border-rose-50 text-gray-700">${log.duration} Menit</td>
+                                <td class="p-2 border-b border-rose-50 text-gray-700 max-w-[150px] truncate" title="${log.action}">${log.action}</td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-400 italic">Belum ada riwayat.</td></tr>';
+                }
+            }
+
+            if(!data.values || data.values.every(v => v === 0)) {
+                document.getElementById('tantrum-empty').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('tantrum-empty').classList.add('hidden');
+
+            if (!window.Chart) {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                script.onload = () => drawTantrumChart(data);
+                document.head.appendChild(script);
+            } else {
+                drawTantrumChart(data);
+            }
+        } catch(err) { console.error(err); }
+    }
+
+    let tChart;
+    function drawTantrumChart(data) {
+        const ctx = document.getElementById('tantrumChart').getContext('2d');
+        if(tChart) tChart.destroy();
+
+        tChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: 'Frekuensi Tantrum',
+                    data: data.values,
+                    backgroundColor: 'rgba(244, 63, 94, 0.5)', // rose-500
+                    borderColor: 'rgba(225, 29, 72, 1)', // rose-600
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,228,230,0.5)' }, ticks: { color: '#9ca3af', stepSize: 1 } },
+                    x: { grid: { display: false }, ticks: { color: '#9ca3af' } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    // 2. IEP GENERATOR
+    async function generateIEP(e) {
+        e.preventDefault();
+        const form = document.getElementById('form-iep');
+        const formData = new FormData(form);
+        const submitBtn = document.getElementById('btn-iep-submit');
+        const loading = document.getElementById('iep-loading');
+
+        submitBtn.classList.add('hidden');
+        loading.classList.remove('hidden');
+
+        try {
+            const res = await fetch('/guru/iep', {
+                method: 'POST',
+                body: formData
+            });
+            if(res.ok) {
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `IEP_${formData.get('student_name')}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } else {
+                alert('Gagal membuat PDF');
+            }
+        } catch(err) {
+            console.error(err);
+        } finally {
+            submitBtn.classList.remove('hidden');
+            loading.classList.add('hidden');
+        }
+    }
+
+    // 3. WEBSOCKETS MODULATOR
+    let socket;
+    function initSocket() {
+        if (!window.io) {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.socket.io/4.0.0/socket.io.min.js';
+            script.onload = () => connectSocket();
+            document.head.appendChild(script);
+        } else {
+            connectSocket();
+        }
+    }
+
+    function connectSocket() {
+        if(!socket) {
+            socket = io();
+            socket.on('connect', () => console.log('Socket connected'));
+            socket.on('client_count', (data) => {
+                document.getElementById('connected-clients').innerText = `${data.count} Perangkat Terhubung di Kelas`;
+                const list = document.getElementById('device-list');
+                if (list) {
+                    list.innerHTML = data.clients.map(c => `<li><i class="fas fa-mobile-alt mr-2 text-violet-400"></i> ${c}</li>`).join('');
+                }
+            });
+        }
+    }
+
+    function broadcastFrequency(type) {
+        const ripple = document.getElementById('modulator-ripple');
+        let data = {};
+
+        // Reset buttons visually
+        document.querySelectorAll('[id^="btn-freq-"]').forEach(btn => {
+            btn.classList.remove('bg-violet-500', 'text-white');
+            if(btn.id === 'btn-freq-off') {
+                btn.classList.remove('bg-red-500', 'text-white');
+            }
+        });
+
+        if (type === 'off') {
+            ripple.classList.remove('opacity-100', 'animate-pulse');
+            ripple.classList.add('opacity-0');
+            data = { mode: 'off' };
+            const offBtn = document.getElementById('btn-freq-off');
+            if(offBtn) offBtn.classList.add('bg-red-500', 'text-white');
+        } else {
+            ripple.classList.remove('opacity-0');
+            ripple.classList.add('opacity-100', 'animate-pulse');
+
+            const activeBtn = document.getElementById('btn-freq-' + type);
+            if(activeBtn) activeBtn.classList.add('bg-violet-500', 'text-white');
+
+            if (type === 'theta') {
+                data = { mode: 'calm' };
+            } else {
+                data = { mode: 'noise', type: type };
+            }
+        }
+
+        if(socket) socket.emit('set_frequency', data);
+        if(window.processFrequencyData) window.processFrequencyData(data); // Play locally
+    }
+
+    // 4. SPEECH SYNTHESIS
+    function speakCommand(text) {
+        if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'id-ID';
+            utterance.rate = 0.9;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+            window.speechSynthesis.speak(utterance);
+        } else {
+            alert("Browser tidak mendukung Web Speech API.");
+        }
+    }
+
+    // --- KOGNITIF MENU LOGIC ---
+    function backToKognitifMenu() {
+        document.getElementById('kognitif-menu').classList.remove('hidden');
+        document.getElementById('reaction-arena').classList.add('hidden');
+        document.getElementById('emotion-arena').classList.add('hidden');
+        document.getElementById('shape-arena').classList.add('hidden');
+        stopReactionTest();
+        // Reset test states
+    }
+
+    function openReactionTest() {
+        document.getElementById('kognitif-menu').classList.add('hidden');
+        document.getElementById('reaction-arena').classList.remove('hidden');
+        document.getElementById('reaction-start-screen').classList.remove('hidden');
+    }
+
+    function openEmotionTest() {
+        document.getElementById('kognitif-menu').classList.add('hidden');
+        document.getElementById('emotion-arena').classList.remove('hidden');
+        document.getElementById('emotion-start-screen').classList.remove('hidden');
+        document.getElementById('emotion-result').classList.add('hidden');
+    }
+
+    function openShapeTest() {
+        document.getElementById('kognitif-menu').classList.add('hidden');
+        document.getElementById('shape-arena').classList.remove('hidden');
+        document.getElementById('shape-start-screen').classList.remove('hidden');
+        document.getElementById('shape-result').classList.add('hidden');
+    }
+
+    // 5. REACTION TEST
+    let reactionTimer;
+    let reactionStart;
+    let rChart;
+
+    function startReactionTest() {
+        document.getElementById('reaction-start-screen').classList.add('hidden');
+        document.getElementById('reaction-result').classList.add('hidden');
+        document.getElementById('reaction-dot').classList.add('hidden');
+
+        const delay = Math.random() * 3000 + 1000; // 1-4s delay
+
+        reactionTimer = setTimeout(() => {
+            const dot = document.getElementById('reaction-dot');
+            const arena = document.getElementById('reaction-arena');
+            const maxW = arena.clientWidth - 100;
+            const maxH = arena.clientHeight - 100;
+
+            dot.style.left = Math.random() * maxW + 50 + 'px';
+            dot.style.top = Math.random() * maxH + 50 + 'px';
+            dot.classList.remove('hidden');
+
+            reactionStart = performance.now();
+        }, delay);
+    }
+
+    async function dotTapped(e) {
+        if(e) e.preventDefault();
+        const reactTime = performance.now() - reactionStart;
+        document.getElementById('reaction-dot').classList.add('hidden');
+
+        const seconds = (reactTime / 1000).toFixed(2);
+
+        document.getElementById('reaction-time-display').innerHTML = `${seconds} <span class="text-xl text-emerald-600">detik</span>`;
+        document.getElementById('reaction-result').classList.remove('hidden');
+
+        setTimeout(() => {
+            document.getElementById('reaction-start-screen').classList.remove('hidden');
+            document.getElementById('reaction-result').classList.add('hidden');
+        }, 3000);
+
+        try {
+            await fetch('/guru/reaction', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')},
+                body: JSON.stringify({ time_sec: parseFloat(seconds) })
+            });
+        } catch(err) { console.error(err); }
+    }
+
+    function stopReactionTest() {
+        clearTimeout(reactionTimer);
+        document.getElementById('reaction-dot').classList.add('hidden');
+        document.getElementById('reaction-start-screen').classList.remove('hidden');
+        document.getElementById('reaction-result').classList.add('hidden');
+    }
+
+    async function showReactionGraph() {
+        document.getElementById('reaction-graph-overlay').classList.remove('hidden');
+        try {
+            const res = await fetch('/guru/reaction/data');
+            const data = await res.json();
+
+            if(data.values.length === 0) {
+                document.getElementById('reaction-empty').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('reaction-empty').classList.add('hidden');
+
+            if (!window.Chart) {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                script.onload = () => drawReactionChart(data);
+                document.head.appendChild(script);
+            } else {
+                drawReactionChart(data);
+            }
+        } catch(err) {}
+    }
+
+    // --- UJI COCOK BENTUK LOGIC ---
+    const shapeColors = ['bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-pink-500'];
+    const shapeForms = ['rounded-full', 'rounded-none', 'rounded-tl-3xl rounded-br-3xl']; // Circle, Square, Leaf
+    let shapeQuestions = [];
+    let shapeCurrentIdx = 0;
+    let shapeMistakes = 0;
+    let shapeStartTime = 0;
+    let shapeInterval;
+
+    function generateShapeQuestions() {
+        const q = [];
+        for (let i = 0; i < 9; i++) {
+            const targetColor = shapeColors[Math.floor(Math.random() * shapeColors.length)];
+            const targetForm = shapeForms[Math.floor(Math.random() * shapeForms.length)];
+            const targetObj = { color: targetColor, form: targetForm };
+
+            // Create options
+            let options = [targetObj];
+            while (options.length < 3) {
+                const optColor = shapeColors[Math.floor(Math.random() * shapeColors.length)];
+                const optForm = shapeForms[Math.floor(Math.random() * shapeForms.length)];
+                // Avoid duplicates
+                if (!options.some(o => o.color === optColor && o.form === optForm)) {
+                    options.push({ color: optColor, form: optForm });
+                }
+            }
+            // Shuffle options
+            for (let k = options.length - 1; k > 0; k--) {
+                const j = Math.floor(Math.random() * (k + 1));
+                [options[k], options[j]] = [options[j], options[k]];
+            }
+            q.push({ target: targetObj, options: options });
+        }
+        return q;
+    }
+
+    function startShapeTest() {
+        shapeQuestions = generateShapeQuestions();
+        document.getElementById('shape-start-screen').classList.add('hidden');
+        document.getElementById('shape-result').classList.add('hidden');
+
+        shapeCurrentIdx = 0;
+        shapeMistakes = 0;
+        shapeStartTime = performance.now();
+
+        clearInterval(shapeInterval);
+        shapeInterval = setInterval(() => {
+            const elapsed = (performance.now() - shapeStartTime) / 1000;
+            document.getElementById('shape-timer').innerText = elapsed.toFixed(2) + 's';
+        }, 100);
+
+        showShapeQuestion();
+    }
+
+    function showShapeQuestion() {
+        document.getElementById('shape-counter').innerText = (shapeCurrentIdx + 1) + '/' + shapeQuestions.length;
+        const currentQ = shapeQuestions[shapeCurrentIdx];
+
+        // Render target
+        const targetDiv = document.getElementById('shape-target');
+        targetDiv.className = `w-24 h-24 ${currentQ.target.color} ${currentQ.target.form} shadow-md`;
+        targetDiv.style.transform = 'scale(0.5)';
+        setTimeout(() => targetDiv.style.transform = 'scale(1)', 100);
+
+        // Render options
+        const choicesContainer = document.getElementById('shape-choices');
+        choicesContainer.innerHTML = '';
+        currentQ.options.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = "bg-white p-4 rounded-3xl border border-emerald-100 flex items-center justify-center h-28 hover:bg-emerald-50 active:scale-95 transition shadow-sm w-full";
+            const innerDiv = document.createElement('div');
+            innerDiv.className = `w-16 h-16 ${opt.color} ${opt.form} shadow-md`;
+            btn.appendChild(innerDiv);
+
+            btn.onclick = () => shapeTapped(opt, currentQ.target, btn);
+            choicesContainer.appendChild(btn);
+        });
+    }
+
+    function shapeTapped(selected, target, btnElement) {
+        if (selected.color === target.color && selected.form === target.form) {
+            // Correct
+            btnElement.classList.add('bg-green-100', 'border-green-400');
+            shapeCurrentIdx++;
+            if (shapeCurrentIdx >= shapeQuestions.length) {
+                endShapeTest();
+            } else {
+                setTimeout(showShapeQuestion, 300);
+            }
+        } else {
+            // Incorrect
+            shapeMistakes++;
+            btnElement.classList.add('bg-red-100', 'border-red-400', 'animate-pulse');
+            setTimeout(() => {
+                btnElement.classList.remove('bg-red-100', 'border-red-400', 'animate-pulse');
+            }, 500);
+
+            // Haptic error if supported
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        }
+    }
+
+    async function endShapeTest() {
+        clearInterval(shapeInterval);
+        const durationSec = (performance.now() - shapeStartTime) / 1000;
+
+        document.getElementById('shape-mistakes').innerText = shapeMistakes;
+        document.getElementById('shape-total-time').innerText = durationSec.toFixed(2) + ' detik';
+        document.getElementById('shape-result').classList.remove('hidden');
+
+        try {
+            await fetch('/guru/kognitif/bentuk', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')},
+                body: JSON.stringify({
+                    mistakes: shapeMistakes,
+                    duration_sec: parseFloat(durationSec.toFixed(2))
+                })
+            });
+        } catch(err) { console.error(err); }
+    }
+
+
+    // --- UJI PENGENALAN EMOSI LOGIC ---
+    const emotionQuestions = [
+        { emoji: '😀', answer: 'Senang' },
+        { emoji: '😢', answer: 'Sedih' },
+        { emoji: '😡', answer: 'Marah' },
+        { emoji: '😂', answer: 'Senang' },
+        { emoji: '😭', answer: 'Sedih' },
+        { emoji: '😠', answer: 'Marah' },
+        { emoji: '😊', answer: 'Senang' },
+        { emoji: '😔', answer: 'Sedih' },
+        { emoji: '🤬', answer: 'Marah' }
+    ];
+    let emotionCurrentIdx = 0;
+    let emotionScore = 0;
+    let emotionHistory = [];
+    let emotionStartTime = 0;
+    let emotionInterval;
+
+    function startEmotionTest() {
+        // Shuffle questions
+        for (let i = emotionQuestions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [emotionQuestions[i], emotionQuestions[j]] = [emotionQuestions[j], emotionQuestions[i]];
+        }
+
+        document.getElementById('emotion-start-screen').classList.add('hidden');
+        document.getElementById('emotion-result').classList.add('hidden');
+
+        emotionCurrentIdx = 0;
+        emotionScore = 0;
+        emotionHistory = [];
+        emotionStartTime = performance.now();
+
+        // Timer display
+        clearInterval(emotionInterval);
+        emotionInterval = setInterval(() => {
+            const elapsed = (performance.now() - emotionStartTime) / 1000;
+            document.getElementById('emotion-timer').innerText = elapsed.toFixed(2) + 's';
+        }, 100);
+
+        showEmotionQuestion();
+    }
+
+    function showEmotionQuestion() {
+        document.getElementById('emotion-counter').innerText = (emotionCurrentIdx + 1) + '/' + emotionQuestions.length;
+        const display = document.getElementById('emotion-display');
+        display.style.transform = 'scale(0.5)';
+        display.style.opacity = '0';
+
+        setTimeout(() => {
+            display.innerText = emotionQuestions[emotionCurrentIdx].emoji;
+            display.style.transform = 'scale(1)';
+            display.style.opacity = '1';
+        }, 150);
+    }
+
+    function emotionTapped(selected) {
+        const currentQ = emotionQuestions[emotionCurrentIdx];
+        const isCorrect = (selected === currentQ.answer);
+
+        if (isCorrect) emotionScore++;
+
+        emotionHistory.push({
+            emoji: currentQ.emoji,
+            expected: currentQ.answer,
+            selected: selected,
+            correct: isCorrect
+        });
+
+        emotionCurrentIdx++;
+        if (emotionCurrentIdx >= emotionQuestions.length) {
+            endEmotionTest();
+        } else {
+            showEmotionQuestion();
+        }
+    }
+
+    async function endEmotionTest() {
+        clearInterval(emotionInterval);
+        const durationSec = (performance.now() - emotionStartTime) / 1000;
+
+        document.getElementById('emotion-score-display').innerText = `${emotionScore}/${emotionQuestions.length}`;
+        document.getElementById('emotion-total-time').innerText = durationSec.toFixed(2) + ' detik';
+        document.getElementById('emotion-result').classList.remove('hidden');
+
+        try {
+            await fetch('/guru/kognitif/emosi', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')},
+                body: JSON.stringify({
+                    score: emotionScore,
+                    duration_sec: parseFloat(durationSec.toFixed(2)),
+                    history: JSON.stringify(emotionHistory)
+                })
+            });
+        } catch(err) { console.error(err); }
+    }
+
+
+    function drawReactionChart(data) {
+        const ctx = document.getElementById('reactionChart').getContext('2d');
+        if(rChart) rChart.destroy();
+
+        rChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: 'Kecepatan (ms)',
+                    data: data.values,
+                    borderColor: 'rgba(34, 197, 94, 1)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { reverse: true, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#9ca3af' } },
+                    x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#9ca3af' } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    // 6. PORTFOLIO
+    function filterPortofolio() {
+        const input = document.getElementById("filter-siswa").value.toLowerCase();
+        const cards = document.querySelectorAll('.port-card');
+
+        cards.forEach(card => {
+            const siswa = card.getAttribute('data-siswa');
+            if (siswa.includes(input)) {
+                card.style.display = "block";
+            } else {
+                card.style.display = "none";
+            }
+        });
+    }
+
+    // Ensure openModal and closeModal exist if not already defined globally in RAMADHAN_DASHBOARD_HTML
+    if (typeof window.openModal !== 'function') {
+        window.openModal = function(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('hidden');
+            history.pushState({modal: id}, null, "");
+
+            // Custom hooks
+            if(id === 'modal-tantrum') loadTantrumChart();
+            if(id === 'modal-modulator') initSocket();
+        };
+    } else {
+        const originalOpenModal = window.openModal;
+        window.openModal = function(id) {
+            originalOpenModal(id);
+            if(id === 'modal-tantrum') loadTantrumChart();
+            if(id === 'modal-modulator') initSocket();
+        };
+    }
+
+
+    // Real-Time Clock Waktu Samarinda
+    function initDashboardGuruClock() {
+        const clockEl = document.getElementById('waktu-samarinda');
+        if (!clockEl) return;
+
+        setInterval(() => {
+            const now = new Date();
+            const timeString = new Intl.DateTimeFormat('id-ID', {
+                timeZone: 'Asia/Makassar',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).format(now).replace(/[.]/g, ':');
+            clockEl.innerHTML = timeString;
+        }, 1000);
+
+        const now = new Date();
+        const timeString = new Intl.DateTimeFormat('id-ID', {
+            timeZone: 'Asia/Makassar',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).format(now).replace(/[.]/g, ':');
+        clockEl.innerHTML = timeString;
+    }
+    document.addEventListener('DOMContentLoaded', initDashboardGuruClock);
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        initDashboardGuruClock();
+    }
+
+    if (typeof window.closeModal !== 'function') {
+        window.closeModal = function(id) {
+            if (history.state && history.state.modal === id) {
+                history.back();
+            } else {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            }
+        };
+    }
+</script>
+"""
+
+# --- IRMA DASHBOARD ASSETS ---
+
+
+
 # --- DASHBOARD GURU ROUTES ---
 
 class TantrumLog(db.Model):
@@ -4968,6 +7006,30 @@ class PushSubscription(db.Model):
     subscription_info = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now())
     last_used = db.Column(db.DateTime, server_default=func.now())
+
+@app.route('/ramadhan')
+def ramadhan_dashboard():
+    if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
+        return redirect(url_for('index'))
+    portfolios = StudentPortfolio.query.order_by(StudentPortfolio.created_at.desc()).limit(100).all()
+
+    settings = get_settings()
+
+    # Render CONTENT first
+    rendered_content = cached_render('RAMADHAN_DASHBOARD_HTML', RAMADHAN_DASHBOARD_HTML,
+                                              portfolios=portfolios,
+                                              open_modal=request.args.get('open'),
+                                              is_admin=session.get('is_admin', False),
+                                              settings=settings)
+
+    return cached_render('BASE_LAYOUT', BASE_LAYOUT,
+                                  styles=STYLES_HTML + RAMADHAN_STYLES,
+                                  active_page='ramadhan',
+                                  content=rendered_content,
+                                  hide_nav=False,
+                                  full_width=True,
+                                  is_admin=session.get('is_admin', False),
+                                  settings=settings)
 
 @app.route('/guru/tantrum', methods=['POST'])
 def save_tantrum():
@@ -5385,9 +7447,11 @@ def handle_set_frequency(data):
     emit('receive_frequency', data, broadcast=True)
 
 
+# --- RESTORED RAMADHAN ROUTES ---
 
 
 
+# --- IRMA ROUTES ---
 
 
 
@@ -9599,7 +11663,7 @@ ORANG_TUA_HTML = """
                 navigator.serviceWorker.ready.then(function(registration) {
                     registration.showNotification("Waktunya Obat/Terapi!", {
                         body: data.medication_name + " pada jam " + data.time,
-                        icon: "/static/logoslb.png",
+                        icon: "/static/logomasjidalhijrah.png",
                         vibrate: [200, 100, 200, 100, 200, 100, 200],
                         requireInteraction: true
                     });
@@ -9609,7 +11673,7 @@ ORANG_TUA_HTML = """
                 // Fallback standard notification
                 new Notification("Waktunya Obat/Terapi!", {
                     body: data.medication_name + " pada jam " + data.time,
-                    icon: "/static/logoslb.png"
+                    icon: "/static/logomasjidalhijrah.png"
                 });
                 loadJadwalTimeline();
             }
@@ -10428,9 +12492,9 @@ def slb_tunaganda():
 
 def manifest():
     return jsonify({
-        "name": "Sekolah Luar Biasa",
-        "short_name": "SLB",
-        "description": "Aplikasi SLB Waktu Samarinda",
+        "name": "Masjid Al Hijrah",
+        "short_name": "Al Hijrah",
+        "description": "Aplikasi Masjid Al Hijrah Samarinda",
         "start_url": "/",
         "id": "/",
         "scope": "/",
@@ -10442,13 +12506,13 @@ def manifest():
         "prefer_related_applications": False,
         "icons": [
             {
-                "src": "/static/logoslb.png",
+                "src": "/static/logomasjidalhijrah.png",
                 "sizes": "192x192",
                 "type": "image/png",
                 "purpose": "any maskable"
             },
             {
-                "src": "/static/logoslb.png",
+                "src": "/static/logomasjidalhijrah.png",
                 "sizes": "512x512",
                 "type": "image/png",
                 "purpose": "any maskable"
@@ -10459,10 +12523,10 @@ def manifest():
 @app.route('/sw.js')
 def service_worker():
     sw_code = """
-const CACHE_NAME = 'slb-v1';
+const CACHE_NAME = 'al-hijrah-v1';
 const ASSETS_TO_CACHE = [
     '/',
-    '/static/logoslb.png',
+    '/static/logomasjidalhijrah.png',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
     '/static/tailwind.min.css'
 ];
@@ -10494,7 +12558,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('push', function(event) {
     const options = {
         body: event.data ? event.data.text() : 'Waktunya Obat / Terapi!',
-        icon: '/static/logoslb.png',
+        icon: '/static/logomasjidalhijrah.png',
         vibrate: [200, 100, 200, 100, 200, 100, 200],
         requireInteraction: true
     };
@@ -10542,6 +12606,39 @@ self.addEventListener('fetch', (event) => {
 });
 """
     return Response(sw_code, mimetype='application/javascript')
+
+@app.route('/donate/update', methods=['POST'])
+def donate_update():
+    if not session.get('is_admin'):
+        return redirect(url_for('index'))
+
+    keys = ['infaq_rekening_masjid', 'infaq_rekening_qurban', 'infaq_rekening_zakat']
+    for k in keys:
+        val = request.form.get(k)
+        if val:
+            s = db.session.get(AppSettings, k)
+            if s: s.value = val
+            else: db.session.add(AppSettings(key=k, value=val))
+
+    if 'qris_image' in request.files:
+        file = request.files['qris_image']
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            if filename.rsplit('.', 1)[1].lower() == 'mp4':
+                file.save(filepath)
+            else:
+                img = Image.open(file)
+                if img.mode in ("RGBA", "P"): img = img.convert("RGB")
+                img.thumbnail((800, 800))
+                img.save(filepath, format="JPEG", quality=70, optimize=True)
+            s = db.session.get(AppSettings, 'infaq_qris_image')
+            if s: s.value = filename
+            else: db.session.add(AppSettings(key='infaq_qris_image', value=filename))
+
+    db.session.commit()
+    invalidate_settings_cache()
+    return redirect(request.referrer)
 
 @app.route('/jadwal')
 def jadwal_kelas():

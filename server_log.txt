@@ -1,0 +1,12 @@
+/app/sekolah-luar-biasa-69 ( idcloudhost - debugging - waktu, save data, warna tab, jadwal medis error, tambah kamus, json file kamus, api modul  - Opus 4.6 ).py:1202: SyntaxWarning: invalid escape sequence '\.'
+  dateString = dateString.replace('pukul', '•').replace(/\./g, ':');
+/app/sekolah-luar-biasa-69 ( idcloudhost - debugging - waktu, save data, warna tab, jadwal medis error, tambah kamus, json file kamus, api modul  - Opus 4.6 ).py:1: EventletDeprecationWarning:
+Eventlet is deprecated. It is currently being maintained in bugfix mode, and
+we strongly recommend against using it for new projects.
+
+If you are already using Eventlet, we recommend migrating to a different
+framework.  For more detail see
+https://eventlet.readthedocs.io/en/latest/asyncio/migration.html
+
+  import eventlet
+[2026-04-11 02:09:00,915] ERROR in sekolah-luar-biasa-69 ( idcloudhost - debugging - waktu, save data, warna tab, jadwal medis error, tambah kamus, json file kamus, api modul  - Opus 4.6 ): Error acquiring scheduler lock: Error 111 connecting to localhost:6379. ECONNREFUSED.
