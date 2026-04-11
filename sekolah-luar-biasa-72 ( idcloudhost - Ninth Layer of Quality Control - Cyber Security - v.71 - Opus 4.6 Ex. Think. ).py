@@ -17,6 +17,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
 from sqlalchemy import Index
+from sqlalchemy.exc import IntegrityError
+from datetime import time as dt_time
 from flask_socketio import SocketIO, emit
 from apscheduler.schedulers.background import BackgroundScheduler
 import filetype
@@ -155,6 +157,14 @@ class Siswa(db.Model):
     nama = db.Column(db.String(255), nullable=False)
     kelas = db.Column(db.String(255))
     diagnosis = db.Column(db.String(255))
+    profil_medis = db.relationship('ProfilMedisSiswa', backref='siswa', cascade='all, delete-orphan', uselist=False)
+    emotion_journals = db.relationship('EmotionJournal', backref='siswa', cascade='all, delete-orphan')
+    epilepsi_logs = db.relationship('EpilepsiLog', backref='siswa', cascade='all, delete-orphan')
+    buku_entries = db.relationship('OrangTuaBuku', backref='siswa', cascade='all, delete-orphan')
+    tantrum_entries = db.relationship('OrangTuaTantrum', backref='siswa', cascade='all, delete-orphan')
+    jadwal_entries = db.relationship('OrangTuaJadwal', backref='siswa', cascade='all, delete-orphan')
+    nutrisi_entries = db.relationship('OrangTuaNutrisi', backref='siswa', cascade='all, delete-orphan')
+    burnout_entries = db.relationship('OrangTuaBurnout', backref='siswa', cascade='all, delete-orphan')
 
 class ProfilMedisSiswa(db.Model):
     __tablename__ = 'profil_medis_siswa'
@@ -176,7 +186,7 @@ class ProfilMedisSiswa(db.Model):
     hotline_darurat_nomor = db.Column(db.String(30))
     kondisi_terkini = db.Column(db.String(100))
     kondisi_warna = db.Column(db.String(20))
-    updated_at = db.Column(db.DateTime, server_default=func.now(), onupdate=datetime.datetime.now)
+    updated_at = db.Column(db.DateTime, server_default=func.now(), onupdate=func.now())
 
 class AkunPengguna(db.Model):
     __tablename__ = 'akun_pengguna'
@@ -217,7 +227,7 @@ class EpilepsiLog(db.Model):
     __tablename__ = 'epilepsi_log'
     __table_args__ = (Index('idx_epilepsi_log_created_at', 'created_at'), Index('idx_epilepsi_log_anak_id', 'anak_id'),)
     id = db.Column(db.Integer, primary_key=True)
-    occurred_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.now, index=True)
+    occurred_at = db.Column(db.DateTime, nullable=False, server_default=func.now(), index=True)
     trigger = db.Column(db.String(255), nullable=False)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
@@ -4238,8 +4248,13 @@ def update_profil_medis(siswa_id):
     profil.kondisi_terkini = validate_str(data.get('kondisi_terkini'), 1000) or profil.kondisi_terkini
     profil.kondisi_warna = validate_str(data.get('kondisi_warna'), 20) or profil.kondisi_warna
     
-    db.session.commit()
-    return jsonify({'status': 'success'})
+    try:
+        db.session.commit()
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error('Medical profile update failed', exc_info=True)
+        return jsonify({'error': 'Gagal menyimpan data medis.'}), 500
 
 @app.route('/api/cari-siswa-guru', methods=['GET'])
 def cari_siswa_guru():
@@ -4308,9 +4323,12 @@ def register():
         db.session.add(akun)
         db.session.commit()
         return "Pendaftaran berhasil. Silakan tunggu verifikasi dari Kepala Sekolah. <a href='/'>Kembali ke Beranda</a>"
+    except IntegrityError:
+        db.session.rollback()
+        return "Username atau NIK sudah terdaftar. Silakan gunakan yang lain.", 400
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Registration error", exc_info=True)
+        app.logger.error("Registration error", exc_info=True)
         return "Terjadi kesalahan saat mendaftar. Silakan coba lagi.", 500
 
 @app.route('/brankas_unlock', methods=['POST'])
@@ -4867,8 +4885,8 @@ class TantrumLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student = db.Column(db.String(255), nullable=False, index=True)
     trigger = db.Column(db.String(255), nullable=False)
-    start_time = db.Column(db.DateTime, nullable=True, default=datetime.datetime.now)
-    duration_ms = db.Column(db.Integer)
+    start_time = db.Column(db.DateTime, nullable=True, server_default=func.now())
+    duration_ms = db.Column(db.Integer, nullable=False, default=0) # TODO: Add nullable=False after data migration
     action = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
@@ -4898,7 +4916,7 @@ class StudentPortfolio(db.Model):
     __tablename__ = 'student_portfolio'
     __table_args__ = (Index('idx_student_portfolio_student_id', 'student_id'), Index('idx_student_portfolio_created_at', 'created_at'),)
     id = db.Column(db.Integer, primary_key=True)
-    student_id = db.Column(db.String(255), nullable=False, index=True)
+    student_id = db.Column(db.String(255), nullable=False, index=True) # TODO L1-020: Migrate student_id from String(255) to Integer with ForeignKey('siswa.id')
     semester = db.Column(db.String(255), nullable=False)
     filename = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
@@ -4907,7 +4925,7 @@ class OrangTuaBuku(db.Model):
     __tablename__ = 'orang_tua_buku'
     id = db.Column(db.Integer, primary_key=True)
     anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
-    mood = db.Column(db.String(255))
+    mood = db.Column(db.String(255), nullable=False) # TODO: Add nullable=False after data migration
     sleep_duration = db.Column(db.Integer)
     morning_behavior = db.Column(db.Text)
     created_at = db.Column(db.DateTime, server_default=func.now())
@@ -4916,7 +4934,7 @@ class OrangTuaTantrum(db.Model):
     __tablename__ = 'orang_tua_tantrum'
     id = db.Column(db.Integer, primary_key=True)
     anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
-    trigger = db.Column(db.String(255))
+    trigger = db.Column(db.String(255), nullable=False) # TODO: Add nullable=False after data migration
     created_at = db.Column(db.DateTime, server_default=func.now())
 
 class OrangTuaJadwal(db.Model):
@@ -4959,18 +4977,25 @@ def save_tantrum():
         return jsonify({'error': 'Unauthorized'}), 403
     try:
         data = request.json
+        student_val = validate_str(data.get('student'), 255)
+        trigger_val = validate_str(data.get('trigger'), 255)
+
+        if not student_val or not trigger_val:
+            return jsonify({'error': 'Student and trigger are required'}), 400
+
         log = TantrumLog(
-            student=data.get('student'),
-            trigger=data.get('trigger'),
-            start_time=str(data.get('start')),
-            duration_ms=int(data.get('duration', 0)),
-            action=data.get('action')
+            student=student_val,
+            trigger=trigger_val,
+            start_time=None,
+            duration_ms=int(data.get('duration', 0)) if str(data.get('duration', '0')).isdigit() else 0,
+            action=validate_str(data.get('action'), 255)
         )
         db.session.add(log)
         db.session.commit()
         return jsonify({"status": "success"})
     except Exception as e:
         db.session.rollback()
+        app.logger.error('Failed to save tantrum', exc_info=True)
         return jsonify({'error': 'Terjadi kesalahan saat memproses data. Silakan coba lagi.'}), 500
 
 @app.route('/guru/tantrum/data')
@@ -5209,13 +5234,16 @@ def save_reaction():
     if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
-    sec = data.get('time_sec')
-    if sec is None and data.get('time_ms') is not None:
-        sec = data.get('time_ms') / 1000.0
-    log = ReactionTimeLog(time_sec=sec)
-    db.session.add(log)
     try:
+        sec = data.get('time_sec')
+        if sec is None and data.get('time_ms') is not None:
+            sec = float(data.get('time_ms')) / 1000.0
+        log = ReactionTimeLog(time_sec=sec)
+        db.session.add(log)
         db.session.commit()
+    except (TypeError, ValueError):
+        db.session.rollback()
+        return jsonify({'error': 'Invalid time value'}), 400
     except Exception as e:
         db.session.rollback()
         app.logger.error('Database commit error', exc_info=True)
@@ -5241,14 +5269,20 @@ def save_kognitif_emosi():
     if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
-    log = KognitifEmosiLog(
-        score=data.get('score'),
-        duration_sec=data.get('duration_sec'),
-        history=data.get('history')
-    )
-    db.session.add(log)
     try:
+        score_val = int(data.get('score', 0))
+        dur_val = float(data.get('duration_sec', 0))
+        history_val = validate_str(data.get('history'), 5000)
+        log = KognitifEmosiLog(
+            score=score_val,
+            duration_sec=dur_val,
+            history=history_val
+        )
+        db.session.add(log)
         db.session.commit()
+    except (TypeError, ValueError):
+        db.session.rollback()
+        return jsonify({'error': 'Invalid data format'}), 400
     except Exception as e:
         db.session.rollback()
         app.logger.error('Database commit error', exc_info=True)
@@ -5260,13 +5294,18 @@ def save_kognitif_bentuk():
     if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
-    log = KognitifBentukLog(
-        mistakes=data.get('mistakes'),
-        duration_sec=data.get('duration_sec')
-    )
-    db.session.add(log)
     try:
+        mistakes_val = int(data.get('mistakes', 0))
+        dur_val = float(data.get('duration_sec', 0))
+        log = KognitifBentukLog(
+            mistakes=mistakes_val,
+            duration_sec=dur_val
+        )
+        db.session.add(log)
         db.session.commit()
+    except (TypeError, ValueError):
+        db.session.rollback()
+        return jsonify({'error': 'Invalid data format'}), 400
     except Exception as e:
         db.session.rollback()
         app.logger.error('Database commit error', exc_info=True)
@@ -5321,17 +5360,26 @@ def upload_portfolio():
                     img.save(filepath, format="JPEG", quality=quality, optimize=True)
                 
             student_id = request.form.get('student_id')
-            if not db.session.get(Siswa, student_id):
+            try:
+                student_id_int = int(student_id)
+            except (TypeError, ValueError):
+                return "Invalid student ID", 400
+
+            if not db.session.get(Siswa, student_id_int):
                 return "Student not found", 404
+
             port = StudentPortfolio(
-                student_id=student_id,
-                semester=request.form.get('semester'),
+                student_id=str(student_id_int),
+                semester=validate_str(request.form.get('semester'), 255) or 'Unknown',
                 filename=filename
             )
             db.session.add(port)
             db.session.commit()
         except Exception as e:
             db.session.rollback()
+            app.logger.error('Portfolio upload failed', exc_info=True)
+            from flask import flash
+            flash('Gagal mengunggah portfolio. Silakan coba lagi.', 'error')
         
     return redirect(url_for('index'))
 
@@ -10006,10 +10054,17 @@ def save_ot_buku():
         return jsonify({'error': 'Unauthorized'}), 403
     try:
         data = request.json
+        anak_id = session.get('anak_id')
+        if anak_id and not db.session.get(Siswa, anak_id):
+            return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
+
+        sleep_dur = int(data.get('sleep_duration', 0))
+        sleep_dur = max(0, min(24, sleep_dur))
+
         db.session.add(OrangTuaBuku(
-            anak_id=session.get('anak_id'),
+            anak_id=anak_id,
             mood=validate_str(data.get('mood'), 100),
-            sleep_duration=int(data.get('sleep_duration', 0)),
+            sleep_duration=sleep_dur,
             morning_behavior=validate_str(data.get('morning_behavior'), 500)
         ))
         db.session.commit()
@@ -10113,15 +10168,31 @@ def handle_ot_jadwal():
             return jsonify({'error': 'Unauthorized'}), 403
         try:
             data = request.json
+            anak_id = session.get('anak_id')
+            if anak_id and not db.session.get(Siswa, anak_id):
+                return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
+
+            time_str = data.get('time', '')
+            try:
+                parts = time_str.split(':')
+                schedule_time = dt_time(int(parts[0]), int(parts[1]))
+            except (ValueError, IndexError, AttributeError):
+                return jsonify({'error': 'Format waktu tidak valid (HH:MM)'}), 400
+
+            med_name = validate_str(data.get('medication_name'), 255)
+            if not med_name:
+                return jsonify({'error': 'Nama obat harus diisi'}), 400
+
             db.session.add(OrangTuaJadwal(
-                anak_id=session.get('anak_id'),
-                schedule_time=data.get('time'),
-                medication_name=data.get('medication_name')
+                anak_id=anak_id,
+                schedule_time=schedule_time,
+                medication_name=med_name
             ))
             db.session.commit()
             return jsonify({"status": "success"})
         except Exception as e:
             db.session.rollback()
+            app.logger.error('Failed to handle OT jadwal', exc_info=True)
             return jsonify({'error': 'Terjadi kesalahan saat memproses data. Silakan coba lagi.'}), 500
     
     # GET method
@@ -10193,8 +10264,12 @@ def handle_ot_nutrisi():
     if request.method == 'POST':
         try:
             data = request.json
+            anak_id = session.get('anak_id')
+            if anak_id and not db.session.get(Siswa, anak_id):
+                return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
+
             db.session.add(OrangTuaNutrisi(
-                anak_id=session.get('anak_id'),
+                anak_id=anak_id,
                 food_name=validate_str(data.get('food_name'), 255),
                 has_allergen=data.get('has_allergen', False)
             ))
@@ -10311,17 +10386,26 @@ def check_medications():
                 app.logger.warning("Failed to parse subscription_info", exc_info=True)
                 pass
                 
-        db.session.commit()
-        threading.Thread(target=send_all_pushes, args=(schedules_data, subscriptions_data), daemon=True).start()
+        try:
+            db.session.commit()
+            threading.Thread(target=send_all_pushes, args=(schedules_data, subscriptions_data), daemon=True).start()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error('Medication check commit failed', exc_info=True)
+            return
 
 # Add job to scheduler (running every minute)
 scheduler.add_job(id='Medication Check', func=check_medications, trigger='cron', minute='*')
 
 def cleanup_push_subscriptions():
     with app.app_context():
-        thirty_days_ago = datetime.datetime.now() - datetime.timedelta(days=30)
-        PushSubscription.query.filter(PushSubscription.last_used < thirty_days_ago).delete()
-        db.session.commit()
+        try:
+            thirty_days_ago = datetime.datetime.now() - datetime.timedelta(days=30)
+            PushSubscription.query.filter(PushSubscription.last_used < thirty_days_ago).delete()
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error('Subscription cleanup failed', exc_info=True)
 
 scheduler.add_job(id='Cleanup Subscriptions', func=cleanup_push_subscriptions, trigger='cron', hour=3, minute=0)
 
@@ -10332,9 +10416,16 @@ def save_burnout():
         return jsonify({'error': 'Unauthorized'}), 403
     try:
         data = request.json
+        anak_id = session.get('anak_id')
+        if anak_id and not db.session.get(Siswa, anak_id):
+            return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
+
+        stress = int(data.get('stress_level', 5))
+        stress = max(1, min(10, stress))
+
         db.session.add(OrangTuaBurnout(
-            anak_id=session.get('anak_id'),
-            stress_level=int(data.get('stress_level', 5)),
+            anak_id=anak_id,
+            stress_level=stress,
             recorded_date=datetime.date.today()
         ))
         db.session.commit()
@@ -10382,8 +10473,14 @@ def slb_tunalaras():
         if not session.get('user_id') or session.get('peran') not in ['orang_tua', 'guru', 'kepala_sekolah']:
             return redirect(url_for('index'))
         try:
-            emotion = request.form['emotion']
+            emotion = validate_str(request.form.get('emotion'), 50)
+            if not emotion:
+                return "Emosi harus dipilih.", 400
+
             anak_id = session.get('anak_id') if session.get('peran') == 'orang_tua' else None
+            if anak_id and not db.session.get(Siswa, anak_id):
+                return "Data siswa tidak ditemukan.", 404
+
             db.session.add(EmotionJournal(emotion=emotion, anak_id=anak_id))
             db.session.commit()
             return redirect(url_for('slb_tunalaras'))
@@ -10646,17 +10743,25 @@ def add_jadwal():
         return redirect(url_for('jadwal_kelas'))
     
     try:
-        hari = request.form.get('hari')
-        jam = request.form.get('jam')
-        mata_pelajaran = request.form.get('mata_pelajaran')
-        guru = request.form.get('guru')
-        ruangan = request.form.get('ruangan')
+        hari = validate_str(request.form.get('hari'), 50)
+        jam = validate_str(request.form.get('jam'), 50)
+        mata_pelajaran = validate_str(request.form.get('mata_pelajaran'), 255)
+        guru = validate_str(request.form.get('guru'), 255)
+        ruangan = validate_str(request.form.get('ruangan'), 255)
         
+        if not all([hari, jam, mata_pelajaran, guru, ruangan]):
+            from flask import flash
+            flash('Semua field harus diisi.', 'error')
+            return redirect(url_for('jadwal_kelas'))
+
         new_jadwal = JadwalKelas(hari=hari, jam=jam, mata_pelajaran=mata_pelajaran, guru=guru, ruangan=ruangan)
         db.session.add(new_jadwal)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
+        app.logger.error('Failed to add jadwal', exc_info=True)
+        from flask import flash
+        flash('Gagal menambahkan jadwal. Silakan coba lagi.', 'error')
         
     return redirect(url_for('jadwal_kelas'))
 
@@ -10938,10 +11043,15 @@ def upload_karya():
     if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return redirect(url_for('galeri_karya'))
         
-    title = request.form.get('title')
-    student_name = request.form.get('student_name')
+    title = validate_str(request.form.get('title'), 255)
+    student_name = validate_str(request.form.get('student_name'), 255)
     file = request.files.get('image')
     
+    if not title or not student_name:
+        from flask import flash
+        flash('Judul dan nama siswa harus diisi.', 'error')
+        return redirect(url_for('galeri_karya'))
+
     if file and allowed_file(file.filename):
         try:
             file_bytes = file.read(2048)
@@ -10976,6 +11086,9 @@ def upload_karya():
             db.session.commit()
         except Exception as e:
             db.session.rollback()
+            app.logger.error('Gallery upload failed', exc_info=True)
+            from flask import flash
+            flash('Gagal mengunggah karya. Silakan coba lagi.', 'error')
             
     return redirect(url_for('galeri_karya'))
 
