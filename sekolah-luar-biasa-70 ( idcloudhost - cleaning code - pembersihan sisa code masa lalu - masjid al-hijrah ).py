@@ -452,7 +452,7 @@ BASE_LAYOUT = """
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
     {{ styles|safe }}
 </head>
-<body class="text-gray-800 antialiased {{ 'ramadhan-mode' if hide_nav else '' }}">
+<body class="text-gray-800 antialiased">
     <script>
         // Apple Audio Auto-Play Workaround
         document.addEventListener('pointerdown', function unlockAudio() {
@@ -557,7 +557,7 @@ BASE_LAYOUT = """
     </nav>
     {% endif %}
 
-    <!-- MODAL INFAQ REVOLUTION -->
+
     <!-- PORTAL MASUK & REGISTRASI MODAL -->
     <div id="modal-login-admin" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-login-admin')"></div>
@@ -1199,7 +1199,7 @@ BASE_LAYOUT = """
                 };
                 
                 let dateString = today.toLocaleString('id-ID', options);
-                dateString = dateString.replace('pukul', '•').replace(/\./g, ':');
+                dateString = dateString.replace('pukul', '•').replace(/\\./g, ':');
                 
                 const elements = document.querySelectorAll('[id^="hijri-date"]');
                 elements.forEach(el => {
@@ -3242,52 +3242,6 @@ HOME_HTML = """
             if(seeker) seeker.parentElement.classList.remove('hidden');
         }
 
-        function triggerInfaqWA() {
-            const now = new Date();
-            const h = now.getHours();
-            let time = "Pagi";
-            if (h >= 11 && h < 15) time = "Siang";
-            else if (h >= 15 && h < 19) time = "Sore";
-            else if (h >= 19 || h < 4) time = "Malam";
-            
-            const type = document.getElementById('infaq-type-select') ? document.getElementById('infaq-type-select').value : 'Infaq';
-            const msg = `Assalamu'alaikum Pak, selamat ${time}, ijin konfirmasi Pak, saya sudah mengtransfer sebesar Rp... di nomor rekening ${type} untuk keperluan ${type} ke masjid langsung, terima kasih Pak 🙏`;
-            window.open(`https://wa.me/6282330890500?text=${encodeURIComponent(msg)}`, '_blank');
-        }
-
-        function showAmalanPopup() {
-            // Create popup element if not exists
-            if (!document.getElementById('amalan-popup')) {
-                const div = document.createElement('div');
-                div.id = 'amalan-popup';
-                div.className = 'fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm hidden opacity-0 transition-opacity duration-500';
-                div.innerHTML = `
-                    <div class="text-center transform scale-95 transition-transform duration-500">
-                        <h2 class="text-2xl font-bold text-white mb-2 animate-pulse">May Allah SWT always be with us</h2>
-                        <p class="text-lg text-[#FFD700]">Aamiin Allahuma Aamiin 🙏</p>
-                    </div>
-                `;
-                document.body.appendChild(div);
-            }
-            
-            const popup = document.getElementById('amalan-popup');
-            popup.classList.remove('hidden');
-            // Trigger reflow
-            void popup.offsetWidth;
-            popup.classList.remove('opacity-0');
-            popup.querySelector('div').classList.remove('scale-95');
-            popup.querySelector('div').classList.add('scale-100');
-            
-            setTimeout(() => {
-                popup.classList.add('opacity-0');
-                popup.querySelector('div').classList.add('scale-95');
-                setTimeout(() => {
-                    popup.classList.add('hidden');
-                    openModal('modal-amalan');
-                }, 500);
-            }, 2000);
-        }
-
         function switchNatureAudio() {
             currentNatureIndex = (currentNatureIndex + 1) % naturePlaylist.length;
             
@@ -5294,11 +5248,11 @@ def upload_portfolio():
     if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return "Unauthorized", 403
     if 'image' not in request.files:
-        return redirect(url_for('ramadhan_dashboard', open='modal-portofolio'))
+        return redirect(url_for('index'))
     
     file = request.files['image']
     if file.filename == '':
-        return redirect(url_for('ramadhan_dashboard', open='modal-portofolio'))
+        return redirect(url_for('index'))
         
     if file and allowed_file(file.filename):
         try:
@@ -5339,7 +5293,7 @@ def upload_portfolio():
         except Exception as e:
             db.session.rollback()
         
-    return redirect(url_for('ramadhan_dashboard', open='modal-portofolio'))
+    return redirect(url_for('index'))
 
 # --- SOCKET IO EVENTS FOR DASHBOARD GURU ---
 connected_clients_dict = {}
