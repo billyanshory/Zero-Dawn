@@ -1,5 +1,3 @@
-import redis
-
 import eventlet
 eventlet.monkey_patch()
 import threading
@@ -18,6 +16,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import Index
 from sqlalchemy.exc import IntegrityError
 from datetime import time as dt_time
@@ -42,6 +41,17 @@ from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 import hashlib
 
+def _compress_image_to_bytes(img, max_bytes=500*1024):
+    import io as _io
+    quality = 85
+    buffer = _io.BytesIO()
+    img.save(buffer, format="JPEG", quality=quality, optimize=True)
+    while buffer.tell() > max_bytes and quality > 10:
+        quality -= 5
+        buffer = _io.BytesIO()
+        img.save(buffer, format="JPEG", quality=quality, optimize=True)
+    return buffer.getvalue()
+
 def cached_render(template_name, template_string, **context):
     env = current_app.jinja_env
     if env.cache is not None:
@@ -57,9 +67,16 @@ def cached_render(template_name, template_string, **context):
 load_dotenv()
 
 # --- KONFIGURASI FLASK ---
-from flask_compress import Compress
+try:
+    from flask_compress import Compress
+    _compress_available = True
+except ImportError:
+    _compress_available = False
+
 app = Flask(__name__)
-Compress(app)
+
+if _compress_available:
+    Compress(app)
 
 import urllib.parse
 def is_safe_redirect(url):
@@ -163,14 +180,14 @@ class Siswa(db.Model):
     nama = db.Column(db.String(255), nullable=False)
     kelas = db.Column(db.String(255))
     diagnosis = db.Column(db.String(255))
-    profil_medis = db.relationship('ProfilMedisSiswa', backref='siswa', cascade='all, delete-orphan', uselist=False)
-    emotion_journals = db.relationship('EmotionJournal', backref='siswa', cascade='all, delete-orphan')
-    epilepsi_logs = db.relationship('EpilepsiLog', backref='siswa', cascade='all, delete-orphan')
-    buku_entries = db.relationship('OrangTuaBuku', backref='siswa', cascade='all, delete-orphan')
-    tantrum_entries = db.relationship('OrangTuaTantrum', backref='siswa', cascade='all, delete-orphan')
-    jadwal_entries = db.relationship('OrangTuaJadwal', backref='siswa', cascade='all, delete-orphan')
-    nutrisi_entries = db.relationship('OrangTuaNutrisi', backref='siswa', cascade='all, delete-orphan')
-    burnout_entries = db.relationship('OrangTuaBurnout', backref='siswa', cascade='all, delete-orphan')
+    profil_medis = db.relationship('ProfilMedisSiswa', backref='siswa', cascade='all, delete-orphan', uselist=False, lazy='select')
+    emotion_journals = db.relationship('EmotionJournal', backref='siswa', cascade='all, delete-orphan', lazy='select')
+    epilepsi_logs = db.relationship('EpilepsiLog', backref='siswa', cascade='all, delete-orphan', lazy='select')
+    buku_entries = db.relationship('OrangTuaBuku', backref='siswa', cascade='all, delete-orphan', lazy='select')
+    tantrum_entries = db.relationship('OrangTuaTantrum', backref='siswa', cascade='all, delete-orphan', lazy='select')
+    jadwal_entries = db.relationship('OrangTuaJadwal', backref='siswa', cascade='all, delete-orphan', lazy='select')
+    nutrisi_entries = db.relationship('OrangTuaNutrisi', backref='siswa', cascade='all, delete-orphan', lazy='select')
+    burnout_entries = db.relationship('OrangTuaBurnout', backref='siswa', cascade='all, delete-orphan', lazy='select')
 
 class ProfilMedisSiswa(db.Model):
     __tablename__ = 'profil_medis_siswa'
@@ -273,14 +290,26 @@ class GaleriKarya(db.Model):
     student_name = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
-@cache.memoize(timeout=1800)
+_settings_lock = threading.Lock()
+_settings_cache = {'data': {}, 'expires': 0}
+
 def get_settings():
+    now = time.time()
+    if now < _settings_cache['expires']:
+        return _settings_cache['data']
+    acquired = _settings_lock.acquire(blocking=False)
+    if not acquired:
+        return _settings_cache['data']
     try:
         settings = {item.key: item.value for item in AppSettings.query.all()}
+        _settings_cache['data'] = settings
+        _settings_cache['expires'] = now + 1800
+        return settings
     except Exception as e:
         app.logger.warning("Failed to fetch settings", exc_info=True)
-        settings = {}
-    return settings
+        return _settings_cache['data'] or {}
+    finally:
+        _settings_lock.release()
 
 @cache.cached(timeout=300, key_prefix='list_siswa')
 def get_list_siswa_cached():
@@ -291,10 +320,8 @@ def get_list_siswa_cached():
         return []
 
 def invalidate_settings_cache():
-    cache.delete_memoized(get_settings)
-    cache.delete('app_settings')
-    cache.delete('view//app_settings')
-    cache.delete('view/app_settings')
+    _settings_cache['data'] = {}
+    _settings_cache['expires'] = 0
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -326,7 +353,8 @@ def seed_slb_data():
 
 
 STYLES_HTML = """
-    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { theme: { extend: { colors: { emerald: { 50: '#ecfdf5', 100: '#d1fae5', 400: '#34d399', 500: '#10b981', 600: '#059669' }, amber: { 300: '#fcd34d', 400: '#fbbf24' } }, fontFamily: { sans: ['Poppins', 'sans-serif'] }, borderRadius: { '3xl': '1.5rem' } } } }</script>
     <style>
                 body { background-color: #F8FAFC; }
         .glass-nav {
@@ -4630,6 +4658,7 @@ def uploaded_file(filename):
         return "Invalid filename", 400
     response = send_from_directory(app.config['UPLOAD_FOLDER'], secure_name, max_age=31536000)
     response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
     response.headers['Content-Security-Policy'] = "default-src 'none'"
     return response
 
@@ -5049,21 +5078,17 @@ def get_tantrum_data():
             app.logger.warning("Failed to format date in report", exc_info=True)
             pass
 
-        duration_text = "N/A"
-        if log.duration_seconds:
-            mins = log.duration_seconds // 60
-            secs = log.duration_seconds % 60
-            if mins > 0:
-                duration_text = f"{mins}m {secs}s"
-            else:
-                duration_text = f"{secs}s"
-                
+        display_duration = 0
+        if log.duration_ms:
+            display_duration = max(1, round(log.duration_ms / 60000))
+
         history_data.append({
-            "date": log.created_at.strftime("%Y-%m-%d"),
+            "student": log.student,
             "time": display_time,
-            "duration": duration_text,
-            "trigger": log.trigger or "Unknown",
-            "intensity": log.intensity
+            "trigger": log.trigger,
+            "duration": display_duration,
+            "action": log.action,
+            "date": log.created_at.strftime("%Y-%m-%d")
         })
 
     labels = list(hours_count.keys())
@@ -5377,16 +5402,9 @@ def upload_portfolio():
                     img = img.convert("RGB")
                 img.thumbnail((800, 800))
                 
-                import io as _io
-                quality = 85
-                buffer = _io.BytesIO()
-                img.save(buffer, format="JPEG", quality=quality, optimize=True)
-                while buffer.tell() > 500 * 1024 and quality > 10:
-                    quality -= 5
-                    buffer = _io.BytesIO()
-                    img.save(buffer, format="JPEG", quality=quality, optimize=True)
+                compressed = eventlet.tpool.execute(_compress_image_to_bytes, img)
                 with open(filepath, 'wb') as f:
-                    f.write(buffer.getvalue())
+                    f.write(compressed)
                 
             student_id = request.form.get('student_id')
             try:
@@ -10619,7 +10637,7 @@ const ASSETS_TO_CACHE = [
     '/',
     '/static/logoslb.png',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-    '/static/tailwind.min.css'
+    'https://cdn.tailwindcss.com'
 ];
 
 self.addEventListener('install', (event) => {
@@ -11125,16 +11143,9 @@ def upload_karya():
                 if img.mode in ("RGBA", "P"): img = img.convert("RGB")
                 img.thumbnail((800, 800))
                 
-                import io as _io
-                quality = 85
-                buffer = _io.BytesIO()
-                img.save(buffer, format="JPEG", quality=quality, optimize=True)
-                while buffer.tell() > 500 * 1024 and quality > 10:
-                    quality -= 5
-                    buffer = _io.BytesIO()
-                    img.save(buffer, format="JPEG", quality=quality, optimize=True)
+                compressed = eventlet.tpool.execute(_compress_image_to_bytes, img)
                 with open(filepath, 'wb') as f:
-                    f.write(buffer.getvalue())
+                    f.write(compressed)
                 
             new_karya = GaleriKarya(image_filename=filename, title=title, student_name=student_name)
             db.session.add(new_karya)
