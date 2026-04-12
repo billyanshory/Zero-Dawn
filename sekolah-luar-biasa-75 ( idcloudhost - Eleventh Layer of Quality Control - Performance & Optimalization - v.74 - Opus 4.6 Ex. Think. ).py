@@ -137,13 +137,13 @@ log_dir = os.path.join(os.path.expanduser('~'), 'logs')
 os.makedirs(log_dir, exist_ok=True)
 log_path = os.path.join(log_dir, 'slb_error.log')
 handler = logging.handlers.RotatingFileHandler(log_path, maxBytes=10*1024*1024, backupCount=5)
-handler.setLevel(logging.ERROR)
+handler.setLevel(logging.WARNING)
 handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
 app.logger.addHandler(handler)
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    logging.error(f"Terjadi kesalahan: {str(e)}", exc_info=True)
+    app.logger.error("Unhandled exception", exc_info=True)
     return '''
     <html>
         <head><title>500 Internal Server Error</title></head>
@@ -317,6 +317,7 @@ def get_list_siswa_cached():
         rows = Siswa.query.with_entities(Siswa.id, Siswa.nama).limit(500).all()
         return [{'id': r.id, 'nama': r.nama} for r in rows]
     except Exception:
+        app.logger.error("Failed to fetch student list", exc_info=True)
         return []
 
 def invalidate_settings_cache():
@@ -341,8 +342,9 @@ def seed_slb_data():
             for word, url in data:
                 db.session.add(SignLanguageDictionary(word=word, image_url=url))
             db.session.commit()
-    except Exception as e:
-        app.logger.error(f"Error seeding SLB data: {e}", exc_info=True)
+    except Exception:
+        db.session.rollback()
+        app.logger.error("Error seeding SLB data", exc_info=True)
 
 
 
@@ -4391,31 +4393,35 @@ def brankas_unlock():
 @app.route('/login', methods=['POST'])
 @limiter.limit('5 per minute')
 def login():
-    username = request.form.get('username')
-    password = request.form.get('password')
-
-    akun = AkunPengguna.query.filter_by(username=username).first()
+    try:
+        username = request.form.get('username')
+        password = request.form.get('password')
     
-    if akun and check_password_hash(akun.password_hash, password):
-        if akun.status_akun == 'disetujui':
-            session.clear()
-            session['user_id'] = akun.id
-            session['peran'] = akun.peran
-            if akun.peran == 'orang_tua':
-                session['anak_id'] = akun.anak_id
-            if akun.peran == 'kepala_sekolah':
-                session['is_admin'] = True
-            session.permanent = True
-            next_url = request.referrer
-            if not next_url or not is_safe_redirect(next_url):
-                next_url = url_for('index')
-            return redirect(next_url)
-        elif akun.status_akun == 'menunggu_verifikasi':
-            return "Akun Anda masih menunggu verifikasi Kepala Sekolah. <a href='/'>Kembali ke Beranda</a>"
-        else:
-            return "Akun Anda ditolak. <a href='/'>Kembali ke Beranda</a>"
+        akun = AkunPengguna.query.filter_by(username=username).first()
 
-    return "Username atau Password salah. <a href='/'>Kembali ke Beranda</a>"
+        if akun and check_password_hash(akun.password_hash, password):
+            if akun.status_akun == 'disetujui':
+                session.clear()
+                session['user_id'] = akun.id
+                session['peran'] = akun.peran
+                if akun.peran == 'orang_tua':
+                    session['anak_id'] = akun.anak_id
+                if akun.peran == 'kepala_sekolah':
+                    session['is_admin'] = True
+                session.permanent = True
+                next_url = request.referrer
+                if not next_url or not is_safe_redirect(next_url):
+                    next_url = url_for('index')
+                return redirect(next_url)
+            elif akun.status_akun == 'menunggu_verifikasi':
+                return "Akun Anda masih menunggu verifikasi Kepala Sekolah. <a href='/'>Kembali ke Beranda</a>"
+            else:
+                return "Akun Anda ditolak. <a href='/'>Kembali ke Beranda</a>"
+
+        return "Username atau Password salah. <a href='/'>Kembali ke Beranda</a>"
+    except Exception:
+        app.logger.error('Login failed due to system error', exc_info=True)
+        return "Sistem login sedang mengalami kendala. Silakan coba beberapa saat lagi. <a href='/'>Kembali</a>", 503
 
 @app.route('/logout')
 def logout():
@@ -4587,10 +4593,11 @@ def validator_approve(akun_id):
         akun.status_akun = 'disetujui'
         try:
             db.session.commit()
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            app.logger.error('Database commit error', exc_info=True)
-            pass
+            app.logger.error('Approve account failed', exc_info=True)
+            flash('Gagal menyetujui akun. Silakan coba lagi.', 'error')
+            return redirect(url_for('kepala_sekolah_dashboard'))
     return redirect(url_for('kepala_sekolah_dashboard'))
 
 @app.route('/validator/reject/<int:akun_id>', methods=['POST'])
@@ -4602,10 +4609,11 @@ def validator_reject(akun_id):
         db.session.delete(akun)
         try:
             db.session.commit()
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            app.logger.error('Database commit error', exc_info=True)
-            pass
+            app.logger.error('Reject account failed', exc_info=True)
+            flash('Gagal menolak akun. Silakan coba lagi.', 'error')
+            return redirect(url_for('kepala_sekolah_dashboard'))
     return redirect(url_for('kepala_sekolah_dashboard'))
 
 @app.route('/therapy/log', methods=['POST'])
@@ -4627,14 +4635,15 @@ def therapy_log():
         return "anak_id is required", 400
         
     try:
-        req_date = request.form['date']
-        req_time = request.form['time']
+        req_date = request.form.get('date', '')
+        req_time = request.form.get('time', '')
+        if not req_date or not req_time:
+            return redirect(url_for('index', open='modal-terapi-log'))
         from datetime import datetime as dt_module
         try:
             occurred_at_val = dt_module.strptime(f"{req_date} {req_time}", "%Y-%m-%d %H:%M")
         except ValueError:
             occurred_at_val = dt_module.now()
-            
         log = EpilepsiLog(
             occurred_at=occurred_at_val,
             trigger=validate_str(request.form.get('trigger'), 500),
@@ -4642,13 +4651,10 @@ def therapy_log():
             anak_id=anak_id
         )
         db.session.add(log)
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error('Database commit error', exc_info=True)
-    except Exception as e:
-        app.logger.error(f"Error logging therapy: {e}", exc_info=True)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        app.logger.error('Therapy log save failed', exc_info=True)
     return redirect(url_for('index', open='modal-terapi-log'))
 
 @app.route('/uploads/<filename>')
@@ -5039,66 +5045,68 @@ def save_tantrum():
 def get_tantrum_data():
     if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
-    
-    thirty_days_ago = datetime.datetime.now() - datetime.timedelta(days=30)
-    
-    # SQL Aggregation for histogram
-    agg_query = db.session.query(
-        func.extract('hour', TantrumLog.created_at).label('hour'),
-        func.count().label('cnt')
-    ).filter(
-        TantrumLog.created_at >= thirty_days_ago
-    ).group_by(
-        func.extract('hour', TantrumLog.created_at)
-    ).all()
-    
-    hours_count = {str(i).zfill(2) + ":00": 0 for i in range(24)}
-    for row in agg_query:
-        hour_int = int(row.hour)
-        hour_key = str(hour_int).zfill(2) + ":00"
-        hours_count[hour_key] = row.cnt
+    try:
         
-    # Bounded query for history data
-    logs = TantrumLog.query.filter(
-        TantrumLog.created_at >= thirty_days_ago
-    ).order_by(
-        TantrumLog.created_at.desc()
-    ).limit(50).all()
-    
-    history_data = []
-    
-    for log in logs:
-        # Determine time and duration for history
-        display_time = log.created_at.strftime("%H:%M")
-        try:
-            if log.start_time:
-                dt = datetime.datetime.fromtimestamp(int(log.start_time) / 1000.0)
-                display_time = dt.strftime("%H:%M")
-        except Exception as e:
-            app.logger.warning("Failed to format date in report", exc_info=True)
-            pass
+        thirty_days_ago = datetime.datetime.now() - datetime.timedelta(days=30)
 
-        display_duration = 0
-        if log.duration_ms:
-            display_duration = max(1, round(log.duration_ms / 60000))
+        # SQL Aggregation for histogram
+        agg_query = db.session.query(
+            func.extract('hour', TantrumLog.created_at).label('hour'),
+            func.count().label('cnt')
+        ).filter(
+            TantrumLog.created_at >= thirty_days_ago
+        ).group_by(
+            func.extract('hour', TantrumLog.created_at)
+        ).all()
 
-        history_data.append({
-            "student": log.student,
-            "time": display_time,
-            "trigger": log.trigger,
-            "duration": display_duration,
-            "action": log.action,
-            "date": log.created_at.strftime("%Y-%m-%d")
-        })
+        hours_count = {str(i).zfill(2) + ":00": 0 for i in range(24)}
+        for row in agg_query:
+            hour_int = int(row.hour)
+            hour_key = str(hour_int).zfill(2) + ":00"
+            hours_count[hour_key] = row.cnt
 
-    labels = list(hours_count.keys())
-    values = list(hours_count.values())
-    return jsonify({"labels": labels, "values": values, "history": history_data})
+        # Bounded query for history data
+        logs = TantrumLog.query.filter(
+            TantrumLog.created_at >= thirty_days_ago
+        ).order_by(
+            TantrumLog.created_at.desc()
+        ).limit(50).all()
 
+        history_data = []
+
+        for log in logs:
+            # Determine time and duration for history
+            display_time = log.created_at.strftime("%H:%M")
+            try:
+                if log.start_time:
+                    dt = datetime.datetime.fromtimestamp(int(log.start_time) / 1000.0)
+                    display_time = dt.strftime("%H:%M")
+            except Exception as e:
+                app.logger.warning("Failed to format date in report", exc_info=True)
+                pass
+
+            display_duration = 0
+            if log.duration_ms:
+                display_duration = max(1, round(log.duration_ms / 60000))
+
+            history_data.append({
+                "student": log.student,
+                "time": display_time,
+                "trigger": log.trigger,
+                "duration": display_duration,
+                "action": log.action,
+                "date": log.created_at.strftime("%Y-%m-%d")
+            })
+
+        labels = list(hours_count.keys())
+        values = list(hours_count.values())
+        return jsonify({"labels": labels, "values": values, "history": history_data})
+    except Exception:
+        app.logger.error('Tantrum data fetch failed', exc_info=True)
+        return jsonify({'error': 'Gagal memuat data.'}), 500
 
 import urllib.request
 import os
-
 import requests
 def prefetch_emoji_icons():
     def _download():
@@ -5116,9 +5124,9 @@ def prefetch_emoji_icons():
                             with open(file_path, 'wb') as out_f:
                                 out_f.write(response.content)
                     except Exception as e:
-                        app.logger.error(f"Failed to prefetch emoji {icon_hex}: {e}")
+                        app.logger.error(f"Failed to prefetch emoji {icon_hex}", exc_info=True)
         except Exception as e:
-            app.logger.error(f"Background thread error in prefetch_emoji_icons: {e}")
+            app.logger.error("Background thread error in prefetch_emoji_icons", exc_info=True)
             
     threading.Thread(target=_download, daemon=True).start()
 
@@ -5127,157 +5135,165 @@ def prefetch_emoji_icons():
 def generate_iep():
     if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return "Unauthorized", 403
-    student_name = request.form.get('student_name')
-    student_class = request.form.get('student_class')
-    conditions = request.form.getlist('condition')
-    scores = {cond: request.form.get(f'score_{cond}', '0') for cond in conditions}
-    
-    # Fetch real-time date
-    date_text = datetime.datetime.now().strftime("%d %B %Y %H:%M:%S")
-    
-    def add_item_with_icon(title, body, rationale, icon_hex):
-        emoji_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'emoji_cache')
-        file_path = os.path.join(emoji_dir, f"{icon_hex}.png")
-        img = None
-        try:
-            if os.path.exists(file_path):
-                img = RLImage(file_path, width=36, height=36)
-        except Exception:
-            pass
+    buffer = None
+    try:
+        student_name = request.form.get('student_name')
+        student_class = request.form.get('student_class')
+        conditions = request.form.getlist('condition')
+        scores = {cond: request.form.get(f'score_{cond}', '0') for cond in conditions}
         
-        text_content = [
-            Paragraph(title, styles['ItemTitle']),
-            Paragraph(body, styles['ItemBody']),
-            Paragraph(rationale, styles['Rationale'])
-        ]
+        # Fetch real-time date
+        date_text = datetime.datetime.now().strftime("%d %B %Y %H:%M:%S")
         
-        if img:
-            t = Table([[img, text_content]], colWidths=[50, 418])
-            t.setStyle(TableStyle([
-                ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                ('LEFTPADDING', (0,0), (-1,-1), 0),
-                ('RIGHTPADDING', (0,0), (-1,-1), 0),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-            ]))
-            return t
-        else:
-            # Fallback to plain paragraphs if image fails to load
-            from reportlab.platypus import KeepTogether
-            return KeepTogether(text_content + [Spacer(1, 10)])
+        def add_item_with_icon(title, body, rationale, icon_hex):
+            emoji_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'emoji_cache')
+            file_path = os.path.join(emoji_dir, f"{icon_hex}.png")
+            img = None
+            try:
+                if os.path.exists(file_path):
+                    img = RLImage(file_path, width=36, height=36)
+            except Exception:
+                app.logger.warning("Failed to load emoji icon for IEP", exc_info=True)
 
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
-    
-    styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='CenterHeading', parent=styles['Heading1'], alignment=1, spaceAfter=20, fontSize=24, textColor=colors.HexColor('#1E3A8A')))
-    styles.add(ParagraphStyle(name='DateStyle', parent=styles['Normal'], alignment=1, spaceAfter=20, fontSize=10, textColor=colors.HexColor('#6B7280')))
-    styles.add(ParagraphStyle(name='SectionTitle', parent=styles['Heading2'], spaceBefore=15, spaceAfter=10, textColor=colors.HexColor('#1D4ED8')))
-    styles.add(ParagraphStyle(name='NormalText', parent=styles['Normal'], spaceAfter=10, leading=14))
-    styles.add(ParagraphStyle(name='ItemTitle', parent=styles['Normal'], fontName='Helvetica-Bold', spaceBefore=5, spaceAfter=2))
-    styles.add(ParagraphStyle(name='ItemBody', parent=styles['Normal'], spaceAfter=10, leading=14))
-    styles.add(ParagraphStyle(name='Rationale', parent=styles['Normal'], fontName='Helvetica-Oblique', textColor=colors.HexColor('#4B5563'), leading=14, spaceAfter=12))
+            text_content = [
+                Paragraph(title, styles['ItemTitle']),
+                Paragraph(body, styles['ItemBody']),
+                Paragraph(rationale, styles['Rationale'])
+            ]
 
-    Story = []
-    
-    # Letterhead
-    Story.append(Paragraph("SEKOLAH LUAR BIASA", styles['CenterHeading']))
-    Story.append(Paragraph("RENCANA PENDIDIKAN INDIVIDUAL (IEP)", styles['CenterHeading']))
-    Story.append(Paragraph(f"Dicetak pada: {date_text}", styles['DateStyle']))
-    Story.append(Spacer(1, 12))
-    
-    # Student Info
-    Story.append(Paragraph(f"<b>Nama Siswa:</b> {student_name}", styles['NormalText']))
-    Story.append(Paragraph(f"<b>Kelas / Usia:</b> {student_class}", styles['NormalText']))
-    Story.append(Spacer(1, 12))
+            if img:
+                t = Table([[img, text_content]], colWidths=[50, 418])
+                t.setStyle(TableStyle([
+                    ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                    ('LEFTPADDING', (0,0), (-1,-1), 0),
+                    ('RIGHTPADDING', (0,0), (-1,-1), 0),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+                ]))
+                return t
+            else:
+                # Fallback to plain paragraphs if image fails to load
+                from reportlab.platypus import KeepTogether
+                return KeepTogether(text_content + [Spacer(1, 10)])
 
-    
-    # Conditions mapping with icon hex codes (Twemoji)
-    cond_data = {
-        "Visual": {"rat": "Hambatan visual pada anak bukan sekadar perkara mata yang tidak bisa melihat jelas, melainkan terganggunya jalur optik menuju korteks otak. Anak seringkali merasa terisolasi dalam ruang hampa cahaya. Pendekatan ini merangsang neuroplastisitas untuk membentuk kembali peta visual mereka secara perlahan.", "icon": "1f441"}, # Eye
-        "Auditori": {"rat": "Anak dengan hambatan auditori hidup dalam dunia yang sunyi atau penuh dengan dengung statis yang membingungkan. Ini bukan hanya masalah telinga, tapi bagaimana otak menerjemahkan gelombang suara. Terapi ini bertujuan memecah keheningan dengan membangun koneksi atensi pendengaran selangkah demi selangkah.", "icon": "1f442"}, # Ear
-        "Motorik Kasar": {"rat": "Ketidakmampuan motorik kasar seringkali mengurung potensi besar anak di dalam tubuh yang tidak merespons perintah otaknya sendiri. Rasionalisasinya adalah melatih kembali otot-otot besar dan sistem vestibular, memberikan mereka kembali kemerdekaan bergerak di dunia fisik.", "icon": "1f3c3"}, # Running
-        "Motorik Halus": {"rat": "Setiap ujung jari anak memiliki ribuan reseptor taktil yang menghubungkan mereka dengan tekstur dunia. Keterbatasan motorik halus memutus jembatan interaksi detail ini. Rencana ini didesain untuk merangsang kembali jaras saraf halus tersebut dengan penuh kelembutan.", "icon": "1f590"}, # Hand
-        "Atensi": {"rat": "Defisit atensi membuat otak anak ibarat radio yang menangkap semua frekuensi secara bersamaan, menjadikannya kelelahan karena overstimulasi. Pendekatan ini adalah tentang menyaring kebisingan dunia, memberikan mereka sauh atau jangkar fokus agar bisa merespons satu hal dengan tenang.", "icon": "1f3af"}, # Target
-        "Komunikasi": {"rat": "Ketidakmampuan mengekspresikan diri secara verbal seringkali berujung pada ledakan frustrasi. Area Broca pada otak mereka membutuhkan rute alternatif untuk menyampaikan apa yang ada di pikiran dan hati mereka, menjembatani komunikasi tanpa harus bergantung pada kata-kata.", "icon": "1f5e3"} # Speaking
-    }
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
 
-    if conditions:
-        Story.append(Paragraph("Kondisi / Hambatan yang Diidentifikasi", styles['SectionTitle']))
-        for cond in conditions:
-            score = scores.get(cond, '0')
-            title = f"{cond} - Skor Keparahan: {score}/10"
-            data = cond_data.get(cond, {"rat": "Kondisi ini memerlukan observasi medis lebih lanjut untuk stimulasi spesifik.", "icon": "2753"})
-            Story.append(add_item_with_icon(title, "", data["rat"], data["icon"]))
+        styles = getSampleStyleSheet()
+        styles.add(ParagraphStyle(name='CenterHeading', parent=styles['Heading1'], alignment=1, spaceAfter=20, fontSize=24, textColor=colors.HexColor('#1E3A8A')))
+        styles.add(ParagraphStyle(name='DateStyle', parent=styles['Normal'], alignment=1, spaceAfter=20, fontSize=10, textColor=colors.HexColor('#6B7280')))
+        styles.add(ParagraphStyle(name='SectionTitle', parent=styles['Heading2'], spaceBefore=15, spaceAfter=10, textColor=colors.HexColor('#1D4ED8')))
+        styles.add(ParagraphStyle(name='NormalText', parent=styles['Normal'], spaceAfter=10, leading=14))
+        styles.add(ParagraphStyle(name='ItemTitle', parent=styles['Normal'], fontName='Helvetica-Bold', spaceBefore=5, spaceAfter=2))
+        styles.add(ParagraphStyle(name='ItemBody', parent=styles['Normal'], spaceAfter=10, leading=14))
+        styles.add(ParagraphStyle(name='Rationale', parent=styles['Normal'], fontName='Helvetica-Oblique', textColor=colors.HexColor('#4B5563'), leading=14, spaceAfter=12))
+
+        Story = []
+
+        # Letterhead
+        Story.append(Paragraph("SEKOLAH LUAR BIASA", styles['CenterHeading']))
+        Story.append(Paragraph("RENCANA PENDIDIKAN INDIVIDUAL (IEP)", styles['CenterHeading']))
+        Story.append(Paragraph(f"Dicetak pada: {date_text}", styles['DateStyle']))
         Story.append(Spacer(1, 12))
 
-    # Short-Term
-    Story.append(Paragraph("Rekomendasi Pendekatan (Target Jangka Pendek)", styles['SectionTitle']))
-    Story.append(add_item_with_icon(
-        "1. Latihan Fokus Menggunakan Cahaya (Visual)",
-        "<b>Instruksi:</b> Ajak anak menatap senter kecil di ruangan redup selama lima detik.",
-        "<b>Dasar Medis:</b> Stimulasi retina cahaya terbukti meningkatkan neuroplastisitas jalur optik kortikal berdasarkan studi optometri perkembangan anak.",
-        "1f526" # Flashlight
-    ))
-    Story.append(add_item_with_icon(
-        "2. Permainan Tekstur Pasir (Motorik Halus)",
-        "<b>Instruksi:</b> Biarkan anak meremas pasir kinetik untuk merangsang reseptor taktil di ujung jari.",
-        "<b>Dasar Medis:</b> Metode Terapi Integrasi Sensorik Ayres yang valid secara internasional.",
-        "1f3d6" # Sand/Beach
-    ))
-    Story.append(add_item_with_icon(
-        "3. Pengenalan Suara Berulang (Auditori)",
-        "<b>Instruksi:</b> Sebutkan nama anak berulang kali sambil menepuk pundaknya.",
-        "<b>Dasar Medis:</b> Metodologi Applied Behavior Analysis untuk membangun koneksi atensi pendengaran.",
-        "1f50a" # Sound/Speaker
-    ))
-    Story.append(Spacer(1, 12))
+        # Student Info
+        Story.append(Paragraph(f"<b>Nama Siswa:</b> {student_name}", styles['NormalText']))
+        Story.append(Paragraph(f"<b>Kelas / Usia:</b> {student_class}", styles['NormalText']))
+        Story.append(Spacer(1, 12))
 
-    # Long-Term
-    Story.append(Paragraph("Rekomendasi Pendekatan (Target Jangka Panjang)", styles['SectionTitle']))
-    Story.append(add_item_with_icon(
-        "1. Kemandirian Mengikat Tali Sepatu",
-        "<b>Instruksi:</b> Ajarkan gerakan simpul pita setiap pagi secara konsisten.",
-        "<b>Dasar Medis:</b> Metode Chaining dalam psikologi perilaku kognitif yang memecah tugas motorik kompleks menjadi langkah langkah kecil yang mudah dihafal otak.",
-        "1f45f" # Shoe
-    ))
-    Story.append(add_item_with_icon(
-        "2. Membangun Kosakata Emosi",
-        "<b>Instruksi:</b> Gunakan kartu bergambar wajah senang dan sedih saat anak merespons sesuatu.",
-        "<b>Dasar Medis:</b> Metodologi Picture Exchange Communication System atau PECS yang terbukti memicu area Broca pada otak untuk komunikasi non verbal.",
-        "1f60a" # Smiling Face
-    ))
-    Story.append(add_item_with_icon(
-        "3. Regulasi Diri Saat Tantrum",
-        "<b>Instruksi:</b> Ajarkan teknik napas tiga fase saat anak mulai gelisah.",
-        "<b>Dasar Medis:</b> Penelitian Biofeedback yang membuktikan penurunan lonjakan kortisol saat ritme napas diatur secara sadar.",
-        "1f388" # Balloon (representing breathing)
-    ))
-    Story.append(Spacer(1, 12))
 
-    # Special Facility
-    Story.append(Paragraph("Kebutuhan Modifikasi Fasilitas Khusus", styles['SectionTitle']))
-    Story.append(add_item_with_icon(
-        "1. Penggunaan Ear Muff atau Penutup Telinga",
-        "<b>Instruksi:</b> Pakaikan saat berada di lingkungan bising seperti pasar.",
-        "<b>Dasar Medis:</b> Metodologi Modulasi Sensorik untuk mencegah kelebihan muatan pada saraf auditori anak autisme.",
-        "1f3a7" # Headphones/Ear muff
-    ))
-    Story.append(add_item_with_icon(
-        "2. Kursi dengan Bantal Pemberat atau Weighted Lap Pad",
-        "<b>Instruksi:</b> Letakkan di pangkuan anak saat mereka harus duduk belajar.",
-        "<b>Dasar Medis:</b> Terapi Tekanan Dalam atau Deep Touch Pressure yang terbukti secara klinis melepaskan hormon serotonin penenang saraf.",
-        "1f6cf" # Bed/Pillow
-    ))
-    Story.append(add_item_with_icon(
-        "3. Pembuatan Sudut Tenang atau Calming Corner",
-        "<b>Instruksi:</b> Sediakan tenda kecil dengan lampu biru redup di kamar.",
-        "<b>Dasar Medis:</b> Prinsip Arsitektur Perilaku yang memberikan ruang aman bagi anak untuk melakukan regulasi sensorik mandiri.",
-        "26fa" # Tent
-    ))
-    
-    doc.build(Story)
-    buffer.seek(0)
-    return Response(buffer, mimetype='application/pdf', headers={'Content-Disposition': f'attachment;filename=IEP_{student_name}.pdf'})
+        # Conditions mapping with icon hex codes (Twemoji)
+        cond_data = {
+            "Visual": {"rat": "Hambatan visual pada anak bukan sekadar perkara mata yang tidak bisa melihat jelas, melainkan terganggunya jalur optik menuju korteks otak. Anak seringkali merasa terisolasi dalam ruang hampa cahaya. Pendekatan ini merangsang neuroplastisitas untuk membentuk kembali peta visual mereka secara perlahan.", "icon": "1f441"}, # Eye
+            "Auditori": {"rat": "Anak dengan hambatan auditori hidup dalam dunia yang sunyi atau penuh dengan dengung statis yang membingungkan. Ini bukan hanya masalah telinga, tapi bagaimana otak menerjemahkan gelombang suara. Terapi ini bertujuan memecah keheningan dengan membangun koneksi atensi pendengaran selangkah demi selangkah.", "icon": "1f442"}, # Ear
+            "Motorik Kasar": {"rat": "Ketidakmampuan motorik kasar seringkali mengurung potensi besar anak di dalam tubuh yang tidak merespons perintah otaknya sendiri. Rasionalisasinya adalah melatih kembali otot-otot besar dan sistem vestibular, memberikan mereka kembali kemerdekaan bergerak di dunia fisik.", "icon": "1f3c3"}, # Running
+            "Motorik Halus": {"rat": "Setiap ujung jari anak memiliki ribuan reseptor taktil yang menghubungkan mereka dengan tekstur dunia. Keterbatasan motorik halus memutus jembatan interaksi detail ini. Rencana ini didesain untuk merangsang kembali jaras saraf halus tersebut dengan penuh kelembutan.", "icon": "1f590"}, # Hand
+            "Atensi": {"rat": "Defisit atensi membuat otak anak ibarat radio yang menangkap semua frekuensi secara bersamaan, menjadikannya kelelahan karena overstimulasi. Pendekatan ini adalah tentang menyaring kebisingan dunia, memberikan mereka sauh atau jangkar fokus agar bisa merespons satu hal dengan tenang.", "icon": "1f3af"}, # Target
+            "Komunikasi": {"rat": "Ketidakmampuan mengekspresikan diri secara verbal seringkali berujung pada ledakan frustrasi. Area Broca pada otak mereka membutuhkan rute alternatif untuk menyampaikan apa yang ada di pikiran dan hati mereka, menjembatani komunikasi tanpa harus bergantung pada kata-kata.", "icon": "1f5e3"} # Speaking
+        }
+
+        if conditions:
+            Story.append(Paragraph("Kondisi / Hambatan yang Diidentifikasi", styles['SectionTitle']))
+            for cond in conditions:
+                score = scores.get(cond, '0')
+                title = f"{cond} - Skor Keparahan: {score}/10"
+                data = cond_data.get(cond, {"rat": "Kondisi ini memerlukan observasi medis lebih lanjut untuk stimulasi spesifik.", "icon": "2753"})
+                Story.append(add_item_with_icon(title, "", data["rat"], data["icon"]))
+            Story.append(Spacer(1, 12))
+
+        # Short-Term
+        Story.append(Paragraph("Rekomendasi Pendekatan (Target Jangka Pendek)", styles['SectionTitle']))
+        Story.append(add_item_with_icon(
+            "1. Latihan Fokus Menggunakan Cahaya (Visual)",
+            "<b>Instruksi:</b> Ajak anak menatap senter kecil di ruangan redup selama lima detik.",
+            "<b>Dasar Medis:</b> Stimulasi retina cahaya terbukti meningkatkan neuroplastisitas jalur optik kortikal berdasarkan studi optometri perkembangan anak.",
+            "1f526" # Flashlight
+        ))
+        Story.append(add_item_with_icon(
+            "2. Permainan Tekstur Pasir (Motorik Halus)",
+            "<b>Instruksi:</b> Biarkan anak meremas pasir kinetik untuk merangsang reseptor taktil di ujung jari.",
+            "<b>Dasar Medis:</b> Metode Terapi Integrasi Sensorik Ayres yang valid secara internasional.",
+            "1f3d6" # Sand/Beach
+        ))
+        Story.append(add_item_with_icon(
+            "3. Pengenalan Suara Berulang (Auditori)",
+            "<b>Instruksi:</b> Sebutkan nama anak berulang kali sambil menepuk pundaknya.",
+            "<b>Dasar Medis:</b> Metodologi Applied Behavior Analysis untuk membangun koneksi atensi pendengaran.",
+            "1f50a" # Sound/Speaker
+        ))
+        Story.append(Spacer(1, 12))
+
+        # Long-Term
+        Story.append(Paragraph("Rekomendasi Pendekatan (Target Jangka Panjang)", styles['SectionTitle']))
+        Story.append(add_item_with_icon(
+            "1. Kemandirian Mengikat Tali Sepatu",
+            "<b>Instruksi:</b> Ajarkan gerakan simpul pita setiap pagi secara konsisten.",
+            "<b>Dasar Medis:</b> Metode Chaining dalam psikologi perilaku kognitif yang memecah tugas motorik kompleks menjadi langkah langkah kecil yang mudah dihafal otak.",
+            "1f45f" # Shoe
+        ))
+        Story.append(add_item_with_icon(
+            "2. Membangun Kosakata Emosi",
+            "<b>Instruksi:</b> Gunakan kartu bergambar wajah senang dan sedih saat anak merespons sesuatu.",
+            "<b>Dasar Medis:</b> Metodologi Picture Exchange Communication System atau PECS yang terbukti memicu area Broca pada otak untuk komunikasi non verbal.",
+            "1f60a" # Smiling Face
+        ))
+        Story.append(add_item_with_icon(
+            "3. Regulasi Diri Saat Tantrum",
+            "<b>Instruksi:</b> Ajarkan teknik napas tiga fase saat anak mulai gelisah.",
+            "<b>Dasar Medis:</b> Penelitian Biofeedback yang membuktikan penurunan lonjakan kortisol saat ritme napas diatur secara sadar.",
+            "1f388" # Balloon (representing breathing)
+        ))
+        Story.append(Spacer(1, 12))
+
+        # Special Facility
+        Story.append(Paragraph("Kebutuhan Modifikasi Fasilitas Khusus", styles['SectionTitle']))
+        Story.append(add_item_with_icon(
+            "1. Penggunaan Ear Muff atau Penutup Telinga",
+            "<b>Instruksi:</b> Pakaikan saat berada di lingkungan bising seperti pasar.",
+            "<b>Dasar Medis:</b> Metodologi Modulasi Sensorik untuk mencegah kelebihan muatan pada saraf auditori anak autisme.",
+            "1f3a7" # Headphones/Ear muff
+        ))
+        Story.append(add_item_with_icon(
+            "2. Kursi dengan Bantal Pemberat atau Weighted Lap Pad",
+            "<b>Instruksi:</b> Letakkan di pangkuan anak saat mereka harus duduk belajar.",
+            "<b>Dasar Medis:</b> Terapi Tekanan Dalam atau Deep Touch Pressure yang terbukti secara klinis melepaskan hormon serotonin penenang saraf.",
+            "1f6cf" # Bed/Pillow
+        ))
+        Story.append(add_item_with_icon(
+            "3. Pembuatan Sudut Tenang atau Calming Corner",
+            "<b>Instruksi:</b> Sediakan tenda kecil dengan lampu biru redup di kamar.",
+            "<b>Dasar Medis:</b> Prinsip Arsitektur Perilaku yang memberikan ruang aman bagi anak untuk melakukan regulasi sensorik mandiri.",
+            "26fa" # Tent
+        ))
+
+        doc.build(Story)
+        buffer.seek(0)
+        return Response(buffer, mimetype='application/pdf', headers={'Content-Disposition': f'attachment;filename=IEP_{student_name}.pdf'})
+    except Exception:
+        app.logger.error('IEP PDF generation failed', exc_info=True)
+        return "Gagal membuat laporan IEP. Silakan coba lagi.", 500
+    finally:
+        if buffer:
+            buffer.close()
 
 @app.route('/guru/reaction', methods=['POST'])
 def save_reaction():
@@ -5435,43 +5451,45 @@ connected_clients_dict = {}
 
 @socketio.on('connect')
 def handle_connect():
-    global connected_clients_dict
-    user_agent = request.headers.get('User-Agent', '')
-    
-    device_name = "Perangkat Tidak Dikenal"
-    if "Android" in user_agent:
-        device_name = "Android"
-    elif "iPhone" in user_agent or "iPad" in user_agent:
-        device_name = "iOS"
-    elif "Windows" in user_agent:
-        device_name = "Windows PC"
-    elif "Mac" in user_agent:
-        device_name = "Mac OS"
-    
-    if "Chrome" in user_agent and "Edg" not in user_agent:
-        device_name += " (Chrome)"
-    elif "Safari" in user_agent and "Chrome" not in user_agent:
-        device_name += " (Safari)"
-    elif "Firefox" in user_agent:
-        device_name += " (Firefox)"
-
-    # Handle duplicates by appending SID slice
-    device_id = f"{device_name} [{request.sid[:4]}]"
-    
-    connected_clients_dict[request.sid] = device_id
-    emit('client_count', {'count': len(connected_clients_dict), 'clients': list(connected_clients_dict.values())}, broadcast=True)
+    try:
+        global connected_clients_dict
+        user_agent = request.headers.get('User-Agent', '')
+        device_name = "Perangkat Tidak Dikenal"
+        if "Android" in user_agent:
+            device_name = "Android"
+        elif "iPhone" in user_agent or "iPad" in user_agent:
+            device_name = "iOS"
+        elif "Windows" in user_agent:
+            device_name = "Windows PC"
+        elif "Mac" in user_agent:
+            device_name = "Mac OS"
+        if "Chrome" in user_agent and "Edg" not in user_agent:
+            device_name += " (Chrome)"
+        elif "Safari" in user_agent and "Chrome" not in user_agent:
+            device_name += " (Safari)"
+        elif "Firefox" in user_agent:
+            device_name += " (Firefox)"
+        device_id = f"{device_name} [{request.sid[:4]}]"
+        connected_clients_dict[request.sid] = device_id
+        emit('client_count', {'count': len(connected_clients_dict), 'clients': list(connected_clients_dict.values())}, broadcast=True)
+    except Exception:
+        app.logger.error('SocketIO connect handler failed', exc_info=True)
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    global connected_clients_dict
-    if request.sid in connected_clients_dict:
-        del connected_clients_dict[request.sid]
-    emit('client_count', {'count': len(connected_clients_dict), 'clients': list(connected_clients_dict.values())}, broadcast=True)
+    try:
+        global connected_clients_dict
+        connected_clients_dict.pop(request.sid, None)
+        emit('client_count', {'count': len(connected_clients_dict), 'clients': list(connected_clients_dict.values())}, broadcast=True)
+    except Exception:
+        app.logger.error('SocketIO disconnect handler failed', exc_info=True)
 
 @socketio.on('set_frequency')
 def handle_set_frequency(data):
-    # data: {'mode': 'calm' / 'off'}
-    emit('receive_frequency', data, broadcast=True)
+    try:
+        emit('receive_frequency', data, broadcast=True)
+    except Exception:
+        app.logger.error('SocketIO set_frequency handler failed', exc_info=True)
 
 
 
@@ -10116,8 +10134,9 @@ def save_ot_buku():
         ))
         db.session.commit()
         return jsonify({"status": "success"})
-    except Exception as e:
+    except Exception:
         db.session.rollback()
+        app.logger.error('save_ot_buku failed', exc_info=True)
         return jsonify({'error': 'Terjadi kesalahan saat memproses data. Silakan coba lagi.'}), 500
 
 @app.route('/api/jurnal-harian')
@@ -10159,37 +10178,42 @@ def api_jurnal_harian():
 def get_ot_chart_data():
     if not session.get('user_id'):
         return jsonify({'error': 'Unauthorized'}), 403
-    q_buku = OrangTuaBuku.query
-    q_reaction = ReactionTimeLog.query
-    
-    peran = session.get('peran')
-    if peran == 'orang_tua':
-        q_buku = q_buku.filter_by(anak_id=session.get('anak_id'))
-        q_reaction = q_reaction.filter_by(anak_id=session.get('anak_id'))
-    elif peran in ['guru', 'kepala_sekolah'] and request.args.get('anak_id'):
-        q_buku = q_buku.filter_by(anak_id=request.args.get('anak_id'))
-        q_reaction = q_reaction.filter_by(anak_id=request.args.get('anak_id'))
+    try:
+        q_buku = OrangTuaBuku.query
+        q_reaction = ReactionTimeLog.query
         
-    buku_logs = q_buku.order_by(OrangTuaBuku.created_at.desc()).limit(7).all()
-    reaction_logs = q_reaction.order_by(ReactionTimeLog.created_at.desc()).limit(7).all()
-    
-    # Reverse to show chronological left to right
-    buku_logs.reverse()
-    reaction_logs.reverse()
-    
-    labels = [f"Hari {i+1}" for i in range(max(len(buku_logs), len(reaction_logs)))]
-    sleep_data = [l.sleep_duration for l in buku_logs]
-    
-    # Pad reaction data if unequal
-    focus_data = [l.time_ms for l in reaction_logs]
-    while len(focus_data) < len(labels):
-        focus_data.append(None)
+        peran = session.get('peran')
+        if peran == 'orang_tua':
+            q_buku = q_buku.filter_by(anak_id=session.get('anak_id'))
+            q_reaction = q_reaction.filter_by(anak_id=session.get('anak_id'))
+        elif peran in ['guru', 'kepala_sekolah'] and request.args.get('anak_id'):
+            q_buku = q_buku.filter_by(anak_id=request.args.get('anak_id'))
+            q_reaction = q_reaction.filter_by(anak_id=request.args.get('anak_id'))
+
+        buku_logs = q_buku.order_by(OrangTuaBuku.created_at.desc()).limit(7).all()
+        reaction_logs = q_reaction.order_by(ReactionTimeLog.created_at.desc()).limit(7).all()
         
-    return jsonify({
-        "labels": labels,
-        "sleep_data": sleep_data,
-        "focus_data": focus_data
-    })
+        # Reverse to show chronological left to right
+        buku_logs.reverse()
+        reaction_logs.reverse()
+
+        labels = [f"Hari {i+1}" for i in range(max(len(buku_logs), len(reaction_logs)))]
+        sleep_data = [l.sleep_duration for l in buku_logs]
+
+        # Pad reaction data if unequal
+        focus_data = [l.time_ms for l in reaction_logs]
+        while len(focus_data) < len(labels):
+            focus_data.append(None)
+
+        return jsonify({
+            "labels": labels,
+            "sleep_data": sleep_data,
+            "focus_data": focus_data
+        })
+
+    except Exception:
+        app.logger.error('Chart data fetch failed', exc_info=True)
+        return jsonify({'error': 'Gagal memuat data.'}), 500
 
 @app.route('/orang-tua/api/tantrum-profile')
 def get_tantrum_profile():
@@ -10272,8 +10296,9 @@ def delete_ot_jadwal(jadwal_id):
         db.session.delete(jadwal)
         db.session.commit()
         return jsonify({"status": "success"})
-    except Exception as e:
+    except Exception:
         db.session.rollback()
+        app.logger.error('delete_ot_jadwal failed', exc_info=True)
         return jsonify({'error': 'Terjadi kesalahan saat menghapus data.'}), 500
 
 @app.route('/api/kamus_nutrisi')
@@ -10322,8 +10347,9 @@ def handle_ot_nutrisi():
             ))
             db.session.commit()
             return jsonify({"status": "success"})
-        except Exception as e:
+        except Exception:
             db.session.rollback()
+            app.logger.error('save_nutrisi failed', exc_info=True)
             return jsonify({'error': 'Terjadi kesalahan saat memproses data. Silakan coba lagi.'}), 500
     
     q = OrangTuaNutrisi.query
@@ -10363,8 +10389,9 @@ def subscribe():
             db.session.commit()
         
         return jsonify({'status': 'success'})
-    except Exception as e:
+    except Exception:
         db.session.rollback()
+        app.logger.error('subscribe failed', exc_info=True)
         return jsonify({'error': 'Terjadi kesalahan saat memproses data. Silakan coba lagi.'}), 500
 
 @app.route('/orang-tua/api/vapid_public_key')
@@ -10373,7 +10400,7 @@ def vapid_public_key():
 
 def send_web_push(subscription_info, message_body):
     if not VAPID_PRIVATE_KEY:
-        logging.warning("VAPID_PRIVATE_KEY not configured, push notification skipped")
+        app.logger.warning("VAPID_PRIVATE_KEY not configured, push skipped")
         return
     try:
         webpush(
@@ -10382,8 +10409,8 @@ def send_web_push(subscription_info, message_body):
             vapid_private_key=VAPID_PRIVATE_KEY,
             vapid_claims=VAPID_CLAIMS
         )
-    except WebPushException as ex:
-        logging.error(f"Web Push failed: {repr(ex)}")
+    except WebPushException:
+        app.logger.error("Web Push delivery failed", exc_info=True)
 
 def send_all_pushes(schedules_data, subscriptions_data):
     with app.app_context():
@@ -10395,8 +10422,8 @@ def send_all_pushes(schedules_data, subscriptions_data):
             for sub_info in subscriptions_data:
                 try:
                     send_web_push(sub_info, f"Waktunya Obat/Terapi: {sched['medication_name']} pada jam {sched['time']}")
-                except Exception as e:
-                    traceback.print_exc()
+                except Exception:
+                    app.logger.error('Push notification delivery failed', exc_info=True)
 
 def check_medications():
     with app.app_context():
@@ -10430,7 +10457,7 @@ def check_medications():
             try:
                 subscriptions_data.append(json.loads(sub.subscription_info))
             except Exception as e:
-                app.logger.warning("Failed to parse subscription_info", exc_info=True)
+                app.logger.error("Failed to parse subscription_info", exc_info=True)
                 pass
                 
         try:
@@ -10477,24 +10504,30 @@ def save_burnout():
         ))
         db.session.commit()
         return jsonify({"status": "success"})
-    except Exception as e:
+    except Exception:
         db.session.rollback()
+        app.logger.error('save_burnout failed', exc_info=True)
         return jsonify({'error': 'Terjadi kesalahan saat memproses data. Silakan coba lagi.'}), 500
 
 @app.route('/orang-tua/api/burnout-check')
 def check_burnout():
     if not session.get('user_id'):
         return jsonify({'error': 'Unauthorized'}), 403
-    q = OrangTuaBurnout.query
-    if session.get('peran') == 'orang_tua':
-        q = q.filter_by(anak_id=session.get('anak_id'))
-    # Check last 3 entries
-    logs = q.order_by(OrangTuaBurnout.created_at.desc()).limit(3).all()
-    is_burnout = False
-    if len(logs) == 3:
-        if all(l.stress_level > 8 for l in logs):
-            is_burnout = True
-    return jsonify({"is_burnout": is_burnout})
+    try:
+        q = OrangTuaBurnout.query
+        if session.get('peran') == 'orang_tua':
+            q = q.filter_by(anak_id=session.get('anak_id'))
+        # Check last 3 entries
+        logs = q.order_by(OrangTuaBurnout.created_at.desc()).limit(3).all()
+        is_burnout = False
+        if len(logs) == 3:
+            if all(l.stress_level > 8 for l in logs):
+                is_burnout = True
+        return jsonify({"is_burnout": is_burnout})
+
+    except Exception:
+        app.logger.error('Burnout check failed', exc_info=True)
+        return jsonify({'error': 'Gagal memuat data.'}), 500
 
 @app.route('/orang-tua/modul/download')
 def download_modul():
@@ -10531,8 +10564,9 @@ def slb_tunalaras():
             db.session.add(EmotionJournal(emotion=emotion, anak_id=anak_id))
             db.session.commit()
             return redirect(url_for('slb_tunalaras'))
-        except Exception as e:
+        except Exception:
             db.session.rollback()
+            app.logger.error('save_emotion failed', exc_info=True)
             return "Terjadi kesalahan saat memproses data. Silakan coba lagi.", 500
     
     q = EmotionJournal.query
@@ -10548,52 +10582,57 @@ def slb_tunalaras():
 def api_tunalaras_guru_monitor():
     if session.get('peran') not in ['guru', 'kepala_sekolah']:
         return jsonify({'error': 'Unauthorized'}), 403
-    q = request.args.get('q', '').strip()
+    try:
+        q = request.args.get('q', '').strip()
 
-    subq = db.session.query(
-        EmotionJournal.id,
-        EmotionJournal.anak_id,
-        EmotionJournal.emotion,
-        EmotionJournal.date,
-        func.row_number().over(
-            partition_by=EmotionJournal.anak_id,
-            order_by=EmotionJournal.date.desc()
-        ).label('rn')
-    ).filter(EmotionJournal.anak_id != None).subquery()
+        subq = db.session.query(
+            EmotionJournal.id,
+            EmotionJournal.anak_id,
+            EmotionJournal.emotion,
+            EmotionJournal.date,
+            func.row_number().over(
+                partition_by=EmotionJournal.anak_id,
+                order_by=EmotionJournal.date.desc()
+            ).label('rn')
+        ).filter(EmotionJournal.anak_id != None).subquery()
 
-    query = db.session.query(
-        subq.c.anak_id,
-        subq.c.emotion,
-        subq.c.date,
-        Siswa.nama,
-        AkunPengguna.nama_lengkap
-    ).join(Siswa, Siswa.id == subq.c.anak_id
-    ).outerjoin(AkunPengguna, db.and_(
-        AkunPengguna.anak_id == subq.c.anak_id,
-        AkunPengguna.peran == 'orang_tua'
-    )).filter(subq.c.rn <= 3)
+        query = db.session.query(
+            subq.c.anak_id,
+            subq.c.emotion,
+            subq.c.date,
+            Siswa.nama,
+            AkunPengguna.nama_lengkap
+        ).join(Siswa, Siswa.id == subq.c.anak_id
+        ).outerjoin(AkunPengguna, db.and_(
+            AkunPengguna.anak_id == subq.c.anak_id,
+            AkunPengguna.peran == 'orang_tua'
+        )).filter(subq.c.rn <= 3)
 
-    if q:
-        query = query.filter(Siswa.nama.ilike(f'%{q}%'))
+        if q:
+            query = query.filter(Siswa.nama.ilike(f'%{q}%'))
 
-    query = query.order_by(subq.c.anak_id, subq.c.date.desc())
-    rows = query.all()
+        query = query.order_by(subq.c.anak_id, subq.c.date.desc())
+        rows = query.all()
 
-    grouped = {}
-    for row in rows:
-        aid = row.anak_id
-        if aid not in grouped:
-            grouped[aid] = {
-                'student_name': row.nama,
-                'parent_name': row.nama_lengkap or 'Unknown',
-                'recent_emotions': []
-            }
-        grouped[aid]['recent_emotions'].append({
-            'emotion': row.emotion,
-            'date': row.date.strftime('%Y-%m-%d %H:%M') if row.date else ''
-        })
+        grouped = {}
+        for row in rows:
+            aid = row.anak_id
+            if aid not in grouped:
+                grouped[aid] = {
+                    'student_name': row.nama,
+                    'parent_name': row.nama_lengkap or 'Unknown',
+                    'recent_emotions': []
+                }
+            grouped[aid]['recent_emotions'].append({
+                'emotion': row.emotion,
+                'date': row.date.strftime('%Y-%m-%d %H:%M') if row.date else ''
+            })
 
-    return jsonify(list(grouped.values()))
+        return jsonify(list(grouped.values()))
+
+    except Exception:
+        app.logger.error('Tunalaras guru monitor fetch failed', exc_info=True)
+        return jsonify({'error': 'Gagal memuat data.'}), 500
 
 @app.route('/slb/tunaganda')
 def slb_tunaganda():
@@ -11167,7 +11206,7 @@ def start_scheduler_if_primary():
             scheduler.start()
             app.logger.info("Started BackgroundScheduler in this worker.")
     except Exception as e:
-        app.logger.error(f"Error acquiring scheduler lock: {e}")
+        app.logger.error("Error acquiring scheduler lock", exc_info=True)
 
 with app.app_context():
     try:
@@ -11178,7 +11217,7 @@ with app.app_context():
             db.create_all()
             seed_slb_data()
     except Exception as e:
-        app.logger.error(f"CRITICAL: Failed to connect to the local PostgreSQL database or initialize tables on IDCloudHost. Check DATABASE_URL and PostgreSQL service status. Error: {e}")
+        app.logger.error("CRITICAL: Database initialization failed", exc_info=True)
 
 if __name__ == '__main__':
     is_dev = os.getenv('FLASK_ENV') == 'development'
