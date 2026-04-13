@@ -1,5 +1,6 @@
 import eventlet
 eventlet.monkey_patch()
+import redis
 import threading
 import os
 import datetime
@@ -79,11 +80,38 @@ if _compress_available:
     Compress(app)
 
 import urllib.parse
+from functools import wraps
+
+def require_auth(roles=None, owner_check=False):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not session.get('user_id'):
+                if request.is_json or request.path.startswith('/api/') or request.path.startswith('/orang-tua/api/'):
+                    return jsonify({'error': 'Unauthorized'}), 403
+                return redirect(url_for('index'))
+
+            if roles and not session.get('is_admin'):
+                if session.get('peran') not in roles:
+                    if request.is_json or request.path.startswith('/api/') or request.path.startswith('/orang-tua/api/'):
+                        return jsonify({'error': 'Unauthorized'}), 403
+                    return redirect(url_for('index'))
+
+            if owner_check and session.get('peran') == 'orang_tua':
+                siswa_id = kwargs.get('siswa_id') or request.args.get('anak_id')
+                if siswa_id and str(session.get('anak_id')) != str(siswa_id):
+                    return jsonify({'error': 'Unauthorized'}), 403
+
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
 def is_safe_redirect(url):
     try:
         parsed = urllib.parse.urlparse(url)
         return parsed.netloc == '' or parsed.netloc == request.host
     except Exception:
+        app.logger.debug('Redirect URL rejected: %s', url)
         return False
 csrf = CSRFProtect(app)
 limiter = Limiter(
@@ -4201,46 +4229,51 @@ def get_profil_medis(siswa_id):
     if peran == 'orang_tua' and str(session.get('anak_id')) != str(siswa_id):
         return jsonify({'error': 'Unauthorized'}), 403
 
-    profil = ProfilMedisSiswa.query.filter_by(siswa_id=siswa_id).first()
-    
-    if not profil:
+    try:
+        profil = ProfilMedisSiswa.query.filter_by(siswa_id=siswa_id).first()
+
+        if not profil:
+            return jsonify({
+                'nama_lengkap': '',
+                'nama_panggilan': '',
+                'usia': '',
+                'kelas': '',
+                'jenis_slb': '',
+                'kategori_hambatan': '',
+                'diagnosis_utama': '',
+                'tingkat_hambatan': '',
+                'alergi_kritis': '',
+                'pemicu_tantrum': '',
+                'strategi_penenangan': '',
+                'kemampuan_komunikasi': '',
+                'hotline_darurat_nama': '',
+                'hotline_darurat_nomor': '',
+                'kondisi_terkini': '',
+                'kondisi_warna': ''
+            })
+
         return jsonify({
-            'nama_lengkap': '',
-            'nama_panggilan': '',
-            'usia': '',
-            'kelas': '',
-            'jenis_slb': '',
-            'kategori_hambatan': '',
-            'diagnosis_utama': '',
-            'tingkat_hambatan': '',
-            'alergi_kritis': '',
-            'pemicu_tantrum': '',
-            'strategi_penenangan': '',
-            'kemampuan_komunikasi': '',
-            'hotline_darurat_nama': '',
-            'hotline_darurat_nomor': '',
-            'kondisi_terkini': '',
-            'kondisi_warna': ''
+            'nama_lengkap': profil.nama_lengkap or '',
+            'nama_panggilan': profil.nama_panggilan or '',
+            'usia': profil.usia or '',
+            'kelas': profil.kelas or '',
+            'jenis_slb': profil.jenis_slb or '',
+            'kategori_hambatan': profil.kategori_hambatan or '',
+            'diagnosis_utama': profil.diagnosis_utama or '',
+            'tingkat_hambatan': profil.tingkat_hambatan or '',
+            'alergi_kritis': profil.alergi_kritis or '',
+            'pemicu_tantrum': profil.pemicu_tantrum or '',
+            'strategi_penenangan': profil.strategi_penenangan or '',
+            'kemampuan_komunikasi': profil.kemampuan_komunikasi or '',
+            'hotline_darurat_nama': profil.hotline_darurat_nama or '',
+            'hotline_darurat_nomor': profil.hotline_darurat_nomor or '',
+            'kondisi_terkini': profil.kondisi_terkini or '',
+            'kondisi_warna': profil.kondisi_warna or ''
         })
-    
-    return jsonify({
-        'nama_lengkap': profil.nama_lengkap or '',
-        'nama_panggilan': profil.nama_panggilan or '',
-        'usia': profil.usia or '',
-        'kelas': profil.kelas or '',
-        'jenis_slb': profil.jenis_slb or '',
-        'kategori_hambatan': profil.kategori_hambatan or '',
-        'diagnosis_utama': profil.diagnosis_utama or '',
-        'tingkat_hambatan': profil.tingkat_hambatan or '',
-        'alergi_kritis': profil.alergi_kritis or '',
-        'pemicu_tantrum': profil.pemicu_tantrum or '',
-        'strategi_penenangan': profil.strategi_penenangan or '',
-        'kemampuan_komunikasi': profil.kemampuan_komunikasi or '',
-        'hotline_darurat_nama': profil.hotline_darurat_nama or '',
-        'hotline_darurat_nomor': profil.hotline_darurat_nomor or '',
-        'kondisi_terkini': profil.kondisi_terkini or '',
-        'kondisi_warna': profil.kondisi_warna or ''
-    })
+
+    except Exception:
+        app.logger.error('Failed to fetch profil medis', exc_info=True)
+        return jsonify({'error': 'Gagal memuat data.'}), 500
 
 @app.route('/api/profil-medis/<int:siswa_id>', methods=['POST'])
 def update_profil_medis(siswa_id):
@@ -4431,11 +4464,16 @@ def logout():
 
 @app.route('/dashboard_validator')
 def dashboard_validator():
-    if session.get('peran') != 'kepala_sekolah':
+    if session.get('peran') != 'kepala_sekolah' and not session.get('is_admin'):
         return redirect(url_for('index'))
     
-    menunggu = AkunPengguna.query.filter_by(status_akun='menunggu_verifikasi').with_entities(AkunPengguna.id, AkunPengguna.nama_lengkap, AkunPengguna.peran, AkunPengguna.nik, AkunPengguna.username, AkunPengguna.anak_id, AkunPengguna.status_akun).limit(200).all()
-    disetujui = AkunPengguna.query.filter_by(status_akun='disetujui').with_entities(AkunPengguna.id, AkunPengguna.nama_lengkap, AkunPengguna.peran, AkunPengguna.nik, AkunPengguna.username, AkunPengguna.anak_id, AkunPengguna.status_akun).limit(200).all()
+    try:
+        menunggu = AkunPengguna.query.filter_by(status_akun='menunggu_verifikasi').with_entities(AkunPengguna.id, AkunPengguna.nama_lengkap, AkunPengguna.peran, AkunPengguna.nik, AkunPengguna.username, AkunPengguna.anak_id, AkunPengguna.status_akun).limit(200).all()
+        disetujui = AkunPengguna.query.filter_by(status_akun='disetujui').with_entities(AkunPengguna.id, AkunPengguna.nama_lengkap, AkunPengguna.peran, AkunPengguna.nik, AkunPengguna.username, AkunPengguna.anak_id, AkunPengguna.status_akun).limit(200).all()
+    except Exception:
+        app.logger.error('Failed to fetch dashboard_validator data', exc_info=True)
+        menunggu = []
+        disetujui = []
     
     content = """
     <div class="pt-24 px-5 pb-32 bg-gray-50 min-h-[100dvh]">
@@ -4494,8 +4532,13 @@ def kepala_sekolah_dashboard():
     if session.get('peran') != 'kepala_sekolah' and not session.get('is_admin'):
         return redirect(url_for('index'))
 
-    akun_pending = AkunPengguna.query.filter_by(status_akun='menunggu_verifikasi').with_entities(AkunPengguna.id, AkunPengguna.nama_lengkap, AkunPengguna.peran, AkunPengguna.nik, AkunPengguna.username, AkunPengguna.anak_id, AkunPengguna.status_akun).limit(200).all()
-    akun_disetujui = AkunPengguna.query.filter_by(status_akun='disetujui').with_entities(AkunPengguna.id, AkunPengguna.nama_lengkap, AkunPengguna.peran, AkunPengguna.nik, AkunPengguna.username, AkunPengguna.anak_id, AkunPengguna.status_akun).limit(200).all()
+    try:
+        akun_pending = AkunPengguna.query.filter_by(status_akun='menunggu_verifikasi').with_entities(AkunPengguna.id, AkunPengguna.nama_lengkap, AkunPengguna.peran, AkunPengguna.nik, AkunPengguna.username, AkunPengguna.anak_id, AkunPengguna.status_akun).limit(200).all()
+        akun_disetujui = AkunPengguna.query.filter_by(status_akun='disetujui').with_entities(AkunPengguna.id, AkunPengguna.nama_lengkap, AkunPengguna.peran, AkunPengguna.nik, AkunPengguna.username, AkunPengguna.anak_id, AkunPengguna.status_akun).limit(200).all()
+    except Exception:
+        app.logger.error('Failed to fetch kepala_sekolah data', exc_info=True)
+        akun_pending = []
+        akun_disetujui = []
     
     content = """
     <div class="pt-24 px-5 pb-32 bg-gray-50 min-h-[100dvh]">
@@ -4623,13 +4666,20 @@ def therapy_log():
         return redirect(url_for('index'))
         
     peran = session.get('peran')
-    if peran not in ['orang_tua', 'guru', 'kepala_sekolah']:
+    if peran not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return "Unauthorized", 403
         
     if peran == 'orang_tua':
         anak_id = session.get('anak_id')
     else:
         anak_id = request.form.get('anak_id_guru') or request.form.get('anak_id')
+        if anak_id:
+            try:
+                anak_id = int(anak_id)
+            except (TypeError, ValueError):
+                return "Invalid anak_id", 400
+            if not db.session.get(Siswa, anak_id):
+                return "Student not found", 404
         
     if not anak_id:
         return "anak_id is required", 400
@@ -4669,6 +4719,7 @@ def uploaded_file(filename):
     return response
 
 
+# INTENTIONALLY PUBLIC: Stateless calculators, no PII access, rate-limited.
 @app.route('/api/calc/imt', methods=['POST'])
 @limiter.limit("30 per minute")
 def api_calc_imt():
@@ -5452,6 +5503,8 @@ connected_clients_dict = {}
 @socketio.on('connect')
 def handle_connect():
     try:
+        if not session.get('user_id'):
+            return False
         global connected_clients_dict
         user_agent = request.headers.get('User-Agent', '')
         device_name = "Perangkat Tidak Dikenal"
@@ -5478,6 +5531,8 @@ def handle_connect():
 @socketio.on('disconnect')
 def handle_disconnect():
     try:
+        if not session.get('user_id'):
+            return
         global connected_clients_dict
         connected_clients_dict.pop(request.sid, None)
         emit('client_count', {'count': len(connected_clients_dict), 'clients': list(connected_clients_dict.values())}, broadcast=True)
@@ -5487,7 +5542,14 @@ def handle_disconnect():
 @socketio.on('set_frequency')
 def handle_set_frequency(data):
     try:
-        emit('receive_frequency', data, broadcast=True)
+        if not session.get('user_id'):
+            return
+        if not isinstance(data, dict):
+            return
+        freq = data.get('frequency')
+        if not isinstance(freq, (int, float)) or not (0 <= freq <= 10000):
+            return
+        emit('receive_frequency', {'frequency': freq}, broadcast=True)
     except Exception:
         app.logger.error('SocketIO set_frequency handler failed', exc_info=True)
 
@@ -10176,7 +10238,7 @@ def api_jurnal_harian():
 
 @app.route('/orang-tua/api/chart-data')
 def get_ot_chart_data():
-    if not session.get('user_id'):
+    if session.get('peran') not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
     try:
         q_buku = OrangTuaBuku.query
@@ -10234,9 +10296,9 @@ def get_tantrum_profile():
 @app.route('/orang-tua/api/jadwal', methods=['GET', 'POST'])
 @limiter.limit("20 per minute")
 def handle_ot_jadwal():
+    if session.get('peran') not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
+        return jsonify({'error': 'Unauthorized'}), 403
     if request.method == 'POST':
-        if session.get('peran') not in ['orang_tua', 'kepala_sekolah'] and not session.get('is_admin'):
-            return jsonify({'error': 'Unauthorized'}), 403
         try:
             data = request.json
             anak_id = session.get('anak_id')
@@ -10355,6 +10417,10 @@ def handle_ot_nutrisi():
     q = OrangTuaNutrisi.query
     if session.get('peran') == 'orang_tua':
         q = q.filter_by(anak_id=session.get('anak_id'))
+    elif session.get('peran') in ['guru', 'kepala_sekolah'] or session.get('is_admin'):
+        aid = request.args.get('anak_id')
+        if aid:
+            q = q.filter_by(anak_id=aid)
     logs = q.order_by(OrangTuaNutrisi.created_at.desc()).limit(10).all()
     res = []
     for l in logs:
@@ -10377,6 +10443,8 @@ VAPID_CLAIMS = {
 @app.route('/orang-tua/api/subscribe', methods=['POST'])
 @limiter.limit("20 per minute")
 def subscribe():
+    if session.get('peran') not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
+        return jsonify({'error': 'Unauthorized'}), 403
     try:
         sub_info = request.json
         if not sub_info:
@@ -10395,6 +10463,7 @@ def subscribe():
         return jsonify({'error': 'Terjadi kesalahan saat memproses data. Silakan coba lagi.'}), 500
 
 @app.route('/orang-tua/api/vapid_public_key')
+# INTENTIONALLY PUBLIC: VAPID public keys are inherently public by design.
 def vapid_public_key():
     return jsonify({'public_key': VAPID_PUBLIC_KEY})
 
@@ -10511,12 +10580,20 @@ def save_burnout():
 
 @app.route('/orang-tua/api/burnout-check')
 def check_burnout():
-    if not session.get('user_id'):
+    if session.get('peran') not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
     try:
         q = OrangTuaBurnout.query
         if session.get('peran') == 'orang_tua':
             q = q.filter_by(anak_id=session.get('anak_id'))
+        elif session.get('peran') in ['guru', 'kepala_sekolah'] or session.get('is_admin'):
+            aid = request.args.get('anak_id')
+            if aid:
+                q = q.filter_by(anak_id=aid)
+            else:
+                return jsonify({"is_burnout": False})
+        else:
+            return jsonify({'error': 'Unauthorized'}), 403
         # Check last 3 entries
         logs = q.order_by(OrangTuaBurnout.created_at.desc()).limit(3).all()
         is_burnout = False
@@ -10569,18 +10646,20 @@ def slb_tunalaras():
             app.logger.error('save_emotion failed', exc_info=True)
             return "Terjadi kesalahan saat memproses data. Silakan coba lagi.", 500
     
-    q = EmotionJournal.query
-    if session.get('peran') == 'orang_tua' and session.get('anak_id'):
-        history = q.filter_by(anak_id=session.get('anak_id')).order_by(EmotionJournal.date.desc()).limit(20).all()
-    else:
-        history = q.order_by(EmotionJournal.date.desc()).limit(5).all()
+    history = []
+    if session.get('user_id'):
+        q = EmotionJournal.query
+        if session.get('peran') == 'orang_tua' and session.get('anak_id'):
+            history = q.filter_by(anak_id=session.get('anak_id')).order_by(EmotionJournal.date.desc()).limit(20).all()
+        elif session.get('peran') in ['guru', 'kepala_sekolah'] or session.get('is_admin'):
+            history = q.order_by(EmotionJournal.date.desc()).limit(5).all()
     
     rendered_tunalaras = cached_render('SLB_TUNALARAS_HTML', SLB_TUNALARAS_HTML, history=history, csrf_token=generate_csrf, peran=session.get('peran',''), anak_id=session.get('anak_id'))
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=rendered_tunalaras, theme={'nav_bg': 'bg-teal-100', 'title_text': 'text-teal-800'}, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
 @app.route('/api/tunalaras/guru-monitor')
 def api_tunalaras_guru_monitor():
-    if session.get('peran') not in ['guru', 'kepala_sekolah']:
+    if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
     try:
         q = request.args.get('q', '').strip()
@@ -10757,7 +10836,11 @@ self.addEventListener('fetch', (event) => {
 
 @app.route('/jadwal')
 def jadwal_kelas():
-    jadwal = JadwalKelas.query.limit(200).all()
+    try:
+        jadwal = JadwalKelas.query.limit(200).all()
+    except Exception:
+        app.logger.error('Failed to fetch jadwal_kelas', exc_info=True)
+        jadwal = []
     # Group by hari
     grouped = {"Senin": [], "Selasa": [], "Rabu": [], "Kamis": [], "Jumat": [], "Sabtu": []}
     for j in jadwal:
@@ -10874,10 +10957,16 @@ def add_jadwal():
     return redirect(url_for('jadwal_kelas'))
 
 @app.route('/galeri')
+# INTENTIONALLY PUBLIC: Gallery showcases student artwork to the community.
 def galeri_karya():
     page = request.args.get('page', 1, type=int)
-    pagination = GaleriKarya.query.order_by(GaleriKarya.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
-    karya = pagination.items
+    try:
+        pagination = GaleriKarya.query.order_by(GaleriKarya.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
+        karya = pagination.items
+    except Exception:
+        app.logger.error('Failed to fetch galeri_karya', exc_info=True)
+        pagination = type('obj', (object,), {'items': [], 'has_prev': False, 'has_next': False, 'iter_pages': lambda: []})()
+        karya = []
     
     content = """
     <div class="pt-24 px-5 pb-32 bg-rose-50/50 min-h-[100dvh]">
@@ -10983,9 +11072,16 @@ def galeri_karya():
 
 @app.route('/arsip-portofolio')
 def arsip_portofolio():
+    if session.get('peran') not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
+        return redirect(url_for('index'))
     page = request.args.get('page', 1, type=int)
-    pagination = StudentPortfolio.query.order_by(StudentPortfolio.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
-    portfolios = pagination.items
+    try:
+        pagination = StudentPortfolio.query.order_by(StudentPortfolio.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
+        portfolios = pagination.items
+    except Exception:
+        app.logger.error('Failed to fetch arsip_portofolio', exc_info=True)
+        pagination = type('obj', (object,), {'items': [], 'has_prev': False, 'has_next': False, 'iter_pages': lambda: []})()
+        portfolios = []
     
     content = """
     <div class="pt-24 px-5 pb-32 bg-rose-50/50 min-h-[100dvh]">
