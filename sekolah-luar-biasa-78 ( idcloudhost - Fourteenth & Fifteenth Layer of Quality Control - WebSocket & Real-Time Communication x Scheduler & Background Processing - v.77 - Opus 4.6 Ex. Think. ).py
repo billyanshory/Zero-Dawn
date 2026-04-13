@@ -386,9 +386,10 @@ def seed_slb_data():
 
 
 STYLES_HTML = """
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>tailwind.config = { theme: { extend: { colors: { emerald: { 50: '#ecfdf5', 100: '#d1fae5', 400: '#34d399', 500: '#10b981', 600: '#059669' }, amber: { 300: '#fcd34d', 400: '#fbbf24' } }, fontFamily: { sans: ['Poppins', 'sans-serif'] }, borderRadius: { '3xl': '1.5rem' } } } }</script>
+    <link rel="stylesheet" href="/static/tailwind.min.css">
     <style>
+        @supports (-webkit-touch-callout: none) { input, select, textarea { font-size: 16px !important; } }
+        *, *::before, *::after { touch-action: manipulation; }
                 body { background-color: #F8FAFC; }
         .glass-nav {
             background: rgba(255, 255, 255, 0.98);
@@ -438,9 +439,7 @@ STYLES_HTML = """
                 }
             }
         }
-        .acrylic-card:hover, .acrylic-card:focus-within {
-            will-change: transform, box-shadow;
-        }
+
 
         .metal-pin {
             width: 14px;
@@ -482,9 +481,7 @@ STYLES_HTML = """
             transition: all 0.3s ease;
             border: 1px solid rgba(255, 255, 255, 0.4);
         }
-        .neumorphic-btn:hover, .neumorphic-btn:active {
-            will-change: transform, box-shadow;
-        }
+
 
         .neumorphic-btn:active {
             box-shadow: 
@@ -510,11 +507,12 @@ BASE_LAYOUT = """
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#0b1026">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="Platform digital Sekolah Luar Biasa (SLB) — manajemen terapi, rekam medis siswa berkebutuhan khusus, komunikasi orang tua-guru, dan portal pembelajaran inklusif.">
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/static/logoslb.png">
     <link rel="apple-touch-icon" href="/static/logoslb.png">
@@ -542,6 +540,7 @@ BASE_LAYOUT = """
     {{ styles|safe }}
 </head>
 <body class="text-gray-800 antialiased">
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[9999] focus:bg-emerald-600 focus:text-white focus:px-4 focus:py-2 focus:rounded-xl focus:text-sm focus:font-bold focus:shadow-lg">Langsung ke Konten Utama</a>
     <script>
         // Apple Audio Auto-Play Workaround
         document.addEventListener('pointerdown', function unlockAudio() {
@@ -626,7 +625,7 @@ BASE_LAYOUT = """
 
     <!-- MOBILE BOTTOM NAV -->
     {% if not hide_nav %}
-    <nav class="md:hidden fixed bottom-0 left-0 w-full {{ t_bottom_bg }} z-50 pb-2 pt-2 max-w-md mx-auto right-0 border-t border-gray-100">
+    <nav aria-label="Navigasi Utama" class="md:hidden fixed bottom-0 left-0 w-full {{ t_bottom_bg }} z-50 pb-2 pt-2 max-w-md mx-auto right-0 border-t border-gray-100">
         <div class="flex justify-around items-end h-14 px-2">
             <a href="/" class="flex flex-col items-center justify-center {{ t_bottom_text_inactive }} {{ t_link_hover }} w-16 mb-1 transition-colors {{ t_bottom_active if active_page == 'home' else '' }}">
                 <i class="fas fa-home text-xl mb-1"></i>
@@ -648,7 +647,7 @@ BASE_LAYOUT = """
 
     
     <!-- PORTAL MASUK & REGISTRASI MODAL -->
-    <div id="modal-login-admin" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-login-admin" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-login-admin')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
@@ -666,12 +665,12 @@ BASE_LAYOUT = """
                 <form action="/login" method="POST" class="space-y-4">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Username</label>
-                        <input type="text" name="username" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                        <label for="login-username" class="block text-xs font-bold text-gray-500 mb-1">Username</label>
+                                <input id="login-username" type="text" name="username" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
-                        <input type="password" name="password" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                        <label for="login-password" class="block text-xs font-bold text-gray-500 mb-1">Password</label>
+                                <input id="login-password" type="password" name="password" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
                     </div>
                     <button type="submit" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Masuk</button>
                 </form>
@@ -681,20 +680,20 @@ BASE_LAYOUT = """
                 <form action="/register" method="POST" class="space-y-4">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">NIK</label>
-                        <input type="text" name="nik" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                        <label for="reg-nik" class="block text-xs font-bold text-gray-500 mb-1">NIK</label>
+                                    <input id="reg-nik" pattern="[0-9]{16}" maxlength="16" minlength="16" title="NIK harus 16 digit angka" type="text" name="nik" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Nama Lengkap</label>
-                        <input type="text" name="nama_lengkap" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                        <label for="reg-nama" class="block text-xs font-bold text-gray-500 mb-1">Nama Lengkap</label>
+                                    <input id="reg-nama" minlength="2" maxlength="100" type="text" name="nama_lengkap" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Username</label>
-                        <input type="text" name="username" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                        <label for="login-username" class="block text-xs font-bold text-gray-500 mb-1">Username</label>
+                                <input id="login-username" type="text" name="username" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Password</label>
-                        <input type="password" name="password" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                        <label for="login-password" class="block text-xs font-bold text-gray-500 mb-1">Password</label>
+                                <input id="login-password" type="password" name="password" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">Peran</label>
@@ -704,8 +703,8 @@ BASE_LAYOUT = """
                         </select>
                     </div>
                     <div id="siswa-dropdown-container" class="hidden">
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Pilih Anak (Siswa)</label>
-                        <select name="anak_id" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <label for="reg-anak" class="block text-xs font-bold text-gray-500 mb-1">Pilih Anak (Siswa)</label>
+                                        <select id="reg-anak" name="anak_id" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
                             <!-- Injected dynamically or rendered via template -->
                             <option value="">Pilih Siswa...</option>
                             {% for s in list_siswa %}
@@ -1226,9 +1225,9 @@ BASE_LAYOUT = """
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js').then(reg => {
-                    console.log('SW registered!', reg);
+                    debugLog('SW registered!', reg);
                 }).catch(err => {
-                    console.log('SW failed!', err);
+                    debugLog('SW failed!', err);
                 });
             });
         }
@@ -1299,22 +1298,14 @@ BASE_LAYOUT = """
             setInterval(updateDate, 1000); // Update every second for real-time clock
 
         // GLOBAL MODAL UTILS
-        function openModal(id) {
-            const el = document.getElementById(id);
-            if(el) {
-                el.classList.remove('hidden');
-                history.pushState({modal: id}, null, "");
-            }
-        }
+        function escapeHtml(str) { const div = document.createElement("div"); div.textContent = str; return div.innerHTML; }
+        var DEBUG = false; function debugLog() { if(DEBUG) console.log.apply(console, arguments); }
+        function showToast(message, type) { type = type || 'info'; const toast = document.createElement('div'); const colors = { info: 'bg-blue-500', error: 'bg-red-500', success: 'bg-emerald-500', warning: 'bg-amber-500' }; toast.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 ' + (colors[type] || colors.info) + ' text-white px-6 py-3 rounded-2xl shadow-xl text-sm font-bold z-[9999] transition-all duration-300 transform translate-y-4 opacity-0'; toast.textContent = message; toast.setAttribute('role', 'alert'); toast.setAttribute('aria-live', 'assertive'); document.body.appendChild(toast); requestAnimationFrame(function() { toast.classList.remove('translate-y-4', 'opacity-0'); }); setTimeout(function() { toast.classList.add('translate-y-4', 'opacity-0'); setTimeout(function() { toast.remove(); }, 300); }, 3500); }
+        function openModal(id) { const el = document.getElementById(id); if(el) { el.classList.remove('hidden'); el.setAttribute('aria-modal', 'true'); el.setAttribute('role', 'dialog'); history.pushState({modal: id}, null, ""); const focusable = el.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'); if(focusable) focusable.focus(); el._trapFocus = function(e) { if(e.key === 'Escape') { closeModal(id); return; } if(e.key !== 'Tab') return; const focusableEls = el.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'); const first = focusableEls[0], last = focusableEls[focusableEls.length - 1]; if(e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); } else if(!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); } }; document.addEventListener('keydown', el._trapFocus); } }
 
-        window.addEventListener('popstate', (event) => {
-            document.querySelectorAll('[id^="modal-"]').forEach(el => el.classList.add('hidden'));
-        });
+        window.addEventListener('popstate', (event) => { document.querySelectorAll('[id^="modal-"]').forEach(el => { el.classList.add('hidden'); if(el._trapFocus) document.removeEventListener('keydown', el._trapFocus); }); })
 
-        function closeModal(id) {
-            if (history.state && history.state.modal === id) {
-                history.back();
-            } else {
+        function closeModal(id) { const el = document.getElementById(id); if(el && el._trapFocus) document.removeEventListener('keydown', el._trapFocus); if (history.state && history.state.modal === id) { history.back(); } else { if(el) el.classList.add('hidden'); } } else {
                 const el = document.getElementById(id);
                 if(el) el.classList.add('hidden');
             }
@@ -1329,7 +1320,7 @@ BASE_LAYOUT = """
                 });
                 return await res.json();
             } catch(e) {
-                alert('Error: ' + e);
+                showToast('Error: ' + e, 'error');
                 return null;
             }
         }
@@ -1350,7 +1341,7 @@ BASE_LAYOUT = """
                 // Tampilkan Popup Notifikasi Pastel
                 showAACPopup(text);
             } else {
-                alert("Maaf, browser Anda tidak mendukung fitur suara (Text-to-Speech).");
+                showToast("Maaf, browser Anda tidak mendukung fitur suara (Text-to-Speech).", "error");
             }
         }
         
@@ -1392,11 +1383,11 @@ BASE_LAYOUT = """
                 const isAndroid = /Android/.test(navigator.userAgent);
                 
                 if (isIOS) {
-                    alert("Untuk menginstall di iOS:\\n1. Klik tombol Share (ikon panah ke atas/kotak)\\n2. Pilih 'Add to Home Screen' (Tambah ke Layar Utama)");
+                    showToast("Gunakan menu browser untuk menginstall aplikasi.", "info");
                 } else if (isAndroid) {
-                    alert("Untuk menginstall:\\n1. Klik ikon tiga titik di pojok kanan atas browser\\n2. Pilih 'Install App' atau 'Tambahkan ke Layar Utama'");
+                    showToast("Gunakan menu browser untuk menginstall aplikasi.", "info");
                 } else {
-                    alert("Untuk menginstall di PC/Laptop:\\nKlik ikon 'Install' (simbol monitor/panah) di bagian kanan kolom URL browser Anda.");
+                    showToast("Gunakan menu browser untuk menginstall aplikasi.", "info");
                 }
             }
         };
@@ -1891,7 +1882,7 @@ HOME_HTML = """
     <!-- MODALS -->
 
     <!-- Modal Developer -->
-    <div id="modal-developer" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-developer" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] flex flex-col items-center justify-start text-center overflow-y-auto">
             <!-- Sticky Header -->
             <div class="sticky top-0 w-full bg-white/95 backdrop-blur-xl pt-8 pb-4 z-20 shadow-sm">
@@ -1908,8 +1899,8 @@ HOME_HTML = """
             
             <h3 class="text-xs font-bold text-gray-500 tracking-[0.2em] mb-4 uppercase border-b border-gray-200 pb-2 w-24 mx-auto">PIHAK KETIGA</h3>
             <div class="flex flex-col gap-4 justify-center items-center mb-8">
-                <img src="/static/pythonlogo.png" class="h-5 object-contain">
-                <img src="/static/godaddylogo.png" class="h-8 object-contain">
+                <img src="/static/pythonlogo.png" alt="Python logo" class="h-5 object-contain">
+                <img src="/static/godaddylogo.png" alt="GoDaddy logo" class="h-8 object-contain">
             </div>
             
             <div class="bg-gray-50 p-6 rounded-3xl border border-gray-100 mb-8 max-w-sm w-full">
@@ -1925,7 +1916,7 @@ HOME_HTML = """
                     <i class="fab fa-instagram text-2xl"></i>
                 </a>
                 <a href="{{ url_for('index') }}" class="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-full font-bold shadow-lg hover:scale-105 transition">
-                    <img src="/static/piton.png" class="h-6 w-6"> See Our Current Work
+                    <img src="/static/piton.png" alt="Python logo" class="h-6 w-6"> See Our Current Work
                 </a>
             </div>
 
@@ -1975,7 +1966,7 @@ HOME_HTML = """
     </div>
 
     <!-- Modal Terapi Audio -->
-    <div id="modal-terapi-audio" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-terapi-audio" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-terapi-audio')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
@@ -2015,7 +2006,7 @@ HOME_HTML = """
     </div>
 
     <!-- Modal Terapi Napas -->
-    <div id="modal-terapi-napas" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-terapi-napas" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-blue-900/95 backdrop-blur-md transition-opacity" onclick="stopBreathing(); closeModal('modal-terapi-napas')"></div>
         <div class="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
             <h3 class="text-2xl font-bold text-white mb-12 opacity-90">Latihan Napas</h3>
@@ -2034,7 +2025,7 @@ HOME_HTML = """
     </div>
 
     <!-- Modal Terapi Tidur -->
-    <div id="modal-terapi-tidur" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-terapi-tidur" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-terapi-tidur')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
@@ -2043,8 +2034,8 @@ HOME_HTML = """
             </div>
             <div class="space-y-6">
                 <div>
-                    <label class="block text-sm font-bold text-gray-600 mb-2">Berapa jam Anda tidur semalam?</label>
-                    <input type="number" id="sleep-hours" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-center text-2xl font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="0">
+                    <label for="sleep-hours" class="block text-sm font-bold text-gray-600 mb-2">Berapa jam Anda tidur semalam?</label>
+                    <input type="number" min="0" max="24" step="0.5" id="sleep-hours" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-center text-2xl font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="0">
                 </div>
                 <button onclick="checkSleep()" class="w-full bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-600 transition">Cek Kondisi</button>
                 <div id="sleep-result" class="hidden p-4 rounded-xl border text-sm"></div>
@@ -2056,7 +2047,7 @@ HOME_HTML = """
     </div>
 
     <!-- Modal Seizure Log -->
-    <div id="modal-terapi-log" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-terapi-log" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-terapi-log')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
@@ -2071,7 +2062,7 @@ HOME_HTML = """
                     <input type="text" id="guru-kambuh-search" placeholder="Cari..." class="flex-1 border border-blue-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50">
                     <button onclick="fetchGuruKambuh()" class="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-blue-600 transition">Muat Data</button>
                 </div>
-                <div id="guru-kambuh-results" class="space-y-3 overflow-y-auto max-h-64"></div>
+                <div aria-live="polite" id="guru-kambuh-results" class="space-y-3 overflow-y-auto max-h-64"></div>
             </div>
             <script>
             function fetchGuruKambuh(page=1) {
@@ -2115,16 +2106,16 @@ HOME_HTML = """
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Tanggal</label>
+                        <label for="kambuh-tanggal" class="block text-xs font-bold text-gray-500 mb-1">Tanggal</label>
                         <input type="date" name="date" class="w-full bg-white border border-blue-100 rounded-xl p-2 text-sm" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Jam</label>
+                        <label for="kambuh-jam" class="block text-xs font-bold text-gray-500 mb-1">Jam</label>
                         <input type="time" name="time" class="w-full bg-white border border-blue-100 rounded-xl p-2 text-sm" required>
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Pemicu</label>
+                    <label for="kambuh-pemicu" class="block text-xs font-bold text-gray-500 mb-1">Pemicu</label>
                     <select name="trigger" class="w-full bg-white border border-blue-100 rounded-xl p-2 text-sm">
                         <option value="Stres">Stres / Cemas</option>
                         <option value="Kurang Tidur">Kurang Tidur</option>
@@ -2166,7 +2157,7 @@ HOME_HTML = """
     </div>
 
     <!-- Modal Medication Alarm -->
-    <div id="modal-terapi-alarm" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-terapi-alarm" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-terapi-alarm')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
@@ -2201,13 +2192,13 @@ HOME_HTML = """
         
         <div class="bg-white text-gray-800 p-6 rounded-3xl w-full max-w-xs text-center shadow-2xl">
             <p class="text-2xl font-bold mb-4" id="math-problem">5 + 7 = ?</p>
-            <input type="number" id="math-answer" class="w-full p-3 border-2 border-gray-300 rounded-xl text-center text-xl mb-4" placeholder="Jawab...">
+            <input type="number" min="0" max="9999" step="1" id="math-answer" class="w-full p-3 border-2 border-gray-300 rounded-xl text-center text-xl mb-4" placeholder="Jawab...">
             <button onclick="checkMath()" class="w-full bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700">Matikan Alarm</button>
         </div>
     </div>
 
     <!-- Modal Diet Keton -->
-    <div id="modal-terapi-diet" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-terapi-diet" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-terapi-diet')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[85dvh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
@@ -2263,7 +2254,7 @@ HOME_HTML = """
     </div>
     
     <!-- Modal IMT Down Syndrome -->
-    <div id="modal-imt" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-imt" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-imt')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
@@ -2275,17 +2266,17 @@ HOME_HTML = """
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Umur (Tahun)</label>
-                    <input type="number" id="imt-age" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    <label for="imt-usia" class="block text-xs font-bold text-gray-500 mb-1">Umur (Tahun)</label>
+                    <input type="number" min="0" max="25" step="1" required id="imt-age" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">Berat Badan (kg)</label>
-                        <input type="number" id="imt-weight" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        <input type="number" min="1" max="200" step="0.1" required id="imt-weight" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">Tinggi Badan (cm)</label>
-                        <input type="number" id="imt-height" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        <input type="number" min="30" max="250" step="0.1" required id="imt-height" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                     </div>
                 </div>
                 <button onclick="calcIMT()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Status Gizi</button>
@@ -2295,7 +2286,7 @@ HOME_HTML = """
     </div>
 
     <!-- Modal Sensory Overload -->
-    <div id="modal-sensory" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-sensory" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-sensory')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
@@ -2307,19 +2298,19 @@ HOME_HTML = """
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Kebisingan (1-10)</label>
+                    <label for="sensory-noise" class="block text-xs font-bold text-gray-500 mb-1">Kebisingan (1-10)</label>
                     <input type="number" id="sensory-noise" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Cahaya (1-10)</label>
+                    <label for="sensory-light" class="block text-xs font-bold text-gray-500 mb-1">Cahaya (1-10)</label>
                     <input type="number" id="sensory-light" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Kepadatan Orang (1-10)</label>
+                    <label for="sensory-crowd" class="block text-xs font-bold text-gray-500 mb-1">Kepadatan Orang (1-10)</label>
                     <input type="number" id="sensory-crowd" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Durasi (1-10)</label>
+                    <label for="sensory-duration" class="block text-xs font-bold text-gray-500 mb-1">Durasi (1-10)</label>
                     <input type="number" id="sensory-duration" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
                 <button onclick="calcSensory()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Prediksi Overload</button>
@@ -2329,7 +2320,7 @@ HOME_HTML = """
     </div>
 
     <!-- Modal Terapi Auditori -->
-    <div id="modal-auditory" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-auditory" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-auditory')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
@@ -2341,7 +2332,7 @@ HOME_HTML = """
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Usia Anak</label>
+                    <label for="auditory-age" class="block text-xs font-bold text-gray-500 mb-1">Usia Anak</label>
                     <input type="number" id="auditory-age" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
                 <div>
@@ -2352,7 +2343,7 @@ HOME_HTML = """
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Target Gelombang</label>
+                    <label for="auditory-wave" class="block text-xs font-bold text-gray-500 mb-1">Target Gelombang</label>
                     <select id="auditory-wave" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                         <option value="Theta">Theta (Rileks)</option>
                         <option value="Delta">Delta (Tidur)</option>
@@ -2365,7 +2356,7 @@ HOME_HTML = """
     </div>
 
     <!-- Modal Estimator IQ -->
-    <div id="modal-iq" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-iq" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-iq')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
@@ -2378,11 +2369,11 @@ HOME_HTML = """
             <div class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Usia Kronologis</label>
+                        <label for="iq-chrono" class="block text-xs font-bold text-gray-500 mb-1">Usia Kronologis</label>
                         <input type="number" id="iq-chrono" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Usia Mental</label>
+                        <label for="iq-mental" class="block text-xs font-bold text-gray-500 mb-1">Usia Mental</label>
                         <input type="number" id="iq-mental" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                     </div>
                 </div>
@@ -2393,7 +2384,7 @@ HOME_HTML = """
     </div>
 
     <!-- Modal Motorik Halus -->
-    <div id="modal-motor" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-motor" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-motor')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
@@ -2405,11 +2396,11 @@ HOME_HTML = """
             </div>
             <div class="space-y-4">
                  <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Skor Bulan Lalu</label>
+                    <label for="motor-prev" class="block text-xs font-bold text-gray-500 mb-1">Skor Bulan Lalu</label>
                     <input type="number" id="motor-prev" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Skor Bulan Ini</label>
+                    <label for="motor-curr" class="block text-xs font-bold text-gray-500 mb-1">Skor Bulan Ini</label>
                     <input type="number" id="motor-curr" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
                 <button onclick="calcMotor()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Progress</button>
@@ -2419,7 +2410,7 @@ HOME_HTML = """
     </div>
 
     <!-- Modal Diet Eliminasi -->
-    <div id="modal-diet-calc" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-diet-calc" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-diet-calc')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
@@ -2439,15 +2430,15 @@ HOME_HTML = """
                 </div>
                 <div class="grid grid-cols-3 gap-2">
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Lemak (g)</label>
+                        <label for="diet-fat" class="block text-xs font-bold text-gray-500 mb-1">Lemak (g)</label>
                         <input type="number" id="diet-fat" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Protein (g)</label>
+                        <label for="diet-protein" class="block text-xs font-bold text-gray-500 mb-1">Protein (g)</label>
                         <input type="number" id="diet-protein" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Karbo (g)</label>
+                        <label for="diet-carbs" class="block text-xs font-bold text-gray-500 mb-1">Karbo (g)</label>
                         <input type="number" id="diet-carbs" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                     </div>
                 </div>
@@ -2458,7 +2449,7 @@ HOME_HTML = """
     </div>
 
     <!-- Modal Explanation -->
-    <div id="modal-explanation" class="fixed inset-0 z-[110] hidden">
+    <div role="dialog" aria-modal="true" id="modal-explanation" class="fixed inset-0 z-[110] hidden">
         <div class="absolute inset-0 bg-white/80 backdrop-blur-md" onclick="closeModal('modal-explanation')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white/90 backdrop-blur-xl rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 border border-white/50">
             <div class="flex justify-between items-center mb-6">
@@ -2485,7 +2476,7 @@ HOME_HTML = """
     </div>
 
     <!-- Modal Info Calculator -->
-    <div id="modal-calc-info" class="fixed inset-0 z-[130] hidden">
+    <div role="dialog" aria-modal="true" id="modal-calc-info" class="fixed inset-0 z-[130] hidden">
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeModal('modal-calc-info')"></div>
         <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-11/12 max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-[popupFadeIn_0.3s_ease-out]">
             <div class="flex justify-between items-center mb-4">
@@ -2499,7 +2490,7 @@ HOME_HTML = """
     </div>
 
     <!-- Modal Medical Panel -->
-    <div id="modal-medical-panel" class="fixed inset-0 z-[140] hidden">
+    <div role="dialog" aria-modal="true" id="modal-medical-panel" class="fixed inset-0 z-[140] hidden">
         <div class="absolute inset-0 bg-indigo-900/60 backdrop-blur-md" onclick="closeModal('modal-medical-panel')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.4s_ease-out] md:relative md:max-w-xl md:mx-auto md:rounded-3xl md:top-10 max-h-[90dvh] overflow-y-auto border-t-4 border-indigo-500 flex flex-col">
             
@@ -2566,7 +2557,7 @@ HOME_HTML = """
                                 <span class="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Perkembangan</span>
                                 {% if peran == 'orang_tua' %}
                                     <div class="flex flex-col gap-1 w-full">
-                                        <input type="number" id="med-usia" class="font-extrabold text-gray-800 text-xs border-b border-gray-200 focus:border-emerald-500 focus:outline-none bg-transparent w-full" value="{{ profil_medis.usia if profil_medis else '' }}" placeholder="Usia">
+                                        <input type="number" min="0" max="30" step="1" id="med-usia" class="font-extrabold text-gray-800 text-xs border-b border-gray-200 focus:border-emerald-500 focus:outline-none bg-transparent w-full" value="{{ profil_medis.usia if profil_medis else '' }}" placeholder="Usia">
                                         <input type="text" id="med-kelas" class="font-extrabold text-gray-800 text-xs border-b border-gray-200 focus:border-emerald-500 focus:outline-none bg-transparent w-full" value="{{ profil_medis.kelas if profil_medis else '' }}" placeholder="Tingkat Kelas SLB">
                                     </div>
                                 {% else %}
@@ -3008,7 +2999,7 @@ HOME_HTML = """
     </script>
 
     <!-- Modal Medical Explanation -->
-    <div id="modal-medical-explanation" class="fixed inset-0 z-[120] hidden">
+    <div role="dialog" aria-modal="true" id="modal-medical-explanation" class="fixed inset-0 z-[120] hidden">
         <div class="absolute inset-0 bg-white/80 backdrop-blur-md" onclick="closeModal('modal-medical-explanation')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white/90 backdrop-blur-xl rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 border border-white/50">
             <div class="flex justify-between items-center mb-6">
@@ -3103,8 +3094,9 @@ HOME_HTML = """
         }
 
         function openTeacherMedicalPanel(siswaId, siswaNama) {
+            document.getElementById('modal-medis-content').innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-emerald-500 text-2xl"></i><p class="text-xs text-gray-500 mt-2">Memuat data medis...</p></div>';
             fetch('/api/profil-medis/' + siswaId)
-                .then(res => res.json())
+                .then(res => { if(!res.ok) throw new Error('Gagal memuat'); return res.json(); })
                 .then(data => {
                     // Populate read-only view
                     const getVal = (val, placeholder) => val ? val : placeholder;
@@ -3113,7 +3105,7 @@ HOME_HTML = """
                     const titleEl = document.querySelector('#modal-medical-panel h3');
                     const seedName = data.nama_panggilan || siswaNama || 'Default';
                     if (titleEl) {
-                        titleEl.innerHTML = `<img src="https://api.dicebear.com/7.x/notionists/svg?seed=${seedName}&backgroundColor=e0e7ff" class="w-8 h-8 rounded-full border border-indigo-200 shadow-sm mr-3 inline-block"> ${data.nama_lengkap || siswaNama} <span class="text-xs font-bold text-gray-400 block mt-1 ml-11">Rekam Digital Siswa</span>`;
+                        titleEl.innerHTML = `<img src="https://api.dicebear.com/7.x/notionists/svg?seed=${seedName}&backgroundColor=e0e7ff" alt="${data.nama_lengkap || siswaNama}" class="w-8 h-8 rounded-full border border-indigo-200 shadow-sm mr-3 inline-block"> ${data.nama_lengkap || siswaNama} <span class="text-xs font-bold text-gray-600 block mt-1 ml-11">Rekam Digital Siswa</span>`;
                     }
 
                     document.getElementById('view-med-identitas').innerText = getVal(data.nama_lengkap, 'Nama Lengkap') + ' (' + getVal(data.nama_panggilan, 'Nama Panggilan') + ')';
@@ -3201,7 +3193,7 @@ HOME_HTML = """
                         }, 3000);
                         setTimeout(() => window.location.reload(), 1000);
                     } else {
-                        alert('Gagal menyimpan: ' + (data.error || 'Unknown error'));
+                        showToast('Gagal menyimpan: ' + (data.error || 'Unknown error'), 'error');
                     }
                 });
             });
@@ -3356,10 +3348,10 @@ HOME_HTML = """
             setupAudioEvents();
             
             // Simulate chunking logic
-            console.log("Initializing Mozart Range Requests...");
+            debugLog("Initializing Mozart Range Requests...");
             
             audio.play().catch(e => {
-                console.log("Playback awaiting user interaction or loading...", e);
+                debugLog("Playback awaiting user interaction or loading...", e);
             });
         }
 
@@ -3483,7 +3475,7 @@ HOME_HTML = """
             alarmInterval = setInterval(checkAlarm, 60000); // Check every minute
             checkAlarm(); // Initial check
             
-            alert("Alarm diaktifkan pada jam " + t1 + " dan " + t2);
+            showToast("Alarm diaktifkan pada jam " + t1 + " dan " + t2, "success");
         }
         
         function checkAlarm() {
@@ -3515,9 +3507,9 @@ HOME_HTML = """
             const ans = parseInt(document.getElementById('math-answer').value);
             if(ans === currentMathAnswer) {
                 document.getElementById('alarm-lock-screen').classList.add('hidden');
-                alert("Alarm dimatikan. Jangan lupa minum obat!");
+                showToast("Alarm dimatikan. Jangan lupa minum obat!", "warning"); alarmTimers.forEach(function(t) { clearTimeout(t); }); alarmTimers = [];;
             } else {
-                alert("Jawaban salah! Coba lagi.");
+                showToast("Jawaban salah! Coba lagi.", "error");
             }
         }
 
@@ -3585,7 +3577,7 @@ HOME_HTML = """
                 weight: document.getElementById('imt-weight').value,
                 height: document.getElementById('imt-height').value
             };
-            if(!data.age || !data.weight || !data.height) return alert("Lengkapi data");
+            if(!data.age || !data.weight || !data.height) return showToast("Lengkapi data", "error");
             const res = await postCalc('/api/calc/imt', data);
             if(res) {
                 const div = document.getElementById('result-imt');
@@ -3615,7 +3607,7 @@ HOME_HTML = """
                 crowd: document.getElementById('sensory-crowd').value,
                 duration: document.getElementById('sensory-duration').value
             };
-            if(!data.noise || !data.light || !data.crowd || !data.duration) return alert("Lengkapi data");
+            if(!data.noise || !data.light || !data.crowd || !data.duration) return showToast("Lengkapi data", "error");
             const res = await postCalc('/api/calc/sensory', data);
             if(res) {
                 const div = document.getElementById('result-sensory');
@@ -3651,7 +3643,7 @@ HOME_HTML = """
                 hyper: document.getElementById('auditory-hyper').value,
                 wave: document.getElementById('auditory-wave').value
             };
-            if(!data.age) return alert("Masukkan usia");
+            if(!data.age) return showToast("Masukkan usia", "error");
             const res = await postCalc('/api/calc/auditory', data);
             if(res) {
                 const div = document.getElementById('result-auditori');
@@ -3686,7 +3678,7 @@ HOME_HTML = """
                 if(time < 0) {
                     clearInterval(auditoryTimer);
                     cd.innerText = "SELESAI!";
-                    alert("Waktu terapi habis! Sistem mematikan audio secara otomatis.");
+                    showToast("Waktu terapi habis! Sistem mematikan audio secara otomatis.", "warning");
                     // Dummy logic to simulate turning off API/audio
                 }
             }, 1000);
@@ -3697,7 +3689,7 @@ HOME_HTML = """
                 chrono: document.getElementById('iq-chrono').value,
                 mental: document.getElementById('iq-mental').value
             };
-            if(!data.chrono || !data.mental) return alert("Lengkapi data");
+            if(!data.chrono || !data.mental) return showToast("Lengkapi data", "error");
             const res = await postCalc('/api/calc/iq', data);
             if(res) {
                 const div = document.getElementById('result-iq');
@@ -3724,7 +3716,7 @@ HOME_HTML = """
                 prev: document.getElementById('motor-prev').value,
                 curr: document.getElementById('motor-curr').value
             };
-            if(!data.prev || !data.curr) return alert("Lengkapi data");
+            if(!data.prev || !data.curr) return showToast("Lengkapi data", "error");
             const res = await postCalc('/api/calc/motor', data);
             if(res) {
                 const div = document.getElementById('result-motorik');
@@ -3812,7 +3804,7 @@ HOME_HTML = """
 </div>
 
 <!-- YASIN DIGITAL MODAL -->
-<div id="modal-yasin" class="fixed inset-0 z-[100] hidden bg-white">
+<div role="dialog" aria-modal="true" id="modal-yasin" class="fixed inset-0 z-[100] hidden bg-white">
     <!-- Header -->
     <div class="fixed top-0 left-0 w-full bg-white z-10 shadow-sm border-b border-gray-100 px-5 py-4 flex justify-between items-center">
         <div class="flex items-center gap-3">
@@ -3853,7 +3845,7 @@ HOME_HTML = """
 <!-- AL-QURAN DIGITAL MODALS -->
 
 <!-- 1. SURAH LIST MODAL -->
-<div id="modal-quran-list" class="fixed inset-0 z-[100] hidden bg-white">
+<div role="dialog" aria-modal="true" id="modal-quran-list" class="fixed inset-0 z-[100] hidden bg-white">
     <!-- Header -->
     <div class="fixed top-0 left-0 w-full bg-white z-10 shadow-sm border-b border-gray-100 px-5 py-4 flex justify-between items-center">
         <div class="flex items-center gap-3">
@@ -3885,14 +3877,14 @@ HOME_HTML = """
         </div>
 
         <!-- List Container -->
-        <div id="quran-list-container" class="hidden space-y-3">
+        <div aria-live="polite" id="quran-list-container" class="hidden space-y-3">
             <!-- Items injected here -->
         </div>
     </div>
 </div>
 
 <!-- 2. SURAH DETAIL MODAL -->
-<div id="modal-quran-detail" class="fixed inset-0 z-[101] hidden bg-white">
+<div role="dialog" aria-modal="true" id="modal-quran-detail" class="fixed inset-0 z-[101] hidden bg-white">
     <!-- Header -->
     <div class="fixed top-0 left-0 w-full bg-white z-20 shadow-sm border-b border-gray-100 px-5 py-4 flex justify-between items-center">
         <div class="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg pr-2 transition-colors" onclick="closeSurahDetail()">
@@ -3927,7 +3919,7 @@ HOME_HTML = """
         </div>
         
         <!-- Verses -->
-        <div id="quran-detail-verses" class="hidden space-y-8 pb-20">
+        <div aria-live="polite" id="quran-detail-verses" class="hidden space-y-8 pb-20">
              <!-- Verses injected here -->
         </div>
     </div>
@@ -4039,7 +4031,7 @@ HOME_HTML = """
                 throw new Error('Data detail invalid');
             }
         } catch(e) {
-            alert("Gagal memuat surat. Periksa koneksi internet.");
+            showToast("Gagal memuat surat. Periksa koneksi internet.", "error");
             closeSurahDetail();
         }
     }
@@ -4187,6 +4179,16 @@ HOME_HTML = """
 # --- ROUTES ---
 
 # --- ROUTES ---
+
+
+
+
+
+
+@app.after_request
+def add_security_headers(response):
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https://api.dicebear.com https://commons.wikimedia.org https://www.lifeprint.com https://media.giphy.com; connect-src 'self' https://equran.id https://pmpk.kemdikbud.go.id https://api.giphy.com https://api.allorigins.win https://zenquotes.io; media-src 'self' blob:"
+    return response
 
 @app.route('/')
 def index():
@@ -6348,7 +6350,7 @@ SLB_TUNARUNGU_HTML = """
                     `;
                 } else {
                     mediaContainer.innerHTML = `
-                        <img src="${mediaUrl}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
+                        <img src="${mediaUrl}" alt="Media pembelajaran" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
                     `;
                 }
                 return;
@@ -6369,7 +6371,7 @@ SLB_TUNARUNGU_HTML = """
                         }
                     }
                 } catch(e) {
-                    console.log("Wiki API failed, falling back to Giphy");
+                    debugLog("Wiki API failed, falling back to Giphy");
                 }
             }
 
@@ -6385,7 +6387,7 @@ SLB_TUNARUNGU_HTML = """
                         }
                     }
                 } catch(e) {
-                    console.log("Giphy API failed");
+                    debugLog("Giphy API failed");
                 }
             }
 
@@ -6400,7 +6402,7 @@ SLB_TUNARUNGU_HTML = """
                     `;
                 } else {
                     mediaContainer.innerHTML = `
-                        <img src="${mediaUrl}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
+                        <img src="${mediaUrl}" alt="Media pembelajaran" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
                     `;
                 }
             } else {
@@ -6448,7 +6450,7 @@ SLB_TUNARUNGU_HTML = """
 
         function toggleVoice() {
             if(!recognition) {
-                alert("Browser tidak mendukung fitur Voice to Sign.");
+                showToast("Browser tidak mendukung fitur Voice to Sign.", "error");
                 return;
             }
             if(isRecording) {
@@ -6497,7 +6499,7 @@ SLB_TUNARUNGU_HTML = """
                         }
                     }
                 } catch(e) {
-                    console.log("SIBI API failed, using fallback");
+                    debugLog("SIBI API failed, using fallback");
                 }
 
                 // Check Fallback / Giphy if SIBI fails
@@ -6522,7 +6524,7 @@ SLB_TUNARUNGU_HTML = """
                 if (gifUrl) {
                     content = `
                         <div class="w-full aspect-square bg-yellow-50 rounded-2xl mb-3 overflow-hidden relative shadow-inner group">
-                            <img src="${gifUrl}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
+                            <img src="${gifUrl}" alt="Ilustrasi bahasa isyarat" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
                         </div>
                     `;
                 } else {
@@ -6562,7 +6564,7 @@ SLB_TUNARUNGU_HTML = """
     </button>
 
     <!-- Modal Kata Isyarat -->
-    <div id="modal-kata-isyarat" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-kata-isyarat" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-kata-isyarat')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto flex flex-col">
             <div class="flex justify-between items-center mb-6 shrink-0">
@@ -6591,7 +6593,7 @@ SLB_TUNARUNGU_HTML = """
     </div>
 
     <!-- Modal Education Tunarungu -->
-    <div id="modal-education" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-education" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-education')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
@@ -6605,7 +6607,7 @@ SLB_TUNARUNGU_HTML = """
                     {% for item in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
                     <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
                         <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
-                            <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_{{item}}.svg" onerror="this.outerHTML='<i class=\\'fas fa-hands text-2xl\\'></i>'" class="w-full h-full object-contain">
+                            <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_{{item}}.svg" alt="Bahasa isyarat huruf" onerror="this.outerHTML='<i class=\\'fas fa-hands text-2xl\\'></i>'" class="w-full h-full object-contain">
                         </div>
                         <span class="font-bold text-lg text-yellow-700">{{item}}</span>
                     </div>
@@ -6618,61 +6620,61 @@ SLB_TUNARUNGU_HTML = """
                 <div class="grid grid-cols-3 gap-3">
                     <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
                         <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
-                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/0.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/f/f9/Asl_alphabet_gallaudet_%28zero%29.svg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/0.png" alt="Bahasa isyarat angka 0" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/f/f9/Asl_alphabet_gallaudet_%28zero%29.svg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
                         </div>
                         <span class="font-bold text-lg text-yellow-700">0</span>
                     </div>
                     <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
                         <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
-                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/1.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/f/f3/Sign_language_1.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/1.png" alt="Bahasa isyarat angka 1" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/f/f3/Sign_language_1.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
                         </div>
                         <span class="font-bold text-lg text-yellow-700">1</span>
                     </div>
                     <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
                         <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
-                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/2.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/a/a3/Sign_language_2.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/2.png" alt="Bahasa isyarat angka 2" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/a/a3/Sign_language_2.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
                         </div>
                         <span class="font-bold text-lg text-yellow-700">2</span>
                     </div>
                     <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
                         <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
-                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/3.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/8/8b/Sign_language_3.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/3.png" alt="Bahasa isyarat angka 3" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/8/8b/Sign_language_3.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
                         </div>
                         <span class="font-bold text-lg text-yellow-700">3</span>
                     </div>
                     <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
                         <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
-                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/4.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/c/cc/Sign_language_4.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/4.png" alt="Bahasa isyarat angka 4" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/c/cc/Sign_language_4.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
                         </div>
                         <span class="font-bold text-lg text-yellow-700">4</span>
                     </div>
                     <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
                         <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
-                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/5.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/7/7a/Sign_language_5.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/5.png" alt="Bahasa isyarat angka 5" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/7/7a/Sign_language_5.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
                         </div>
                         <span class="font-bold text-lg text-yellow-700">5</span>
                     </div>
                     <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
                         <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
-                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/6.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/3/31/Sign_language_6.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/6.png" alt="Bahasa isyarat angka 6" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/3/31/Sign_language_6.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
                         </div>
                         <span class="font-bold text-lg text-yellow-700">6</span>
                     </div>
                     <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
                         <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
-                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/7.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/0/0f/Sign_language_7.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/7.png" alt="Bahasa isyarat angka 7" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/0/0f/Sign_language_7.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
                         </div>
                         <span class="font-bold text-lg text-yellow-700">7</span>
                     </div>
                     <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
                         <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
-                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/8.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/4/44/Sign_language_8.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/8.png" alt="Bahasa isyarat angka 8" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/4/44/Sign_language_8.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
                         </div>
                         <span class="font-bold text-lg text-yellow-700">8</span>
                     </div>
                     <div class="bg-white p-2 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center hover:scale-110 hover:shadow-lg hover:border-yellow-300 transition-all cursor-pointer">
                         <div class="w-full aspect-square bg-yellow-50 rounded-xl mb-2 overflow-hidden flex items-center justify-center text-gray-700 border border-yellow-50 p-2">
-                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/9.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/5/55/Sign_language_9.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
+                            <img src="https://www.lifeprint.com/asl101/gifs-png/numbers/9.png" alt="Bahasa isyarat angka 9" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/5/55/Sign_language_9.jpg'; this.onerror=function(){this.outerHTML='<i class=\'fas fa-hands text-2xl\'></i>'};" class="w-full h-full object-contain">
                         </div>
                         <span class="font-bold text-lg text-yellow-700">9</span>
                     </div>
@@ -6682,7 +6684,7 @@ SLB_TUNARUNGU_HTML = """
     </div>
 
     <!-- Modal Medis Tunarungu -->
-    <div id="modal-medis-tunarungu" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-medis-tunarungu" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-medis-tunarungu')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
@@ -6825,7 +6827,7 @@ SLB_TUNAGRAHITA_HTML = """
     </button>
 
     <!-- Modal Medis Tunagrahita -->
-    <div id="modal-medis-tunagrahita" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-medis-tunagrahita" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-medis-tunagrahita')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
@@ -7411,7 +7413,7 @@ SLB_TUNADAKSA_HTML = """
     </button>
 
     <!-- Modal Medis Tunadaksa -->
-    <div id="modal-medis-tunadaksa" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-medis-tunadaksa" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-medis-tunadaksa')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
@@ -7596,13 +7598,13 @@ SLB_TUNADAKSA_HTML = """
                     zikirAudio.addEventListener('ended', function() {
                         window.zikirIndex = (window.zikirIndex + 1) % window.zikirPlaylist.length;
                         zikirAudio.src = window.zikirPlaylist[window.zikirIndex];
-                        zikirAudio.play().catch(e => console.log(e));
+                        zikirAudio.play().catch(function() { /* audio autoplay blocked — requires user interaction */ });
                     });
                 }
                 if (typeof window.zikirIndex === 'undefined') window.zikirIndex = 0;
                 const zikirAudio = document.getElementById('zikir-audio');
                 zikirAudio.src = window.zikirPlaylist[window.zikirIndex];
-                zikirAudio.play().catch(e => console.log(e));
+                zikirAudio.play().catch(function() { /* audio autoplay blocked — requires user interaction */ });
             } else if (type === 'pink' || type === 'white' || type === 'brown') {
                 // Web Audio API Noise
                 generateNoise(type);
@@ -7770,7 +7772,7 @@ SLB_TUNALARAS_HTML = """
     </div>
     
     <!-- Modal Medis Tunalaras -->
-    <div id="modal-medis-tunalaras" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-medis-tunalaras" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-emerald-900/40 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-medis-tunalaras')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-[2.5rem] p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
@@ -8303,7 +8305,7 @@ SLB_TUNAGANDA_HTML = """
     </div>
 
     <!-- Modal Medis Tunaganda -->
-    <div id="modal-medis-tunaganda" class="fixed inset-0 z-[100] hidden pointer-events-auto">
+    <div role="dialog" aria-modal="true" id="modal-medis-tunaganda" class="fixed inset-0 z-[100] hidden pointer-events-auto">
         <div class="absolute inset-0 bg-indigo-900/40 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-medis-tunaganda')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
@@ -8657,7 +8659,7 @@ ORANG_TUA_HTML = """
     <!-- Inject Modals Content via JS based on implementation steps -->
 
     <!-- MODAL BUKU PENGHUBUNG -->
-    <div id="modal-ot-buku" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-ot-buku" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-rose-900/60 backdrop-blur-md transition-opacity" onclick="closeModal('modal-ot-buku')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto border-t-4 border-rose-500 relative">
             
@@ -8716,7 +8718,7 @@ ORANG_TUA_HTML = """
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <!-- Mood Selection using Radio Cards -->
                 <div class="bg-rose-50/50 p-4 rounded-2xl border border-rose-100">
-                    <label class="block text-sm font-bold text-gray-700 mb-3 text-center">Suasana Hati Pagi Ini</label>
+                    <label id="mood-group-label" class="block text-sm font-bold text-gray-700 mb-3 text-center">Suasana Hati Pagi Ini</label>
                     <div class="grid grid-cols-2 gap-3" id="mood-selector">
                         <label class="relative cursor-pointer">
                             <input type="radio" name="buku-mood-radio" value="Senang" class="peer sr-only" required>
@@ -8751,16 +8753,16 @@ ORANG_TUA_HTML = """
 
                 <div class="bg-rose-50/50 p-4 rounded-2xl border border-rose-100 space-y-4">
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Durasi Tidur Semalam (Jam)</label>
+                        <label for="buku-tidur" class="block text-xs font-bold text-gray-500 mb-1 ml-1">Durasi Tidur Semalam (Jam)</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <i class="fas fa-bed text-rose-300"></i>
                             </div>
-                            <input type="number" id="buku-sleep" class="w-full bg-white border border-rose-200 rounded-xl py-3 pl-10 pr-4 text-sm font-bold text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent transition-shadow" placeholder="Contoh: 8" required>
+                            <input type="number" min="0" max="24" step="0.5" id="buku-sleep" class="w-full bg-white border border-rose-200 rounded-xl py-3 pl-10 pr-4 text-sm font-bold text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent transition-shadow" placeholder="Contoh: 8" required>
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Perilaku Khusus Pagi Ini</label>
+                        <label for="buku-catatan" class="block text-xs font-bold text-gray-500 mb-1 ml-1">Perilaku Khusus Pagi Ini</label>
                         <textarea id="buku-behavior" rows="3" class="w-full bg-white border border-rose-200 rounded-xl p-4 text-sm font-medium text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent transition-shadow resize-none" placeholder="Misal: Menolak sarapan, menangis saat mandi..."></textarea>
                     </div>
                 </div>
@@ -8784,7 +8786,7 @@ ORANG_TUA_HTML = """
     </div>
 
     <!-- MODAL BANTUAN TANTRUM -->
-    <div id="modal-ot-tantrum" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-ot-tantrum" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/90 backdrop-blur-md transition-opacity" onclick="closeModal('modal-ot-tantrum'); stopTantrumAudio();"></div>
         <div class="absolute bottom-0 left-0 w-full bg-[#111] rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 border border-red-500/30">
             <div class="flex justify-between items-center mb-6">
@@ -8815,7 +8817,7 @@ ORANG_TUA_HTML = """
     </div>
 
     <!-- MODAL JADWAL MEDIS -->
-    <div id="modal-ot-jadwal" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-ot-jadwal" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-ot-jadwal')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20">
             <div class="flex justify-between items-center mb-6">
@@ -8843,7 +8845,7 @@ ORANG_TUA_HTML = """
     </div>
 
     <!-- MODAL PELACAK NUTRISI -->
-    <div id="modal-ot-nutrisi" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-ot-nutrisi" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-teal-900/60 backdrop-blur-md transition-opacity" onclick="closeModal('modal-ot-nutrisi')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-[#f0fdf4] rounded-t-[2.5rem] p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-[3rem] md:top-20 max-h-[90dvh] overflow-y-auto border-t-4 border-emerald-400 flex flex-col">
             <div class="flex justify-between items-center mb-6 shrink-0 relative z-10">
@@ -8903,7 +8905,7 @@ ORANG_TUA_HTML = """
     </div>
 
     <!-- MODAL KAMUS MAKANAN PEMICU ALERGI NEUROLOGIS -->
-    <div id="modal-ot-kamus-alergi" class="fixed inset-0 z-[150] hidden">
+    <div role="dialog" aria-modal="true" id="modal-ot-kamus-alergi" class="fixed inset-0 z-[150] hidden">
         <div class="absolute inset-0 bg-teal-900/80 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-ot-kamus-alergi')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-[2.5rem] p-6 shadow-2xl animate-[slideUp_0.4s_ease-out] md:relative md:max-w-xl md:mx-auto md:rounded-[3rem] md:top-10 max-h-[95dvh] overflow-y-auto border-t-4 border-teal-500 flex flex-col">
             
@@ -8936,7 +8938,7 @@ ORANG_TUA_HTML = """
     </div>
 
     <!-- MODAL REPOSITORI MODUL -->
-    <div id="modal-ot-modul" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-ot-modul" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-ot-modul')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-3xl md:top-20 max-h-[90dvh] overflow-y-auto flex flex-col">
             <div class="flex justify-between items-center mb-6 shrink-0">
@@ -8961,7 +8963,7 @@ ORANG_TUA_HTML = """
     </div>
 
     <!-- MODAL MONITOR BURNOUT (POPUP LOGIN) -->
-    <div id="modal-ot-burnout-slider" class="fixed inset-0 z-[150] hidden">
+    <div role="dialog" aria-modal="true" id="modal-ot-burnout-slider" class="fixed inset-0 z-[150] hidden">
         <div class="absolute inset-0 bg-violet-900/80 backdrop-blur-md transition-opacity" onclick="closeModal('modal-ot-burnout-slider')"></div>
         <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-11/12 max-w-sm bg-white rounded-[2.5rem] p-8 shadow-2xl text-center border-t-4 border-violet-400">
             <i class="fas fa-spa text-6xl text-violet-400 mb-4 animate-pulse"></i>
@@ -8987,7 +8989,7 @@ ORANG_TUA_HTML = """
     </div>
 
     <!-- MODAL APOTEK DIGITAL PEREDA STRES -->
-    <div id="modal-ot-burnout-menu" class="fixed inset-0 z-[100] hidden">
+    <div role="dialog" aria-modal="true" id="modal-ot-burnout-menu" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-violet-900/60 backdrop-blur-md transition-opacity" onclick="closeModal('modal-ot-burnout-menu')"></div>
         <div class="absolute bottom-0 left-0 w-full bg-[#f8f5ff] rounded-t-[2.5rem] p-6 shadow-2xl animate-[slideUp_0.5s_ease-out] md:relative md:max-w-md md:mx-auto md:rounded-[3rem] md:top-20 max-h-[90dvh] overflow-y-auto border-t-4 border-violet-400">
             <div class="flex justify-between items-center mb-6 shrink-0 relative z-10">
@@ -10771,7 +10773,7 @@ const ASSETS_TO_CACHE = [
     '/',
     '/static/logoslb.png',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-    'https://cdn.tailwindcss.com'
+    '/static/tailwind.min.css'
 ];
 
 self.addEventListener('install', (event) => {
@@ -10886,7 +10888,7 @@ def jadwal_kelas():
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Jam (Contoh: 08:00 - 09:30)</label>
+                        <label for="jadwal-jam" class="block text-xs font-bold text-gray-500 mb-1">Jam (Contoh: 08:00 - 09:30)</label>
                         <input type="text" name="jam" class="w-full bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
                     </div>
                     <div>
@@ -10894,11 +10896,11 @@ def jadwal_kelas():
                         <input type="text" name="mata_pelajaran" class="w-full bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Guru Pengajar</label>
+                        <label for="jadwal-guru" class="block text-xs font-bold text-gray-500 mb-1">Guru Pengajar</label>
                         <input type="text" name="guru" class="w-full bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Ruangan Kelas</label>
+                        <label for="jadwal-ruangan" class="block text-xs font-bold text-gray-500 mb-1">Ruangan Kelas</label>
                         <input type="text" name="ruangan" class="w-full bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
                     </div>
                     <div class="md:col-span-2 mt-2">
@@ -11010,7 +11012,7 @@ def galeri_karya():
                         <input type="text" name="title" class="w-full bg-rose-50 border border-rose-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-rose-400 focus:outline-none" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Nama Siswa / Kreator</label>
+                        <label for="galeri-siswa" class="block text-xs font-bold text-gray-500 mb-1">Nama Siswa / Kreator</label>
                         <input type="text" name="student_name" class="w-full bg-rose-50 border border-rose-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-rose-400 focus:outline-none" required>
                     </div>
                     <button type="submit" class="w-full bg-rose-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-rose-600 transition">Unggah Karya</button>
@@ -11055,7 +11057,7 @@ def galeri_karya():
             {% endif %}
 
             <!-- Image Modal -->
-            <div id="modal-image-view" class="fixed inset-0 z-[150] hidden flex items-center justify-center p-4">
+            <div role="dialog" aria-modal="true" id="modal-image-view" class="fixed inset-0 z-[150] hidden flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeImageModal()"></div>
                 <div class="relative w-full max-w-4xl bg-white rounded-3xl overflow-hidden shadow-2xl animate-[slideUp_0.3s_ease-out]">
                     <img id="modal-image-src" src="" alt="Karya" class="w-full h-auto max-h-[75dvh] object-contain bg-gray-100">
@@ -11168,7 +11170,7 @@ def arsip_portofolio():
             {% endif %}
 
             <!-- Image/Video View Modal -->
-            <div id="modal-arsip-view" class="fixed inset-0 z-[150] hidden flex items-center justify-center p-4">
+            <div role="dialog" aria-modal="true" id="modal-arsip-view" class="fixed inset-0 z-[150] hidden flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-rose-900/90 backdrop-blur-xl" onclick="closeArsipModal()"></div>
                 <div class="relative w-full max-w-4xl bg-white rounded-[2rem] overflow-hidden shadow-2xl animate-[slideUp_0.3s_ease-out] flex flex-col md:flex-row">
                     
