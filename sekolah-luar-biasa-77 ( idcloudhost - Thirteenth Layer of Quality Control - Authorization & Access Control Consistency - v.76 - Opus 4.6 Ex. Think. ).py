@@ -3,6 +3,7 @@ eventlet.monkey_patch()
 import redis
 import threading
 import os
+import pytz
 import datetime
 import math
 import time
@@ -125,7 +126,9 @@ cache = Cache(app, config={
     'CACHE_DEFAULT_TIMEOUT': 300,
     'CACHE_REDIS_URL': os.getenv('REDIS_URL', 'redis://localhost:6379/0') if os.getenv('REDIS_URL') else None
 })
-socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins=os.getenv('ALLOWED_ORIGINS', '').split(',') if os.getenv('ALLOWED_ORIGINS') else [])
+_cors_origins = os.getenv('ALLOWED_ORIGINS', '').split(',') if os.getenv('ALLOWED_ORIGINS') else '*'
+_cors_origins = [o.strip() for o in _cors_origins if o.strip()] if isinstance(_cors_origins, list) else _cors_origins
+socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins=_cors_origins)
 
 scheduler = BackgroundScheduler()
 
@@ -1093,7 +1096,7 @@ BASE_LAYOUT = """
     {% if needs_socketio %}<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>{% endif %}
     <script>
         // CLIENT WEBSOCKET RECEPTION (for all pages)
-        const socket = io();
+        const socket = (typeof io !== 'undefined') ? io() : null;
         let globalAudioCtx;
         let globalOscillators = [];
         let globalNoiseNode = null;
@@ -1215,9 +1218,9 @@ BASE_LAYOUT = """
             }
         };
 
-        socket.on('receive_frequency', function(data) {
+        if (socket) { socket.on('receive_frequency', function(data) {
             window.processFrequencyData(data);
-        });
+        }); }
 
         // PWA SERVICE WORKER
         if ('serviceWorker' in navigator) {
@@ -4667,7 +4670,7 @@ def therapy_log():
         
     peran = session.get('peran')
     if peran not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return "Unauthorized", 403
+        return jsonify({'error': 'Unauthorized'}), 403
         
     if peran == 'orang_tua':
         anak_id = session.get('anak_id')
@@ -4707,6 +4710,7 @@ def therapy_log():
         app.logger.error('Therapy log save failed', exc_info=True)
     return redirect(url_for('index', open='modal-terapi-log'))
 
+# ACCEPTED RISK: UUID filenames prevent enumeration. Public access needed for /galeri images.
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     secure_name = secure_filename(filename)
@@ -5158,6 +5162,7 @@ def get_tantrum_data():
 
 import urllib.request
 import os
+import pytz
 import requests
 def prefetch_emoji_icons():
     def _download():
@@ -5185,7 +5190,7 @@ def prefetch_emoji_icons():
 @limiter.limit("10 per hour")
 def generate_iep():
     if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return "Unauthorized", 403
+        return jsonify({'error': 'Unauthorized'}), 403
     buffer = None
     try:
         student_name = request.form.get('student_name')
@@ -5436,7 +5441,7 @@ from PIL import Image
 @limiter.limit('10 per minute')
 def upload_portfolio():
     if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return "Unauthorized", 403
+        return jsonify({'error': 'Unauthorized'}), 403
     if 'image' not in request.files:
         return redirect(url_for('index'))
     
@@ -5498,7 +5503,7 @@ def upload_portfolio():
     return redirect(url_for('index'))
 
 # --- SOCKET IO EVENTS FOR DASHBOARD GURU ---
-connected_clients_dict = {}
+connected_clients_dict = {}  # NOTE: In-memory only. Single-worker eventlet required. For multi-worker, migrate to Redis pub/sub via Flask-SocketIO message_queue.
 
 @socketio.on('connect')
 def handle_connect():
@@ -5527,6 +5532,7 @@ def handle_connect():
         emit('client_count', {'count': len(connected_clients_dict), 'clients': list(connected_clients_dict.values())}, broadcast=True)
     except Exception:
         app.logger.error('SocketIO connect handler failed', exc_info=True)
+        return False
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -9761,8 +9767,7 @@ ORANG_TUA_HTML = """
         }
 
         // Socket listener for server-side APScheduler trigger
-        const medSocket = io();
-        medSocket.on('trigger_med_notification', function(data) {
+                if (typeof socket !== 'undefined' && socket) { socket.on('trigger_med_notification', function(data) {
             // Check if service worker is active and notify
             if ('serviceWorker' in navigator && 'PushManager' in window) {
                 navigator.serviceWorker.ready.then(function(registration) {
@@ -9782,7 +9787,7 @@ ORANG_TUA_HTML = """
                 });
                 loadJadwalTimeline();
             }
-        });
+        }); }
 
 
         // --- FEATURE 4: PELACAK NUTRISI LOGIC ---
@@ -10248,6 +10253,7 @@ def get_ot_chart_data():
         if peran == 'orang_tua':
             q_buku = q_buku.filter_by(anak_id=session.get('anak_id'))
             q_reaction = q_reaction.filter_by(anak_id=session.get('anak_id'))
+    # DESIGN DECISION: Teachers/admin see all students' chart data when no anak_id filter is specified.
         elif peran in ['guru', 'kepala_sekolah'] and request.args.get('anak_id'):
             q_buku = q_buku.filter_by(anak_id=request.args.get('anak_id'))
             q_reaction = q_reaction.filter_by(anak_id=request.args.get('anak_id'))
@@ -10417,6 +10423,7 @@ def handle_ot_nutrisi():
     q = OrangTuaNutrisi.query
     if session.get('peran') == 'orang_tua':
         q = q.filter_by(anak_id=session.get('anak_id'))
+        # DESIGN DECISION: Admin/teachers see all nutrition data when no anak_id filter is specified.
     elif session.get('peran') in ['guru', 'kepala_sekolah'] or session.get('is_admin'):
         aid = request.args.get('anak_id')
         if aid:
@@ -10465,52 +10472,56 @@ def subscribe():
 @app.route('/orang-tua/api/vapid_public_key')
 # INTENTIONALLY PUBLIC: VAPID public keys are inherently public by design.
 def vapid_public_key():
+    if not VAPID_PUBLIC_KEY:
+        return jsonify({'error': 'Push notifications not configured'}), 503
     return jsonify({'public_key': VAPID_PUBLIC_KEY})
 
-def send_web_push(subscription_info, message_body):
+def send_web_push(subscription_info, message_body, subscription_id=None):
     if not VAPID_PRIVATE_KEY:
         app.logger.warning("VAPID_PRIVATE_KEY not configured, push skipped")
         return
     try:
-        webpush(
-            subscription_info=subscription_info,
-            data=message_body,
-            vapid_private_key=VAPID_PRIVATE_KEY,
-            vapid_claims=VAPID_CLAIMS
-        )
+        eventlet.tpool.execute(webpush, subscription_info=subscription_info, data=message_body, vapid_private_key=VAPID_PRIVATE_KEY, vapid_claims=VAPID_CLAIMS)
+        if subscription_id:
+            try:
+                PushSubscription.query.filter_by(id=subscription_id).update({'last_used': datetime.datetime.now()})
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
     except WebPushException:
         app.logger.error("Web Push delivery failed", exc_info=True)
 
-def send_all_pushes(schedules_data, subscriptions_data):
+def send_all_pushes_only(schedules_data, subscriptions_data):
     with app.app_context():
         for sched in schedules_data:
-            socketio.emit('trigger_med_notification', {
-                'time': sched['time'],
-                'medication_name': sched['medication_name']
-            })
-            for sub_info in subscriptions_data:
+            for sub_info, sub_id in subscriptions_data:
                 try:
-                    send_web_push(sub_info, f"Waktunya Obat/Terapi: {sched['medication_name']} pada jam {sched['time']}")
+                    send_web_push(sub_info, f"Waktunya Obat/Terapi: {sched['medication_name']} pada jam {sched['time']}", subscription_id=sub_id)
                 except Exception:
                     app.logger.error('Push notification delivery failed', exc_info=True)
 
 def check_medications():
     with app.app_context():
-        now = datetime.datetime.now()
+        wita = pytz.timezone('Asia/Makassar')
+        now = datetime.datetime.now(wita)
         window_start = (now - datetime.timedelta(minutes=1)).time()
         window_end = (now + datetime.timedelta(minutes=1)).time()
         today = now.date()
         
+        if window_start <= window_end:
+            time_filter = OrangTuaJadwal.schedule_time.between(window_start, window_end)
+        else:
+            time_filter = db.or_(OrangTuaJadwal.schedule_time >= window_start, OrangTuaJadwal.schedule_time <= window_end)
+
         schedules = OrangTuaJadwal.query.filter(
-            OrangTuaJadwal.schedule_time.between(window_start, window_end),
-            OrangTuaJadwal.notified == False,
-            db.or_(OrangTuaJadwal.notified_date == None, OrangTuaJadwal.notified_date < today)
+            time_filter,
+            db.or_(OrangTuaJadwal.notified == False, OrangTuaJadwal.notified_date == None, OrangTuaJadwal.notified_date < today)
         ).all()
         
         if not schedules:
             return
             
-        subscriptions = PushSubscription.query.limit(500).all()
+        subscriptions = PushSubscription.query.order_by(PushSubscription.id.asc()).all()
         
         schedules_data = []
         for sched in schedules:
@@ -10524,21 +10535,26 @@ def check_medications():
         subscriptions_data = []
         for sub in subscriptions:
             try:
-                subscriptions_data.append(json.loads(sub.subscription_info))
+                subscriptions_data.append((json.loads(sub.subscription_info), sub.id))
             except Exception as e:
                 app.logger.error("Failed to parse subscription_info", exc_info=True)
                 pass
                 
         try:
             db.session.commit()
-            threading.Thread(target=send_all_pushes, args=(schedules_data, subscriptions_data), daemon=True).start()
+            for sched in schedules_data:
+                socketio.emit('trigger_med_notification', {
+                    'time': sched['time'],
+                    'medication_name': sched['medication_name']
+                })
+            eventlet.spawn_n(send_all_pushes_only, schedules_data, subscriptions_data)
         except Exception as e:
             db.session.rollback()
             app.logger.error('Medication check commit failed', exc_info=True)
             return
 
 # Add job to scheduler (running every minute)
-scheduler.add_job(id='Medication Check', func=check_medications, trigger='cron', minute='*')
+scheduler.add_job(id='Medication Check', func=check_medications, trigger='cron', minute='*', max_instances=1, coalesce=True, misfire_grace_time=120)
 
 def cleanup_push_subscriptions():
     with app.app_context():
@@ -10550,7 +10566,7 @@ def cleanup_push_subscriptions():
             db.session.rollback()
             app.logger.error('Subscription cleanup failed', exc_info=True)
 
-scheduler.add_job(id='Cleanup Subscriptions', func=cleanup_push_subscriptions, trigger='cron', hour=3, minute=0)
+scheduler.add_job(id='Cleanup Subscriptions', func=cleanup_push_subscriptions, trigger='cron', hour=3, minute=0, max_instances=1, coalesce=True, misfire_grace_time=3600)
 
 @app.route('/orang-tua/api/burnout', methods=['POST'])
 @limiter.limit("20 per minute")
@@ -10609,7 +10625,7 @@ def check_burnout():
 @app.route('/orang-tua/modul/download')
 def download_modul():
     if session.get('peran') not in ['guru', 'kepala_sekolah', 'orang_tua'] and not session.get('is_admin'):
-        return "Unauthorized", 403
+        return jsonify({'error': 'Unauthorized'}), 403
     filename = request.args.get('file')
     if not filename:
         return "No file specified", 400
@@ -11298,9 +11314,23 @@ def upload_karya():
 def start_scheduler_if_primary():
     try:
         r = redis.Redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379/0'))
-        if r.set('slb_scheduler_master', '1', nx=True, ex=3600):
+        worker_id = str(uuid.uuid4())
+        lock_key = 'slb_scheduler_master'
+        if r.set(lock_key, worker_id, nx=True, ex=120):
             scheduler.start()
             app.logger.info("Started BackgroundScheduler in this worker.")
+
+            def renew_lock():
+                while True:
+                    eventlet.sleep(60)
+                    try:
+                        current_owner = r.get(lock_key)
+                        if current_owner and current_owner.decode() == worker_id:
+                            r.expire(lock_key, 120)
+                    except Exception:
+                        pass
+
+            eventlet.spawn(renew_lock)
     except Exception as e:
         app.logger.error("Error acquiring scheduler lock", exc_info=True)
 
