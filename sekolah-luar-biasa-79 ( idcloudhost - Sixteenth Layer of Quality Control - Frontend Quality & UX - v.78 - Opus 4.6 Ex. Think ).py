@@ -386,7 +386,8 @@ def seed_slb_data():
 
 
 STYLES_HTML = """
-    <link rel="stylesheet" href="/static/tailwind.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { theme: { extend: { colors: { emerald: { 50: '#ecfdf5', 100: '#d1fae5', 400: '#34d399', 500: '#10b981', 600: '#059669' }, amber: { 300: '#fcd34d', 400: '#fbbf24' } }, fontFamily: { sans: ['Poppins', 'sans-serif'] }, borderRadius: { '3xl': '1.5rem' } } } }</script>
     <style>
         @supports (-webkit-touch-callout: none) { input, select, textarea { font-size: 16px !important; } }
         *, *::before, *::after { touch-action: manipulation; }
@@ -537,6 +538,7 @@ BASE_LAYOUT = """
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Poppins:wght@400;500;600;700&display=swap"></noscript>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+    {# SAFE: styles is developer-controlled static HTML generated in Python, never contains user input #}
     {{ styles|safe }}
 </head>
 <body class="text-gray-800 antialiased">
@@ -619,7 +621,8 @@ BASE_LAYOUT = """
     </div>
 
     <!-- CONTENT -->
-    <main class="min-h-[100dvh] relative w-full {{ 'max-w-md md:max-w-7xl mx-auto bg-[#F8FAFC]' if not full_width else '' }}">
+    <main id="main-content" class="min-h-[100dvh] relative w-full {{ 'max-w-md md:max-w-7xl mx-auto bg-[#F8FAFC]' if not full_width else '' }}">
+        {# SAFE: content is rendered from trusted template strings built in Python route handlers #}
         {{ content|safe }}
     </main>
 
@@ -666,11 +669,11 @@ BASE_LAYOUT = """
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div>
                         <label for="login-username" class="block text-xs font-bold text-gray-500 mb-1">Username</label>
-                                <input id="login-username" type="text" name="username" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                                <input id="login-username" type="text" name="username" minlength="3" maxlength="50" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
                     </div>
                     <div>
                         <label for="login-password" class="block text-xs font-bold text-gray-500 mb-1">Password</label>
-                                <input id="login-password" type="password" name="password" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                                <input id="login-password" type="password" name="password" minlength="8" maxlength="128" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
                     </div>
                     <button type="submit" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Masuk</button>
                 </form>
@@ -689,14 +692,14 @@ BASE_LAYOUT = """
                     </div>
                     <div>
                         <label for="login-username" class="block text-xs font-bold text-gray-500 mb-1">Username</label>
-                                <input id="login-username" type="text" name="username" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                                <input id="login-username" type="text" name="username" minlength="3" maxlength="50" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
                     </div>
                     <div>
                         <label for="login-password" class="block text-xs font-bold text-gray-500 mb-1">Password</label>
-                                <input id="login-password" type="password" name="password" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                                <input id="login-password" type="password" name="password" minlength="8" maxlength="128" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Peran</label>
+                        <label for="register-peran" class="block text-xs font-bold text-gray-500 mb-1">Peran</label>
                         <select name="peran" id="register-peran" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" onchange="toggleSiswaDropdown()" required>
                             <option value="guru">Guru</option>
                             <option value="orang_tua">Orang Tua</option>
@@ -714,14 +717,35 @@ BASE_LAYOUT = """
                     </div>
                     <button type="submit" class="w-full bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-600 transition">Daftar</button>
                 </form>
+                <script>
+                    document.querySelector('#auth-content-register form').addEventListener('submit', function(e) {
+                        this.querySelectorAll('.field-error').forEach(el => el.remove());
+                        this.querySelectorAll('.border-red-500').forEach(el => el.classList.remove('border-red-500'));
+                        const pwd = this.querySelector('[name="password"]');
+                        const uname = this.querySelector('[name="username"]');
+                        let errors = [];
+                        if(uname && uname.value.length < 3) errors.push({el: uname, msg: 'Username minimal 3 karakter'});
+                        if(pwd && pwd.value.length < 8) errors.push({el: pwd, msg: 'Password minimal 8 karakter'});
+                        if(errors.length) {
+                            e.preventDefault();
+                            errors.forEach(function(err) {
+                                err.el.classList.add('border-red-500');
+                                var p = document.createElement('p');
+                                p.className = 'field-error text-xs text-red-500 mt-1';
+                                p.textContent = err.msg;
+                                err.el.parentElement.appendChild(p);
+                            });
+                        }
+                    });
+                </script>
             </div>
             
             <div id="auth-content-validator" class="hidden">
                 <div class="bg-gray-900 rounded-3xl p-6 text-center shadow-inner relative overflow-hidden" id="brankas-container">
                     <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-700 to-gray-900 opacity-50"></div>
                     <div class="flex justify-between items-center mb-6 relative z-10">
-                        <h4 class="text-gray-400 text-xs font-bold tracking-widest uppercase"><i class="fas fa-shield-alt mr-2"></i>Brankas Digital Akses Validator</h4>
-                        <button id="btn-fullscreen" class="text-gray-400 hover:text-emerald-400 hover:drop-shadow-[0_0_8px_rgba(52,211,153,0.8)] transition-all">
+                        <h4 class="text-gray-600 text-xs font-bold tracking-widest uppercase"><i class="fas fa-shield-alt mr-2"></i>Brankas Digital Akses Validator</h4>
+                        <button id="btn-fullscreen" class="text-gray-600 hover:text-emerald-400 hover:drop-shadow-[0_0_8px_rgba(52,211,153,0.8)] transition-all">
                             <svg id="icon-expand" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
                             <svg id="icon-compress" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 14h4v4m0-4l-5 5m11-5h-4v4m0-4l5 5M10 10V6H6m4 4l-5-5m11 5h4V6m-4 4l5-5"></path></svg>
                         </button>
@@ -1305,11 +1329,9 @@ BASE_LAYOUT = """
 
         window.addEventListener('popstate', (event) => { document.querySelectorAll('[id^="modal-"]').forEach(el => { el.classList.add('hidden'); if(el._trapFocus) document.removeEventListener('keydown', el._trapFocus); }); })
 
-        function closeModal(id) { const el = document.getElementById(id); if(el && el._trapFocus) document.removeEventListener('keydown', el._trapFocus); if (history.state && history.state.modal === id) { history.back(); } else { if(el) el.classList.add('hidden'); } } else {
-                const el = document.getElementById(id);
-                if(el) el.classList.add('hidden');
-            }
-        }
+        function closeModal(id) { const el = document.getElementById(id); if(el && el._trapFocus) document.removeEventListener('keydown', el._trapFocus); if (history.state && history.state.modal === id) { history.back(); } else { if(el) el.classList.add('hidden'); } }
+
+        document.addEventListener('submit', function(e) { if(e.target.tagName === 'FORM' && e.target.method.toLowerCase() === 'post') { var btn = e.target.querySelector('button[type="submit"], button:not([type])'); if(btn && !btn.disabled) { btn.disabled = true; btn.dataset.origHtml = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Memproses...'; setTimeout(function() { btn.disabled = false; btn.innerHTML = btn.dataset.origHtml; }, 10000); } } });
 
         async function postCalc(url, data) {
             try {
@@ -1497,7 +1519,7 @@ HOME_HTML = """
                             <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
                             <input type="text" id="teacher-search-input" placeholder="Ketik nama siswa..." class="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 shadow-inner">
                         </div>
-                        <div id="teacher-search-results" class="bg-white rounded-xl shadow-lg border border-gray-100 hidden max-h-48 overflow-y-auto"></div>
+                        <div aria-live="polite" id="teacher-search-results" class="bg-white rounded-xl shadow-lg border border-gray-100 hidden max-h-48 overflow-y-auto"></div>
                     </div>
                 </div>
                 
@@ -1516,8 +1538,10 @@ HOME_HTML = """
                                 return;
                             }
                             searchTimeout = setTimeout(() => {
+                                searchResults.innerHTML = '<div class="p-4 text-center"><i class="fas fa-spinner fa-spin text-indigo-500"></i></div>';
+                                searchResults.classList.remove('hidden');
                                 fetch('/api/cari-siswa-guru?q=' + encodeURIComponent(q))
-                                    .then(res => res.json())
+                                    .then(res => { if(!res.ok) throw new Error(); return res.json(); })
                                     .then(data => {
                                         searchResults.innerHTML = '';
                                         if(data.length === 0) {
@@ -1532,7 +1556,7 @@ HOME_HTML = """
                                                 
                                             const div = document.createElement('div');
                                             div.className = "p-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition-colors";
-                                            div.innerHTML = `<span class="text-sm font-bold text-gray-800">${siswa.nama}</span>${statusHtml}`;
+                                            div.innerHTML = `<span class="text-sm font-bold text-gray-800">${escapeHtml(siswa.nama)}</span>${statusHtml}`;
                                             div.onclick = () => {
                                                 openTeacherMedicalPanel(siswa.id, siswa.nama);
                                                 searchResults.classList.add('hidden');
@@ -1541,7 +1565,8 @@ HOME_HTML = """
                                             searchResults.appendChild(div);
                                         });
                                         searchResults.classList.remove('hidden');
-                                    });
+                                    })
+                                    .catch(() => { showToast('Gagal mencari data.', 'error'); });
                             }, 300);
                         });
                     }
@@ -2067,7 +2092,7 @@ HOME_HTML = """
             <script>
             function fetchGuruKambuh(page=1) {
                 fetch('/api/jurnal-kambuh/guru-view?page=' + page)
-                    .then(res => res.json())
+                    .then(res => { if(!res.ok) throw new Error(); return res.json(); })
                     .then(data => {
                         const container = document.getElementById('guru-kambuh-results');
                         if(page === 1) container.innerHTML = '';
@@ -2097,7 +2122,8 @@ HOME_HTML = """
                         if (data.has_next) {
                             container.innerHTML += `<button id="btn-more-kambuh" onclick="fetchGuruKambuh(${data.page + 1})" class="w-full text-xs font-bold text-blue-500 py-2 hover:bg-blue-50 rounded-xl transition mt-2">Muat Lebih Banyak</button>`;
                         }
-                    });
+                    })
+                    .catch(() => { showToast('Gagal memuat riwayat kambuh.', 'error'); });
             }
             document.addEventListener('DOMContentLoaded', () => fetchGuruKambuh(1));
             </script>
@@ -2126,8 +2152,8 @@ HOME_HTML = """
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Catatan Tambahan</label>
-                    <input type="text" name="notes" placeholder="Durasi, kondisi setelahnya..." class="w-full bg-white border border-blue-100 rounded-xl p-2 text-sm">
+                    <label for="log-notes" class="block text-xs font-bold text-gray-500 mb-1">Catatan Tambahan</label>
+                    <input type="text" id="log-notes" name="notes" placeholder="Durasi, kondisi setelahnya..." class="w-full bg-white border border-blue-100 rounded-xl p-2 text-sm">
                 </div>
                 <button type="submit" class="w-full bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-600 transition">Simpan Laporan</button>
             </form>
@@ -2271,11 +2297,11 @@ HOME_HTML = """
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Berat Badan (kg)</label>
+                        <label for="imt-weight" class="block text-xs font-bold text-gray-500 mb-1">Berat Badan (kg)</label>
                         <input type="number" min="1" max="200" step="0.1" required id="imt-weight" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Tinggi Badan (cm)</label>
+                        <label for="imt-height" class="block text-xs font-bold text-gray-500 mb-1">Tinggi Badan (cm)</label>
                         <input type="number" min="30" max="250" step="0.1" required id="imt-height" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                     </div>
                 </div>
@@ -2299,19 +2325,19 @@ HOME_HTML = """
             <div class="space-y-4">
                 <div>
                     <label for="sensory-noise" class="block text-xs font-bold text-gray-500 mb-1">Kebisingan (1-10)</label>
-                    <input type="number" id="sensory-noise" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    <input type="number" min="1" max="10" step="1" id="sensory-noise" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
                 <div>
                     <label for="sensory-light" class="block text-xs font-bold text-gray-500 mb-1">Cahaya (1-10)</label>
-                    <input type="number" id="sensory-light" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    <input type="number" min="1" max="10" step="1" id="sensory-light" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
                 <div>
                     <label for="sensory-crowd" class="block text-xs font-bold text-gray-500 mb-1">Kepadatan Orang (1-10)</label>
-                    <input type="number" id="sensory-crowd" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    <input type="number" min="1" max="10" step="1" id="sensory-crowd" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
                 <div>
                     <label for="sensory-duration" class="block text-xs font-bold text-gray-500 mb-1">Durasi (1-10)</label>
-                    <input type="number" id="sensory-duration" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    <input type="number" min="1" max="10" step="1" id="sensory-duration" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
                 <button onclick="calcSensory()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Prediksi Overload</button>
                 <div id="result-sensory" class="hidden mt-4 p-4 rounded-xl border text-sm"></div>
@@ -2333,10 +2359,10 @@ HOME_HTML = """
             <div class="space-y-4">
                 <div>
                     <label for="auditory-age" class="block text-xs font-bold text-gray-500 mb-1">Usia Anak</label>
-                    <input type="number" id="auditory-age" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    <input type="number" min="0" max="25" step="1" id="auditory-age" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Tingkat Hiperaktivitas</label>
+                    <label for="auditory-hyper" class="block text-xs font-bold text-gray-500 mb-1">Tingkat Hiperaktivitas</label>
                     <select id="auditory-hyper" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                         <option value="Ringan">Ringan</option>
                         <option value="Berat">Berat</option>
@@ -2370,11 +2396,11 @@ HOME_HTML = """
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label for="iq-chrono" class="block text-xs font-bold text-gray-500 mb-1">Usia Kronologis</label>
-                        <input type="number" id="iq-chrono" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                        <input type="number" min="1" max="25" step="0.5" id="iq-chrono" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                     </div>
                     <div>
                         <label for="iq-mental" class="block text-xs font-bold text-gray-500 mb-1">Usia Mental</label>
-                        <input type="number" id="iq-mental" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                        <input type="number" min="1" max="25" step="0.5" id="iq-mental" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                     </div>
                 </div>
                 <button onclick="calcIQ()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung IQ</button>
@@ -2397,11 +2423,11 @@ HOME_HTML = """
             <div class="space-y-4">
                  <div>
                     <label for="motor-prev" class="block text-xs font-bold text-gray-500 mb-1">Skor Bulan Lalu</label>
-                    <input type="number" id="motor-prev" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    <input type="number" min="0" max="100" step="1" id="motor-prev" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
                 <div>
                     <label for="motor-curr" class="block text-xs font-bold text-gray-500 mb-1">Skor Bulan Ini</label>
-                    <input type="number" id="motor-curr" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    <input type="number" min="0" max="100" step="1" id="motor-curr" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                 </div>
                 <button onclick="calcMotor()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Progress</button>
                 <div id="result-motorik" class="hidden mt-4 space-y-2"></div>
@@ -2422,7 +2448,7 @@ HOME_HTML = """
             </div>
             <div class="space-y-4">
                  <div>
-                    <label class="block text-xs font-bold text-gray-500 mb-1">Mode Diet</label>
+                    <label for="diet-mode" class="block text-xs font-bold text-gray-500 mb-1">Mode Diet</label>
                     <select id="diet-mode" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                         <option value="GFCF">GFCF</option>
                         <option value="Keto">Keto 3:1</option>
@@ -2431,15 +2457,15 @@ HOME_HTML = """
                 <div class="grid grid-cols-3 gap-2">
                     <div>
                         <label for="diet-fat" class="block text-xs font-bold text-gray-500 mb-1">Lemak (g)</label>
-                        <input type="number" id="diet-fat" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                        <input type="number" min="0" max="500" step="1" id="diet-fat" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                     </div>
                     <div>
                         <label for="diet-protein" class="block text-xs font-bold text-gray-500 mb-1">Protein (g)</label>
-                        <input type="number" id="diet-protein" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                        <input type="number" min="0" max="500" step="1" id="diet-protein" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                     </div>
                     <div>
                         <label for="diet-carbs" class="block text-xs font-bold text-gray-500 mb-1">Karbo (g)</label>
-                        <input type="number" id="diet-carbs" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                        <input type="number" min="0" max="500" step="1" id="diet-carbs" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
                     </div>
                 </div>
                 <button onclick="calcDiet()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Kalkulasi</button>
@@ -2536,7 +2562,7 @@ HOME_HTML = """
                                 <i class="fas fa-id-badge text-lg"></i>
                             </div>
                             <div class="w-full">
-                                <span class="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Identitas Utama</span>
+                                <span class="block text-[10px] text-gray-600 font-bold uppercase tracking-wider mb-0.5">Identitas Utama</span>
                                 {% if peran == 'orang_tua' %}
                                     <div class="flex flex-col gap-1 w-full">
                                         <input type="text" id="med-nama-lengkap" class="font-extrabold text-gray-800 text-xs border-b border-gray-200 focus:border-emerald-500 focus:outline-none bg-transparent w-full" value="{{ profil_medis.nama_lengkap if profil_medis else '' }}" placeholder="Nama Lengkap">
@@ -2554,7 +2580,7 @@ HOME_HTML = """
                                 <i class="fas fa-calendar-alt text-lg"></i>
                             </div>
                             <div class="w-full">
-                                <span class="block text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Perkembangan</span>
+                                <span class="block text-[10px] text-gray-600 font-bold uppercase tracking-wider mb-0.5">Perkembangan</span>
                                 {% if peran == 'orang_tua' %}
                                     <div class="flex flex-col gap-1 w-full">
                                         <input type="number" min="0" max="30" step="1" id="med-usia" class="font-extrabold text-gray-800 text-xs border-b border-gray-200 focus:border-emerald-500 focus:outline-none bg-transparent w-full" value="{{ profil_medis.usia if profil_medis else '' }}" placeholder="Usia">
@@ -3094,7 +3120,10 @@ HOME_HTML = """
         }
 
         function openTeacherMedicalPanel(siswaId, siswaNama) {
-            document.getElementById('modal-medis-content').innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-emerald-500 text-2xl"></i><p class="text-xs text-gray-500 mt-2">Memuat data medis...</p></div>';
+            const container = document.getElementById('tab-medis-krusial');
+            if(container) {
+                container.classList.add('opacity-50', 'pointer-events-none', 'animate-pulse');
+            }
             fetch('/api/profil-medis/' + siswaId)
                 .then(res => { if(!res.ok) throw new Error('Gagal memuat'); return res.json(); })
                 .then(data => {
@@ -3105,7 +3134,7 @@ HOME_HTML = """
                     const titleEl = document.querySelector('#modal-medical-panel h3');
                     const seedName = data.nama_panggilan || siswaNama || 'Default';
                     if (titleEl) {
-                        titleEl.innerHTML = `<img src="https://api.dicebear.com/7.x/notionists/svg?seed=${seedName}&backgroundColor=e0e7ff" alt="${data.nama_lengkap || siswaNama}" class="w-8 h-8 rounded-full border border-indigo-200 shadow-sm mr-3 inline-block"> ${data.nama_lengkap || siswaNama} <span class="text-xs font-bold text-gray-600 block mt-1 ml-11">Rekam Digital Siswa</span>`;
+                        titleEl.innerHTML = `<img src="https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(seedName)}&backgroundColor=e0e7ff" alt="${escapeHtml(data.nama_lengkap || siswaNama)}" class="w-8 h-8 rounded-full border border-indigo-200 shadow-sm mr-3 inline-block"> ${escapeHtml(data.nama_lengkap || siswaNama)} <span class="text-xs font-bold text-gray-600 block mt-1 ml-11">Rekam Digital Siswa</span>`;
                     }
 
                     document.getElementById('view-med-identitas').innerText = getVal(data.nama_lengkap, 'Nama Lengkap') + ' (' + getVal(data.nama_panggilan, 'Nama Panggilan') + ')';
@@ -3133,12 +3162,16 @@ HOME_HTML = """
                     document.getElementById('view-med-hotline-nomor').innerText = getVal(data.hotline_darurat_nomor, '0812-XXXX-XXXX');
                     document.getElementById('view-med-hotline-nama').innerText = getVal(data.hotline_darurat_nama, 'Nama Wali Darurat');
                     
+                    if(container) container.classList.remove('opacity-50', 'pointer-events-none', 'animate-pulse');
                     openModal('modal-medical-panel');
                     
                     // Teacher mode fetch for Tab 2 and Tab 3
                     window.currentViewedSiswaId = siswaId;
                     if(typeof loadJurnalHarianSiswa === 'function') loadJurnalHarianSiswa();
                     if(typeof loadJadwalTimelineMedis === 'function') loadJadwalTimelineMedis();
+                }).catch(err => {
+                    showToast('Gagal memuat data medis.', 'error');
+                    if(container) container.classList.remove('opacity-50', 'pointer-events-none', 'animate-pulse');
                 });
         }
 
@@ -3181,7 +3214,7 @@ HOME_HTML = """
                         'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                     },
                     body: JSON.stringify(payload)
-                }).then(res => res.json()).then(data => {
+                }).then(res => { if(!res.ok) throw new Error('Gagal menyimpan data medis'); return res.json(); }).then(data => {
                     if(data.status === 'success') {
                         btnSaveMedical.classList.add('hidden');
                         const toast = document.getElementById('toast-medical-save');
@@ -3195,7 +3228,7 @@ HOME_HTML = """
                     } else {
                         showToast('Gagal menyimpan: ' + (data.error || 'Unknown error'), 'error');
                     }
-                });
+                }).catch(err => { showToast('Gagal menyimpan data medis.', 'error'); });
             });
         }
 
@@ -3214,7 +3247,7 @@ HOME_HTML = """
                     const parts = r.split(':');
                     const title = parts[0];
                     const content = parts.slice(1).join(':');
-                    li.innerHTML = `<span class="font-bold text-blue-700">${title}</span>: ${content}`;
+                    li.innerHTML = `<span class="font-bold text-blue-700">${escapeHtml(title)}</span>: ${escapeHtml(content)}`;
                 } else {
                     li.innerText = r;
                 }
@@ -3389,6 +3422,7 @@ HOME_HTML = """
 
         // 2. Breathing Exercise
         let breathInterval = null;
+        let breathTimerIds = [];
         function startBreathing() {
             openModal('modal-terapi-napas');
             const circle = document.getElementById('breath-circle');
@@ -3399,10 +3433,13 @@ HOME_HTML = """
             circle.style.transform = 'scale(1)';
             text.innerText = "Mulai";
             
-            setTimeout(() => {
+            breathTimerIds.forEach(id => clearTimeout(id));
+            breathTimerIds = [];
+
+            breathTimerIds.push(setTimeout(() => {
                 runCycle();
                 breathInterval = setInterval(runCycle, 12000); // 4+2+6 = 12s
-            }, 500);
+            }, 500));
 
             function runCycle() {
                 // Inhale (4s)
@@ -3410,23 +3447,25 @@ HOME_HTML = """
                 circle.style.transition = 'transform 4s ease-in-out';
                 circle.style.transform = 'scale(2.5)';
                 
-                setTimeout(() => {
+                breathTimerIds.push(setTimeout(() => {
                     // Hold (2s)
                     text.innerText = "Tahan";
                     
-                    setTimeout(() => {
+                    breathTimerIds.push(setTimeout(() => {
                         // Exhale (6s)
                         text.innerText = "Hembuskan";
                         circle.style.transition = 'transform 6s ease-in-out';
                         circle.style.transform = 'scale(1)';
-                    }, 2000);
+                    }, 2000));
                     
-                }, 4000);
+                }, 4000));
             }
         }
 
         function stopBreathing() {
             if(breathInterval) clearInterval(breathInterval);
+            breathTimerIds.forEach(id => clearTimeout(id));
+            breathTimerIds = [];
             const circle = document.getElementById('breath-circle');
             if(circle) circle.style.transform = 'scale(1)';
         }
@@ -3562,7 +3601,7 @@ HOME_HTML = """
                 if(parts.length > 1) {
                     const title = parts[0];
                     const content = parts.slice(1).join(': ');
-                    li.innerHTML = `<span class="font-bold text-emerald-700">${title}</span>: ${content}`;
+                    li.innerHTML = `<span class="font-bold text-emerald-700">${escapeHtml(title)}</span>: ${escapeHtml(content)}`;
                 } else {
                     li.innerText = s;
                 }
@@ -4187,7 +4226,9 @@ HOME_HTML = """
 
 @app.after_request
 def add_security_headers(response):
-    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https://api.dicebear.com https://commons.wikimedia.org https://www.lifeprint.com https://media.giphy.com; connect-src 'self' https://equran.id https://pmpk.kemdikbud.go.id https://api.giphy.com https://api.allorigins.win https://zenquotes.io; media-src 'self' blob:"
+    if 'text/html' in response.content_type:
+        # TODO: Remove 'unsafe-eval' from CSP once Tailwind CDN is replaced with pre-built CSS file
+        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https://api.dicebear.com https://commons.wikimedia.org https://www.lifeprint.com https://media.giphy.com; connect-src 'self' https://equran.id https://pmpk.kemdikbud.go.id https://api.giphy.com https://api.allorigins.win https://zenquotes.io; media-src 'self' blob:"
     return response
 
 @app.route('/')
@@ -5846,7 +5887,7 @@ SLB_TUNARUNGU_HTML = """
         </button>
     </div>
 
-    <div id="result-container" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-12"></div>
+    <div aria-live="polite" id="result-container" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-12"></div>
     
     <button onclick="openModal('modal-education')" class="w-full bg-yellow-600 text-white p-6 rounded-3xl shadow-lg border-2 border-yellow-500 flex justify-between items-center group hover:bg-yellow-700 transition-all duration-300">
         <div class="flex items-center gap-4 text-left">
@@ -6372,6 +6413,7 @@ SLB_TUNARUNGU_HTML = """
                     }
                 } catch(e) {
                     debugLog("Wiki API failed, falling back to Giphy");
+                    mediaContainer.innerHTML = '<div class="col-span-2 text-center py-8"><i class="fas fa-wifi text-3xl text-gray-300 mb-2"></i><p class="text-sm font-bold text-gray-500">Tidak dapat terhubung ke Wikimedia</p><p class="text-xs text-gray-400 mt-1">Periksa koneksi internet dan coba lagi.</p></div>';
                 }
             }
 
@@ -6388,6 +6430,7 @@ SLB_TUNARUNGU_HTML = """
                     }
                 } catch(e) {
                     debugLog("Giphy API failed");
+                    mediaContainer.innerHTML = '<div class="col-span-2 text-center py-8"><i class="fas fa-wifi text-3xl text-gray-300 mb-2"></i><p class="text-sm font-bold text-gray-500">Tidak dapat terhubung ke Giphy</p><p class="text-xs text-gray-400 mt-1">Periksa koneksi internet dan coba lagi.</p></div>';
                 }
             }
 
@@ -6500,6 +6543,7 @@ SLB_TUNARUNGU_HTML = """
                     }
                 } catch(e) {
                     debugLog("SIBI API failed, using fallback");
+                    document.getElementById('result-container').innerHTML = '<div class="col-span-2 text-center py-8"><i class="fas fa-wifi text-3xl text-gray-300 mb-2"></i><p class="text-sm font-bold text-gray-500">Tidak dapat terhubung ke server SIBI</p><p class="text-xs text-gray-400 mt-1">Periksa koneksi internet dan coba lagi.</p></div>';
                 }
 
                 // Check Fallback / Giphy if SIBI fails
@@ -6515,6 +6559,7 @@ SLB_TUNARUNGU_HTML = """
                             }
                         } catch (err) {
                             console.error(err);
+                            document.getElementById('result-container').innerHTML = '<div class="col-span-2 text-center py-8"><i class="fas fa-wifi text-3xl text-gray-300 mb-2"></i><p class="text-sm font-bold text-gray-500">Tidak dapat terhubung ke Giphy</p><p class="text-xs text-gray-400 mt-1">Periksa koneksi internet dan coba lagi.</p></div>';
                         }
                     }
                 }
@@ -7728,7 +7773,7 @@ SLB_TUNALARAS_HTML = """
         <div class="mt-8 bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
             <h3 class="font-bold text-emerald-800 mb-4 pl-2 border-l-4 border-emerald-500">Monitor Jurnal Emosi Siswa</h3>
             <input type="text" id="guru-monitor-search" placeholder="Cari nama siswa..." class="w-full bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 mb-4" oninput="fetchGuruMonitor()">
-            <div id="guru-monitor-results" class="space-y-3 max-h-64 overflow-y-auto"></div>
+            <div aria-live="polite" id="guru-monitor-results" class="space-y-3 max-h-64 overflow-y-auto"></div>
         </div>
         <script>
         function fetchGuruMonitor() {
@@ -8719,30 +8764,30 @@ ORANG_TUA_HTML = """
                 <!-- Mood Selection using Radio Cards -->
                 <div class="bg-rose-50/50 p-4 rounded-2xl border border-rose-100">
                     <label id="mood-group-label" class="block text-sm font-bold text-gray-700 mb-3 text-center">Suasana Hati Pagi Ini</label>
-                    <div class="grid grid-cols-2 gap-3" id="mood-selector">
-                        <label class="relative cursor-pointer">
-                            <input type="radio" name="buku-mood-radio" value="Senang" class="peer sr-only" required>
+                    <div class="grid grid-cols-2 gap-3" id="mood-selector" aria-labelledby="mood-group-label">
+                        <label for="mood-senang" class="relative cursor-pointer">
+                            <input type="radio" id="mood-senang" name="buku-mood-radio" value="Senang" class="peer sr-only" required>
                             <div class="p-3 rounded-xl border border-gray-200 bg-white shadow-sm flex flex-col items-center justify-center gap-2 transition-all peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:shadow-md hover:border-emerald-300">
                                 <i class="fas fa-smile text-3xl text-emerald-500"></i>
                                 <span class="text-xs font-bold text-gray-600 peer-checked:text-emerald-700">Senang / Ceria</span>
                             </div>
                         </label>
-                        <label class="relative cursor-pointer">
-                            <input type="radio" name="buku-mood-radio" value="Biasa" class="peer sr-only">
+                        <label for="mood-biasa" class="relative cursor-pointer">
+                            <input type="radio" id="mood-biasa" name="buku-mood-radio" value="Biasa" class="peer sr-only">
                             <div class="p-3 rounded-xl border border-gray-200 bg-white shadow-sm flex flex-col items-center justify-center gap-2 transition-all peer-checked:border-gray-500 peer-checked:bg-gray-100 peer-checked:shadow-md hover:border-gray-300">
                                 <i class="fas fa-meh text-3xl text-gray-400"></i>
                                 <span class="text-xs font-bold text-gray-600 peer-checked:text-gray-700">Biasa Saja</span>
                             </div>
                         </label>
-                        <label class="relative cursor-pointer">
-                            <input type="radio" name="buku-mood-radio" value="Rewel" class="peer sr-only">
+                        <label for="mood-rewel" class="relative cursor-pointer">
+                            <input type="radio" id="mood-rewel" name="buku-mood-radio" value="Rewel" class="peer sr-only">
                             <div class="p-3 rounded-xl border border-gray-200 bg-white shadow-sm flex flex-col items-center justify-center gap-2 transition-all peer-checked:border-red-500 peer-checked:bg-red-50 peer-checked:shadow-md hover:border-red-300">
                                 <i class="fas fa-angry text-3xl text-red-500"></i>
                                 <span class="text-xs font-bold text-gray-600 peer-checked:text-red-700">Rewel / Tantrum</span>
                             </div>
                         </label>
-                        <label class="relative cursor-pointer">
-                            <input type="radio" name="buku-mood-radio" value="Lemas" class="peer sr-only">
+                        <label for="mood-lemas" class="relative cursor-pointer">
+                            <input type="radio" id="mood-lemas" name="buku-mood-radio" value="Lemas" class="peer sr-only">
                             <div class="p-3 rounded-xl border border-gray-200 bg-white shadow-sm flex flex-col items-center justify-center gap-2 transition-all peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:shadow-md hover:border-blue-300">
                                 <i class="fas fa-frown text-3xl text-blue-500"></i>
                                 <span class="text-xs font-bold text-gray-600 peer-checked:text-blue-700">Lemas / Sakit</span>
@@ -8838,7 +8883,7 @@ ORANG_TUA_HTML = """
             </div>
 
             <h4 class="text-sm font-bold text-gray-800 mb-4 pl-2 border-l-4 border-sky-500">Timeline Hari Ini</h4>
-            <div class="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-sky-200 before:to-transparent" id="jadwal-timeline">
+            <div aria-live="polite" class="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-sky-200 before:to-transparent" id="jadwal-timeline">
                 <!-- Fetched via JS -->
             </div>
         </div>
@@ -8897,7 +8942,7 @@ ORANG_TUA_HTML = """
 
             <div class="flex-1 overflow-y-auto">
                 <h4 class="text-xs font-bold text-emerald-800 mb-4 pl-3 border-l-4 border-emerald-400 tracking-wider uppercase">Jurnal Makanan Terakhir</h4>
-                <div class="space-y-3 px-1 pb-4" id="nutrisi-list">
+                <div aria-live="polite" class="space-y-3 px-1 pb-4" id="nutrisi-list">
                     <!-- Fetched via JS -->
                 </div>
             </div>
@@ -9531,6 +9576,16 @@ ORANG_TUA_HTML = """
                         overlay.classList.add('hidden');
                         overlay.style.display = 'none';
                     }, 2500);
+                } else {
+                    var errData = {};
+                    try {
+                        errData = await res.json();
+                    } catch(e) {}
+                    loadingText.innerText = errData.error || "Gagal mengirim data.";
+                    setTimeout(function() {
+                        overlay.classList.add('hidden');
+                        overlay.style.display = 'none';
+                    }, 2500);
                 }
             } catch(err) { 
                 console.error(err);
@@ -9544,8 +9599,11 @@ ORANG_TUA_HTML = """
 
         async function loadBukuChart() {
             try {
+                const chartContainer = document.getElementById('bukuChart').parentElement;
+                if(chartContainer) chartContainer.classList.add('animate-pulse');
                 const res = await fetch('/orang-tua/api/chart-data');
                 const data = await res.json();
+                if(chartContainer) chartContainer.classList.remove('animate-pulse');
                 
                 if(data.labels.length === 0) {
                     document.getElementById('buku-empty').classList.remove('hidden');
@@ -9616,7 +9674,7 @@ ORANG_TUA_HTML = """
                 ul.innerHTML = '';
                 if(data.steps && data.steps.length > 0) {
                     data.steps.forEach(step => {
-                        ul.innerHTML += `<li>${step}</li>`;
+                        ul.innerHTML += `<li>${escapeHtml(step)}</li>`;
                     });
                 } else {
                     ul.innerHTML = `
@@ -9726,6 +9784,7 @@ ORANG_TUA_HTML = """
         async function loadJadwalTimeline() {
             try {
                 const res = await fetch('/orang-tua/api/jadwal');
+                if(!res.ok) throw new Error();
                 const data = await res.json();
                 
                 // Update Parent Dashboard Timeline
@@ -9755,7 +9814,7 @@ ORANG_TUA_HTML = """
                         });
                     }
                 }
-            } catch(e) {}
+            } catch(e) { showToast('Gagal memuat jadwal.', 'error'); }
         }
 
         async function deleteJadwal(id) {
@@ -9797,12 +9856,16 @@ ORANG_TUA_HTML = """
 
         async function fetchKamusAlergiData() {
             try {
+                const btn = document.querySelector('button[onclick="openModal(\\'modal-ot-kamus-alergi\\')"] i.fa-book-medical');
+                if(btn) { btn.classList.remove('fa-book-medical'); btn.classList.add('fa-spinner', 'fa-spin'); }
                 const res = await fetch('/api/kamus-nutrisi');
-                if (res.ok) {
-                    globalKamusData = await res.json();
-                }
+                if (!res.ok) throw new Error();
+                globalKamusData = await res.json();
+                if(btn) { btn.classList.remove('fa-spinner', 'fa-spin'); btn.classList.add('fa-book-medical'); }
             } catch (err) {
-                console.error("Gagal mengambil data kamus alergi:", err);
+                showToast("Gagal mengambil data kamus alergi", "error");
+                const btn = document.querySelector('button[onclick="openModal(\\'modal-ot-kamus-alergi\\')"] i.fa-spinner');
+                if(btn) { btn.classList.remove('fa-spinner', 'fa-spin'); btn.classList.add('fa-book-medical'); }
             }
         }
 
@@ -9840,7 +9903,7 @@ ORANG_TUA_HTML = """
             if (matchedObj) {
                 tooltip.style.display = 'block';
                 tooltip.className = "absolute left-0 -top-auto bottom-full mb-2 w-full bg-rose-100 text-rose-800 text-[10px] md:text-xs font-bold px-4 py-3 rounded-xl shadow-[0_4px_15px_rgba(225,29,72,0.4)] flex flex-col gap-1 opacity-100 translate-y-0 transition-all duration-300 z-20 border border-rose-300";
-                tooltip.innerHTML = `<div><i class="fas fa-exclamation-triangle text-rose-600 animate-bounce mr-1"></i> <strong class="uppercase tracking-wider text-red-600">${matchedObj.komposisi}</strong></div><p class="font-medium text-justify mt-1 text-rose-700">${matchedObj.rasionalisasi}</p>`;
+                tooltip.innerHTML = `<div><i class="fas fa-exclamation-triangle text-rose-600 animate-bounce mr-1"></i> <strong class="uppercase tracking-wider text-red-600">${escapeHtml(matchedObj.komposisi)}</strong></div><p class="font-medium text-justify mt-1 text-rose-700">${escapeHtml(matchedObj.rasionalisasi)}</p>`;
                 
                 inputEl.classList.remove('border-emerald-100', 'focus:border-emerald-400');
                 inputEl.classList.add('border-rose-400', 'focus:border-rose-500', 'text-rose-700', 'bg-rose-50');
@@ -9888,13 +9951,16 @@ ORANG_TUA_HTML = """
                     e.target.reset();
                     checkAllergens(); // Reset UI
                     loadNutrisiList();
+                } else {
+                    throw new Error();
                 }
-            } catch(err) { console.error(err); }
+            } catch(err) { showToast('Gagal memproses jurnal nutrisi.', 'error'); }
         }
 
         async function loadNutrisiList() {
             try {
                 const res = await fetch('/orang-tua/api/nutrisi');
+                if(!res.ok) throw new Error();
                 const data = await res.json();
                 const container = document.getElementById('nutrisi-list');
                 container.innerHTML = '';
@@ -9923,7 +9989,7 @@ ORANG_TUA_HTML = """
                         </div>
                     `;
                 });
-            } catch(e) {}
+            } catch(e) { showToast('Gagal memuat daftar nutrisi.', 'error'); }
         }
         
         // KAMUS ALERGI LOGIC
@@ -10077,21 +10143,23 @@ ORANG_TUA_HTML = """
             const val = document.getElementById('burnout-slider').value;
             
             try {
-                await fetch('/orang-tua/api/burnout', {
+                const res = await fetch('/orang-tua/api/burnout', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')},
                     body: JSON.stringify({ stress_level: val })
                 });
+                if(!res.ok) throw new Error();
                 
                 closeModal('modal-ot-burnout-slider');
                 checkBurnoutStatus();
                 
-            } catch(err) { console.error(err); }
+            } catch(err) { showToast('Gagal menyimpan tingkat stres.', 'error'); }
         }
 
         async function checkBurnoutStatus() {
             try {
                 const res = await fetch('/orang-tua/api/burnout-check');
+                if(!res.ok) throw new Error();
                 const data = await res.json();
                 
                 if(data.is_burnout) {
@@ -10102,11 +10170,13 @@ ORANG_TUA_HTML = """
                     // Fetch ZenQuote
                     try {
                         const quoteRes = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://zenquotes.io/api/random'));
+                        if (!quoteRes.ok) throw new Error('Gagal fetch');
                         const quoteData = await quoteRes.json();
                         const parsed = JSON.parse(quoteData.contents);
                         document.getElementById('zen-quote-inline').innerText = `"${parsed[0].q}" - ${parsed[0].a}`;
                     } catch(e) {
                         document.getElementById('zen-quote-inline').innerText = '"Terkadang hal yang paling berani untuk dilakukan adalah beristirahat."';
+                        showToast('Gagal memuat kutipan.', 'error');
                     }
                 }
             } catch(err) {}
@@ -10773,7 +10843,7 @@ const ASSETS_TO_CACHE = [
     '/',
     '/static/logoslb.png',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-    '/static/tailwind.min.css'
+    'https://cdn.tailwindcss.com'
 ];
 
 self.addEventListener('install', (event) => {
@@ -10882,26 +10952,26 @@ def jadwal_kelas():
                 <form action="/jadwal/add" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-4">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Hari</label>
-                        <select name="hari" class="w-full bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+                        <label for="jadwal-hari" class="block text-xs font-bold text-gray-500 mb-1">Hari</label>
+                        <select id="jadwal-hari" name="hari" class="w-full bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none">
                             <option value="Senin">Senin</option><option value="Selasa">Selasa</option><option value="Rabu">Rabu</option><option value="Kamis">Kamis</option><option value="Jumat">Jumat</option><option value="Sabtu">Sabtu</option>
                         </select>
                     </div>
                     <div>
                         <label for="jadwal-jam" class="block text-xs font-bold text-gray-500 mb-1">Jam (Contoh: 08:00 - 09:30)</label>
-                        <input type="text" name="jam" class="w-full bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
+                        <input type="text" name="jam" pattern="[0-9]{2}:[0-9]{2}\\s*-\\s*[0-9]{2}:[0-9]{2}" title="Format: 08:00 - 09:30" class="w-full bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Mata Pelajaran</label>
-                        <input type="text" name="mata_pelajaran" class="w-full bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
+                        <label for="jadwal-mapel" class="block text-xs font-bold text-gray-500 mb-1">Mata Pelajaran</label>
+                        <input type="text" id="jadwal-mapel" name="mata_pelajaran" maxlength="100" class="w-full bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
                     </div>
                     <div>
                         <label for="jadwal-guru" class="block text-xs font-bold text-gray-500 mb-1">Guru Pengajar</label>
-                        <input type="text" name="guru" class="w-full bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
+                        <input type="text" name="guru" maxlength="100" class="w-full bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
                     </div>
                     <div>
                         <label for="jadwal-ruangan" class="block text-xs font-bold text-gray-500 mb-1">Ruangan Kelas</label>
-                        <input type="text" name="ruangan" class="w-full bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
+                        <input type="text" name="ruangan" maxlength="50" class="w-full bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
                     </div>
                     <div class="md:col-span-2 mt-2">
                         <button type="submit" class="w-full bg-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-indigo-600 transition">Simpan Jadwal</button>
@@ -10923,8 +10993,8 @@ def jadwal_kelas():
                                 <p class="text-xs font-bold text-indigo-600 mb-1 bg-indigo-50 inline-block px-2 py-1 rounded-md">{{ j.jam }}</p>
                                 <h4 class="text-lg font-bold text-gray-800 mb-2">{{ j.mata_pelajaran }}</h4>
                                 <div class="flex items-center gap-4 text-xs font-medium text-gray-500">
-                                    <span class="flex items-center gap-1"><i class="fas fa-chalkboard-teacher text-gray-400"></i> {{ j.guru }}</span>
-                                    <span class="flex items-center gap-1"><i class="fas fa-door-open text-gray-400"></i> {{ j.ruangan }}</span>
+                                    <span class="flex items-center gap-1"><i class="fas fa-chalkboard-teacher text-gray-600"></i> {{ j.guru }}</span>
+                                    <span class="flex items-center gap-1"><i class="fas fa-door-open text-gray-600"></i> {{ j.ruangan }}</span>
                                 </div>
                             </div>
                         </div>
@@ -11003,17 +11073,17 @@ def galeri_karya():
                 <form action="/galeri/upload" method="POST" enctype="multipart/form-data" class="space-y-4">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Pilih Foto Karya</label>
-                        <input type="file" name="image" class="w-full bg-rose-50 border border-rose-100 rounded-xl p-2 text-sm focus:ring-2 focus:ring-rose-400 focus:outline-none" required>
-                        <p class="text-[10px] text-gray-400 mt-1">Maks. 5MB, format JPG/PNG/WEBP.</p>
+                        <label for="galeri-image" class="block text-xs font-bold text-gray-500 mb-1">Pilih Foto Karya</label>
+                        <input type="file" id="galeri-image" name="image" accept="image/jpeg,image/png,image/webp" class="w-full bg-rose-50 border border-rose-100 rounded-xl p-2 text-sm focus:ring-2 focus:ring-rose-400 focus:outline-none" required>
+                        <p class="text-[10px] text-gray-600 mt-1">Maks. 5MB, format JPG/PNG/WEBP.</p>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">Judul Karya</label>
-                        <input type="text" name="title" class="w-full bg-rose-50 border border-rose-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-rose-400 focus:outline-none" required>
+                        <label for="galeri-title" class="block text-xs font-bold text-gray-500 mb-1">Judul Karya</label>
+                        <input type="text" id="galeri-title" name="title" maxlength="200" class="w-full bg-rose-50 border border-rose-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-rose-400 focus:outline-none" required>
                     </div>
                     <div>
                         <label for="galeri-siswa" class="block text-xs font-bold text-gray-500 mb-1">Nama Siswa / Kreator</label>
-                        <input type="text" name="student_name" class="w-full bg-rose-50 border border-rose-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-rose-400 focus:outline-none" required>
+                        <input type="text" id="galeri-siswa" name="student_name" maxlength="100" class="w-full bg-rose-50 border border-rose-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-rose-400 focus:outline-none" required>
                     </div>
                     <button type="submit" class="w-full bg-rose-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-rose-600 transition">Unggah Karya</button>
                 </form>
@@ -11022,6 +11092,7 @@ def galeri_karya():
 
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                 {% for k in karya %}
+                {# SAFE: tojson handles escaping; safe prevents double-encoding for JavaScript string context #}
                 <div class="bg-white rounded-3xl shadow-md border border-rose-50 overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer" onclick='openImageModal("/uploads/{{ k.image_filename }}", {{ k.title|tojson|safe }}, {{ k.student_name|tojson|safe }})'>
                     <div class="aspect-square bg-gray-100 relative overflow-hidden">
                         <img src="/uploads/{{ k.image_filename }}" alt="{{ k.title }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
@@ -11121,6 +11192,7 @@ def arsip_portofolio():
 
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6" id="arsip-grid">
                 {% for port in portfolios %}
+                {# SAFE: tojson handles escaping; safe prevents double-encoding for JavaScript string context #}
                 <div class="arsip-item bg-white rounded-3xl shadow-sm border border-rose-100 overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer" onclick='openArsipModal("/uploads/{{ port.filename }}", {{ port.student_id|tojson|safe }}, {{ port.semester|tojson|safe }})' data-siswa="{{ port.student_id|lower }}">
                     <div class="aspect-square bg-gray-50 relative overflow-hidden">
                         {% set ext = port.filename.rsplit('.', 1)[1]|lower if '.' in port.filename else '' %}
@@ -11155,7 +11227,7 @@ def arsip_portofolio():
             <div class="text-center py-20 bg-white rounded-[3rem] shadow-sm border border-rose-100">
                 <div class="w-24 h-24 mx-auto bg-rose-50 text-rose-300 rounded-full flex items-center justify-center text-4xl mb-4"><i class="fas fa-folder-open"></i></div>
                 <p class="text-gray-500 font-medium text-lg mb-1">Brankas Masih Kosong</p>
-                <p class="text-sm text-gray-400">Belum ada portofolio yang diunggah oleh guru.</p>
+                <p class="text-sm text-gray-600">Belum ada portofolio yang diunggah oleh guru.</p>
             </div>
             {% else %}
             <div class="flex justify-center items-center mt-10 gap-2">
@@ -11191,15 +11263,15 @@ def arsip_portofolio():
                         </div>
                         
                         <div class="flex-1">
-                            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Identitas Siswa</p>
+                            <p class="text-xs font-bold text-gray-600 uppercase tracking-widest mb-1">Identitas Siswa</p>
                             <h3 id="modal-arsip-student" class="text-2xl font-extrabold text-rose-900 mb-6 leading-tight"></h3>
                             
-                            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Periode Pembelajaran</p>
+                            <p class="text-xs font-bold text-gray-600 uppercase tracking-widest mb-1">Periode Pembelajaran</p>
                             <p id="modal-arsip-semester" class="text-sm text-rose-600 font-bold bg-rose-50 px-4 py-2 rounded-xl inline-block border border-rose-100"></p>
                         </div>
 
                         <div class="mt-8 pt-6 border-t border-rose-100">
-                            <p class="text-[10px] text-gray-400 italic text-center text-balance">"Setiap jejak karya adalah bukti nyata perkembangan ananda."</p>
+                            <p class="text-[10px] text-gray-600 italic text-center text-balance">"Setiap jejak karya adalah bukti nyata perkembangan ananda."</p>
                         </div>
                     </div>
 
