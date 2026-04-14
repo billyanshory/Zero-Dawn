@@ -592,9 +592,9 @@ BASE_LAYOUT = """
                 <a href="/jadwal" class="text-gray-600 font-medium text-[15px] hover:text-emerald-600 transition-colors py-2">Jadwal Kelas</a>
                 <a href="/galeri" class="text-gray-600 font-medium text-[15px] hover:text-emerald-600 transition-colors py-2">Galeri Karya</a>
                 
-                <div class="bg-emerald-50 px-4 py-2 rounded-xl shadow-sm border border-emerald-100 flex items-center justify-center space-x-2 ml-4">
-                    <i class="fas fa-clock text-emerald-500"></i>
-                    <span id="waktu-samarinda-header" class="text-emerald-800 font-bold tracking-wider font-mono">--:--:--</span>
+                <div class="bg-emerald-50 px-4 py-2 rounded-xl shadow-sm border border-emerald-100 flex flex-col items-center justify-center ml-4">
+                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5"><i class="fas fa-clock text-emerald-500 mr-1"></i>WAKTU SAMARINDA</span>
+                    <span id="waktu-samarinda-header" class="text-emerald-800 font-bold tracking-wider font-mono text-[10px]">--:--</span>
                 </div>
             </div>
         </div>
@@ -1455,14 +1455,19 @@ BASE_LAYOUT = """
             const clockEl = document.getElementById('waktu-samarinda-header');
             if (!clockEl) return;
             const now = new Date();
-            const timeString = new Intl.DateTimeFormat('id-ID', {
+            const dateString = now.toLocaleDateString('id-ID', {
                 timeZone: 'Asia/Makassar',
-                hour: '2-digit',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+            const timeString = now.toLocaleTimeString('en-US', {
+                timeZone: 'Asia/Makassar',
+                hour: 'numeric',
                 minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            }).format(now).replace(/[.]/g, ':');
-            clockEl.innerHTML = timeString;
+                hour12: true
+            });
+            clockEl.innerHTML = dateString + ', ' + timeString;
         }
         setInterval(updateHeaderClock, 1000);
         document.addEventListener('DOMContentLoaded', updateHeaderClock);
@@ -10248,7 +10253,7 @@ def orang_tua_dashboard():
         'bottom_btn_text': 'text-white',
         'bottom_text_inactive': 'text-rose-400'
     }
-    rendered_content = cached_render('ORANG_TUA_HTML', ORANG_TUA_HTML, is_admin=session.get('is_admin', False), settings=get_settings(), csrf_token=csrf_token, peran=session.get('peran', ''), anak_id=session.get('anak_id'))
+    rendered_content = cached_render('ORANG_TUA_HTML', ORANG_TUA_HTML, is_admin=session.get('is_admin', False), settings=get_settings(), csrf_token=generate_csrf, peran=session.get('peran', ''), anak_id=session.get('anak_id'))
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=rendered_content, hide_nav=False, full_width=True, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=True, theme=theme)
 
 @app.route('/orang-tua/api/buku', methods=['POST'])
