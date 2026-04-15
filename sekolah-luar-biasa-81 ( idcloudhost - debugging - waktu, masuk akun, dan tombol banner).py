@@ -607,7 +607,8 @@ BASE_LAYOUT = """
             <h1 class="text-lg font-bold {{ t_title_text }} leading-tight">Sekolah Luar Biasa</h1>
         </div>
         <div class="text-right">
-            <p class="text-[8px] text-gray-500 font-bold mb-0.5 uppercase tracking-wider"><i class="fas fa-clock text-emerald-500"></i> Waktu Samarinda</p>
+            <p class="text-[8px] text-gray-500 font-bold mb-0.5 uppercase tracking-wider"><i class="fas fa-clock text-emerald-500"></i> WAKTU SAMARINDA</p>
+            <p id="waktu-samarinda-header-mobile" class="text-emerald-800 font-bold tracking-wider font-mono text-[8px]">--:--</p>
         </div>
     </header>
     {% endif %}
@@ -1452,8 +1453,8 @@ BASE_LAYOUT = """
 
     <script>
         function updateHeaderClock() {
-            const clockEl = document.getElementById('waktu-samarinda-header');
-            if (!clockEl) return;
+            const clockEls = [document.getElementById('waktu-samarinda-header'), document.getElementById('waktu-samarinda-header-mobile')];
+            if (clockEls.length === 0) return;
             const now = new Date();
             const dateString = now.toLocaleDateString('id-ID', {
                 timeZone: 'Asia/Makassar',
@@ -1467,7 +1468,9 @@ BASE_LAYOUT = """
                 minute: '2-digit',
                 hour12: true
             });
-            clockEl.innerHTML = dateString + ', ' + timeString;
+            clockEls.forEach(el => {
+                if (el) el.innerHTML = dateString + ', ' + timeString;
+            });
         }
         setInterval(updateHeaderClock, 1000);
         document.addEventListener('DOMContentLoaded', updateHeaderClock);
@@ -1694,7 +1697,7 @@ HOME_HTML = """
             </div>
 
             <!-- DASHBOARD GURU BANNER -->
-            <a href="/ramadhan" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-blue-200 mt-4">
+            <a href="/orang-tua" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-blue-200 mt-4">
                 <div class="absolute inset-0 bg-gradient-to-r from-blue-100 to-sky-100"></div>
                 
                 <div class="absolute right-12 top-1/2 transform -translate-y-1/2 opacity-20 text-blue-500 pointer-events-none">
@@ -10255,7 +10258,7 @@ ORANG_TUA_HTML = """
 
 @app.route('/orang-tua')
 def orang_tua_dashboard():
-    if session.get('peran') not in ['orang_tua', 'kepala_sekolah'] and not session.get('is_admin'):
+    if session.get('peran') not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
         return redirect(url_for('index'))
     theme = {
         'nav_bg': 'bg-rose-50',
