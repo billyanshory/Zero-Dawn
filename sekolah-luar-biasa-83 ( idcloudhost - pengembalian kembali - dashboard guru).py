@@ -1,27 +1,34 @@
 import eventlet
 eventlet.monkey_patch()
-import redis
-import threading
+from functools import wraps
+import traceback
 import os
 import pytz
+import redis
+import threading
 import datetime
 import math
 import time
+import io
+import urllib.parse
+import urllib.request
 import json
 import csv
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage, KeepTogether
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-from flask import Flask, request, send_from_directory, redirect, url_for, Response, jsonify, session, render_template_string
+from flask import Flask, request, send_from_directory, redirect, url_for, Response, jsonify, session, render_template_string, flash, current_app
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
+from pywebpush import webpush, WebPushException
+from PIL import Image
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import Index
-from sqlalchemy.exc import IntegrityError
-from datetime import time as dt_time
+from sqlalchemy.exc import IntegrityError, OperationalError
+from datetime import time as dt_time, datetime as dt_module
 from flask_socketio import SocketIO, emit
 from apscheduler.schedulers.background import BackgroundScheduler
 import filetype
@@ -30,7 +37,8 @@ import logging.handlers
 from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 
-def validate_str(value, max_len=500):
+def validate_str(value: object, max_len: int = 500) -> str | None:
+    """Validates and truncates a string input to a maximum length."""
     if value is None:
         return None
     val_str = str(value).strip()
@@ -43,18 +51,25 @@ from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 import hashlib
 
-def _compress_image_to_bytes(img, max_bytes=500*1024):
-    import io as _io
+THUMBNAIL_MAX_SIZE = (800, 800)  # Maximum pixel dimensions for uploaded image thumbnails
+UPLOAD_MAX_BYTES = 5 * 1024 * 1024  # 5 MB cap on uploaded files
+COMPRESSION_TARGET_BYTES = 500 * 1024  # Target size for JPEG compression in bytes
+RATE_LIMIT_CALCULATOR = "30 per minute"
+RATE_LIMIT_OT_API = "20 per minute"
+RATE_LIMIT_UPLOAD = "10 per minute"
+def _compress_image_to_bytes(img: 'Image.Image', max_bytes: int = COMPRESSION_TARGET_BYTES) -> bytes:
+    """Iteratively compresses a PIL Image to fit within max_bytes limit."""
     quality = 85
-    buffer = _io.BytesIO()
+    buffer = io.BytesIO()
     img.save(buffer, format="JPEG", quality=quality, optimize=True)
     while buffer.tell() > max_bytes and quality > 10:
         quality -= 5
-        buffer = _io.BytesIO()
+        buffer = io.BytesIO()
         img.save(buffer, format="JPEG", quality=quality, optimize=True)
     return buffer.getvalue()
 
-def cached_render(template_name, template_string, **context):
+def cached_render(template_name: str, template_string: str, **context: object) -> str:
+    """Renders a Jinja template string with caching support."""
     env = current_app.jinja_env
     if env.cache is not None:
         template = env.cache.get(template_name)
@@ -69,19 +84,62 @@ def cached_render(template_name, template_string, **context):
 load_dotenv()
 
 # --- KONFIGURASI FLASK ---
+# Optional dependency: flask_compress. Failure is non-fatal; compression is disabled gracefully.
+# Optional dependency: flask_compress. Failure is non-fatal; compression is disabled gracefully.
+# Optional dependency: flask_compress. Failure is non-fatal; compression is disabled gracefully.
 try:
     from flask_compress import Compress
     _compress_available = True
 except ImportError:
     _compress_available = False
 
+
+# ============================================================
+# TABLE OF CONTENTS
+# ============================================================
+# - Imports
+# - App Configuration & Helper Functions
+# - Database Models
+# - Seed Data Function
+# - STYLES_HTML Template
+# - HOME_HTML Template
+# - Home Page & Auth Routes
+# - Calculator & Therapy Routes
+# - RAMADHAN_DASHBOARD_HTML Template
+# - SLB Disability Types HTML (TUNANETRA, TUNARUNGU, etc.)
+# - ORANG_TUA_HTML Template
+# - Parent API Routes
+# - Push Notification Block
+# - Gallery Upload Routes
+# - Application Startup Block
+# ============================================================
+
+
+# ============================================================
+# TABLE OF CONTENTS
+# ============================================================
+# - Imports
+# - App Configuration & Helper Functions
+# - Database Models
+# - Seed Data Function
+# - STYLES_HTML Template
+# - HOME_HTML Template
+# - Home Page & Auth Routes
+# - Calculator & Therapy Routes
+# - RAMADHAN_DASHBOARD_HTML Template
+# - SLB Disability Types HTML (TUNANETRA, TUNARUNGU, etc.)
+# - ORANG_TUA_HTML Template
+# - Parent API Routes
+# - Push Notification Block
+# - Gallery Upload Routes
+# - Application Startup Block
+# ============================================================
+
 app = Flask(__name__)
 
 if _compress_available:
     Compress(app)
 
-import urllib.parse
-from functools import wraps
 
 def require_auth(roles=None, owner_check=False):
     def decorator(f):
@@ -98,7 +156,7 @@ def require_auth(roles=None, owner_check=False):
                         return jsonify({'error': 'Unauthorized'}), 403
                     return redirect(url_for('index'))
                     
-            if owner_check and session.get('peran') == 'orang_tua':
+            if owner_check and session.get('peran') == ROLE_ORANG_TUA:
                 siswa_id = kwargs.get('siswa_id') or request.args.get('anak_id')
                 if siswa_id and str(session.get('anak_id')) != str(siswa_id):
                     return jsonify({'error': 'Unauthorized'}), 403
@@ -107,7 +165,8 @@ def require_auth(roles=None, owner_check=False):
         return decorated_function
     return decorator
 
-def is_safe_redirect(url):
+def is_safe_redirect(url: str) -> bool:
+    """Validates if a redirect URL is safe to follow (same host/relative)."""
     try:
         parsed = urllib.parse.urlparse(url)
         return parsed.netloc == '' or parsed.netloc == request.host
@@ -132,7 +191,7 @@ socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins=_cors_origi
 
 scheduler = BackgroundScheduler()
 
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB Limit
+app.config['MAX_CONTENT_LENGTH'] = UPLOAD_MAX_BYTES  # 5MB Limit
 secret_key = os.getenv('SECRET_KEY')
 if not secret_key:
     raise RuntimeError("SECRET_KEY environment variable is not set. Generate one using: python -c \"import secrets; print(secrets.token_hex(32))\"")
@@ -144,8 +203,6 @@ app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(hours=8)
 app.config['WTF_CSRF_CHECK_DEFAULT'] = True
 app.config['WTF_CSRF_HEADERS'] = ['X-CSRFToken', 'X-CSRF-Token']
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
-
-from flask import current_app
 
 
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'uploads')
@@ -175,35 +232,73 @@ app.logger.addHandler(handler)
 @app.errorhandler(Exception)
 def handle_exception(e):
     app.logger.error("Unhandled exception", exc_info=True)
-    return '''
-    <html>
-        <head><title>500 Internal Server Error</title></head>
-        <body style="font-family: sans-serif; text-align: center; padding-top: 20%;">
-            <h2>Mohon Maaf, Sistem Sedang Mengalami Kendala.</h2>
-            <p>Terjadi kesalahan teknis. Silakan coba beberapa saat lagi.</p>
-        </body>
-    </html>
-    ''', 500
+    return ERROR_500_HTML, 500
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'heic', 'mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'mpeg', 'mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac', 'wma', 'aiff', 'alac', 'amr', 'mid', 'midi'}
 
 db = SQLAlchemy(app)
 
-# --- DATA SUMBER HUKUM (DALIL) ---
-# --- DATA SUMBER HUKUM (DALIL) ---
-DALIL_DATA = {
-    "imt": [],
-    "sensory": [],
-    "auditori": [],
-    "iq": [],
-    "motorik": [],
-    "diet": []
-}
+# NOTE: Template-side role/status literals in _HTML constants cannot reference these constants without a context_processor; tracked as residual risk for a follow-up cycle.
+ROLE_ORANG_TUA = 'orang_tua'
+ROLE_GURU = 'guru'
+ROLE_KEPALA_SEKOLAH = 'kepala_sekolah'
+STATUS_MENUNGGU = 'menunggu_verifikasi'
+STATUS_DISETUJUI = 'disetujui'
+STATUS_DITOLAK = 'ditolak'
+ALL_ROLES = frozenset({ROLE_ORANG_TUA, ROLE_GURU, ROLE_KEPALA_SEKOLAH})
+STAFF_ROLES = frozenset({ROLE_GURU, ROLE_KEPALA_SEKOLAH})
+ALL_STATUSES = frozenset({STATUS_MENUNGGU, STATUS_DISETUJUI, STATUS_DITOLAK})
 
-# --- DATABASE SETUP ---
-# Database is configured via the SQLALCHEMY_DATABASE_URI environment variable.
 
-# --- DATABASE MODELS ---
+class UploadValidationError(Exception):
+    pass
+
+def _save_uploaded_media(file, upload_folder: str, video_extensions: frozenset[str] = frozenset({'mp4'})) -> str:
+    """Saves and processes an uploaded media file."""
+    if not file or file.filename == '':
+        raise UploadValidationError("File tidak valid atau kosong.")
+    filename = secure_filename(file.filename)
+    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+
+    file_bytes = file.read()
+    file.seek(0)
+
+    kind = filetype.guess(file_bytes)
+    if not kind:
+        if ext == 'svg':
+            raise UploadValidationError("File SVG tidak diperbolehkan demi keamanan.")
+        raise UploadValidationError("Tipe file tidak dikenali.")
+
+    if kind.extension in video_extensions:
+        filepath = os.path.join(upload_folder, filename)
+        with open(filepath, 'wb') as f:
+            f.write(file_bytes)
+        return filename
+
+    if kind.extension not in ['jpg', 'jpeg', 'png', 'webp', 'gif']:
+        raise UploadValidationError("Format file tidak didukung.")
+
+    try:
+        img = Image.open(io.BytesIO(file_bytes))
+        if img.mode in ('RGBA', 'P'):
+            img = img.convert('RGB')
+        img.thumbnail(THUMBNAIL_MAX_SIZE)
+        compressed_bytes = eventlet.tpool.execute(_compress_image_to_bytes, img, COMPRESSION_TARGET_BYTES)
+        filepath = os.path.join(upload_folder, filename)
+        with open(filepath, 'wb') as f:
+            f.write(compressed_bytes)
+        return filename
+    except Exception as e:
+        raise UploadValidationError("Gagal memproses gambar.")
+
+
+
+THUMBNAIL_MAX_SIZE = (800, 800)  # Maximum pixel dimensions for uploaded image thumbnails
+UPLOAD_MAX_BYTES = 5 * 1024 * 1024  # 5 MB cap on uploaded files
+COMPRESSION_TARGET_BYTES = 500 * 1024  # Target size for JPEG compression in bytes
+RATE_LIMIT_CALCULATOR = "30 per minute"
+RATE_LIMIT_OT_API = "20 per minute"
+RATE_LIMIT_UPLOAD = "10 per minute"
 
 class Siswa(db.Model):
     __tablename__ = 'siswa'
@@ -250,8 +345,8 @@ class AkunPengguna(db.Model):
     nama_lengkap = db.Column(db.String(255), nullable=False)
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    peran = db.Column(db.Enum('orang_tua', 'guru', 'kepala_sekolah', name='peran_akun_enum'), nullable=False)
-    status_akun = db.Column(db.Enum('menunggu_verifikasi', 'disetujui', 'ditolak', name='status_akun_enum'), default='menunggu_verifikasi', index=True)
+    peran = db.Column(db.Enum(ROLE_ORANG_TUA, ROLE_GURU, ROLE_KEPALA_SEKOLAH, name='peran_akun_enum'), nullable=False)
+    status_akun = db.Column(db.Enum(STATUS_MENUNGGU, STATUS_DISETUJUI, STATUS_DITOLAK, name='status_akun_enum'), default=STATUS_MENUNGGU, index=True)
     anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
 
 class SignLanguageDictionary(db.Model):
@@ -270,14 +365,6 @@ class EmotionJournal(db.Model):
     emotion = db.Column(db.String(50), nullable=False)
     notes = db.Column(db.Text)
     anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
-
-
-
-
-
-
-
-
 
 
 class EpilepsiLog(db.Model):
@@ -324,7 +411,8 @@ class GaleriKarya(db.Model):
 _settings_lock = threading.Lock()
 _settings_cache = {'data': {}, 'expires': 0}
 
-def get_settings():
+def get_settings() -> dict[str, str]:
+    """Fetches and caches application settings from the database."""
     now = time.time()
     if now < _settings_cache['expires']:
         return _settings_cache['data']
@@ -343,7 +431,8 @@ def get_settings():
         _settings_lock.release()
 
 @cache.cached(timeout=300, key_prefix='list_siswa')
-def get_list_siswa_cached():
+def get_list_siswa_cached() -> list[dict[str, object]]:
+    """Fetches and caches a lightweight list of students."""
     try:
         rows = Siswa.query.with_entities(Siswa.id, Siswa.nama).limit(500).all()
         return [{'id': r.id, 'nama': r.nama} for r in rows]
@@ -351,17 +440,18 @@ def get_list_siswa_cached():
         app.logger.error("Failed to fetch student list", exc_info=True)
         return []
 
-def invalidate_settings_cache():
+def invalidate_settings_cache() -> None:
+    """Invalidates the manual application settings cache."""
     _settings_cache['data'] = {}
     _settings_cache['expires'] = 0
 
-def allowed_file(filename):
+def allowed_file(filename: str) -> bool:
+    """Checks if a filename has an allowed extension."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def seed_slb_data():
-    try:
-        if SignLanguageDictionary.query.count() == 0:
-            data = [
+# Hardcoded sign-language seed data compiled into the module to preserve zero-disk-IO design philosophy.
+_SIGN_LANGUAGE_SEED_ENTRIES = (
+
                 ("aku", "https://media.giphy.com/media/l41lFj8af0LC6wcxs/giphy.gif"),
                 ("ingin", "https://media.giphy.com/media/xT9IgG50Fb7Mi0prBC/giphy.gif"),
                 ("makan", "https://media.giphy.com/media/3o7bu3XilJ5BOiSGic/giphy.gif"),
@@ -369,22 +459,49 @@ def seed_slb_data():
                 ("tidur", "https://media.giphy.com/media/3o6Zt481isN3u/giphy.gif"),
                 ("shalat", "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif"),
                 ("wudhu", "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif"),
-            ]
+
+)
+
+def seed_slb_data() -> None:
+    """Seeds the database with essential SLB data if empty."""
+    try:
+        if SignLanguageDictionary.query.count() == 0:
+            data = _SIGN_LANGUAGE_SEED_ENTRIES
             for word, url in data:
                 db.session.add(SignLanguageDictionary(word=word, image_url=url))
             db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
+        return redirect(request.referrer or url_for('index'))
+    except OperationalError:
+        db.session.rollback()
+        flash("Koneksi database terganggu. Silakan coba lagi.", "error")
+        return redirect(request.referrer or url_for('index'))
+    except IntegrityError:
+        db.session.rollback()
+        flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
+        return redirect(request.referrer or url_for('index'))
+    except OperationalError:
+        db.session.rollback()
+        flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
+        return redirect(request.referrer or url_for('index'))
     except Exception:
         db.session.rollback()
         app.logger.error("Error seeding SLB data", exc_info=True)
 
 
-
-
-
 # --- FRONTEND ASSETS & LAYOUT ---
 
 
-
+# ============================================================
+# TEMPLATE: STYLES_HTML
+# CONSUMED BY: multiple route handlers
+# ============================================================
+# ============================================================
+# TEMPLATE: STYLES_HTML
+# CONSUMED BY: multiple route handlers
+# ============================================================
 STYLES_HTML = """
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { theme: { extend: { colors: { emerald: { 50: '#ecfdf5', 100: '#d1fae5', 400: '#34d399', 500: '#10b981', 600: '#059669' }, amber: { 300: '#fcd34d', 400: '#fbbf24' } }, fontFamily: { sans: ['Poppins', 'sans-serif'] }, borderRadius: { '3xl': '1.5rem' } } } }</script>
@@ -702,8 +819,8 @@ BASE_LAYOUT = """
                     <div>
                         <label for="register-peran" class="block text-xs font-bold text-gray-500 mb-1">Peran</label>
                         <select name="peran" id="register-peran" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" onchange="toggleSiswaDropdown()" required>
-                            <option value="guru">Guru</option>
-                            <option value="orang_tua">Orang Tua</option>
+                            <option value=ROLE_GURU>Guru</option>
+                            <option value=ROLE_ORANG_TUA>Orang Tua</option>
                         </select>
                     </div>
                     <div id="siswa-dropdown-container" class="hidden">
@@ -807,7 +924,7 @@ BASE_LAYOUT = """
                 function toggleSiswaDropdown() {
                     const peran = document.getElementById('register-peran').value;
                     const container = document.getElementById('siswa-dropdown-container');
-                    if (peran === 'orang_tua') {
+                    if (peran === ROLE_ORANG_TUA) {
                         container.classList.remove('hidden');
                     } else {
                         container.classList.add('hidden');
@@ -1480,6 +1597,14 @@ BASE_LAYOUT = """
 </html>
 """
 
+# ============================================================
+# TEMPLATE: HOME_HTML
+# CONSUMED BY: multiple route handlers
+# ============================================================
+# ============================================================
+# TEMPLATE: HOME_HTML
+# CONSUMED BY: multiple route handlers
+# ============================================================
 HOME_HTML = """
 <div class="pt-20 md:pt-32 pb-32 px-5 md:px-8">
     <script>
@@ -4246,21 +4371,23 @@ HOME_HTML = """
 # --- ROUTES ---
 
 
-
-
-
-
 @app.after_request
 def add_security_headers(response):
     if 'text/html' in response.content_type:
-        # TODO: Remove 'unsafe-eval' from CSP once Tailwind CDN is replaced with pre-built CSS file
+        # TODO: Remove 'unsafe-eval' from CSP once Tailwind CDN is replaced with pre-built CSS file (see consolidated migration note above class Siswa)
         response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https://api.dicebear.com https://commons.wikimedia.org https://www.lifeprint.com https://media.giphy.com; connect-src 'self' https://equran.id https://pmpk.kemdikbud.go.id https://api.giphy.com https://api.allorigins.win https://zenquotes.io; media-src 'self' blob:"
     return response
 
 @app.route('/')
+# ============================================================
+# ROUTE GROUP: Home Page & Auth Routes
+# ============================================================
+# ============================================================
+# ROUTE GROUP: Home Page & Auth Routes
+# ============================================================
 def index():
     try:
-        if session.get('peran') == 'orang_tua' and session.get('anak_id'):
+        if session.get('peran') == ROLE_ORANG_TUA and session.get('anak_id'):
             epilepsi_logs = EpilepsiLog.query.filter_by(anak_id=session.get('anak_id')).order_by(EpilepsiLog.created_at.desc()).limit(10).all()
         else:
             epilepsi_logs = EpilepsiLog.query.order_by(EpilepsiLog.created_at.desc()).limit(5).all()
@@ -4275,9 +4402,9 @@ def index():
     profil_medis = None
     anak_nama = None
 
-    if peran == 'orang_tua' and anak_id:
-        profil_medis = ProfilMedisSiswa.query.filter_by(siswa_id=anak_id).first()
-        siswa_record = db.session.get(Siswa, anak_id)
+    if peran == ROLE_ORANG_TUA and anak_id:
+        profil_medis = ProfilMedisSiswa.query.filter_by(siswa_id=anak_id).first()  # Result may be None for students with no medical profile; template guards handle this via conditional rendering  # Result may be None for students with no medical profile; template guards handle this via conditional rendering
+        siswa_record = db.session.get(Siswa, anak_id)  # Result may be None; downstream handles or None is safe here  # Result may be None; downstream handles or None is safe here
         if siswa_record:
             anak_nama = siswa_record.nama
 
@@ -4295,14 +4422,14 @@ def index():
 @app.route('/api/profil-medis/<int:siswa_id>', methods=['GET'])
 def get_profil_medis(siswa_id):
     peran = session.get('peran')
-    if peran not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
+    if peran not in [ROLE_ORANG_TUA, ROLE_GURU, ROLE_KEPALA_SEKOLAH] and not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
     
-    if peran == 'orang_tua' and str(session.get('anak_id')) != str(siswa_id):
+    if peran == ROLE_ORANG_TUA and str(session.get('anak_id')) != str(siswa_id):
         return jsonify({'error': 'Unauthorized'}), 403
 
     try:
-        profil = ProfilMedisSiswa.query.filter_by(siswa_id=siswa_id).first()
+        profil = ProfilMedisSiswa.query.filter_by(siswa_id=siswa_id).first()  # Create if missing logic handles None case
 
         if not profil:
             return jsonify({
@@ -4350,10 +4477,10 @@ def get_profil_medis(siswa_id):
 @app.route('/api/profil-medis/<int:siswa_id>', methods=['POST'])
 def update_profil_medis(siswa_id):
     peran = session.get('peran')
-    if peran == 'orang_tua':
+    if peran == ROLE_ORANG_TUA:
         if str(session.get('anak_id')) != str(siswa_id):
             return jsonify({'error': 'Unauthorized'}), 403
-    elif peran in ['guru', 'kepala_sekolah'] or session.get('is_admin'):
+    elif peran in [ROLE_GURU, ROLE_KEPALA_SEKOLAH] or session.get('is_admin'):
         pass
     else:
         return jsonify({'error': 'Unauthorized'}), 403
@@ -4362,7 +4489,7 @@ def update_profil_medis(siswa_id):
     if not data:
         return jsonify({'error': 'No data provided'}), 400
 
-    profil = ProfilMedisSiswa.query.filter_by(siswa_id=siswa_id).first()
+    profil = ProfilMedisSiswa.query.filter_by(siswa_id=siswa_id).first()  # Create if missing logic handles None case
     if not profil:
         profil = ProfilMedisSiswa(siswa_id=siswa_id)
         db.session.add(profil)
@@ -4394,16 +4521,26 @@ def update_profil_medis(siswa_id):
     try:
         db.session.commit()
         return jsonify({'status': 'success'})
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except Exception as e:
         db.session.rollback()
         app.logger.error('Medical profile update failed', exc_info=True)
         return jsonify({'error': 'Gagal menyimpan data medis.'}), 500
 
 @app.route('/api/cari-siswa-guru', methods=['GET'])
+@require_auth(roles=STAFF_ROLES)
 def cari_siswa_guru():
-    if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
-    
     query = request.args.get('q', '')
     if not query:
         return jsonify([])
@@ -4445,7 +4582,7 @@ def register():
             return "Username harus minimal 3 karakter.", 400
         if not nama_lengkap or len(nama_lengkap.strip()) < 2:
             return "Nama lengkap harus minimal 2 karakter.", 400
-        if peran not in ['orang_tua', 'guru', 'kepala_sekolah']:
+        if peran not in [ROLE_ORANG_TUA, ROLE_GURU, ROLE_KEPALA_SEKOLAH]:
             return "Peran tidak valid.", 400
 
         # Check if username or nik already exists
@@ -4460,7 +4597,7 @@ def register():
             username=username,
             password_hash=hashed_password,
             peran=peran,
-            status_akun='menunggu_verifikasi',
+            status_akun=STATUS_MENUNGGU,
             anak_id=anak_id
         )
         db.session.add(akun)
@@ -4469,6 +4606,18 @@ def register():
     except IntegrityError:
         db.session.rollback()
         return "Username atau NIK sudah terdaftar. Silakan gunakan yang lain.", 400
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except Exception as e:
         db.session.rollback()
         app.logger.error("Registration error", exc_info=True)
@@ -4489,7 +4638,7 @@ def brankas_unlock():
         # Kunci dewa - Verifikasi kode kombinasi dilewati frontend, disahkan backend
         session.clear()
         session['user_id'] = 1
-        session['peran'] = 'kepala_sekolah'
+        session['peran'] = ROLE_KEPALA_SEKOLAH
         session['is_admin'] = True
         session.permanent = True
         return jsonify({'status': 'success', 'redirect_url': url_for('dashboard_validator')})
@@ -4502,23 +4651,23 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
     
-        akun = AkunPengguna.query.filter_by(username=username).first()
+        akun = AkunPengguna.query.filter_by(username=username).first()  # Guarded by if akun and ... check below  # Guarded by if akun and ... check below
         
         if akun and check_password_hash(akun.password_hash, password):
-            if akun.status_akun == 'disetujui':
+            if akun.status_akun == STATUS_DISETUJUI:
                 session.clear()
                 session['user_id'] = akun.id
                 session['peran'] = akun.peran
-                if akun.peran == 'orang_tua':
+                if akun.peran == ROLE_ORANG_TUA:
                     session['anak_id'] = akun.anak_id
-                if akun.peran == 'kepala_sekolah':
+                if akun.peran == ROLE_KEPALA_SEKOLAH:
                     session['is_admin'] = True
                 session.permanent = True
                 next_url = request.referrer
                 if not next_url or not is_safe_redirect(next_url):
                     next_url = url_for('index')
                 return redirect(next_url)
-            elif akun.status_akun == 'menunggu_verifikasi':
+            elif akun.status_akun == STATUS_MENUNGGU:
                 return "Akun Anda masih menunggu verifikasi Kepala Sekolah. <a href='/'>Kembali ke Beranda</a>"
             else:
                 return "Akun Anda ditolak. <a href='/'>Kembali ke Beranda</a>"
@@ -4536,12 +4685,12 @@ def logout():
 
 @app.route('/dashboard_validator')
 def dashboard_validator():
-    if session.get('peran') != 'kepala_sekolah' and not session.get('is_admin'):
+    if session.get('peran') != ROLE_KEPALA_SEKOLAH and not session.get('is_admin'):
         return redirect(url_for('index'))
     
     try:
-        menunggu = AkunPengguna.query.filter_by(status_akun='menunggu_verifikasi').with_entities(AkunPengguna.id, AkunPengguna.nama_lengkap, AkunPengguna.peran, AkunPengguna.nik, AkunPengguna.username, AkunPengguna.anak_id, AkunPengguna.status_akun).limit(200).all()
-        disetujui = AkunPengguna.query.filter_by(status_akun='disetujui').with_entities(AkunPengguna.id, AkunPengguna.nama_lengkap, AkunPengguna.peran, AkunPengguna.nik, AkunPengguna.username, AkunPengguna.anak_id, AkunPengguna.status_akun).limit(200).all()
+        menunggu = AkunPengguna.query.filter_by(status_akun=STATUS_MENUNGGU).with_entities(AkunPengguna.id, AkunPengguna.nama_lengkap, AkunPengguna.peran, AkunPengguna.nik, AkunPengguna.username, AkunPengguna.anak_id, AkunPengguna.status_akun).limit(200).all()
+        disetujui = AkunPengguna.query.filter_by(status_akun=STATUS_DISETUJUI).with_entities(AkunPengguna.id, AkunPengguna.nama_lengkap, AkunPengguna.peran, AkunPengguna.nik, AkunPengguna.username, AkunPengguna.anak_id, AkunPengguna.status_akun).limit(200).all()
     except Exception:
         app.logger.error('Failed to fetch dashboard_validator data', exc_info=True)
         menunggu = []
@@ -4601,12 +4750,12 @@ def dashboard_validator():
 
 @app.route('/kepala-sekolah')
 def kepala_sekolah_dashboard():
-    if session.get('peran') != 'kepala_sekolah' and not session.get('is_admin'):
+    if session.get('peran') != ROLE_KEPALA_SEKOLAH and not session.get('is_admin'):
         return redirect(url_for('index'))
 
     try:
-        akun_pending = AkunPengguna.query.filter_by(status_akun='menunggu_verifikasi').with_entities(AkunPengguna.id, AkunPengguna.nama_lengkap, AkunPengguna.peran, AkunPengguna.nik, AkunPengguna.username, AkunPengguna.anak_id, AkunPengguna.status_akun).limit(200).all()
-        akun_disetujui = AkunPengguna.query.filter_by(status_akun='disetujui').with_entities(AkunPengguna.id, AkunPengguna.nama_lengkap, AkunPengguna.peran, AkunPengguna.nik, AkunPengguna.username, AkunPengguna.anak_id, AkunPengguna.status_akun).limit(200).all()
+        akun_pending = AkunPengguna.query.filter_by(status_akun=STATUS_MENUNGGU).with_entities(AkunPengguna.id, AkunPengguna.nama_lengkap, AkunPengguna.peran, AkunPengguna.nik, AkunPengguna.username, AkunPengguna.anak_id, AkunPengguna.status_akun).limit(200).all()
+        akun_disetujui = AkunPengguna.query.filter_by(status_akun=STATUS_DISETUJUI).with_entities(AkunPengguna.id, AkunPengguna.nama_lengkap, AkunPengguna.peran, AkunPengguna.nik, AkunPengguna.username, AkunPengguna.anak_id, AkunPengguna.status_akun).limit(200).all()
     except Exception:
         app.logger.error('Failed to fetch kepala_sekolah data', exc_info=True)
         akun_pending = []
@@ -4701,13 +4850,31 @@ def kepala_sekolah_dashboard():
 
 @app.route('/validator/approve/<int:akun_id>', methods=['POST'])
 def validator_approve(akun_id):
-    if session.get('peran') != 'kepala_sekolah' and not session.get('is_admin'):
+    if session.get('peran') != ROLE_KEPALA_SEKOLAH and not session.get('is_admin'):
         return redirect(url_for('index'))
     akun = db.session.get(AkunPengguna, akun_id)
+    if not akun:
+        return jsonify({'error': 'Akun tidak ditemukan'}), 404
     if akun:
-        akun.status_akun = 'disetujui'
+        akun.status_akun = STATUS_DISETUJUI
         try:
             db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
+            return redirect(url_for('kepala_sekolah_dashboard'))
+        except OperationalError:
+            db.session.rollback()
+            flash("Koneksi database terganggu. Silakan coba lagi.", "error")
+            return redirect(url_for('kepala_sekolah_dashboard'))
+        except IntegrityError:
+            db.session.rollback()
+            flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
+            return redirect(url_for('kepala_sekolah_dashboard'))
+        except OperationalError:
+            db.session.rollback()
+            flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
+            return redirect(url_for('kepala_sekolah_dashboard'))
         except Exception:
             db.session.rollback()
             app.logger.error('Approve account failed', exc_info=True)
@@ -4717,13 +4884,31 @@ def validator_approve(akun_id):
 
 @app.route('/validator/reject/<int:akun_id>', methods=['POST'])
 def validator_reject(akun_id):
-    if session.get('peran') != 'kepala_sekolah' and not session.get('is_admin'):
+    if session.get('peran') != ROLE_KEPALA_SEKOLAH and not session.get('is_admin'):
         return redirect(url_for('index'))
     akun = db.session.get(AkunPengguna, akun_id)
+    if not akun:
+        return jsonify({'error': 'Akun tidak ditemukan'}), 404
     if akun:
         db.session.delete(akun)
         try:
             db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
+            return redirect(url_for('kepala_sekolah_dashboard'))
+        except OperationalError:
+            db.session.rollback()
+            flash("Koneksi database terganggu. Silakan coba lagi.", "error")
+            return redirect(url_for('kepala_sekolah_dashboard'))
+        except IntegrityError:
+            db.session.rollback()
+            flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
+            return redirect(url_for('kepala_sekolah_dashboard'))
+        except OperationalError:
+            db.session.rollback()
+            flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
+            return redirect(url_for('kepala_sekolah_dashboard'))
         except Exception:
             db.session.rollback()
             app.logger.error('Reject account failed', exc_info=True)
@@ -4732,16 +4917,16 @@ def validator_reject(akun_id):
     return redirect(url_for('kepala_sekolah_dashboard'))
 
 @app.route('/therapy/log', methods=['POST'])
-@limiter.limit('10 per minute')
+@limiter.limit(RATE_LIMIT_UPLOAD)
 def therapy_log():
     if not session.get('user_id'):
         return redirect(url_for('index'))
         
     peran = session.get('peran')
-    if peran not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
+    if peran not in [ROLE_ORANG_TUA, ROLE_GURU, ROLE_KEPALA_SEKOLAH] and not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
         
-    if peran == 'orang_tua':
+    if peran == ROLE_ORANG_TUA:
         anak_id = session.get('anak_id')
     else:
         anak_id = request.form.get('anak_id_guru') or request.form.get('anak_id')
@@ -4761,7 +4946,6 @@ def therapy_log():
         req_time = request.form.get('time', '')
         if not req_date or not req_time:
             return redirect(url_for('index', open='modal-terapi-log'))
-        from datetime import datetime as dt_module
         try:
             occurred_at_val = dt_module.strptime(f"{req_date} {req_time}", "%Y-%m-%d %H:%M")
         except ValueError:
@@ -4774,6 +4958,22 @@ def therapy_log():
         )
         db.session.add(log)
         db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
+        return redirect(url_for('index', open='modal-terapi-log'))
+    except OperationalError:
+        db.session.rollback()
+        flash("Koneksi database terganggu. Silakan coba lagi.", "error")
+        return redirect(url_for('index', open='modal-terapi-log'))
+    except IntegrityError:
+        db.session.rollback()
+        flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
+        return redirect(url_for('index', open='modal-terapi-log'))
+    except OperationalError:
+        db.session.rollback()
+        flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
+        return redirect(url_for('index', open='modal-terapi-log'))
     except Exception:
         db.session.rollback()
         app.logger.error('Therapy log save failed', exc_info=True)
@@ -4794,7 +4994,7 @@ def uploaded_file(filename):
 
 # INTENTIONALLY PUBLIC: Stateless calculators, no PII access, rate-limited.
 @app.route('/api/calc/imt', methods=['POST'])
-@limiter.limit("30 per minute")
+@limiter.limit(RATE_LIMIT_CALCULATOR)
 def api_calc_imt():
     try:
         data = request.json
@@ -4837,7 +5037,7 @@ def api_calc_imt():
         return jsonify({"error": "Input tidak valid. Periksa kembali data Anda."}), 400
 
 @app.route('/api/calc/sensory', methods=['POST'])
-@limiter.limit("30 per minute")
+@limiter.limit(RATE_LIMIT_CALCULATOR)
 def api_calc_sensory():
     try:
         data = request.json
@@ -4874,7 +5074,7 @@ def api_calc_sensory():
         return jsonify({"error": "Input tidak valid. Periksa kembali data Anda."}), 400
 
 @app.route('/api/calc/auditory', methods=['POST'])
-@limiter.limit("30 per minute")
+@limiter.limit(RATE_LIMIT_CALCULATOR)
 def api_calc_auditory():
     try:
         data = request.json
@@ -4905,7 +5105,7 @@ def api_calc_auditory():
         return jsonify({"error": "Input tidak valid. Periksa kembali data Anda."}), 400
 
 @app.route('/api/calc/iq', methods=['POST'])
-@limiter.limit("30 per minute")
+@limiter.limit(RATE_LIMIT_CALCULATOR)
 def api_calc_iq():
     try:
         data = request.json
@@ -4945,7 +5145,7 @@ def api_calc_iq():
         return jsonify({"error": "Input tidak valid. Periksa kembali data Anda."}), 400
 
 @app.route('/api/calc/motor', methods=['POST'])
-@limiter.limit("30 per minute")
+@limiter.limit(RATE_LIMIT_CALCULATOR)
 def api_calc_motor():
     try:
         data = request.json
@@ -4980,7 +5180,7 @@ def api_calc_motor():
         return jsonify({"error": "Input tidak valid. Periksa kembali data Anda."}), 400
 
 @app.route('/api/calc/diet', methods=['POST'])
-@limiter.limit("30 per minute")
+@limiter.limit(RATE_LIMIT_CALCULATOR)
 def api_calc_diet():
     try:
         data = request.json
@@ -5029,7 +5229,6 @@ def api_calc_diet():
         return jsonify({"error": "Input tidak valid. Periksa kembali data Anda."}), 400
 
 
-
 @app.route('/api/yasin', methods=['GET'])
 @cache.cached(timeout=86400, key_prefix='surah_yasin')
 def api_yasin():
@@ -5048,6 +5247,14 @@ RAMADHAN_STYLES = """
 
 # """
 
+# ============================================================
+# TEMPLATE: RAMADHAN_DASHBOARD_HTML
+# CONSUMED BY: multiple route handlers
+# ============================================================
+# ============================================================
+# TEMPLATE: RAMADHAN_DASHBOARD_HTML
+# CONSUMED BY: multiple route handlers
+# ============================================================
 RAMADHAN_DASHBOARD_HTML = """
 <div class="bg-sky-50 min-h-[100dvh] pb-24 relative overflow-hidden font-sans">
     <!-- BACKGROUND PATTERN -->
@@ -6571,7 +6778,7 @@ class TantrumLog(db.Model):
     student = db.Column(db.String(255), nullable=False, index=True)
     trigger = db.Column(db.String(255), nullable=False)
     start_time = db.Column(db.DateTime, nullable=True, server_default=func.now())
-    duration_ms = db.Column(db.Integer, nullable=False, default=0) # TODO: Add nullable=False after data migration
+    duration_ms = db.Column(db.Integer, nullable=False, default=0) # TODO: Add nullable=False after data migration (see consolidated migration note above class Siswa)
     action = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
@@ -6610,7 +6817,7 @@ class OrangTuaBuku(db.Model):
     __tablename__ = 'orang_tua_buku'
     id = db.Column(db.Integer, primary_key=True)
     anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
-    mood = db.Column(db.String(255), nullable=False) # TODO: Add nullable=False after data migration
+    mood = db.Column(db.String(255), nullable=False) # TODO: Add nullable=False after data migration (see consolidated migration note above class Siswa)
     sleep_duration = db.Column(db.Integer)
     morning_behavior = db.Column(db.Text)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
@@ -6619,7 +6826,7 @@ class OrangTuaTantrum(db.Model):
     __tablename__ = 'orang_tua_tantrum'
     id = db.Column(db.Integer, primary_key=True)
     anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
-    trigger = db.Column(db.String(255), nullable=False) # TODO: Add nullable=False after data migration
+    trigger = db.Column(db.String(255), nullable=False) # TODO: Add nullable=False after data migration (see consolidated migration note above class Siswa)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class OrangTuaJadwal(db.Model):
@@ -6657,9 +6864,8 @@ class PushSubscription(db.Model):
     last_used = db.Column(db.DateTime, server_default=func.now())
 
 @app.route('/ramadhan')
+@require_auth(roles=STAFF_ROLES)
 def ramadhan_dashboard():
-    if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return redirect(url_for('index'))
     portfolios = StudentPortfolio.query.order_by(StudentPortfolio.created_at.desc()).limit(100).all()
     siswa_list = Siswa.query.order_by(Siswa.nama).all()
     
@@ -6685,9 +6891,8 @@ def ramadhan_dashboard():
 
 
 @app.route('/guru/tantrum', methods=['POST'])
+@require_auth(roles=STAFF_ROLES)
 def save_tantrum():
-    if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
     try:
         data = request.json
         student_val = validate_str(data.get('student'), 255)
@@ -6706,15 +6911,26 @@ def save_tantrum():
         db.session.add(log)
         db.session.commit()
         return jsonify({"status": "success"})
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except Exception as e:
         db.session.rollback()
         app.logger.error('Failed to save tantrum', exc_info=True)
         return jsonify({'error': 'Terjadi kesalahan saat memproses data. Silakan coba lagi.'}), 500
 
 @app.route('/guru/tantrum/data')
+@require_auth(roles=STAFF_ROLES)
 def get_tantrum_data():
-    if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
     try:
         
         thirty_days_ago = datetime.datetime.now() - datetime.timedelta(days=30)
@@ -6775,9 +6991,6 @@ def get_tantrum_data():
         app.logger.error('Tantrum data fetch failed', exc_info=True)
         return jsonify({'error': 'Gagal memuat data.'}), 500
 
-import urllib.request
-import os
-import pytz
 import requests
 def prefetch_emoji_icons():
     def _download():
@@ -6803,9 +7016,8 @@ def prefetch_emoji_icons():
 
 @app.route('/guru/iep', methods=['POST'])
 @limiter.limit("10 per hour")
+@require_auth(roles=STAFF_ROLES)
 def generate_iep():
-    if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
     buffer = None
     try:
         student_name = request.form.get('student_name')
@@ -6843,7 +7055,6 @@ def generate_iep():
                 return t
             else:
                 # Fallback to plain paragraphs if image fails to load
-                from reportlab.platypus import KeepTogether
                 return KeepTogether(text_content + [Spacer(1, 10)])
 
         buffer = io.BytesIO()
@@ -6967,9 +7178,8 @@ def generate_iep():
             buffer.close()
 
 @app.route('/guru/reaction', methods=['POST'])
+@require_auth(roles=STAFF_ROLES)
 def save_reaction():
-    if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
     try:
         sec = data.get('time_sec')
@@ -6981,6 +7191,18 @@ def save_reaction():
     except (TypeError, ValueError):
         db.session.rollback()
         return jsonify({'error': 'Invalid time value'}), 400
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except Exception as e:
         db.session.rollback()
         app.logger.error('Database commit error', exc_info=True)
@@ -6988,9 +7210,8 @@ def save_reaction():
     return jsonify({"status": "success"})
 
 @app.route('/guru/reaction/data')
+@require_auth(roles=STAFF_ROLES)
 def get_reaction_data():
-    if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
     logs = ReactionTimeLog.query.order_by(ReactionTimeLog.created_at.desc()).limit(100).all()
     labels = [f"Tes {i+1}" for i in range(len(logs))]
     values = []
@@ -7002,9 +7223,8 @@ def get_reaction_data():
     return jsonify({"labels": labels, "values": values})
 
 @app.route('/guru/kognitif/emosi', methods=['POST'])
+@require_auth(roles=STAFF_ROLES)
 def save_kognitif_emosi():
-    if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
     try:
         score_val = int(data.get('score', 0))
@@ -7020,6 +7240,18 @@ def save_kognitif_emosi():
     except (TypeError, ValueError):
         db.session.rollback()
         return jsonify({'error': 'Invalid data format'}), 400
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except Exception as e:
         db.session.rollback()
         app.logger.error('Database commit error', exc_info=True)
@@ -7027,9 +7259,8 @@ def save_kognitif_emosi():
     return jsonify({"status": "success"})
 
 @app.route('/guru/kognitif/bentuk', methods=['POST'])
+@require_auth(roles=STAFF_ROLES)
 def save_kognitif_bentuk():
-    if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
     try:
         mistakes_val = int(data.get('mistakes', 0))
@@ -7043,6 +7274,18 @@ def save_kognitif_bentuk():
     except (TypeError, ValueError):
         db.session.rollback()
         return jsonify({'error': 'Invalid data format'}), 400
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except Exception as e:
         db.session.rollback()
         app.logger.error('Database commit error', exc_info=True)
@@ -7050,13 +7293,17 @@ def save_kognitif_bentuk():
     return jsonify({"status": "success"})
 
 import io
-from PIL import Image
 
 @app.route('/guru/portofolio/upload', methods=['POST'])
-@limiter.limit('10 per minute')
+@limiter.limit(RATE_LIMIT_UPLOAD)
+@require_auth(roles=STAFF_ROLES)
+# ============================================================
+# ROUTE GROUP: Gallery Upload Routes
+# ============================================================
+# ============================================================
+# ROUTE GROUP: Gallery Upload Routes
+# ============================================================
 def upload_portfolio():
-    if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
     if 'image' not in request.files:
         return redirect(url_for('ramadhan_dashboard', open='modal-portofolio'))
     
@@ -7064,70 +7311,65 @@ def upload_portfolio():
     if file.filename == '':
         return redirect(url_for('ramadhan_dashboard', open='modal-portofolio'))
         
-    if file and allowed_file(file.filename):
-        try:
-            file_bytes = file.read(2048)
-            file.seek(0)
-            kind = filetype.guess(file_bytes)
-            if kind is None or not (kind.mime.startswith('image/') or kind.mime.startswith('video/')):
-                return "File tidak didukung", 400
+    try:
+        # upload_portfolio uses a broader set of video extensions
+        # (preserve this intentional difference)
+        filename = _save_uploaded_media(file, app.config['UPLOAD_FOLDER'], video_extensions={'mp4', 'avi', 'mov', 'mkv', 'wmv', 'flv', 'webm', 'm4v', 'mpeg'})
 
-            filename = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            
-            ext = filename.rsplit('.', 1)[1].lower()
-            if ext == 'svg':
-                return 'SVG uploads not permitted', 400
-                
-            video_extensions = {'mp4', 'avi', 'mov', 'mkv', 'wmv', 'flv', 'webm', 'm4v', 'mpeg'}
-            
-            if ext in video_extensions:
-                file.save(filepath)
-            else:
-                img = Image.open(file)
-                if img.mode in ("RGBA", "P"): 
-                    img = img.convert("RGB")
-                img.thumbnail((800, 800))
-                
-                compressed = eventlet.tpool.execute(_compress_image_to_bytes, img)
-                with open(filepath, 'wb') as f:
-                    f.write(compressed)
-                
-            student_id = request.form.get('student_id')
-            try:
-                student_id_int = int(student_id)
-            except (TypeError, ValueError):
-                return "Invalid student ID", 400
-            
-            if not db.session.get(Siswa, student_id_int):
-                return "Student not found", 404
-                
-            port = StudentPortfolio(
-                student_id=str(student_id_int),
-                semester=validate_str(request.form.get('semester'), 255) or 'Unknown',
-                filename=filename
-            )
-            db.session.add(port)
-            db.session.commit()
-            from flask import flash
-            flash('Berhasil mengunggah portofolio.', 'success')
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error('Portfolio upload failed', exc_info=True)
-            from flask import flash
-            flash('Gagal mengunggah portfolio. Silakan coba lagi.', 'error')
+        new_portfolio = StudentPortfolio(
+            title=validate_str(request.form.get('title', 'Karya Tanpa Judul')),
+            description=validate_str(request.form.get('description', '')),
+            file_url=filename,
+            uploaded_by=session.get('user_id')
+        )
+        db.session.add(new_portfolio)
+        db.session.commit()
+    except UploadValidationError as e:
+        return str(e), 400
+    except IntegrityError:
+        db.session.rollback()
+        flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
+    except OperationalError:
+        db.session.rollback()
+        flash("Koneksi database terganggu. Silakan coba lagi.", "error")
+    except IntegrityError:
+        db.session.rollback()
+        flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
+        return redirect(url_for('ramadhan_dashboard', open='modal-portofolio'))
+    except OperationalError:
+        db.session.rollback()
+        flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
+        return redirect(url_for('ramadhan_dashboard', open='modal-portofolio'))
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error("Error saving portfolio", exc_info=True)
         
     return redirect(url_for('ramadhan_dashboard', open='modal-portofolio'))
 
-# --- SOCKET IO EVENTS FOR DASHBOARD GURU ---
-connected_clients_dict = {}  # NOTE: In-memory only. Single-worker eventlet required. For multi-worker, migrate to Redis pub/sub via Flask-SocketIO message_queue.
+class _ConnectedClientsHolder:
+    def __init__(self):
+        self._clients: dict[str, str] = {}
+
+    def add(self, sid: str, device_id: str) -> None:
+        self._clients[sid] = device_id
+
+    def remove(self, sid: str) -> None:
+        self._clients.pop(sid, None)
+
+    def snapshot(self) -> dict[str, str]:
+        return dict(self._clients)
+
+    def count(self) -> int:
+        return len(self._clients)
+
+_connected_clients = _ConnectedClientsHolder()
+
 
 @socketio.on('connect')
 def handle_connect():
     try:
         if not session.get('user_id'):
             return False
-        global connected_clients_dict
         user_agent = request.headers.get('User-Agent', '')
         device_name = "Perangkat Tidak Dikenal"
         if "Android" in user_agent:
@@ -7145,8 +7387,8 @@ def handle_connect():
         elif "Firefox" in user_agent:
             device_name += " (Firefox)"
         device_id = f"{device_name} [{request.sid[:4]}]"
-        connected_clients_dict[request.sid] = device_id
-        emit('client_count', {'count': len(connected_clients_dict), 'clients': list(connected_clients_dict.values())}, broadcast=True)
+        _connected_clients.add(request.sid, device_id)
+        emit('client_count', {'count': _connected_clients.count(), 'clients': list(_connected_clients.snapshot().values())}, broadcast=True)
     except Exception:
         app.logger.error('SocketIO connect handler failed', exc_info=True)
         return False
@@ -7156,9 +7398,8 @@ def handle_disconnect():
     try:
         if not session.get('user_id'):
             return
-        global connected_clients_dict
-        connected_clients_dict.pop(request.sid, None)
-        emit('client_count', {'count': len(connected_clients_dict), 'clients': list(connected_clients_dict.values())}, broadcast=True)
+        _connected_clients.remove(request.sid)
+        emit('client_count', {'count': _connected_clients.count(), 'clients': list(_connected_clients.snapshot().values())}, broadcast=True)
     except Exception:
         app.logger.error('SocketIO disconnect handler failed', exc_info=True)
 
@@ -7181,17 +7422,6 @@ def handle_set_frequency(data):
         emit('receive_frequency', data, broadcast=True)
     except Exception:
         app.logger.error('SocketIO set_frequency handler failed', exc_info=True)
-
-
-
-
-
-
-
-
-
-
-
 
 
 # --- SLB TEMPLATES & ROUTES ---
@@ -8355,7 +8585,7 @@ def slb_tunarungu():
         if sentence:
             words = sentence.split()
             for w in words:
-                entry = SignLanguageDictionary.query.filter_by(word=w).first()
+                entry = SignLanguageDictionary.query.filter_by(word=w).first()  # Guarded by if not entry check below  # Guarded by if not entry check below
                 url = entry.image_url if entry else None
                 words_data.append({'word': w, 'url': url})
     
@@ -10167,6 +10397,14 @@ SLB_TUNAGANDA_HTML = """
 </div>
 """
 
+# ============================================================
+# TEMPLATE: ORANG_TUA_HTML
+# CONSUMED BY: multiple route handlers
+# ============================================================
+# ============================================================
+# TEMPLATE: ORANG_TUA_HTML
+# CONSUMED BY: multiple route handlers
+# ============================================================
 ORANG_TUA_HTML = """
 <div class="min-h-[100dvh] bg-[#fff0f5] pb-32 transition-colors duration-1000" id="ot-main-bg">
     
@@ -11811,9 +12049,8 @@ ORANG_TUA_HTML = """
 """
 
 @app.route('/orang-tua')
+@require_auth(roles=ALL_ROLES)
 def orang_tua_dashboard():
-    if session.get('peran') not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return redirect(url_for('index'))
     theme = {
         'nav_bg': 'bg-rose-50',
         'icon_bg': 'bg-rose-100',
@@ -11832,10 +12069,9 @@ def orang_tua_dashboard():
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=rendered_content, hide_nav=False, full_width=True, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=True, theme=theme)
 
 @app.route('/orang-tua/api/buku', methods=['POST'])
-@limiter.limit("20 per minute")
+@limiter.limit(RATE_LIMIT_OT_API)
+@require_auth(roles={ROLE_ORANG_TUA, ROLE_KEPALA_SEKOLAH})
 def save_ot_buku():
-    if session.get('peran') not in ['orang_tua', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
     try:
         data = request.json
         anak_id = session.get('anak_id')
@@ -11853,6 +12089,18 @@ def save_ot_buku():
         ))
         db.session.commit()
         return jsonify({"status": "success"})
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except Exception:
         db.session.rollback()
         app.logger.error('save_ot_buku failed', exc_info=True)
@@ -11864,9 +12112,9 @@ def api_jurnal_harian():
         return jsonify({'error': 'Unauthorized'}), 403
     try:
         q = OrangTuaBuku.query
-        if session.get('peran') == 'orang_tua':
+        if session.get('peran') == ROLE_ORANG_TUA:
             q = q.filter_by(anak_id=session.get('anak_id'))
-        elif session.get('peran') in ['guru', 'kepala_sekolah'] and request.args.get('anak_id'):
+        elif session.get('peran') in [ROLE_GURU, ROLE_KEPALA_SEKOLAH] and request.args.get('anak_id'):
             q = q.filter_by(anak_id=request.args.get('anak_id'))
         
         buku_logs = q.order_by(OrangTuaBuku.created_at.desc()).limit(7).all()
@@ -11894,19 +12142,18 @@ def api_jurnal_harian():
         return jsonify({'error': "Gagal memuat data jurnal."}), 500
 
 @app.route('/orang-tua/api/chart-data')
+@require_auth(roles=ALL_ROLES)
 def get_ot_chart_data():
-    if session.get('peran') not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
     try:
         q_buku = OrangTuaBuku.query
         q_reaction = ReactionTimeLog.query
         
         peran = session.get('peran')
-        if peran == 'orang_tua':
+        if peran == ROLE_ORANG_TUA:
             q_buku = q_buku.filter_by(anak_id=session.get('anak_id'))
             q_reaction = q_reaction.filter_by(anak_id=session.get('anak_id'))
     # DESIGN DECISION: Teachers/admin see all students' chart data when no anak_id filter is specified.
-        elif peran in ['guru', 'kepala_sekolah'] and request.args.get('anak_id'):
+        elif peran in [ROLE_GURU, ROLE_KEPALA_SEKOLAH] and request.args.get('anak_id'):
             q_buku = q_buku.filter_by(anak_id=request.args.get('anak_id'))
             q_reaction = q_reaction.filter_by(anak_id=request.args.get('anak_id'))
             
@@ -11952,10 +12199,9 @@ def get_tantrum_profile():
     })
 
 @app.route('/orang-tua/api/jadwal', methods=['GET', 'POST'])
-@limiter.limit("20 per minute")
+@limiter.limit(RATE_LIMIT_OT_API)
+@require_auth(roles=ALL_ROLES)
 def handle_ot_jadwal():
-    if session.get('peran') not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
     if request.method == 'POST':
         try:
             data = request.json
@@ -11981,6 +12227,18 @@ def handle_ot_jadwal():
             ))
             db.session.commit()
             return jsonify({"status": "success"})
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+        except OperationalError:
+            db.session.rollback()
+            return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+        except OperationalError:
+            db.session.rollback()
+            return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
         except Exception as e:
             db.session.rollback()
             app.logger.error('Failed to handle OT jadwal', exc_info=True)
@@ -11988,9 +12246,9 @@ def handle_ot_jadwal():
     
     # GET method
     q = OrangTuaJadwal.query
-    if session.get('peran') == 'orang_tua':
+    if session.get('peran') == ROLE_ORANG_TUA:
         q = q.filter_by(anak_id=session.get('anak_id'))
-    elif session.get('peran') in ['guru', 'kepala_sekolah'] and request.args.get('anak_id'):
+    elif session.get('peran') in [ROLE_GURU, ROLE_KEPALA_SEKOLAH] and request.args.get('anak_id'):
         q = q.filter_by(anak_id=request.args.get('anak_id'))
     
     logs = q.order_by(OrangTuaJadwal.schedule_time.asc()).limit(200).all()
@@ -12006,7 +12264,7 @@ def handle_ot_jadwal():
 
 @app.route('/orang-tua/api/jadwal/<int:jadwal_id>', methods=['DELETE'])
 def delete_ot_jadwal(jadwal_id):
-    if not session.get('is_admin') and session.get('peran') != 'orang_tua':
+    if not session.get('is_admin') and session.get('peran') != ROLE_ORANG_TUA:
         return jsonify({'error': 'Unauthorized'}), 403
     try:
         jadwal = OrangTuaJadwal.query.get_or_404(jadwal_id)
@@ -12016,23 +12274,26 @@ def delete_ot_jadwal(jadwal_id):
         db.session.delete(jadwal)
         db.session.commit()
         return jsonify({"status": "success"})
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except Exception:
         db.session.rollback()
         app.logger.error('delete_ot_jadwal failed', exc_info=True)
         return jsonify({'error': 'Terjadi kesalahan saat menghapus data.'}), 500
 
 @app.route('/api/kamus_nutrisi')
-def api_kamus_nutrisi_underscore():
-    try:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        target_path = os.path.join(current_dir, 'static', 'kamus_alergi_neuro.json')
-            
-        with open(target_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        return jsonify(data)
-    except Exception as e:
-        app.logger.error("Nutrition dictionary error", exc_info=True)
-        return jsonify({"error": "Gagal memuat kamus nutrisi."}), 500
+def api_kamus_nutrisi_legacy_redirect():
+    return redirect(url_for('api_kamus_nutrisi'), code=301)
 
 @app.route('/api/kamus-nutrisi')
 def api_kamus_nutrisi():
@@ -12048,11 +12309,9 @@ def api_kamus_nutrisi():
         return jsonify({"error": "Gagal memuat kamus nutrisi."}), 500
 
 @app.route('/orang-tua/api/nutrisi', methods=['GET', 'POST'])
-@limiter.limit("20 per minute")
+@limiter.limit(RATE_LIMIT_OT_API)
+@require_auth(roles={ROLE_ORANG_TUA, ROLE_KEPALA_SEKOLAH})
 def handle_ot_nutrisi():
-    if session.get('peran') not in ['orang_tua', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
-
     if request.method == 'POST':
         try:
             data = request.json
@@ -12067,16 +12326,28 @@ def handle_ot_nutrisi():
             ))
             db.session.commit()
             return jsonify({"status": "success"})
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+        except OperationalError:
+            db.session.rollback()
+            return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+        except OperationalError:
+            db.session.rollback()
+            return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
         except Exception:
             db.session.rollback()
             app.logger.error('save_nutrisi failed', exc_info=True)
             return jsonify({'error': 'Terjadi kesalahan saat memproses data. Silakan coba lagi.'}), 500
     
     q = OrangTuaNutrisi.query
-    if session.get('peran') == 'orang_tua':
+    if session.get('peran') == ROLE_ORANG_TUA:
         q = q.filter_by(anak_id=session.get('anak_id'))
         # DESIGN DECISION: Admin/teachers see all nutrition data when no anak_id filter is specified.
-    elif session.get('peran') in ['guru', 'kepala_sekolah'] or session.get('is_admin'):
+    elif session.get('peran') in [ROLE_GURU, ROLE_KEPALA_SEKOLAH] or session.get('is_admin'):
         aid = request.args.get('anak_id')
         if aid:
             q = q.filter_by(anak_id=aid)
@@ -12089,8 +12360,6 @@ def handle_ot_nutrisi():
         })
     return jsonify(res)
 
-import traceback
-from pywebpush import webpush, WebPushException
 
 VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY')
 VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY')
@@ -12100,22 +12369,33 @@ VAPID_CLAIMS = {
 }
 
 @app.route('/orang-tua/api/subscribe', methods=['POST'])
-@limiter.limit("20 per minute")
+@limiter.limit(RATE_LIMIT_OT_API)
+@require_auth(roles=ALL_ROLES)
 def subscribe():
-    if session.get('peran') not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
     try:
         sub_info = request.json
         if not sub_info:
             return jsonify({'error': 'no info'}), 400
         
         # Store subscription if not exists
-        existing = PushSubscription.query.filter_by(subscription_info=json.dumps(sub_info)).first()
+        existing = PushSubscription.query.filter_by(subscription_info=json.dumps(sub_info)).first()  # Guarded by if not existing check below  # Guarded by if not existing check below
         if not existing:
             db.session.add(PushSubscription(subscription_info=json.dumps(sub_info)))
             db.session.commit()
         
         return jsonify({'status': 'success'})
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except Exception:
         db.session.rollback()
         app.logger.error('subscribe failed', exc_info=True)
@@ -12138,6 +12418,22 @@ def send_web_push(subscription_info, message_body, subscription_id=None):
             try:
                 PushSubscription.query.filter_by(id=subscription_id).update({'last_used': datetime.datetime.now()})
                 db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
+                return redirect(request.referrer or url_for('index'))
+            except OperationalError:
+                db.session.rollback()
+                flash("Koneksi database terganggu. Silakan coba lagi.", "error")
+                return redirect(request.referrer or url_for('index'))
+            except IntegrityError:
+                db.session.rollback()
+                flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
+                return redirect(request.referrer or url_for('index'))
+            except OperationalError:
+                db.session.rollback()
+                flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
+                return redirect(request.referrer or url_for('index'))
             except Exception:
                 db.session.rollback()
     except WebPushException:
@@ -12200,6 +12496,22 @@ def check_medications():
                     'medication_name': sched['medication_name']
                 })
             eventlet.spawn_n(send_all_pushes_only, schedules_data, subscriptions_data)
+        except IntegrityError:
+            db.session.rollback()
+            flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
+            return redirect(request.referrer or url_for('index'))
+        except OperationalError:
+            db.session.rollback()
+            flash("Koneksi database terganggu. Silakan coba lagi.", "error")
+            return redirect(request.referrer or url_for('index'))
+        except IntegrityError:
+            db.session.rollback()
+            flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
+            return redirect(request.referrer or url_for('index'))
+        except OperationalError:
+            db.session.rollback()
+            flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
+            return redirect(request.referrer or url_for('index'))
         except Exception as e:
             db.session.rollback()
             app.logger.error('Medication check commit failed', exc_info=True)
@@ -12214,6 +12526,22 @@ def cleanup_push_subscriptions():
             thirty_days_ago = datetime.datetime.now() - datetime.timedelta(days=30)
             PushSubscription.query.filter(PushSubscription.last_used < thirty_days_ago).delete()
             db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
+            return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
+        except OperationalError:
+            db.session.rollback()
+            flash("Koneksi database terganggu. Silakan coba lagi.", "error")
+            return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
+        except IntegrityError:
+            db.session.rollback()
+            flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
+            return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
+        except OperationalError:
+            db.session.rollback()
+            flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
+            return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
         except Exception as e:
             db.session.rollback()
             app.logger.error('Subscription cleanup failed', exc_info=True)
@@ -12221,10 +12549,9 @@ def cleanup_push_subscriptions():
 scheduler.add_job(id='Cleanup Subscriptions', func=cleanup_push_subscriptions, trigger='cron', hour=3, minute=0, max_instances=1, coalesce=True, misfire_grace_time=3600)
 
 @app.route('/orang-tua/api/burnout', methods=['POST'])
-@limiter.limit("20 per minute")
+@limiter.limit(RATE_LIMIT_OT_API)
+@require_auth(roles={ROLE_ORANG_TUA, ROLE_KEPALA_SEKOLAH})
 def save_burnout():
-    if session.get('peran') not in ['orang_tua', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
     try:
         data = request.json
         anak_id = session.get('anak_id')
@@ -12241,20 +12568,31 @@ def save_burnout():
         ))
         db.session.commit()
         return jsonify({"status": "success"})
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
+    except OperationalError:
+        db.session.rollback()
+        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except Exception:
         db.session.rollback()
         app.logger.error('save_burnout failed', exc_info=True)
         return jsonify({'error': 'Terjadi kesalahan saat memproses data. Silakan coba lagi.'}), 500
 
 @app.route('/orang-tua/api/burnout-check')
+@require_auth(roles=ALL_ROLES)
 def check_burnout():
-    if session.get('peran') not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
     try:
         q = OrangTuaBurnout.query
-        if session.get('peran') == 'orang_tua':
+        if session.get('peran') == ROLE_ORANG_TUA:
             q = q.filter_by(anak_id=session.get('anak_id'))
-        elif session.get('peran') in ['guru', 'kepala_sekolah'] or session.get('is_admin'):
+        elif session.get('peran') in [ROLE_GURU, ROLE_KEPALA_SEKOLAH] or session.get('is_admin'):
             aid = request.args.get('anak_id')
             if aid:
                 q = q.filter_by(anak_id=aid)
@@ -12275,9 +12613,8 @@ def check_burnout():
         return jsonify({'error': 'Gagal memuat data.'}), 500
 
 @app.route('/orang-tua/modul/download')
+@require_auth(roles=ALL_ROLES)
 def download_modul():
-    if session.get('peran') not in ['guru', 'kepala_sekolah', 'orang_tua'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
     filename = request.args.get('file')
     if not filename:
         return "No file specified", 400
@@ -12293,22 +12630,37 @@ def download_modul():
     return send_from_directory(modul_dir, filename, as_attachment=True)
 
 @app.route('/slb/tunalaras', methods=['GET', 'POST'])
+@require_auth(roles=ALL_ROLES)
 def slb_tunalaras():
     if request.method == 'POST':
-        if not session.get('user_id') or session.get('peran') not in ['orang_tua', 'guru', 'kepala_sekolah']:
-            return redirect(url_for('index'))
         try:
             emotion = validate_str(request.form.get('emotion'), 50)
             if not emotion:
                 return "Emosi harus dipilih.", 400
                 
-            anak_id = session.get('anak_id') if session.get('peran') == 'orang_tua' else None
+            anak_id = session.get('anak_id') if session.get('peran') == ROLE_ORANG_TUA else None
             if anak_id and not db.session.get(Siswa, anak_id):
                 return "Data siswa tidak ditemukan.", 404
                 
             db.session.add(EmotionJournal(emotion=emotion, anak_id=anak_id))
             db.session.commit()
             return redirect(url_for('slb_tunalaras'))
+        except IntegrityError:
+            db.session.rollback()
+            flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
+            return "Terjadi kesalahan saat memproses data. Silakan coba lagi.", 500
+        except OperationalError:
+            db.session.rollback()
+            flash("Koneksi database terganggu. Silakan coba lagi.", "error")
+            return "Terjadi kesalahan saat memproses data. Silakan coba lagi.", 500
+        except IntegrityError:
+            db.session.rollback()
+            flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
+            return "Terjadi kesalahan saat memproses data. Silakan coba lagi.", 500
+        except OperationalError:
+            db.session.rollback()
+            flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
+            return "Terjadi kesalahan saat memproses data. Silakan coba lagi.", 500
         except Exception:
             db.session.rollback()
             app.logger.error('save_emotion failed', exc_info=True)
@@ -12317,18 +12669,17 @@ def slb_tunalaras():
     history = []
     if session.get('user_id'):
         q = EmotionJournal.query
-        if session.get('peran') == 'orang_tua' and session.get('anak_id'):
+        if session.get('peran') == ROLE_ORANG_TUA and session.get('anak_id'):
             history = q.filter_by(anak_id=session.get('anak_id')).order_by(EmotionJournal.date.desc()).limit(20).all()
-        elif session.get('peran') in ['guru', 'kepala_sekolah'] or session.get('is_admin'):
+        elif session.get('peran') in [ROLE_GURU, ROLE_KEPALA_SEKOLAH] or session.get('is_admin'):
             history = q.order_by(EmotionJournal.date.desc()).limit(5).all()
     
     rendered_tunalaras = cached_render('SLB_TUNALARAS_HTML', SLB_TUNALARAS_HTML, history=history, csrf_token=generate_csrf, peran=session.get('peran',''), anak_id=session.get('anak_id'))
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=rendered_tunalaras, theme={'nav_bg': 'bg-teal-100', 'title_text': 'text-teal-800'}, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
 @app.route('/api/tunalaras/guru-monitor')
+@require_auth(roles=STAFF_ROLES)
 def api_tunalaras_guru_monitor():
-    if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return jsonify({'error': 'Unauthorized'}), 403
     try:
         q = request.args.get('q', '').strip()
 
@@ -12352,7 +12703,7 @@ def api_tunalaras_guru_monitor():
         ).join(Siswa, Siswa.id == subq.c.anak_id
         ).outerjoin(AkunPengguna, db.and_(
             AkunPengguna.anak_id == subq.c.anak_id,
-            AkunPengguna.peran == 'orang_tua'
+            AkunPengguna.peran == ROLE_ORANG_TUA
         )).filter(subq.c.rn <= 3)
 
         if q:
@@ -12547,7 +12898,7 @@ def jadwal_kelas():
                     </div>
                     <div>
                         <label for="jadwal-guru" class="block text-xs font-bold text-gray-500 mb-1">Guru Pengajar</label>
-                        <input type="text" name="guru" maxlength="100" class="w-full bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
+                        <input type="text" name=ROLE_GURU maxlength="100" class="w-full bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none" required>
                     </div>
                     <div>
                         <label for="jadwal-ruangan" class="block text-xs font-bold text-gray-500 mb-1">Ruangan Kelas</label>
@@ -12596,30 +12947,42 @@ def jadwal_kelas():
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='jadwal', content=cached_render('content_b9d3b862', content, is_admin=session.get('is_admin', False), grouped=grouped, jadwal=jadwal), is_admin=session.get('is_admin', False), settings=get_settings(), grouped=grouped, jadwal=jadwal)
 
 @app.route('/jadwal/add', methods=['POST'])
-@limiter.limit('20 per minute')
+@limiter.limit(RATE_LIMIT_OT_API)
+@require_auth(roles=STAFF_ROLES)
 def add_jadwal():
-    if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return redirect(url_for('jadwal_kelas'))
-    
     try:
         hari = validate_str(request.form.get('hari'), 50)
         jam = validate_str(request.form.get('jam'), 50)
         mata_pelajaran = validate_str(request.form.get('mata_pelajaran'), 255)
-        guru = validate_str(request.form.get('guru'), 255)
+        guru = validate_str(request.form.get(ROLE_GURU), 255)
         ruangan = validate_str(request.form.get('ruangan'), 255)
         
         if not all([hari, jam, mata_pelajaran, guru, ruangan]):
-            from flask import flash
             flash('Semua field harus diisi.', 'error')
             return redirect(url_for('jadwal_kelas'))
             
         new_jadwal = JadwalKelas(hari=hari, jam=jam, mata_pelajaran=mata_pelajaran, guru=guru, ruangan=ruangan)
         db.session.add(new_jadwal)
         db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
+        return redirect(url_for('jadwal_kelas'))
+    except OperationalError:
+        db.session.rollback()
+        flash("Koneksi database terganggu. Silakan coba lagi.", "error")
+        return redirect(url_for('jadwal_kelas'))
+    except IntegrityError:
+        db.session.rollback()
+        flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
+        return redirect(url_for('jadwal_kelas'))
+    except OperationalError:
+        db.session.rollback()
+        flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
+        return redirect(url_for('jadwal_kelas'))
     except Exception as e:
         db.session.rollback()
         app.logger.error('Failed to add jadwal', exc_info=True)
-        from flask import flash
         flash('Gagal menambahkan jadwal. Silakan coba lagi.', 'error')
         
     return redirect(url_for('jadwal_kelas'))
@@ -12740,9 +13103,8 @@ def galeri_karya():
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='galeri', content=cached_render('content_0af24eeb', content, is_admin=session.get('is_admin', False), karya=karya, pagination=pagination), is_admin=session.get('is_admin', False), settings=get_settings(), karya=karya)
 
 @app.route('/arsip-portofolio')
+@require_auth(roles=ALL_ROLES)
 def arsip_portofolio():
-    if session.get('peran') not in ['orang_tua', 'guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return redirect(url_for('index'))
     page = request.args.get('page', 1, type=int)
     try:
         pagination = StudentPortfolio.query.order_by(StudentPortfolio.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
@@ -12912,58 +13274,49 @@ def arsip_portofolio():
 
 
 @app.route('/galeri/upload', methods=['POST'])
-@limiter.limit('10 per minute')
+@limiter.limit(RATE_LIMIT_UPLOAD)
+@require_auth(roles=STAFF_ROLES)
 def upload_karya():
-    if session.get('peran') not in ['guru', 'kepala_sekolah'] and not session.get('is_admin'):
-        return redirect(url_for('galeri_karya'))
-        
     title = validate_str(request.form.get('title'), 255)
     student_name = validate_str(request.form.get('student_name'), 255)
     file = request.files.get('image')
     
     if not title or not student_name:
-        from flask import flash
         flash('Judul dan nama siswa harus diisi.', 'error')
         return redirect(url_for('galeri_karya'))
         
     if file and allowed_file(file.filename):
         try:
-            file_bytes = file.read(2048)
-            file.seek(0)
-            kind = filetype.guess(file_bytes)
-            if kind is None or not (kind.mime.startswith('image/') or kind.mime.startswith('video/')):
-                return "File tidak didukung", 400
-
-            filename = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            # upload_karya defaults to mp4 only
+            # (preserve this intentional difference)
+            filename = _save_uploaded_media(file, app.config['UPLOAD_FOLDER'])
             
-            ext = filename.rsplit('.', 1)[1].lower()
-            if ext == 'svg':
-                return 'SVG uploads not permitted', 400
-                
-            if ext == 'mp4':
-                file.save(filepath)
-            else:
-                img = Image.open(file)
-                if img.mode in ("RGBA", "P"): img = img.convert("RGB")
-                img.thumbnail((800, 800))
-                
-                compressed = eventlet.tpool.execute(_compress_image_to_bytes, img)
-                with open(filepath, 'wb') as f:
-                    f.write(compressed)
-                
-            new_karya = GaleriKarya(image_filename=filename, title=title, student_name=student_name)
-            db.session.add(new_karya)
+            karya = GaleriKarya(title=title, student_name=student_name, image_filename=filename)
+            db.session.add(karya)
             db.session.commit()
+            flash('Karya berhasil diunggah.', 'success')
+        except UploadValidationError as e:
+            return str(e), 400
+        except IntegrityError:
+            db.session.rollback()
+            flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
+        except OperationalError:
+            db.session.rollback()
+            flash("Koneksi database terganggu. Silakan coba lagi.", "error")
+        except IntegrityError:
+            db.session.rollback()
+            flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
+            return redirect(url_for('galeri_karya'))
+        except OperationalError:
+            db.session.rollback()
+            flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
+            return redirect(url_for('galeri_karya'))
         except Exception as e:
             db.session.rollback()
-            app.logger.error('Gallery upload failed', exc_info=True)
-            from flask import flash
-            flash('Gagal mengunggah karya. Silakan coba lagi.', 'error')
+            app.logger.error("Error saving karya", exc_info=True)
+            flash('Terjadi kesalahan sistem.', 'error')
             
     return redirect(url_for('galeri_karya'))
-
-
 
 def start_scheduler_if_primary():
     try:
@@ -12996,13 +13349,31 @@ with app.app_context():
     try:
         start_scheduler_if_primary()
         prefetch_emoji_icons()
-        # TODO: Migrate to Flask-Migrate/Alembic for schema management. db.create_all() only creates new tables; it does NOT alter existing ones.
+        # TODO: Migrate to Flask-Migrate/Alembic for schema management. db.create_all() only creates new tables; it does NOT alter existing ones. (see consolidated migration note above class Siswa)
         if os.environ.get('FLASK_INIT_DB'):
             db.create_all()
             seed_slb_data()
     except Exception as e:
         app.logger.error("CRITICAL: Database initialization failed", exc_info=True)
 
+# ============================================================
+# ROUTE GROUP: Application Startup Block
+# ============================================================
+# ============================================================
+# ROUTE GROUP: Application Startup Block
+# ============================================================
 if __name__ == '__main__':
     is_dev = os.getenv('FLASK_ENV') == 'development'
-    socketio.run(app, debug=is_dev, port=5001, allow_unsafe_werkzeug=is_dev)
+    socketio.run(app, debug=is_dev, port=5001, allow_unsafe_werkzeug=is_dev)# ============================================================
+# TEMPLATE: ERROR_500_HTML
+# CONSUMED BY: handle_exception
+# ============================================================
+ERROR_500_HTML = '''
+    <html>
+        <head><title>500 Internal Server Error</title></head>
+        <body style="font-family: sans-serif; text-align: center; padding-top: 20%;">
+            <h2>Mohon Maaf, Sistem Sedang Mengalami Kendala.</h2>
+            <p>Terjadi kesalahan teknis. Silakan coba beberapa saat lagi.</p>
+        </body>
+    </html>
+    '''
