@@ -12,7 +12,6 @@ import math
 import time
 import io
 import urllib.parse
-import urllib.request
 import json
 import csv
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage, KeepTogether
@@ -21,10 +20,12 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from flask import Flask, request, send_from_directory, redirect, url_for, Response, jsonify, session, render_template_string, flash, current_app
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
 from pywebpush import webpush, WebPushException
 from PIL import Image
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate, upgrade as alembic_upgrade
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import Index
@@ -34,6 +35,7 @@ from datetime import time as dt_time, datetime as dt_module
 from flask_socketio import SocketIO, emit
 from apscheduler.schedulers.background import BackgroundScheduler
 import filetype
+import requests
 import logging
 import logging.handlers
 from dotenv import load_dotenv
@@ -93,6 +95,7 @@ try:
     from flask_compress import Compress
     _compress_available = True
 except ImportError:
+    import gzip as _gzip_fallback
     _compress_available = False
 
 
@@ -117,9 +120,42 @@ except ImportError:
 # ============================================================
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 
 if _compress_available:
     Compress(app)
+else:
+    app.logger.warning("Flask-Compress is not installed. Falling back to a minimal gzip handler. Install flask-compress for production-grade compression")
+    @app.after_request
+    def fallback_gzip(response: Response) -> Response:
+        accept_encoding = request.headers.get('Accept-Encoding', '')
+        if 'gzip' not in accept_encoding.lower():
+            return response
+        if response.status_code < 200 or response.status_code >= 300:
+            return response
+
+        content_length = response.headers.get('Content-Length')
+        if content_length is not None and int(content_length) < 500:
+            return response
+
+        content_type = response.content_type.split(';')[0].lower()
+        if content_type not in app.config.get('COMPRESS_MIMETYPES', []):
+            return response
+
+        if 'Content-Encoding' in response.headers:
+            return response
+
+        import gzip as _gzip_fallback
+        compressed_data = _gzip_fallback.compress(response.get_data(), compresslevel=6)
+        response.set_data(compressed_data)
+        response.headers['Content-Encoding'] = 'gzip'
+        response.headers['Content-Length'] = len(response.get_data())
+        vary = response.headers.get('Vary')
+        if not vary:
+            response.headers['Vary'] = 'Accept-Encoding'
+        elif 'accept-encoding' not in vary.lower():
+            response.headers['Vary'] = f"{vary}, Accept-Encoding"
+        return response
 
 
 ROLE_ORANG_TUA = 'orang_tua'
@@ -190,9 +226,29 @@ cache = Cache(app, config={
     'CACHE_DEFAULT_TIMEOUT': 300,
     'CACHE_REDIS_URL': os.getenv('REDIS_URL', 'redis://localhost:6379/0') if os.getenv('REDIS_URL') else None
 })
-_cors_origins = os.getenv('ALLOWED_ORIGINS', '').split(',') if os.getenv('ALLOWED_ORIGINS') else '*'
-_cors_origins = [o.strip() for o in _cors_origins if o.strip()] if isinstance(_cors_origins, list) else _cors_origins
-socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins=_cors_origins)
+_allowed_origins_env = os.getenv('ALLOWED_ORIGINS', '').strip()
+if _allowed_origins_env:
+    _cors_origins = [o.strip() for o in _allowed_origins_env.split(',') if o.strip()]
+else:
+    _is_dev_env_check = os.getenv('FLASK_ENV', 'production').lower() == 'development'
+    if _is_dev_env_check:
+        _cors_origins = '*'
+    else:
+        raise RuntimeError("ALLOWED_ORIGINS must be set in production to prevent open WebSocket access.")
+
+_redis_url = os.getenv('REDIS_URL')
+socketio = SocketIO(
+    app,
+    async_mode='eventlet',
+    cors_allowed_origins=_cors_origins,
+    message_queue=_redis_url,
+    ping_interval=25,
+    ping_timeout=60,
+    logger=False,
+    engineio_logger=False
+)
+if not _redis_url:
+    app.logger.warning("SocketIO has no message_queue configured (REDIS_URL is unset). Multi-worker SocketIO broadcasts will be dropped. Set REDIS_URL for production.")
 
 scheduler = BackgroundScheduler()
 
@@ -201,29 +257,48 @@ secret_key = os.getenv('SECRET_KEY')
 if not secret_key:
     raise RuntimeError("SECRET_KEY environment variable is not set. Generate one using: python -c \"import secrets; print(secrets.token_hex(32))\"")
 app.secret_key = secret_key
-app.config['SESSION_COOKIE_SECURE'] = True
+_is_dev_env = os.getenv('FLASK_ENV', 'production').lower() == 'development'
+app.config['SESSION_COOKIE_SECURE'] = not _is_dev_env
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['REMEMBER_COOKIE_SECURE'] = not _is_dev_env
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(hours=8)
 app.config['WTF_CSRF_CHECK_DEFAULT'] = True
 app.config['WTF_CSRF_HEADERS'] = ['X-CSRFToken', 'X-CSRF-Token']
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 
 
-app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'uploads')
+app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', os.path.join(os.path.abspath(os.path.dirname(__file__)), 'uploads'))
+
+try:
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    _probe_path = os.path.join(app.config['UPLOAD_FOLDER'], '.write_probe')
+    with open(_probe_path, 'w') as f:
+        f.write('ok')
+    os.remove(_probe_path)
+except OSError as e:
+    raise RuntimeError(f"UPLOAD_FOLDER {app.config['UPLOAD_FOLDER']} is not writable: {e}")
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
 if not app.config['SQLALCHEMY_DATABASE_URI']:
     raise RuntimeError("SQLALCHEMY_DATABASE_URI environment variable is not set.")
+_web_concurrency = int(os.getenv('WEB_CONCURRENCY', '1'))
+_db_max_connections = int(os.getenv('DB_MAX_CONNECTIONS', '80'))
+_pool_size = max(2, _db_max_connections // max(1, _web_concurrency) // 2)
+
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_recycle': 3600,
-    'pool_size': 10,
-    'max_overflow': 20,
+    'pool_size': _pool_size,
+    'max_overflow': _pool_size,
     'pool_timeout': 30,
     'pool_pre_ping': True,
     'connect_args': {'options': '-c statement_timeout=30000'} if 'sqlite' not in os.environ.get('SQLALCHEMY_DATABASE_URI', '') else {},
 }
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['COMPRESS_MIMETYPES'] = ['text/html', 'text/css', 'application/json', 'application/javascript']
+app.config['COMPRESS_LEVEL'] = 6
+app.config['COMPRESS_MIN_SIZE'] = 500
+app.config['COMPRESS_ALGORITHM'] = ['br', 'gzip']
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 86400
 
 log_dir = os.path.join(os.path.expanduser('~'), 'logs')
@@ -248,14 +323,93 @@ ERROR_500_HTML = '''
     </html>
     '''
 
+from werkzeug.exceptions import HTTPException
+
+def _wants_json() -> bool:
+    from flask import request
+    return request.is_json or request.path.startswith('/api/') or request.path.startswith('/orang-tua/api/') or 'application/json' in request.headers.get('Accept', '')
+
+def _error_response(code: int, message: str, retry_after: int = None) -> tuple[Response, int]:
+    if _wants_json():
+        res = jsonify({"error": message})
+        if retry_after is not None:
+            res.headers['Retry-After'] = str(retry_after)
+        return res, code
+    else:
+        html = f'''
+        <!DOCTYPE html>
+        <html lang="id">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Kesalahan {code}</title>
+            </head>
+            <body>
+                <h1>Mohon Maaf (Kesalahan {code})</h1>
+                <p>{message}</p>
+                <p><a href="/">Kembali ke beranda</a></p>
+            </body>
+        </html>
+        '''
+        res = Response(html, status=code, mimetype='text/html')
+        if retry_after is not None:
+            res.headers['Retry-After'] = str(retry_after)
+        return res, code
+
+@app.errorhandler(400)
+def handle_400(e):
+    return _error_response(400, "Permintaan tidak valid.")
+
+@app.errorhandler(401)
+def handle_401(e):
+    return _error_response(401, "Akses ditolak. Silakan login.")
+
+@app.errorhandler(403)
+def handle_403(e):
+    return _error_response(403, "Anda tidak memiliki izin untuk mengakses halaman ini.")
+
+@app.errorhandler(404)
+def handle_404(e):
+    return _error_response(404, "Halaman atau data tidak ditemukan.")
+
+@app.errorhandler(405)
+def handle_405(e):
+    return _error_response(405, "Metode yang digunakan tidak diizinkan.")
+
+@app.errorhandler(413)
+def handle_413(e):
+    return _error_response(413, "Ukuran file terlalu besar.")
+
+@app.errorhandler(429)
+def handle_429(e):
+    return _error_response(429, "Terlalu banyak permintaan. Silakan tunggu beberapa saat.", retry_after=60)
+
+@app.errorhandler(500)
+def handle_500(e):
+    return _error_response(500, "Terjadi kesalahan internal server.")
+
+@app.errorhandler(502)
+def handle_502(e):
+    return _error_response(502, "Terjadi kesalahan jaringan hulu.", retry_after=10)
+
+@app.errorhandler(503)
+def handle_503(e):
+    return _error_response(503, "Layanan sedang tidak tersedia.", retry_after=30)
+
+@app.errorhandler(504)
+def handle_504(e):
+    return _error_response(504, "Waktu tunggu layanan habis.", retry_after=30)
+
 @app.errorhandler(Exception)
-def handle_exception(e: Exception) -> tuple[str, int]:
+def handle_exception(e: Exception):
+    if isinstance(e, HTTPException):
+        return e
     app.logger.error("Unhandled exception", exc_info=True)
-    return ERROR_500_HTML, 500
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    return _error_response(500, "Terjadi kesalahan sistem.")
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'heic', 'mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'mpeg', 'mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac', 'wma', 'aiff', 'alac', 'amr', 'mid', 'midi'}
 
 db = SQLAlchemy(app)
+migrate = Migrate(app, db, directory='migrations', compare_type=True)
 
 
 def _save_uploaded_media(file, upload_folder: str, video_extensions: frozenset[str] = frozenset({'mp4'})) -> str:
@@ -421,27 +575,21 @@ class GaleriKarya(db.Model):
     student_name: Mapped[str] = mapped_column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
-_settings_lock = threading.Lock()
-_settings_cache = {'data': {}, 'expires': 0}
+@cache.memoize(timeout=1800)
+def _get_settings_cached() -> dict[str, str]:
+    try:
+        settings_rows = AppSettings.query.all()
+        return {row.key: row.value for row in settings_rows}
+    except Exception as e:
+        app.logger.warning("Failed to fetch settings", exc_info=True)
+        return {}
 
 def get_settings() -> dict[str, str]:
     """Fetches and caches application settings from the database."""
-    now = time.time()
-    if now < _settings_cache['expires']:
-        return _settings_cache['data']
-    acquired = _settings_lock.acquire(blocking=False)
-    if not acquired:
-        return _settings_cache['data']
-    try:
-        settings = {item.key: item.value for item in AppSettings.query.all()}
-        _settings_cache['data'] = settings
-        _settings_cache['expires'] = now + 1800
-        return settings
-    except Exception as e:
-        app.logger.warning("Failed to fetch settings", exc_info=True)
-        return _settings_cache['data'] or {}
-    finally:
-        _settings_lock.release()
+    return _get_settings_cached()
+
+def invalidate_settings_cache() -> None:
+    cache.delete_memoized(_get_settings_cached)
 
 @cache.cached(timeout=300, key_prefix='list_siswa')
 def get_list_siswa_cached() -> list[dict[str, object]]:
@@ -1194,7 +1342,7 @@ BASE_LAYOUT = """
                         fetch('/brankas_unlock', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
-                            body: JSON.stringify({ kode: '30-10-50' })
+                            body: JSON.stringify({ kode: document.getElementById('brankas_kode_input') ? document.getElementById('brankas_kode_input').value : '' })
                         }).then(response => response.json())
                           .then(data => {
                             if(data.status === 'success') {
@@ -4369,12 +4517,80 @@ HOME_HTML = """
 # --- ROUTES ---
 
 
+_CSP_HTML = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https://api.dicebear.com https://commons.wikimedia.org https://www.lifeprint.com https://media.giphy.com; connect-src 'self' https://equran.id https://pmpk.kemdikbud.go.id https://api.giphy.com https://api.allorigins.win https://zenquotes.io; media-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+_CSP_JSON = "default-src 'none'; frame-ancestors 'none'"
+_PERMISSIONS_POLICY = "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=(), interest-cohort=()"
+
 @app.after_request
 def add_security_headers(response: Response) -> Response:
-    if 'text/html' in response.content_type:
-        # TODO: Remove 'unsafe-eval' from CSP once Tailwind CDN is replaced with pre-built CSS file (see consolidated migration note above class Siswa)
-        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https://api.dicebear.com https://commons.wikimedia.org https://www.lifeprint.com https://media.giphy.com; connect-src 'self' https://equran.id https://pmpk.kemdikbud.go.id https://api.giphy.com https://api.allorigins.win https://zenquotes.io; media-src 'self' blob:"
+    ct = response.content_type.lower()
+    is_html = 'text/html' in ct
+    is_json = 'application/json' in ct
+
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = _PERMISSIONS_POLICY
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
+
+    if request.is_secure or request.headers.get('X-Forwarded-Proto', '').lower() == 'https':
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+
+    response.headers.pop('Server', None)
+    response.headers.pop('X-Powered-By', None)
+
+    if is_html:
+        response.headers['Content-Security-Policy'] = _CSP_HTML
+    elif is_json:
+        response.headers['Content-Security-Policy'] = _CSP_JSON
+
     return response
+
+
+@app.route('/healthz', methods=['GET'])
+@csrf.exempt
+def healthz() -> tuple[Response, int]:
+    return jsonify({"status": "alive"}), 200
+
+limiter.exempt(healthz)
+
+@app.route('/readyz', methods=['GET'])
+@csrf.exempt
+def readyz() -> tuple[Response, int]:
+    import traceback
+    checks = {"db": False, "redis": False}
+    status_code = 200
+    try:
+        db.session.execute(db.text('SELECT 1'))
+        checks["db"] = True
+    except Exception as e:
+        app.logger.warning("Readiness probe DB check failed", exc_info=True)
+        status_code = 503
+
+    _redis_url = os.getenv('REDIS_URL')
+    if not _redis_url:
+        checks["redis"] = True
+    else:
+        try:
+            import redis
+            r = redis.from_url(_redis_url, socket_timeout=2.0)
+            if r.ping():
+                checks["redis"] = True
+            else:
+                status_code = 503
+        except Exception as e:
+            app.logger.warning("Readiness probe Redis check failed", exc_info=True)
+            status_code = 503
+
+    status_str = "ready" if status_code == 200 else "not_ready"
+    response_body = {"status": status_str, "checks": checks}
+    response = jsonify(response_body)
+    if status_code == 503:
+        response.headers['Retry-After'] = '5'
+    return response, status_code
+
+limiter.exempt(readyz)
 
 # ============================================================
 # ROUTE GROUP: Home Page & Auth Routes
@@ -4616,7 +4832,10 @@ def brankas_unlock() -> Response | str | tuple[Response, int]:
     if not request.is_json:
         return jsonify({"status": "error", "message": "Format tidak valid"}), 400
         
-    brankas_kode = os.getenv('BRANKAS_KODE', '30-10-50')
+    brankas_kode = os.getenv('BRANKAS_KODE')
+    if not brankas_kode:
+        app.logger.error("BRANKAS_KODE is not configured")
+        return jsonify({'error': 'Vault is not configured'}), 503
     if not brankas_kode:
         return jsonify({"status": "error", "message": "Brankas not configured"}), 500
 
@@ -5212,11 +5431,9 @@ def api_yasin() -> Response | str | tuple[Response, int]:
     """Handles requests to the api_yasin endpoint."""
     try:
         url = "https://equran.id/api/v2/surat/36"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        # Note: urllib.request may not be fully patched by eventlet. Result is cached for 24h so impact is minimal. Consider using the requests library if blocking becomes an issue.
-        with urllib.request.urlopen(req, timeout=8) as response:
-            data = json.loads(response.read().decode())
-            return jsonify(data)
+        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=(5, 8))
+        response.raise_for_status()
+        return jsonify(response.json())
     except Exception as e:
         app.logger.error("API error", exc_info=True)
         return jsonify({"error": "Gagal mengambil data. Coba lagi nanti."}), 500
@@ -6962,28 +7179,42 @@ def get_tantrum_data() -> Response | str | tuple[Response, int]:
         app.logger.error('Tantrum data fetch failed', exc_info=True)
         return jsonify({'error': 'Gagal memuat data.'}), 500
 
-import requests
 def prefetch_emoji_icons() -> None:
     def _download():
         try:
             emoji_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'emoji_cache')
-            os.makedirs(emoji_dir, exist_ok=True)
+            try:
+                os.makedirs(emoji_dir, exist_ok=True)
+            except OSError:
+                app.logger.info("Emoji cache directory not writable; skipping prefetch.")
+                return
+
+            _redis_url = os.getenv('REDIS_URL')
+            if _redis_url:
+                import redis
+                try:
+                    r = redis.from_url(_redis_url, socket_timeout=2.0)
+                    if not r.set('slb_emoji_prefetch', '1', nx=True, ex=86400):
+                        return
+                except Exception:
+                    pass
+
             hex_codes = ['1f441', '1f442', '1f3c3', '1f590', '1f3af', '1f5e3', '2753']
-            for icon_hex in hex_codes:
-                file_path = os.path.join(emoji_dir, f"{icon_hex}.png")
+            for code in hex_codes:
+                file_path = os.path.join(emoji_dir, f'{code}.svg')
                 if not os.path.exists(file_path):
-                    url = f"https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/{icon_hex}.png"
+                    url = f"https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/{code}.svg"
                     try:
-                        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
-                        if response.status_code == 200:
-                            with open(file_path, 'wb') as out_f:
-                                out_f.write(response.content)
-                    except Exception as e:
-                        app.logger.error(f"Failed to prefetch emoji {icon_hex}", exc_info=True)
+                        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=(3, 10))
+                        response.raise_for_status()
+                        with open(file_path, 'wb') as f:
+                            f.write(response.content)
+                    except requests.RequestException:
+                        app.logger.warning(f"Emoji prefetch failed for {code}", exc_info=True)
         except Exception as e:
-            app.logger.error("Background thread error in prefetch_emoji_icons", exc_info=True)
+            app.logger.warning("Emoji prefetch failed", exc_info=True)
             
-    threading.Thread(target=_download, daemon=True).start()
+    eventlet.spawn(_download)
 
 @app.route('/guru/iep', methods=['POST'])
 @limiter.limit("10 per hour")
@@ -12300,6 +12531,9 @@ def handle_ot_nutrisi() -> Response | str | tuple[Response, int]:
 
 VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY')
 VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY')
+PUSH_NOTIFICATIONS_ENABLED = bool(VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY)
+if not PUSH_NOTIFICATIONS_ENABLED:
+    app.logger.warning("VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY not configured. Push notifications are disabled. Generate keys: py-vapid --gen")
 
 VAPID_CLAIMS = {
     "sub": "mailto:admin@sekolah-luar-biasa.com"
@@ -12309,6 +12543,7 @@ VAPID_CLAIMS = {
 @limiter.limit(RATE_LIMIT_OT_API)
 @require_auth(roles=ALL_ROLES)
 def subscribe() -> Response | str | tuple[Response, int]:
+    if not PUSH_NOTIFICATIONS_ENABLED: return jsonify({'error': 'Push not configured'}), 503
     """Handles requests to the subscribe endpoint."""
     try:
         sub_info = request.json
@@ -12337,8 +12572,7 @@ def subscribe() -> Response | str | tuple[Response, int]:
 # INTENTIONALLY PUBLIC: VAPID public keys are inherently public by design.
 def vapid_public_key() -> Response | str | tuple[Response, int]:
     """Handles requests to the vapid_public_key endpoint."""
-    if not VAPID_PUBLIC_KEY:
-        return jsonify({'error': 'Push notifications not configured'}), 503
+    if not PUSH_NOTIFICATIONS_ENABLED: return jsonify({'error': 'Push not configured'}), 503
     return jsonify({'public_key': VAPID_PUBLIC_KEY})
 
 def send_web_push(subscription_info: dict, message_body: str, subscription_id: int | None = None) -> None:
@@ -13243,14 +13477,71 @@ def start_scheduler_if_primary() -> None:
     except Exception as e:
         app.logger.error("Error acquiring scheduler lock", exc_info=True)
 
+import signal as _signal
+import atexit as _atexit
+
+def _graceful_shutdown(signum=None, frame=None):
+    app.logger.info("Graceful shutdown requested (signal=%s)", signum)
+    try:
+        if scheduler.running:
+            scheduler.shutdown(wait=False)
+            app.logger.info("Scheduler shutdown initiated.")
+    except Exception as e:
+        app.logger.error("Error shutting down scheduler", exc_info=True)
+
+    try:
+        _redis_url = os.getenv('REDIS_URL')
+        if _redis_url:
+            import redis
+            r = redis.from_url(_redis_url, socket_timeout=2.0)
+            r.delete('slb_scheduler_master')
+            app.logger.info("Scheduler lock released.")
+    except Exception as e:
+        app.logger.error("Error releasing scheduler lock", exc_info=True)
+
+    try:
+        with app.app_context():
+            db.session.remove()
+            db.engine.dispose()
+        app.logger.info("Database connections drained.")
+    except Exception as e:
+        app.logger.error("Error draining database connections", exc_info=True)
+
+    try:
+        for handler in app.logger.handlers:
+            handler.flush()
+    except Exception as e:
+        app.logger.error("Error flushing log handlers", exc_info=True)
+
+_signal.signal(_signal.SIGTERM, _graceful_shutdown)
+_signal.signal(_signal.SIGINT, _graceful_shutdown)
+_atexit.register(_graceful_shutdown)
+
 with app.app_context():
     try:
         start_scheduler_if_primary()
         prefetch_emoji_icons()
-        # TODO: Migrate to Flask-Migrate/Alembic for schema management. db.create_all() only creates new tables; it does NOT alter existing ones. (see consolidated migration note above class Siswa)
-        if os.environ.get('FLASK_INIT_DB'):
+        # SCHEMA EVOLUTION:
+        # Operator workflow:
+        # 1. flask db init
+        # 2. flask db migrate -m 'description'
+        # 3. flask db upgrade
+        _init_db = os.environ.get('FLASK_INIT_DB')
+        _auto_upgrade = os.environ.get('FLASK_AUTO_UPGRADE')
+        _is_dev = os.environ.get('FLASK_ENV', 'production').lower() == 'development'
+
+        if _init_db and _is_dev:
+            app.logger.info("Dev-only bootstrap: Creating tables and seeding data.")
             db.create_all()
             seed_slb_data()
+
+        if _auto_upgrade == "1":
+            try:
+                alembic_upgrade()
+                app.logger.info("Alembic migrations applied")
+            except Exception as e:
+                app.logger.error("Alembic upgrade failed", exc_info=True)
+                raise
     except Exception as e:
         app.logger.error("CRITICAL: Database initialization failed", exc_info=True)
 
@@ -13258,5 +13549,23 @@ with app.app_context():
 # ROUTE GROUP: Application Startup Block
 # ============================================================
 if __name__ == '__main__':
-    is_dev = os.getenv('FLASK_ENV') == 'development'
-    socketio.run(app, debug=is_dev, port=5001, allow_unsafe_werkzeug=is_dev)
+    is_dev = os.getenv('FLASK_ENV', 'production').lower() == 'development'
+    is_prod_env = os.getenv('PRODUCTION') == '1'
+    is_idcloudhost = os.getenv('IDCLOUDHOST') == '1'
+    db_uri = os.getenv('SQLALCHEMY_DATABASE_URI', '')
+    is_prod_db = db_uri and not any(localhost in db_uri for localhost in ('localhost', '127.0.0.1', '::1'))
+    is_prod_indicator = is_prod_env or is_idcloudhost or is_prod_db
+
+    if is_dev and is_prod_indicator:
+        raise RuntimeError("Refusing to start development server with Werkzeug debugger against a production environment/database.")
+
+    _sk = app.secret_key
+    if not _sk or _sk in ('dev', 'changeme', 'secret', '') or len(_sk) < 32:
+        raise RuntimeError("Refusing to start: SECRET_KEY is too short or uses a placeholder value.")
+
+    _host = '127.0.0.1' if is_dev else '0.0.0.0'
+    _port = int(os.getenv('PORT', 5001))
+    _allow_unsafe = is_dev and not is_prod_indicator
+
+    app.logger.warning("socketio.run() is a DEVELOPMENT server. For production, run: gunicorn -k eventlet -w 1 --bind 0.0.0.0:5001 module:app")
+    socketio.run(app, host=_host, port=_port, debug=is_dev, allow_unsafe_werkzeug=_allow_unsafe)
