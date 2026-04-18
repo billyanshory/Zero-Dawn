@@ -39,6 +39,7 @@ from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 
 import uuid
+from uuid import UUID
 import hashlib
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -53,13 +54,7 @@ def validate_str(value: object, max_len: int = 500) -> str | None:
         return None
     return val_str[:max_len]
 
-THUMBNAIL_MAX_SIZE = (800, 800)  # Maximum pixel dimensions for uploaded image thumbnails
-UPLOAD_MAX_BYTES = 5 * 1024 * 1024  # 5 MB cap on uploaded files
-COMPRESSION_TARGET_BYTES = 500 * 1024  # Target size for JPEG compression in bytes
-RATE_LIMIT_CALCULATOR = "30 per minute"
-RATE_LIMIT_OT_API = "20 per minute"
-RATE_LIMIT_UPLOAD = "10 per minute"
-def _compress_image_to_bytes(img: 'Image.Image', max_bytes: int = COMPRESSION_TARGET_BYTES) -> bytes:
+def _compress_image_to_bytes(img: 'Image.Image', max_bytes: int = 512000) -> bytes:
     """Iteratively compresses a PIL Image to fit within max_bytes limit."""
     quality = 85
     buffer = io.BytesIO()
@@ -81,6 +76,14 @@ def cached_render(template_name: str, template_string: str, **context: object) -
     else:
         template = env.from_string(template_string)
     return template.render(**context)
+
+THUMBNAIL_MAX_SIZE = (800, 800)  # Maximum pixel dimensions for uploaded image thumbnails
+UPLOAD_MAX_BYTES = 5 * 1024 * 1024  # 5 MB cap on uploaded files
+COMPRESSION_TARGET_BYTES = 500 * 1024  # Target size for JPEG compression in bytes
+RATE_LIMIT_CALCULATOR = "30 per minute"
+RATE_LIMIT_OT_API = "20 per minute"
+RATE_LIMIT_UPLOAD = "10 per minute"
+
 
 
 load_dotenv()
@@ -1712,7 +1715,7 @@ HOME_HTML = """
                         <div class="flex items-center gap-4">
                             <div class="w-14 h-14 rounded-full bg-white shadow-md border-2 border-white flex items-center justify-center overflow-hidden shrink-0">
                                 {% if profil_medis %}
-                                <img src="https://api.dicebear.com/7.x/notionists/svg?seed={{ profil_medis.nama_panggilan }}&backgroundColor=e0e7ff" alt="Avatar" class="w-full h-full object-cover">
+                                <img src="https://api.dicebear.com/7.x/notionists/svg?seed={{ profil_medis.nama_panggilan if profil_medis else \'\' }}&backgroundColor=e0e7ff" alt="Avatar" class="w-full h-full object-cover">
                                 {% elif anak_nama %}
                                 <img src="https://api.dicebear.com/7.x/notionists/svg?seed={{ anak_nama }}&backgroundColor=e0e7ff" alt="Avatar" class="w-full h-full object-cover">
                                 {% else %}
@@ -1721,8 +1724,8 @@ HOME_HTML = """
                             </div>
                             <div>
                                 {% if profil_medis %}
-                                <h2 class="text-xl font-extrabold text-gray-800 tracking-tight leading-none mb-1">{{ profil_medis.nama_panggilan }}</h2>
-                                <p class="text-xs text-gray-600 font-bold">Siswa {{ profil_medis.jenis_slb }} ({{ profil_medis.kategori_hambatan }})</p>
+                                <h2 class="text-xl font-extrabold text-gray-800 tracking-tight leading-none mb-1">{{ profil_medis.nama_panggilan if profil_medis else \'\' }}</h2>
+                                <p class="text-xs text-gray-600 font-bold">Siswa {{ profil_medis.jenis_slb if profil_medis else \'\' }} ({{ profil_medis.kategori_hambatan if profil_medis else \'\' }})</p>
                                 {% elif anak_nama %}
                                 <h2 class="text-xl font-extrabold text-gray-800 tracking-tight leading-none mb-1">{{ anak_nama }}</h2>
                                 <p class="text-xs text-gray-600 font-bold">Tipe SLB (Jenis Hambatan)</p>
@@ -1737,13 +1740,13 @@ HOME_HTML = """
                             {% if profil_medis and profil_medis.kondisi_warna %}
                                 {% if profil_medis.kondisi_warna == 'green' %}
                                     <span class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
-                                    <span class="text-[10px] font-bold text-green-700 uppercase tracking-wider">{{ profil_medis.kondisi_terkini }}</span>
+                                    <span class="text-[10px] font-bold text-green-700 uppercase tracking-wider">{{ profil_medis.kondisi_terkini if profil_medis else \'\' }}</span>
                                 {% elif profil_medis.kondisi_warna == 'yellow' %}
                                     <span class="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-pulse"></span>
-                                    <span class="text-[10px] font-bold text-yellow-700 uppercase tracking-wider">{{ profil_medis.kondisi_terkini }}</span>
+                                    <span class="text-[10px] font-bold text-yellow-700 uppercase tracking-wider">{{ profil_medis.kondisi_terkini if profil_medis else \'\' }}</span>
                                 {% else %}
                                     <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
-                                    <span class="text-[10px] font-bold text-red-700 uppercase tracking-wider">{{ profil_medis.kondisi_terkini }}</span>
+                                    <span class="text-[10px] font-bold text-red-700 uppercase tracking-wider">{{ profil_medis.kondisi_terkini if profil_medis else \'\' }}</span>
                                 {% endif %}
                             {% elif peran == 'orang_tua' %}
                                 <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
@@ -4377,7 +4380,8 @@ def add_security_headers(response):
 # ROUTE GROUP: Home Page & Auth Routes
 # ============================================================
 @app.route('/')
-def index():
+def index() -> Response | str | tuple[Response, int]:
+    """Handles requests to the index endpoint."""
     try:
         if session.get('peran') == ROLE_ORANG_TUA and session.get('anak_id'):
             epilepsi_logs = EpilepsiLog.query.filter_by(anak_id=session.get('anak_id')).order_by(EpilepsiLog.created_at.desc()).limit(10).all()
@@ -4395,7 +4399,7 @@ def index():
     anak_nama = None
 
     if peran == ROLE_ORANG_TUA and anak_id:
-        profil_medis = ProfilMedisSiswa.query.filter_by(siswa_id=anak_id).first()  # Result may be None for students with no medical profile; sentinel inserted below for template safety
+        profil_medis = ProfilMedisSiswa.query.filter_by(siswa_id=anak_id).first()  # May be None; sentinel below
         if profil_medis is None: profil_medis = ProfilMedisSiswa(siswa_id=anak_id)  # transient unsaved sentinel for template rendering
         siswa_record = db.session.get(Siswa, anak_id)  # Result may be None; downstream handles or None is safe here
         if siswa_record:
@@ -4413,7 +4417,8 @@ def index():
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=rendered_home, is_admin=session.get('is_admin', False), settings=get_settings(), list_siswa=list_siswa)
 
 @app.route('/api/profil-medis/<int:siswa_id>', methods=['GET'])
-def get_profil_medis(siswa_id):
+def get_profil_medis(siswa_id: int) -> Response | str | tuple[Response, int]:
+    """Handles requests to the get_profil_medis endpoint."""
     peran = session.get('peran')
     if peran not in [ROLE_ORANG_TUA, ROLE_GURU, ROLE_KEPALA_SEKOLAH] and not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
@@ -4468,7 +4473,8 @@ def get_profil_medis(siswa_id):
         return jsonify({'error': 'Gagal memuat data.'}), 500
 
 @app.route('/api/profil-medis/<int:siswa_id>', methods=['POST'])
-def update_profil_medis(siswa_id):
+def update_profil_medis(siswa_id: int) -> Response | str | tuple[Response, int]:
+    """Handles requests to the update_profil_medis endpoint."""
     peran = session.get('peran')
     if peran == ROLE_ORANG_TUA:
         if str(session.get('anak_id')) != str(siswa_id):
@@ -4527,7 +4533,8 @@ def update_profil_medis(siswa_id):
 
 @app.route('/api/cari-siswa-guru', methods=['GET'])
 @require_auth(roles=STAFF_ROLES)
-def cari_siswa_guru():
+def cari_siswa_guru() -> Response | str | tuple[Response, int]:
+    """Handles requests to the cari_siswa_guru endpoint."""
     query = request.args.get('q', '')
     if not query:
         return jsonify([])
@@ -4551,7 +4558,8 @@ def cari_siswa_guru():
 
 @app.route('/register', methods=['POST'])
 @limiter.limit('5 per minute')
-def register():
+def register() -> Response | str | tuple[Response, int]:
+    """Handles requests to the register endpoint."""
     try:
         nik = request.form.get('nik')
         nama_lengkap = request.form.get('nama_lengkap')
@@ -4603,7 +4611,8 @@ def register():
 
 @app.route('/brankas_unlock', methods=['POST'])
 @limiter.limit("3 per hour")
-def brankas_unlock():
+def brankas_unlock() -> Response | str | tuple[Response, int]:
+    """Handles requests to the brankas_unlock endpoint."""
     if not request.is_json:
         return jsonify({"status": "error", "message": "Format tidak valid"}), 400
         
@@ -4624,12 +4633,13 @@ def brankas_unlock():
 
 @app.route('/login', methods=['POST'])
 @limiter.limit('5 per minute')
-def login():
+def login() -> Response | str | tuple[Response, int]:
+    """Handles requests to the login endpoint."""
     try:
         username = request.form.get('username')
         password = request.form.get('password')
     
-        akun = AkunPengguna.query.filter_by(username=username).first()  # Guarded by if akun and ... check below  # Guarded by if akun and ... check below
+        akun = AkunPengguna.query.filter_by(username=username).first()  # Guarded by if akun and ... check below
         
         if akun and check_password_hash(akun.password_hash, password):
             if akun.status_akun == STATUS_DISETUJUI:
@@ -4656,13 +4666,15 @@ def login():
         return "Sistem login sedang mengalami kendala. Silakan coba beberapa saat lagi. <a href='/'>Kembali</a>", 503
 
 @app.route('/logout')
-def logout():
+def logout() -> Response | str | tuple[Response, int]:
+    """Handles requests to the logout endpoint."""
     session.clear()
     session.modified = True
     return redirect(url_for('index'))
 
 @app.route('/dashboard_validator')
-def dashboard_validator():
+def dashboard_validator() -> Response | str | tuple[Response, int]:
+    """Handles requests to the dashboard_validator endpoint."""
     if session.get('peran') != ROLE_KEPALA_SEKOLAH and not session.get('is_admin'):
         return redirect(url_for('index'))
     
@@ -4727,7 +4739,8 @@ def dashboard_validator():
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='', content=cached_render('content_cb98a079', content, menunggu=menunggu, disetujui=disetujui), hide_nav=False, full_width=True, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=True)
 
 @app.route('/kepala-sekolah')
-def kepala_sekolah_dashboard():
+def kepala_sekolah_dashboard() -> Response | str | tuple[Response, int]:
+    """Handles requests to the kepala_sekolah_dashboard endpoint."""
     if session.get('peran') != ROLE_KEPALA_SEKOLAH and not session.get('is_admin'):
         return redirect(url_for('index'))
 
@@ -4827,7 +4840,8 @@ def kepala_sekolah_dashboard():
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='validator', content=cached_render('content_dde416f6', content, akun_pending=akun_pending, akun_disetujui=akun_disetujui), hide_nav=False, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
 @app.route('/validator/approve/<int:akun_id>', methods=['POST'])
-def validator_approve(akun_id):
+def validator_approve(akun_id: int) -> Response | str | tuple[Response, int]:
+    """Handles requests to the validator_approve endpoint."""
     if session.get('peran') != ROLE_KEPALA_SEKOLAH and not session.get('is_admin'):
         return redirect(url_for('index'))
     akun = db.session.get(AkunPengguna, akun_id)  # Returns None if not found; guarded immediately below
@@ -4853,7 +4867,8 @@ def validator_approve(akun_id):
     return redirect(url_for('kepala_sekolah_dashboard'))
 
 @app.route('/validator/reject/<int:akun_id>', methods=['POST'])
-def validator_reject(akun_id):
+def validator_reject(akun_id: int) -> Response | str | tuple[Response, int]:
+    """Handles requests to the validator_reject endpoint."""
     if session.get('peran') != ROLE_KEPALA_SEKOLAH and not session.get('is_admin'):
         return redirect(url_for('index'))
     akun = db.session.get(AkunPengguna, akun_id)  # Returns None if not found; guarded immediately below
@@ -4880,7 +4895,8 @@ def validator_reject(akun_id):
 
 @app.route('/therapy/log', methods=['POST'])
 @limiter.limit(RATE_LIMIT_UPLOAD)
-def therapy_log():
+def therapy_log() -> Response | str | tuple[Response, int]:
+    """Handles requests to the therapy_log endpoint."""
     if not session.get('user_id'):
         return redirect(url_for('index'))
         
@@ -4935,7 +4951,8 @@ def therapy_log():
 
 # ACCEPTED RISK: UUID filenames prevent enumeration. Public access needed for /galeri images.
 @app.route('/uploads/<filename>')
-def uploaded_file(filename):
+def uploaded_file(filename: str) -> Response | str | tuple[Response, int]:
+    """Handles requests to the uploaded_file endpoint."""
     secure_name = secure_filename(filename)
     if not secure_name or secure_name != filename:
         return "Invalid filename", 400
@@ -4949,7 +4966,8 @@ def uploaded_file(filename):
 # INTENTIONALLY PUBLIC: Stateless calculators, no PII access, rate-limited.
 @app.route('/api/calc/imt', methods=['POST'])
 @limiter.limit(RATE_LIMIT_CALCULATOR)
-def api_calc_imt():
+def api_calc_imt() -> Response | str | tuple[Response, int]:
+    """Handles requests to the api_calc_imt endpoint."""
     try:
         data = request.json
         weight = float(data.get('weight', 0))
@@ -4992,7 +5010,8 @@ def api_calc_imt():
 
 @app.route('/api/calc/sensory', methods=['POST'])
 @limiter.limit(RATE_LIMIT_CALCULATOR)
-def api_calc_sensory():
+def api_calc_sensory() -> Response | str | tuple[Response, int]:
+    """Handles requests to the api_calc_sensory endpoint."""
     try:
         data = request.json
         noise = float(data.get('noise', 0))
@@ -5029,7 +5048,8 @@ def api_calc_sensory():
 
 @app.route('/api/calc/auditory', methods=['POST'])
 @limiter.limit(RATE_LIMIT_CALCULATOR)
-def api_calc_auditory():
+def api_calc_auditory() -> Response | str | tuple[Response, int]:
+    """Handles requests to the api_calc_auditory endpoint."""
     try:
         data = request.json
         age = float(data.get('age', 0))
@@ -5060,7 +5080,8 @@ def api_calc_auditory():
 
 @app.route('/api/calc/iq', methods=['POST'])
 @limiter.limit(RATE_LIMIT_CALCULATOR)
-def api_calc_iq():
+def api_calc_iq() -> Response | str | tuple[Response, int]:
+    """Handles requests to the api_calc_iq endpoint."""
     try:
         data = request.json
         chrono = float(data.get('chrono', 0))
@@ -5100,7 +5121,8 @@ def api_calc_iq():
 
 @app.route('/api/calc/motor', methods=['POST'])
 @limiter.limit(RATE_LIMIT_CALCULATOR)
-def api_calc_motor():
+def api_calc_motor() -> Response | str | tuple[Response, int]:
+    """Handles requests to the api_calc_motor endpoint."""
     try:
         data = request.json
         prev = float(data.get('prev', 0))
@@ -5135,7 +5157,8 @@ def api_calc_motor():
 
 @app.route('/api/calc/diet', methods=['POST'])
 @limiter.limit(RATE_LIMIT_CALCULATOR)
-def api_calc_diet():
+def api_calc_diet() -> Response | str | tuple[Response, int]:
+    """Handles requests to the api_calc_diet endpoint."""
     try:
         data = request.json
         mode = data.get('mode', 'Keto')
@@ -5185,7 +5208,8 @@ def api_calc_diet():
 
 @app.route('/api/yasin', methods=['GET'])
 @cache.cached(timeout=86400, key_prefix='surah_yasin')
-def api_yasin():
+def api_yasin() -> Response | str | tuple[Response, int]:
+    """Handles requests to the api_yasin endpoint."""
     try:
         url = "https://equran.id/api/v2/surat/36"
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -6815,7 +6839,8 @@ class PushSubscription(db.Model):
 
 @app.route('/ramadhan')
 @require_auth(roles=STAFF_ROLES)
-def ramadhan_dashboard():
+def ramadhan_dashboard() -> Response | str | tuple[Response, int]:
+    """Handles requests to the ramadhan_dashboard endpoint."""
     portfolios = StudentPortfolio.query.order_by(StudentPortfolio.created_at.desc()).limit(100).all()
     siswa_list = Siswa.query.order_by(Siswa.nama).all()
     
@@ -6842,7 +6867,8 @@ def ramadhan_dashboard():
 
 @app.route('/guru/tantrum', methods=['POST'])
 @require_auth(roles=STAFF_ROLES)
-def save_tantrum():
+def save_tantrum() -> Response | str | tuple[Response, int]:
+    """Handles requests to the save_tantrum endpoint."""
     try:
         data = request.json
         student_val = validate_str(data.get('student'), 255)
@@ -6874,7 +6900,8 @@ def save_tantrum():
 
 @app.route('/guru/tantrum/data')
 @require_auth(roles=STAFF_ROLES)
-def get_tantrum_data():
+def get_tantrum_data() -> Response | str | tuple[Response, int]:
+    """Handles requests to the get_tantrum_data endpoint."""
     try:
         
         thirty_days_ago = datetime.datetime.now() - datetime.timedelta(days=30)
@@ -6961,7 +6988,8 @@ def prefetch_emoji_icons():
 @app.route('/guru/iep', methods=['POST'])
 @limiter.limit("10 per hour")
 @require_auth(roles=STAFF_ROLES)
-def generate_iep():
+def generate_iep() -> Response | str | tuple[Response, int]:
+    """Handles requests to the generate_iep endpoint."""
     buffer = None
     try:
         student_name = request.form.get('student_name')
@@ -7123,7 +7151,8 @@ def generate_iep():
 
 @app.route('/guru/reaction', methods=['POST'])
 @require_auth(roles=STAFF_ROLES)
-def save_reaction():
+def save_reaction() -> Response | str | tuple[Response, int]:
+    """Handles requests to the save_reaction endpoint."""
     data = request.json
     try:
         sec = data.get('time_sec')
@@ -7149,7 +7178,8 @@ def save_reaction():
 
 @app.route('/guru/reaction/data')
 @require_auth(roles=STAFF_ROLES)
-def get_reaction_data():
+def get_reaction_data() -> Response | str | tuple[Response, int]:
+    """Handles requests to the get_reaction_data endpoint."""
     logs = ReactionTimeLog.query.order_by(ReactionTimeLog.created_at.desc()).limit(100).all()
     labels = [f"Tes {i+1}" for i in range(len(logs))]
     values = []
@@ -7162,7 +7192,8 @@ def get_reaction_data():
 
 @app.route('/guru/kognitif/emosi', methods=['POST'])
 @require_auth(roles=STAFF_ROLES)
-def save_kognitif_emosi():
+def save_kognitif_emosi() -> Response | str | tuple[Response, int]:
+    """Handles requests to the save_kognitif_emosi endpoint."""
     data = request.json
     try:
         score_val = int(data.get('score', 0))
@@ -7192,7 +7223,8 @@ def save_kognitif_emosi():
 
 @app.route('/guru/kognitif/bentuk', methods=['POST'])
 @require_auth(roles=STAFF_ROLES)
-def save_kognitif_bentuk():
+def save_kognitif_bentuk() -> Response | str | tuple[Response, int]:
+    """Handles requests to the save_kognitif_bentuk endpoint."""
     data = request.json
     try:
         mistakes_val = int(data.get('mistakes', 0))
@@ -7224,7 +7256,8 @@ def save_kognitif_bentuk():
 @app.route('/guru/portofolio/upload', methods=['POST'])
 @limiter.limit(RATE_LIMIT_UPLOAD)
 @require_auth(roles=STAFF_ROLES)
-def upload_portfolio():
+def upload_portfolio() -> Response | str | tuple[Response, int]:
+    """Handles requests to the upload_portfolio endpoint."""
     if 'image' not in request.files:
         return redirect(url_for('ramadhan_dashboard', open='modal-portofolio'))
     
@@ -7281,7 +7314,8 @@ _connected_clients = _ConnectedClientsHolder()
 
 
 @socketio.on('connect')
-def handle_connect():
+def handle_connect() -> None:
+    """Handles SocketIO events for handle_connect."""
     try:
         if not session.get('user_id'):
             return False
@@ -7309,7 +7343,8 @@ def handle_connect():
         return False
 
 @socketio.on('disconnect')
-def handle_disconnect():
+def handle_disconnect() -> None:
+    """Handles SocketIO events for handle_disconnect."""
     try:
         if not session.get('user_id'):
             return
@@ -7319,7 +7354,8 @@ def handle_disconnect():
         app.logger.error('SocketIO disconnect handler failed', exc_info=True)
 
 @socketio.on('set_frequency')
-def handle_set_frequency(data):
+def handle_set_frequency(data: dict) -> None:
+    """Handles SocketIO events for handle_set_frequency."""
     try:
         if not session.get('user_id'):
             return
@@ -8488,11 +8524,13 @@ SLB_TUNARUNGU_HTML = """
 """
 
 @app.route('/slb/tunanetra')
-def slb_tunanetra():
+def slb_tunanetra() -> Response | str | tuple[Response, int]:
+    """Handles requests to the slb_tunanetra endpoint."""
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=SLB_TUNANETRA_HTML, theme={'nav_bg': 'bg-blue-100', 'title_text': 'text-blue-800'}, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
 @app.route('/slb/tunarungu', methods=['GET', 'POST'])
-def slb_tunarungu():
+def slb_tunarungu() -> Response | str | tuple[Response, int]:
+    """Handles requests to the slb_tunarungu endpoint."""
     words_data = []
     sentence = ""
     if request.method == 'POST':
@@ -8500,7 +8538,7 @@ def slb_tunarungu():
         if sentence:
             words = sentence.split()
             for w in words:
-                entry = SignLanguageDictionary.query.filter_by(word=w).first()  # Guarded by if not entry check below  # Guarded by if not entry check below
+                entry = SignLanguageDictionary.query.filter_by(word=w).first()  # Guarded by if not entry check below
                 url = entry.image_url if entry else None
                 words_data.append({'word': w, 'url': url})
     
@@ -9432,11 +9470,13 @@ SLB_TUNADAKSA_HTML = """
 """
 
 @app.route('/slb/tunagrahita')
-def slb_tunagrahita():
+def slb_tunagrahita() -> Response | str | tuple[Response, int]:
+    """Handles requests to the slb_tunagrahita endpoint."""
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=SLB_TUNAGRAHITA_HTML, theme={'nav_bg': 'bg-purple-100', 'title_text': 'text-purple-800'}, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
 @app.route('/slb/tunadaksa')
-def slb_tunadaksa():
+def slb_tunadaksa() -> Response | str | tuple[Response, int]:
+    """Handles requests to the slb_tunadaksa endpoint."""
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=SLB_TUNADAKSA_HTML, theme={'nav_bg': 'bg-green-100', 'title_text': 'text-green-800'}, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
 SLB_TUNALARAS_HTML = """
@@ -11961,7 +12001,8 @@ ORANG_TUA_HTML = """
 
 @app.route('/orang-tua')
 @require_auth(roles=ALL_ROLES)
-def orang_tua_dashboard():
+def orang_tua_dashboard() -> Response | str | tuple[Response, int]:
+    """Handles requests to the orang_tua_dashboard endpoint."""
     theme = {
         'nav_bg': 'bg-rose-50',
         'icon_bg': 'bg-rose-100',
@@ -11982,7 +12023,8 @@ def orang_tua_dashboard():
 @app.route('/orang-tua/api/buku', methods=['POST'])
 @limiter.limit(RATE_LIMIT_OT_API)
 @require_auth(roles={ROLE_ORANG_TUA, ROLE_KEPALA_SEKOLAH})
-def save_ot_buku():
+def save_ot_buku() -> Response | str | tuple[Response, int]:
+    """Handles requests to the save_ot_buku endpoint."""
     try:
         data = request.json
         anak_id = session.get('anak_id')
@@ -12012,7 +12054,8 @@ def save_ot_buku():
         return jsonify({'error': 'Terjadi kesalahan saat memproses data. Silakan coba lagi.'}), 500
 
 @app.route('/api/jurnal-harian')
-def api_jurnal_harian():
+def api_jurnal_harian() -> Response | str | tuple[Response, int]:
+    """Handles requests to the api_jurnal_harian endpoint."""
     if not session.get('user_id'):
         return jsonify({'error': 'Unauthorized'}), 403
     try:
@@ -12048,7 +12091,8 @@ def api_jurnal_harian():
 
 @app.route('/orang-tua/api/chart-data')
 @require_auth(roles=ALL_ROLES)
-def get_ot_chart_data():
+def get_ot_chart_data() -> Response | str | tuple[Response, int]:
+    """Handles requests to the get_ot_chart_data endpoint."""
     try:
         q_buku = OrangTuaBuku.query
         q_reaction = ReactionTimeLog.query
@@ -12088,7 +12132,8 @@ def get_ot_chart_data():
         return jsonify({'error': 'Gagal memuat data.'}), 500
 
 @app.route('/orang-tua/api/tantrum-profile')
-def get_tantrum_profile():
+def get_tantrum_profile() -> Response | str | tuple[Response, int]:
+    """Handles requests to the get_tantrum_profile endpoint."""
     if not session.get('user_id'):
         return jsonify({'error': 'Unauthorized'}), 403
     # In a real app, fetch based on student ID. 
@@ -12106,7 +12151,8 @@ def get_tantrum_profile():
 @app.route('/orang-tua/api/jadwal', methods=['GET', 'POST'])
 @limiter.limit(RATE_LIMIT_OT_API)
 @require_auth(roles=ALL_ROLES)
-def handle_ot_jadwal():
+def handle_ot_jadwal() -> Response | str | tuple[Response, int]:
+    """Handles requests to the handle_ot_jadwal endpoint."""
     if request.method == 'POST':
         try:
             data = request.json
@@ -12162,7 +12208,8 @@ def handle_ot_jadwal():
     return jsonify(res)
 
 @app.route('/orang-tua/api/jadwal/<int:jadwal_id>', methods=['DELETE'])
-def delete_ot_jadwal(jadwal_id):
+def delete_ot_jadwal(jadwal_id: int) -> Response | str | tuple[Response, int]:
+    """Handles requests to the delete_ot_jadwal endpoint."""
     if not session.get('is_admin') and session.get('peran') != ROLE_ORANG_TUA:
         return jsonify({'error': 'Unauthorized'}), 403
     try:
@@ -12185,11 +12232,13 @@ def delete_ot_jadwal(jadwal_id):
         return jsonify({'error': 'Terjadi kesalahan saat menghapus data.'}), 500
 
 @app.route('/api/kamus_nutrisi')
-def api_kamus_nutrisi_legacy_redirect():
+def api_kamus_nutrisi_legacy_redirect() -> Response | str | tuple[Response, int]:
+    """Handles requests to the api_kamus_nutrisi_legacy_redirect endpoint."""
     return redirect(url_for('api_kamus_nutrisi'), code=301)
 
 @app.route('/api/kamus-nutrisi')
-def api_kamus_nutrisi():
+def api_kamus_nutrisi() -> Response | str | tuple[Response, int]:
+    """Handles requests to the api_kamus_nutrisi endpoint."""
     try:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         target_path = os.path.join(current_dir, 'static', 'kamus_alergi_neuro.json')
@@ -12204,7 +12253,8 @@ def api_kamus_nutrisi():
 @app.route('/orang-tua/api/nutrisi', methods=['GET', 'POST'])
 @limiter.limit(RATE_LIMIT_OT_API)
 @require_auth(roles={ROLE_ORANG_TUA, ROLE_KEPALA_SEKOLAH})
-def handle_ot_nutrisi():
+def handle_ot_nutrisi() -> Response | str | tuple[Response, int]:
+    """Handles requests to the handle_ot_nutrisi endpoint."""
     if request.method == 'POST':
         try:
             data = request.json
@@ -12258,14 +12308,15 @@ VAPID_CLAIMS = {
 @app.route('/orang-tua/api/subscribe', methods=['POST'])
 @limiter.limit(RATE_LIMIT_OT_API)
 @require_auth(roles=ALL_ROLES)
-def subscribe():
+def subscribe() -> Response | str | tuple[Response, int]:
+    """Handles requests to the subscribe endpoint."""
     try:
         sub_info = request.json
         if not sub_info:
             return jsonify({'error': 'no info'}), 400
         
         # Store subscription if not exists
-        existing = PushSubscription.query.filter_by(subscription_info=json.dumps(sub_info)).first()  # Guarded by if not existing check below  # Guarded by if not existing check below
+        existing = PushSubscription.query.filter_by(subscription_info=json.dumps(sub_info)).first()  # Guarded by if not existing check below
         if not existing:
             db.session.add(PushSubscription(subscription_info=json.dumps(sub_info)))
             db.session.commit()
@@ -12284,7 +12335,8 @@ def subscribe():
 
 @app.route('/orang-tua/api/vapid_public_key')
 # INTENTIONALLY PUBLIC: VAPID public keys are inherently public by design.
-def vapid_public_key():
+def vapid_public_key() -> Response | str | tuple[Response, int]:
+    """Handles requests to the vapid_public_key endpoint."""
     if not VAPID_PUBLIC_KEY:
         return jsonify({'error': 'Push notifications not configured'}), 503
     return jsonify({'public_key': VAPID_PUBLIC_KEY})
@@ -12408,7 +12460,8 @@ scheduler.add_job(id='Cleanup Subscriptions', func=cleanup_push_subscriptions, t
 @app.route('/orang-tua/api/burnout', methods=['POST'])
 @limiter.limit(RATE_LIMIT_OT_API)
 @require_auth(roles={ROLE_ORANG_TUA, ROLE_KEPALA_SEKOLAH})
-def save_burnout():
+def save_burnout() -> Response | str | tuple[Response, int]:
+    """Handles requests to the save_burnout endpoint."""
     try:
         data = request.json
         anak_id = session.get('anak_id')
@@ -12438,7 +12491,8 @@ def save_burnout():
 
 @app.route('/orang-tua/api/burnout-check')
 @require_auth(roles=ALL_ROLES)
-def check_burnout():
+def check_burnout() -> Response | str | tuple[Response, int]:
+    """Handles requests to the check_burnout endpoint."""
     try:
         q = OrangTuaBurnout.query
         if session.get('peran') == ROLE_ORANG_TUA:
@@ -12465,7 +12519,8 @@ def check_burnout():
 
 @app.route('/orang-tua/modul/download')
 @require_auth(roles=ALL_ROLES)
-def download_modul():
+def download_modul() -> Response | str | tuple[Response, int]:
+    """Handles requests to the download_modul endpoint."""
     filename = request.args.get('file')
     if not filename:
         return "No file specified", 400
@@ -12482,7 +12537,8 @@ def download_modul():
 
 @app.route('/slb/tunalaras', methods=['GET', 'POST'])
 @require_auth(roles=ALL_ROLES)
-def slb_tunalaras():
+def slb_tunalaras() -> Response | str | tuple[Response, int]:
+    """Handles requests to the slb_tunalaras endpoint."""
     if request.method == 'POST':
         try:
             emotion = validate_str(request.form.get('emotion'), 50)
@@ -12522,7 +12578,8 @@ def slb_tunalaras():
 
 @app.route('/api/tunalaras/guru-monitor')
 @require_auth(roles=STAFF_ROLES)
-def api_tunalaras_guru_monitor():
+def api_tunalaras_guru_monitor() -> Response | str | tuple[Response, int]:
+    """Handles requests to the api_tunalaras_guru_monitor endpoint."""
     try:
         q = request.args.get('q', '').strip()
 
@@ -12576,7 +12633,8 @@ def api_tunalaras_guru_monitor():
         return jsonify({'error': 'Gagal memuat data.'}), 500
 
 @app.route('/slb/tunaganda')
-def slb_tunaganda():
+def slb_tunaganda() -> Response | str | tuple[Response, int]:
+    """Handles requests to the slb_tunaganda endpoint."""
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=SLB_TUNAGANDA_HTML, hide_nav=True, full_width=True, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
 def manifest():
@@ -12610,7 +12668,8 @@ def manifest():
     })
 
 @app.route('/sw.js')
-def service_worker():
+def service_worker() -> Response | str | tuple[Response, int]:
+    """Handles requests to the service_worker endpoint."""
     sw_code = """
 const CACHE_NAME = 'slb-v1';
 const ASSETS_TO_CACHE = [
@@ -12697,7 +12756,8 @@ self.addEventListener('fetch', (event) => {
     return Response(sw_code, mimetype='application/javascript')
 
 @app.route('/jadwal')
-def jadwal_kelas():
+def jadwal_kelas() -> Response | str | tuple[Response, int]:
+    """Handles requests to the jadwal_kelas endpoint."""
     try:
         jadwal = JadwalKelas.query.limit(200).all()
     except Exception:
@@ -12792,7 +12852,8 @@ def jadwal_kelas():
 @app.route('/jadwal/add', methods=['POST'])
 @limiter.limit(RATE_LIMIT_OT_API)
 @require_auth(roles=STAFF_ROLES)
-def add_jadwal():
+def add_jadwal() -> Response | str | tuple[Response, int]:
+    """Handles requests to the add_jadwal endpoint."""
     try:
         hari = validate_str(request.form.get('hari'), 50)
         jam = validate_str(request.form.get('jam'), 50)
@@ -12824,7 +12885,8 @@ def add_jadwal():
 
 @app.route('/galeri')
 # INTENTIONALLY PUBLIC: Gallery showcases student artwork to the community.
-def galeri_karya():
+def galeri_karya() -> Response | str | tuple[Response, int]:
+    """Handles requests to the galeri_karya endpoint."""
     page = request.args.get('page', 1, type=int)
     try:
         pagination = GaleriKarya.query.order_by(GaleriKarya.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
@@ -12939,7 +13001,8 @@ def galeri_karya():
 
 @app.route('/arsip-portofolio')
 @require_auth(roles=ALL_ROLES)
-def arsip_portofolio():
+def arsip_portofolio() -> Response | str | tuple[Response, int]:
+    """Handles requests to the arsip_portofolio endpoint."""
     page = request.args.get('page', 1, type=int)
     try:
         pagination = StudentPortfolio.query.order_by(StudentPortfolio.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
@@ -13111,7 +13174,8 @@ def arsip_portofolio():
 @app.route('/galeri/upload', methods=['POST'])
 @limiter.limit(RATE_LIMIT_UPLOAD)
 @require_auth(roles=STAFF_ROLES)
-def upload_karya():
+def upload_karya() -> Response | str | tuple[Response, int]:
+    """Handles requests to the upload_karya endpoint."""
     title = validate_str(request.form.get('title'), 255)
     student_name = validate_str(request.form.get('student_name'), 255)
     file = request.files.get('image')
@@ -13190,16 +13254,4 @@ with app.app_context():
 # ============================================================
 if __name__ == '__main__':
     is_dev = os.getenv('FLASK_ENV') == 'development'
-    socketio.run(app, debug=is_dev, port=5001, allow_unsafe_werkzeug=is_dev)# ============================================================
-# TEMPLATE: ERROR_500_HTML
-# CONSUMED BY: handle_exception
-# ============================================================
-ERROR_500_HTML = ''''
-<html>
-        <head><title>500 Internal Server Error</title></head>
-        <body style="font-family: sans-serif; text-align: center; padding-top: 20%;">
-            <h2>Mohon Maaf, Sistem Sedang Mengalami Kendala.</h2>
-            <p>Terjadi kesalahan teknis. Silakan coba beberapa saat lagi.</p>
-    </body>
-</html>
-'''
+    socketio.run(app, debug=is_dev, port=5001, allow_unsafe_werkzeug=is_dev)
