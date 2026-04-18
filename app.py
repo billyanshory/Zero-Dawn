@@ -28,6 +28,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import Index
 from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.orm import Mapped, mapped_column
 from datetime import time as dt_time, datetime as dt_module
 from flask_socketio import SocketIO, emit
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -37,6 +38,12 @@ import logging.handlers
 from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 
+import uuid
+import hashlib
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_caching import Cache
+
 def validate_str(value: object, max_len: int = 500) -> str | None:
     """Validates and truncates a string input to a maximum length."""
     if value is None:
@@ -45,11 +52,6 @@ def validate_str(value: object, max_len: int = 500) -> str | None:
     if not val_str:
         return None
     return val_str[:max_len]
-import uuid
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from flask_caching import Cache
-import hashlib
 
 THUMBNAIL_MAX_SIZE = (800, 800)  # Maximum pixel dimensions for uploaded image thumbnails
 UPLOAD_MAX_BYTES = 5 * 1024 * 1024  # 5 MB cap on uploaded files
@@ -85,8 +87,6 @@ load_dotenv()
 
 # --- KONFIGURASI FLASK ---
 # Optional dependency: flask_compress. Failure is non-fatal; compression is disabled gracefully.
-# Optional dependency: flask_compress. Failure is non-fatal; compression is disabled gracefully.
-# Optional dependency: flask_compress. Failure is non-fatal; compression is disabled gracefully.
 try:
     from flask_compress import Compress
     _compress_available = True
@@ -114,32 +114,35 @@ except ImportError:
 # - Application Startup Block
 # ============================================================
 
-
-# ============================================================
-# TABLE OF CONTENTS
-# ============================================================
-# - Imports
-# - App Configuration & Helper Functions
-# - Database Models
-# - Seed Data Function
-# - STYLES_HTML Template
-# - HOME_HTML Template
-# - Home Page & Auth Routes
-# - Calculator & Therapy Routes
-# - RAMADHAN_DASHBOARD_HTML Template
-# - SLB Disability Types HTML (TUNANETRA, TUNARUNGU, etc.)
-# - ORANG_TUA_HTML Template
-# - Parent API Routes
-# - Push Notification Block
-# - Gallery Upload Routes
-# - Application Startup Block
-# ============================================================
-
 app = Flask(__name__)
 
 if _compress_available:
     Compress(app)
 
+
+ROLE_ORANG_TUA = 'orang_tua'
+ROLE_GURU = 'guru'
+ROLE_KEPALA_SEKOLAH = 'kepala_sekolah'
+STATUS_MENUNGGU = 'menunggu_verifikasi'
+STATUS_DISETUJUI = 'disetujui'
+STATUS_DITOLAK = 'ditolak'
+ALL_ROLES = frozenset({ROLE_ORANG_TUA, ROLE_GURU, ROLE_KEPALA_SEKOLAH})
+STAFF_ROLES = frozenset({ROLE_GURU, ROLE_KEPALA_SEKOLAH})
+ALL_STATUSES = frozenset({STATUS_MENUNGGU, STATUS_DISETUJUI, STATUS_DITOLAK})
+
+@app.context_processor
+def inject_role_constants():
+    return {
+        'ROLE_ORANG_TUA': ROLE_ORANG_TUA,
+        'ROLE_GURU': ROLE_GURU,
+        'ROLE_KEPALA_SEKOLAH': ROLE_KEPALA_SEKOLAH,
+        'STATUS_MENUNGGU': STATUS_MENUNGGU,
+        'STATUS_DISETUJUI': STATUS_DISETUJUI,
+        'STATUS_DITOLAK': STATUS_DITOLAK
+    }
+
+class UploadValidationError(Exception):
+    pass
 
 def require_auth(roles=None, owner_check=False):
     def decorator(f):
@@ -229,6 +232,20 @@ handler.setLevel(logging.WARNING)
 handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
 app.logger.addHandler(handler)
 
+# ============================================================
+# TEMPLATE: ERROR_500_HTML
+# CONSUMED BY: handle_exception
+# ============================================================
+ERROR_500_HTML = '''
+    <html>
+        <head><title>500 Internal Server Error</title></head>
+        <body style="font-family: sans-serif; text-align: center; padding-top: 20%;">
+            <h2>Mohon Maaf, Sistem Sedang Mengalami Kendala.</h2>
+            <p>Terjadi kesalahan teknis. Silakan coba beberapa saat lagi.</p>
+        </body>
+    </html>
+    '''
+
 @app.errorhandler(Exception)
 def handle_exception(e):
     app.logger.error("Unhandled exception", exc_info=True)
@@ -238,20 +255,6 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'heic'
 
 db = SQLAlchemy(app)
 
-# NOTE: Template-side role/status literals in _HTML constants cannot reference these constants without a context_processor; tracked as residual risk for a follow-up cycle.
-ROLE_ORANG_TUA = 'orang_tua'
-ROLE_GURU = 'guru'
-ROLE_KEPALA_SEKOLAH = 'kepala_sekolah'
-STATUS_MENUNGGU = 'menunggu_verifikasi'
-STATUS_DISETUJUI = 'disetujui'
-STATUS_DITOLAK = 'ditolak'
-ALL_ROLES = frozenset({ROLE_ORANG_TUA, ROLE_GURU, ROLE_KEPALA_SEKOLAH})
-STAFF_ROLES = frozenset({ROLE_GURU, ROLE_KEPALA_SEKOLAH})
-ALL_STATUSES = frozenset({STATUS_MENUNGGU, STATUS_DISETUJUI, STATUS_DITOLAK})
-
-
-class UploadValidationError(Exception):
-    pass
 
 def _save_uploaded_media(file, upload_folder: str, video_extensions: frozenset[str] = frozenset({'mp4'})) -> str:
     """Saves and processes an uploaded media file."""
@@ -292,20 +295,28 @@ def _save_uploaded_media(file, upload_folder: str, video_extensions: frozenset[s
         raise UploadValidationError("Gagal memproses gambar.")
 
 
-
-THUMBNAIL_MAX_SIZE = (800, 800)  # Maximum pixel dimensions for uploaded image thumbnails
-UPLOAD_MAX_BYTES = 5 * 1024 * 1024  # 5 MB cap on uploaded files
-COMPRESSION_TARGET_BYTES = 500 * 1024  # Target size for JPEG compression in bytes
-RATE_LIMIT_CALCULATOR = "30 per minute"
-RATE_LIMIT_OT_API = "20 per minute"
-RATE_LIMIT_UPLOAD = "10 per minute"
+# ============================================================
+# DEFERRED MIGRATION WORK
+# ============================================================
+# The following columns (marked with TODOs in the code) require Alembic or equivalent migration tooling to implement safely,
+# rather than code-only patches. These are currently tracked separately under the Layer One remediation roadmap.
+#
+# Affected Columns:
+#   - TantrumLog.duration_ms (nullable tightening)
+#   - OrangTuaBuku.student_id (Integer plus FK migration, tracked under L1-020)
+#   - OrangTuaTantrum.mood (nullable tightening)
+#   - OrangTuaTantrum.trigger (nullable tightening)
+#
+# Broader Concern:
+#   The application is currently using db.create_all() in lieu of Alembic for schema management, which limits safe database evolution.
+# ============================================================
 
 class Siswa(db.Model):
     __tablename__ = 'siswa'
-    id = db.Column(db.Integer, primary_key=True)
-    nama = db.Column(db.String(255), nullable=False)
-    kelas = db.Column(db.String(255))
-    diagnosis = db.Column(db.String(255))
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    nama: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    kelas: Mapped[str | None] = mapped_column(db.String(255))
+    diagnosis: Mapped[str | None] = mapped_column(db.String(255))
     profil_medis = db.relationship('ProfilMedisSiswa', backref='siswa', cascade='all, delete-orphan', uselist=False, lazy='select')
     emotion_journals = db.relationship('EmotionJournal', backref='siswa', cascade='all, delete-orphan', lazy='select')
     epilepsi_logs = db.relationship('EpilepsiLog', backref='siswa', cascade='all, delete-orphan', lazy='select')
@@ -317,65 +328,65 @@ class Siswa(db.Model):
 
 class ProfilMedisSiswa(db.Model):
     __tablename__ = 'profil_medis_siswa'
-    id = db.Column(db.Integer, primary_key=True)
-    siswa_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), unique=True, index=True, nullable=False)
-    nama_lengkap = db.Column(db.String(255))
-    nama_panggilan = db.Column(db.String(100))
-    usia = db.Column(db.Integer)
-    kelas = db.Column(db.String(50))
-    jenis_slb = db.Column(db.String(100))
-    kategori_hambatan = db.Column(db.String(100))
-    diagnosis_utama = db.Column(db.Text)
-    tingkat_hambatan = db.Column(db.String(100))
-    alergi_kritis = db.Column(db.Text)
-    pemicu_tantrum = db.Column(db.Text)
-    strategi_penenangan = db.Column(db.Text)
-    kemampuan_komunikasi = db.Column(db.Text)
-    hotline_darurat_nama = db.Column(db.String(100))
-    hotline_darurat_nomor = db.Column(db.String(30))
-    kondisi_terkini = db.Column(db.String(100))
-    kondisi_warna = db.Column(db.String(20))
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    siswa_id: Mapped[int | None] = mapped_column(db.Integer, db.ForeignKey('siswa.id'), unique=True, index=True, nullable=False)
+    nama_lengkap: Mapped[str | None] = mapped_column(db.String(255))
+    nama_panggilan: Mapped[str | None] = mapped_column(db.String(100))
+    usia: Mapped[int | None] = mapped_column(db.Integer)
+    kelas: Mapped[str | None] = mapped_column(db.String(50))
+    jenis_slb: Mapped[str | None] = mapped_column(db.String(100))
+    kategori_hambatan: Mapped[str | None] = mapped_column(db.String(100))
+    diagnosis_utama: Mapped[str | None] = mapped_column(db.Text)
+    tingkat_hambatan: Mapped[str | None] = mapped_column(db.String(100))
+    alergi_kritis: Mapped[str | None] = mapped_column(db.Text)
+    pemicu_tantrum: Mapped[str | None] = mapped_column(db.Text)
+    strategi_penenangan: Mapped[str | None] = mapped_column(db.Text)
+    kemampuan_komunikasi: Mapped[str | None] = mapped_column(db.Text)
+    hotline_darurat_nama: Mapped[str | None] = mapped_column(db.String(100))
+    hotline_darurat_nomor: Mapped[str | None] = mapped_column(db.String(30))
+    kondisi_terkini: Mapped[str | None] = mapped_column(db.String(100))
+    kondisi_warna: Mapped[str | None] = mapped_column(db.String(20))
     updated_at = db.Column(db.DateTime, server_default=func.now(), onupdate=func.now())
 
 class AkunPengguna(db.Model):
     __tablename__ = 'akun_pengguna'
     __table_args__ = (Index('idx_akun_pengguna_status_akun', 'status_akun'), Index('idx_akun_pengguna_anak_id', 'anak_id'),)
-    id = db.Column(db.Integer, primary_key=True)
-    nik = db.Column(db.String(50), unique=True, nullable=False)
-    nama_lengkap = db.Column(db.String(255), nullable=False)
-    username = db.Column(db.String(100), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    nik: Mapped[str] = mapped_column(db.String(50), unique=True, nullable=False)
+    nama_lengkap: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    username: Mapped[str] = mapped_column(db.String(100), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(db.String(255), nullable=False)
     peran = db.Column(db.Enum(ROLE_ORANG_TUA, ROLE_GURU, ROLE_KEPALA_SEKOLAH, name='peran_akun_enum'), nullable=False)
     status_akun = db.Column(db.Enum(STATUS_MENUNGGU, STATUS_DISETUJUI, STATUS_DITOLAK, name='status_akun_enum'), default=STATUS_MENUNGGU, index=True)
-    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
+    anak_id: Mapped[int | None] = mapped_column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
 
 class SignLanguageDictionary(db.Model):
     __tablename__ = 'sign_language_dictionary'
-    id = db.Column(db.Integer, primary_key=True)
-    word = db.Column(db.String(255), nullable=False, index=True)
-    image_url = db.Column(db.String(500), nullable=False)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    word: Mapped[str | None] = mapped_column(db.String(255), nullable=False, index=True)
+    image_url: Mapped[str] = mapped_column(db.String(500), nullable=False)
 
 class EmotionJournal(db.Model):
     __tablename__ = 'emotion_journal'
     __table_args__ = (
         db.Index('idx_emotion_journal_anak_date', 'anak_id', 'date'),
     )
-    id = db.Column(db.Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
     date = db.Column(db.DateTime, server_default=func.now())
-    emotion = db.Column(db.String(50), nullable=False)
-    notes = db.Column(db.Text)
-    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
+    emotion: Mapped[str] = mapped_column(db.String(50), nullable=False)
+    notes: Mapped[str | None] = mapped_column(db.Text)
+    anak_id: Mapped[int | None] = mapped_column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
 
 
 class EpilepsiLog(db.Model):
     __tablename__ = 'epilepsi_log'
     __table_args__ = (Index('idx_epilepsi_log_created_at', 'created_at'), Index('idx_epilepsi_log_anak_id', 'anak_id'),)
-    id = db.Column(db.Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
     occurred_at = db.Column(db.DateTime, nullable=False, server_default=func.now(), index=True)
-    trigger = db.Column(db.String(255), nullable=False)
-    notes = db.Column(db.Text)
+    trigger: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    notes: Mapped[str | None] = mapped_column(db.Text)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
-    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
+    anak_id: Mapped[int | None] = mapped_column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
 
     @property
     def date(self):
@@ -387,25 +398,25 @@ class EpilepsiLog(db.Model):
 
 class AppSettings(db.Model):
     __tablename__ = 'app_settings'
-    key = db.Column(db.String(255), primary_key=True)
-    value = db.Column(db.Text)
+    key: Mapped[str | None] = mapped_column(db.String(255), primary_key=True)
+    value: Mapped[str | None] = mapped_column(db.Text)
 
 class JadwalKelas(db.Model):
     __tablename__ = 'jadwal_kelas'
-    id = db.Column(db.Integer, primary_key=True)
-    hari = db.Column(db.String(50), nullable=False)
-    jam = db.Column(db.String(50), nullable=False)
-    mata_pelajaran = db.Column(db.String(255), nullable=False)
-    guru = db.Column(db.String(255), nullable=False)
-    ruangan = db.Column(db.String(255), nullable=False)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    hari: Mapped[str] = mapped_column(db.String(50), nullable=False)
+    jam: Mapped[str] = mapped_column(db.String(50), nullable=False)
+    mata_pelajaran: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    guru: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    ruangan: Mapped[str] = mapped_column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class GaleriKarya(db.Model):
     __tablename__ = 'galeri_karya'
-    id = db.Column(db.Integer, primary_key=True)
-    image_filename = db.Column(db.String(255), nullable=False)
-    title = db.Column(db.String(255), nullable=False)
-    student_name = db.Column(db.String(255), nullable=False)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    image_filename: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    title: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    student_name: Mapped[str] = mapped_column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 _settings_lock = threading.Lock()
@@ -478,14 +489,6 @@ def seed_slb_data() -> None:
         db.session.rollback()
         flash("Koneksi database terganggu. Silakan coba lagi.", "error")
         return redirect(request.referrer or url_for('index'))
-    except IntegrityError:
-        db.session.rollback()
-        flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
-        return redirect(request.referrer or url_for('index'))
-    except OperationalError:
-        db.session.rollback()
-        flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
-        return redirect(request.referrer or url_for('index'))
     except Exception:
         db.session.rollback()
         app.logger.error("Error seeding SLB data", exc_info=True)
@@ -494,10 +497,6 @@ def seed_slb_data() -> None:
 # --- FRONTEND ASSETS & LAYOUT ---
 
 
-# ============================================================
-# TEMPLATE: STYLES_HTML
-# CONSUMED BY: multiple route handlers
-# ============================================================
 # ============================================================
 # TEMPLATE: STYLES_HTML
 # CONSUMED BY: multiple route handlers
@@ -1597,10 +1596,6 @@ BASE_LAYOUT = """
 </html>
 """
 
-# ============================================================
-# TEMPLATE: HOME_HTML
-# CONSUMED BY: multiple route handlers
-# ============================================================
 # ============================================================
 # TEMPLATE: HOME_HTML
 # CONSUMED BY: multiple route handlers
@@ -4378,13 +4373,10 @@ def add_security_headers(response):
         response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https://api.dicebear.com https://commons.wikimedia.org https://www.lifeprint.com https://media.giphy.com; connect-src 'self' https://equran.id https://pmpk.kemdikbud.go.id https://api.giphy.com https://api.allorigins.win https://zenquotes.io; media-src 'self' blob:"
     return response
 
+# ============================================================
+# ROUTE GROUP: Home Page & Auth Routes
+# ============================================================
 @app.route('/')
-# ============================================================
-# ROUTE GROUP: Home Page & Auth Routes
-# ============================================================
-# ============================================================
-# ROUTE GROUP: Home Page & Auth Routes
-# ============================================================
 def index():
     try:
         if session.get('peran') == ROLE_ORANG_TUA and session.get('anak_id'):
@@ -4403,8 +4395,9 @@ def index():
     anak_nama = None
 
     if peran == ROLE_ORANG_TUA and anak_id:
-        profil_medis = ProfilMedisSiswa.query.filter_by(siswa_id=anak_id).first()  # Result may be None for students with no medical profile; template guards handle this via conditional rendering  # Result may be None for students with no medical profile; template guards handle this via conditional rendering
-        siswa_record = db.session.get(Siswa, anak_id)  # Result may be None; downstream handles or None is safe here  # Result may be None; downstream handles or None is safe here
+        profil_medis = ProfilMedisSiswa.query.filter_by(siswa_id=anak_id).first()  # Result may be None for students with no medical profile; sentinel inserted below for template safety
+        if profil_medis is None: profil_medis = ProfilMedisSiswa(siswa_id=anak_id)  # transient unsaved sentinel for template rendering
+        siswa_record = db.session.get(Siswa, anak_id)  # Result may be None; downstream handles or None is safe here
         if siswa_record:
             anak_nama = siswa_record.nama
 
@@ -4527,12 +4520,6 @@ def update_profil_medis(siswa_id):
     except OperationalError:
         db.session.rollback()
         return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
-    except OperationalError:
-        db.session.rollback()
-        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except Exception as e:
         db.session.rollback()
         app.logger.error('Medical profile update failed', exc_info=True)
@@ -4586,7 +4573,7 @@ def register():
             return "Peran tidak valid.", 400
 
         # Check if username or nik already exists
-        if AkunPengguna.query.filter((AkunPengguna.username == username) | (AkunPengguna.nik == nik)).first():
+        if AkunPengguna.query.filter((AkunPengguna.username == username) | (AkunPengguna.nik == nik)).first():  # Returns None if not found; boolean evaluation handles None safely
             return "Username atau NIK sudah terdaftar.", 400
 
         hashed_password = generate_password_hash(password)
@@ -4606,18 +4593,9 @@ def register():
     except IntegrityError:
         db.session.rollback()
         return "Username atau NIK sudah terdaftar. Silakan gunakan yang lain.", 400
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
     except OperationalError:
         db.session.rollback()
-        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
-    except OperationalError:
-        db.session.rollback()
-        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
+        return "Koneksi database terganggu. Silakan coba lagi.", 503
     except Exception as e:
         db.session.rollback()
         app.logger.error("Registration error", exc_info=True)
@@ -4852,7 +4830,7 @@ def kepala_sekolah_dashboard():
 def validator_approve(akun_id):
     if session.get('peran') != ROLE_KEPALA_SEKOLAH and not session.get('is_admin'):
         return redirect(url_for('index'))
-    akun = db.session.get(AkunPengguna, akun_id)
+    akun = db.session.get(AkunPengguna, akun_id)  # Returns None if not found; guarded immediately below
     if not akun:
         return jsonify({'error': 'Akun tidak ditemukan'}), 404
     if akun:
@@ -4867,14 +4845,6 @@ def validator_approve(akun_id):
             db.session.rollback()
             flash("Koneksi database terganggu. Silakan coba lagi.", "error")
             return redirect(url_for('kepala_sekolah_dashboard'))
-        except IntegrityError:
-            db.session.rollback()
-            flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
-            return redirect(url_for('kepala_sekolah_dashboard'))
-        except OperationalError:
-            db.session.rollback()
-            flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
-            return redirect(url_for('kepala_sekolah_dashboard'))
         except Exception:
             db.session.rollback()
             app.logger.error('Approve account failed', exc_info=True)
@@ -4886,7 +4856,7 @@ def validator_approve(akun_id):
 def validator_reject(akun_id):
     if session.get('peran') != ROLE_KEPALA_SEKOLAH and not session.get('is_admin'):
         return redirect(url_for('index'))
-    akun = db.session.get(AkunPengguna, akun_id)
+    akun = db.session.get(AkunPengguna, akun_id)  # Returns None if not found; guarded immediately below
     if not akun:
         return jsonify({'error': 'Akun tidak ditemukan'}), 404
     if akun:
@@ -4900,14 +4870,6 @@ def validator_reject(akun_id):
         except OperationalError:
             db.session.rollback()
             flash("Koneksi database terganggu. Silakan coba lagi.", "error")
-            return redirect(url_for('kepala_sekolah_dashboard'))
-        except IntegrityError:
-            db.session.rollback()
-            flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
-            return redirect(url_for('kepala_sekolah_dashboard'))
-        except OperationalError:
-            db.session.rollback()
-            flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
             return redirect(url_for('kepala_sekolah_dashboard'))
         except Exception:
             db.session.rollback()
@@ -4935,7 +4897,7 @@ def therapy_log():
                 anak_id = int(anak_id)
             except (TypeError, ValueError):
                 return "Invalid anak_id", 400
-            if not db.session.get(Siswa, anak_id):
+            if not db.session.get(Siswa, anak_id):  # Returns None if not found; boolean evaluation handles None safely
                 return "Student not found", 404
         
     if not anak_id:
@@ -4965,14 +4927,6 @@ def therapy_log():
     except OperationalError:
         db.session.rollback()
         flash("Koneksi database terganggu. Silakan coba lagi.", "error")
-        return redirect(url_for('index', open='modal-terapi-log'))
-    except IntegrityError:
-        db.session.rollback()
-        flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
-        return redirect(url_for('index', open='modal-terapi-log'))
-    except OperationalError:
-        db.session.rollback()
-        flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
         return redirect(url_for('index', open='modal-terapi-log'))
     except Exception:
         db.session.rollback()
@@ -5247,10 +5201,6 @@ RAMADHAN_STYLES = """
 
 # """
 
-# ============================================================
-# TEMPLATE: RAMADHAN_DASHBOARD_HTML
-# CONSUMED BY: multiple route handlers
-# ============================================================
 # ============================================================
 # TEMPLATE: RAMADHAN_DASHBOARD_HTML
 # CONSUMED BY: multiple route handlers
@@ -6774,92 +6724,92 @@ RAMADHAN_DASHBOARD_HTML = """
 class TantrumLog(db.Model):
     __tablename__ = 'tantrum_log'
     __table_args__ = (Index('idx_tantrum_log_student', 'student'), Index('idx_tantrum_log_created_at', 'created_at'),)
-    id = db.Column(db.Integer, primary_key=True)
-    student = db.Column(db.String(255), nullable=False, index=True)
-    trigger = db.Column(db.String(255), nullable=False)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    student: Mapped[str | None] = mapped_column(db.String(255), nullable=False, index=True)
+    trigger: Mapped[str] = mapped_column(db.String(255), nullable=False)
     start_time = db.Column(db.DateTime, nullable=True, server_default=func.now())
     duration_ms = db.Column(db.Integer, nullable=False, default=0) # TODO: Add nullable=False after data migration (see consolidated migration note above class Siswa)
-    action = db.Column(db.String(255))
+    action: Mapped[str | None] = mapped_column(db.String(255))
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class ReactionTimeLog(db.Model):
     __tablename__ = 'reaction_time_log'
-    id = db.Column(db.Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
     time_ms = db.Column(db.Integer, nullable=True) # Deprecated but kept for backward compatibility
     time_sec = db.Column(db.Float, nullable=True)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class KognitifEmosiLog(db.Model):
     __tablename__ = 'kognitif_emosi_log'
-    id = db.Column(db.Integer, primary_key=True)
-    score = db.Column(db.Integer, nullable=False)
-    duration_sec = db.Column(db.Float, nullable=False)
-    history = db.Column(db.Text)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    score: Mapped[int] = mapped_column(db.Integer, nullable=False)
+    duration_sec: Mapped[float] = mapped_column(db.Float, nullable=False)
+    history: Mapped[str | None] = mapped_column(db.Text)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class KognitifBentukLog(db.Model):
     __tablename__ = 'kognitif_bentuk_log'
-    id = db.Column(db.Integer, primary_key=True)
-    mistakes = db.Column(db.Integer, nullable=False)
-    duration_sec = db.Column(db.Float, nullable=False)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    mistakes: Mapped[int] = mapped_column(db.Integer, nullable=False)
+    duration_sec: Mapped[float] = mapped_column(db.Float, nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class StudentPortfolio(db.Model):
     __tablename__ = 'student_portfolio'
     __table_args__ = (Index('idx_student_portfolio_student_id', 'student_id'), Index('idx_student_portfolio_created_at', 'created_at'),)
-    id = db.Column(db.Integer, primary_key=True)
-    student_id = db.Column(db.String(255), nullable=False, index=True) # TODO L1-020: Migrate student_id from String(255) to Integer with ForeignKey('siswa.id')
-    semester = db.Column(db.String(255), nullable=False)
-    filename = db.Column(db.String(255), nullable=False)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    student_id: Mapped[str | None] = mapped_column(db.String(255), nullable=False, index=True) # TODO L1-020: Migrate student_id from String(255) to Integer with ForeignKey('siswa.id')
+    semester: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    filename: Mapped[str] = mapped_column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class OrangTuaBuku(db.Model):
     __tablename__ = 'orang_tua_buku'
-    id = db.Column(db.Integer, primary_key=True)
-    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
-    mood = db.Column(db.String(255), nullable=False) # TODO: Add nullable=False after data migration (see consolidated migration note above class Siswa)
-    sleep_duration = db.Column(db.Integer)
-    morning_behavior = db.Column(db.Text)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    anak_id: Mapped[int | None] = mapped_column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
+    mood: Mapped[str] = mapped_column(db.String(255), nullable=False) # TODO: Add nullable=False after data migration (see consolidated migration note above class Siswa)
+    sleep_duration: Mapped[int | None] = mapped_column(db.Integer)
+    morning_behavior: Mapped[str | None] = mapped_column(db.Text)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class OrangTuaTantrum(db.Model):
     __tablename__ = 'orang_tua_tantrum'
-    id = db.Column(db.Integer, primary_key=True)
-    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
-    trigger = db.Column(db.String(255), nullable=False) # TODO: Add nullable=False after data migration (see consolidated migration note above class Siswa)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    anak_id: Mapped[int | None] = mapped_column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
+    trigger: Mapped[str] = mapped_column(db.String(255), nullable=False) # TODO: Add nullable=False after data migration (see consolidated migration note above class Siswa)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class OrangTuaJadwal(db.Model):
     __tablename__ = 'orang_tua_jadwal'
     __table_args__ = (Index('idx_jadwal_time_notified', 'schedule_time', 'notified', 'notified_date'),)
-    id = db.Column(db.Integer, primary_key=True)
-    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    anak_id: Mapped[int | None] = mapped_column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
     schedule_time = db.Column(db.Time, nullable=False, index=True)
-    medication_name = db.Column(db.String(255), nullable=False)
-    notified = db.Column(db.Boolean, default=False, index=True)
+    medication_name: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    notified: Mapped[bool] = mapped_column(db.Boolean, default=False, index=True)
     notified_date = db.Column(db.Date, nullable=True)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class OrangTuaNutrisi(db.Model):
     __tablename__ = 'orang_tua_nutrisi'
-    id = db.Column(db.Integer, primary_key=True)
-    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
-    food_name = db.Column(db.String(255), nullable=False)
-    has_allergen = db.Column(db.Boolean, default=False)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    anak_id: Mapped[int | None] = mapped_column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
+    food_name: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    has_allergen: Mapped[bool] = mapped_column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class OrangTuaBurnout(db.Model):
     __tablename__ = 'orang_tua_burnout'
-    id = db.Column(db.Integer, primary_key=True)
-    anak_id = db.Column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
-    stress_level = db.Column(db.Integer, nullable=False)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    anak_id: Mapped[int | None] = mapped_column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
+    stress_level: Mapped[int] = mapped_column(db.Integer, nullable=False)
     recorded_date = db.Column(db.Date, nullable=False, default=datetime.date.today, index=True)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class PushSubscription(db.Model):
     __tablename__ = 'push_subscription'
-    id = db.Column(db.Integer, primary_key=True)
-    subscription_info = db.Column(db.Text, nullable=False)
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    subscription_info: Mapped[str] = mapped_column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
     last_used = db.Column(db.DateTime, server_default=func.now())
 
@@ -6911,12 +6861,6 @@ def save_tantrum():
         db.session.add(log)
         db.session.commit()
         return jsonify({"status": "success"})
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
-    except OperationalError:
-        db.session.rollback()
-        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except IntegrityError:
         db.session.rollback()
         return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
@@ -7197,12 +7141,6 @@ def save_reaction():
     except OperationalError:
         db.session.rollback()
         return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
-    except OperationalError:
-        db.session.rollback()
-        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except Exception as e:
         db.session.rollback()
         app.logger.error('Database commit error', exc_info=True)
@@ -7246,12 +7184,6 @@ def save_kognitif_emosi():
     except OperationalError:
         db.session.rollback()
         return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
-    except OperationalError:
-        db.session.rollback()
-        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except Exception as e:
         db.session.rollback()
         app.logger.error('Database commit error', exc_info=True)
@@ -7280,29 +7212,18 @@ def save_kognitif_bentuk():
     except OperationalError:
         db.session.rollback()
         return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
-    except OperationalError:
-        db.session.rollback()
-        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except Exception as e:
         db.session.rollback()
         app.logger.error('Database commit error', exc_info=True)
         return jsonify({'error': 'Database error'}), 500
     return jsonify({"status": "success"})
 
-import io
-
+# ============================================================
+# ROUTE GROUP: Gallery Upload Routes
+# ============================================================
 @app.route('/guru/portofolio/upload', methods=['POST'])
 @limiter.limit(RATE_LIMIT_UPLOAD)
 @require_auth(roles=STAFF_ROLES)
-# ============================================================
-# ROUTE GROUP: Gallery Upload Routes
-# ============================================================
-# ============================================================
-# ROUTE GROUP: Gallery Upload Routes
-# ============================================================
 def upload_portfolio():
     if 'image' not in request.files:
         return redirect(url_for('ramadhan_dashboard', open='modal-portofolio'))
@@ -7329,16 +7250,10 @@ def upload_portfolio():
     except IntegrityError:
         db.session.rollback()
         flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
-    except OperationalError:
-        db.session.rollback()
-        flash("Koneksi database terganggu. Silakan coba lagi.", "error")
-    except IntegrityError:
-        db.session.rollback()
-        flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
         return redirect(url_for('ramadhan_dashboard', open='modal-portofolio'))
     except OperationalError:
         db.session.rollback()
-        flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
+        flash("Koneksi database terganggu. Silakan coba lagi.", "error")
         return redirect(url_for('ramadhan_dashboard', open='modal-portofolio'))
     except Exception as e:
         db.session.rollback()
@@ -10401,10 +10316,6 @@ SLB_TUNAGANDA_HTML = """
 # TEMPLATE: ORANG_TUA_HTML
 # CONSUMED BY: multiple route handlers
 # ============================================================
-# ============================================================
-# TEMPLATE: ORANG_TUA_HTML
-# CONSUMED BY: multiple route handlers
-# ============================================================
 ORANG_TUA_HTML = """
 <div class="min-h-[100dvh] bg-[#fff0f5] pb-32 transition-colors duration-1000" id="ot-main-bg">
     
@@ -12075,7 +11986,7 @@ def save_ot_buku():
     try:
         data = request.json
         anak_id = session.get('anak_id')
-        if anak_id and not db.session.get(Siswa, anak_id):
+        if anak_id and not db.session.get(Siswa, anak_id):  # Returns None if not found; boolean evaluation handles None safely
             return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
             
         sleep_dur = int(data.get('sleep_duration', 0))
@@ -12089,12 +12000,6 @@ def save_ot_buku():
         ))
         db.session.commit()
         return jsonify({"status": "success"})
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
-    except OperationalError:
-        db.session.rollback()
-        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except IntegrityError:
         db.session.rollback()
         return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
@@ -12206,7 +12111,7 @@ def handle_ot_jadwal():
         try:
             data = request.json
             anak_id = session.get('anak_id')
-            if anak_id and not db.session.get(Siswa, anak_id):
+            if anak_id and not db.session.get(Siswa, anak_id):  # Returns None if not found; boolean evaluation handles None safely
                 return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
                 
             time_str = data.get('time', '')
@@ -12227,12 +12132,6 @@ def handle_ot_jadwal():
             ))
             db.session.commit()
             return jsonify({"status": "success"})
-        except IntegrityError:
-            db.session.rollback()
-            return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
-        except OperationalError:
-            db.session.rollback()
-            return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
         except IntegrityError:
             db.session.rollback()
             return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
@@ -12280,12 +12179,6 @@ def delete_ot_jadwal(jadwal_id):
     except OperationalError:
         db.session.rollback()
         return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
-    except OperationalError:
-        db.session.rollback()
-        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except Exception:
         db.session.rollback()
         app.logger.error('delete_ot_jadwal failed', exc_info=True)
@@ -12316,7 +12209,7 @@ def handle_ot_nutrisi():
         try:
             data = request.json
             anak_id = session.get('anak_id')
-            if anak_id and not db.session.get(Siswa, anak_id):
+            if anak_id and not db.session.get(Siswa, anak_id):  # Returns None if not found; boolean evaluation handles None safely
                 return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
                 
             db.session.add(OrangTuaNutrisi(
@@ -12326,12 +12219,6 @@ def handle_ot_nutrisi():
             ))
             db.session.commit()
             return jsonify({"status": "success"})
-        except IntegrityError:
-            db.session.rollback()
-            return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
-        except OperationalError:
-            db.session.rollback()
-            return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
         except IntegrityError:
             db.session.rollback()
             return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
@@ -12390,12 +12277,6 @@ def subscribe():
     except OperationalError:
         db.session.rollback()
         return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
-    except OperationalError:
-        db.session.rollback()
-        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except Exception:
         db.session.rollback()
         app.logger.error('subscribe failed', exc_info=True)
@@ -12425,14 +12306,6 @@ def send_web_push(subscription_info, message_body, subscription_id=None):
             except OperationalError:
                 db.session.rollback()
                 flash("Koneksi database terganggu. Silakan coba lagi.", "error")
-                return redirect(request.referrer or url_for('index'))
-            except IntegrityError:
-                db.session.rollback()
-                flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
-                return redirect(request.referrer or url_for('index'))
-            except OperationalError:
-                db.session.rollback()
-                flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
                 return redirect(request.referrer or url_for('index'))
             except Exception:
                 db.session.rollback()
@@ -12504,14 +12377,6 @@ def check_medications():
             db.session.rollback()
             flash("Koneksi database terganggu. Silakan coba lagi.", "error")
             return redirect(request.referrer or url_for('index'))
-        except IntegrityError:
-            db.session.rollback()
-            flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
-            return redirect(request.referrer or url_for('index'))
-        except OperationalError:
-            db.session.rollback()
-            flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
-            return redirect(request.referrer or url_for('index'))
         except Exception as e:
             db.session.rollback()
             app.logger.error('Medication check commit failed', exc_info=True)
@@ -12534,14 +12399,6 @@ def cleanup_push_subscriptions():
             db.session.rollback()
             flash("Koneksi database terganggu. Silakan coba lagi.", "error")
             return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
-        except IntegrityError:
-            db.session.rollback()
-            flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
-            return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
-        except OperationalError:
-            db.session.rollback()
-            flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
-            return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
         except Exception as e:
             db.session.rollback()
             app.logger.error('Subscription cleanup failed', exc_info=True)
@@ -12555,7 +12412,7 @@ def save_burnout():
     try:
         data = request.json
         anak_id = session.get('anak_id')
-        if anak_id and not db.session.get(Siswa, anak_id):
+        if anak_id and not db.session.get(Siswa, anak_id):  # Returns None if not found; boolean evaluation handles None safely
             return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
             
         stress = int(data.get('stress_level', 5))
@@ -12568,12 +12425,6 @@ def save_burnout():
         ))
         db.session.commit()
         return jsonify({"status": "success"})
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
-    except OperationalError:
-        db.session.rollback()
-        return jsonify({'error': 'Koneksi database terganggu. Silakan coba lagi.'}), 503
     except IntegrityError:
         db.session.rollback()
         return jsonify({'error': 'Data duplikat terdeteksi. Silakan periksa kembali.'}), 409
@@ -12639,7 +12490,7 @@ def slb_tunalaras():
                 return "Emosi harus dipilih.", 400
                 
             anak_id = session.get('anak_id') if session.get('peran') == ROLE_ORANG_TUA else None
-            if anak_id and not db.session.get(Siswa, anak_id):
+            if anak_id and not db.session.get(Siswa, anak_id):  # Returns None if not found; boolean evaluation handles None safely
                 return "Data siswa tidak ditemukan.", 404
                 
             db.session.add(EmotionJournal(emotion=emotion, anak_id=anak_id))
@@ -12652,14 +12503,6 @@ def slb_tunalaras():
         except OperationalError:
             db.session.rollback()
             flash("Koneksi database terganggu. Silakan coba lagi.", "error")
-            return "Terjadi kesalahan saat memproses data. Silakan coba lagi.", 500
-        except IntegrityError:
-            db.session.rollback()
-            flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
-            return "Terjadi kesalahan saat memproses data. Silakan coba lagi.", 500
-        except OperationalError:
-            db.session.rollback()
-            flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
             return "Terjadi kesalahan saat memproses data. Silakan coba lagi.", 500
         except Exception:
             db.session.rollback()
@@ -12971,14 +12814,6 @@ def add_jadwal():
     except OperationalError:
         db.session.rollback()
         flash("Koneksi database terganggu. Silakan coba lagi.", "error")
-        return redirect(url_for('jadwal_kelas'))
-    except IntegrityError:
-        db.session.rollback()
-        flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
-        return redirect(url_for('jadwal_kelas'))
-    except OperationalError:
-        db.session.rollback()
-        flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
         return redirect(url_for('jadwal_kelas'))
     except Exception as e:
         db.session.rollback()
@@ -13300,16 +13135,10 @@ def upload_karya():
         except IntegrityError:
             db.session.rollback()
             flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
-        except OperationalError:
-            db.session.rollback()
-            flash("Koneksi database terganggu. Silakan coba lagi.", "error")
-        except IntegrityError:
-            db.session.rollback()
-            flash('Data duplikat terdeteksi. Silakan periksa kembali.', 'error')
             return redirect(url_for('galeri_karya'))
         except OperationalError:
             db.session.rollback()
-            flash('Koneksi database terganggu. Silakan coba lagi.', 'error')
+            flash("Koneksi database terganggu. Silakan coba lagi.", "error")
             return redirect(url_for('galeri_karya'))
         except Exception as e:
             db.session.rollback()
@@ -13359,21 +13188,18 @@ with app.app_context():
 # ============================================================
 # ROUTE GROUP: Application Startup Block
 # ============================================================
-# ============================================================
-# ROUTE GROUP: Application Startup Block
-# ============================================================
 if __name__ == '__main__':
     is_dev = os.getenv('FLASK_ENV') == 'development'
     socketio.run(app, debug=is_dev, port=5001, allow_unsafe_werkzeug=is_dev)# ============================================================
 # TEMPLATE: ERROR_500_HTML
 # CONSUMED BY: handle_exception
 # ============================================================
-ERROR_500_HTML = '''
-    <html>
+ERROR_500_HTML = ''''
+<html>
         <head><title>500 Internal Server Error</title></head>
         <body style="font-family: sans-serif; text-align: center; padding-top: 20%;">
             <h2>Mohon Maaf, Sistem Sedang Mengalami Kendala.</h2>
             <p>Terjadi kesalahan teknis. Silakan coba beberapa saat lagi.</p>
-        </body>
-    </html>
-    '''
+    </body>
+</html>
+'''
