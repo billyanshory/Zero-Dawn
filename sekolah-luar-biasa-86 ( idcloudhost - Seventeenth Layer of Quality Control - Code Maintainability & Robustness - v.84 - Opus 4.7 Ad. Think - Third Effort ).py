@@ -1,6 +1,7 @@
 import eventlet
 eventlet.monkey_patch()
 from functools import wraps
+from typing import Callable, Any
 import traceback
 import os
 import pytz
@@ -84,8 +85,6 @@ RATE_LIMIT_CALCULATOR = "30 per minute"
 RATE_LIMIT_OT_API = "20 per minute"
 RATE_LIMIT_UPLOAD = "10 per minute"
 
-
-
 load_dotenv()
 
 # --- KONFIGURASI FLASK ---
@@ -134,7 +133,7 @@ STAFF_ROLES = frozenset({ROLE_GURU, ROLE_KEPALA_SEKOLAH})
 ALL_STATUSES = frozenset({STATUS_MENUNGGU, STATUS_DISETUJUI, STATUS_DITOLAK})
 
 @app.context_processor
-def inject_role_constants():
+def inject_role_constants() -> dict[str, str]:
     return {
         'ROLE_ORANG_TUA': ROLE_ORANG_TUA,
         'ROLE_GURU': ROLE_GURU,
@@ -147,7 +146,7 @@ def inject_role_constants():
 class UploadValidationError(Exception):
     pass
 
-def require_auth(roles=None, owner_check=False):
+def require_auth(roles: frozenset[str] | None = None, owner_check: bool = False) -> Callable[..., Any]:
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -250,7 +249,7 @@ ERROR_500_HTML = '''
     '''
 
 @app.errorhandler(Exception)
-def handle_exception(e):
+def handle_exception(e: Exception) -> tuple[str, int]:
     app.logger.error("Unhandled exception", exc_info=True)
     return ERROR_500_HTML, 500
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -392,11 +391,11 @@ class EpilepsiLog(db.Model):
     anak_id: Mapped[int | None] = mapped_column(db.Integer, db.ForeignKey('siswa.id'), nullable=True, index=True)
 
     @property
-    def date(self):
+    def date(self) -> datetime.date:
         return self.occurred_at.strftime('%Y-%m-%d') if self.occurred_at else ''
 
     @property
-    def time(self):
+    def time(self) -> datetime.time:
         return self.occurred_at.strftime('%H:%M') if self.occurred_at else ''
 
 class AppSettings(db.Model):
@@ -486,15 +485,16 @@ def seed_slb_data() -> None:
             db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
-        return redirect(request.referrer or url_for('index'))
+        app.logger.warning("Integrity error in seed_slb_data", exc_info=True)
+        return
     except OperationalError:
         db.session.rollback()
-        flash("Koneksi database terganggu. Silakan coba lagi.", "error")
-        return redirect(request.referrer or url_for('index'))
+        app.logger.warning("Operational error in seed_slb_data", exc_info=True)
+        return
     except Exception:
         db.session.rollback()
-        app.logger.error("Error seeding SLB data", exc_info=True)
+        app.logger.error("Unexpected error in seed_slb_data", exc_info=True)
+        return
 
 
 # --- FRONTEND ASSETS & LAYOUT ---
@@ -4370,7 +4370,7 @@ HOME_HTML = """
 
 
 @app.after_request
-def add_security_headers(response):
+def add_security_headers(response: Response) -> Response:
     if 'text/html' in response.content_type:
         # TODO: Remove 'unsafe-eval' from CSP once Tailwind CDN is replaced with pre-built CSS file (see consolidated migration note above class Siswa)
         response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https://api.dicebear.com https://commons.wikimedia.org https://www.lifeprint.com https://media.giphy.com; connect-src 'self' https://equran.id https://pmpk.kemdikbud.go.id https://api.giphy.com https://api.allorigins.win https://zenquotes.io; media-src 'self' blob:"
@@ -6963,7 +6963,7 @@ def get_tantrum_data() -> Response | str | tuple[Response, int]:
         return jsonify({'error': 'Gagal memuat data.'}), 500
 
 import requests
-def prefetch_emoji_icons():
+def prefetch_emoji_icons() -> None:
     def _download():
         try:
             emoji_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'emoji_cache')
@@ -12341,7 +12341,7 @@ def vapid_public_key() -> Response | str | tuple[Response, int]:
         return jsonify({'error': 'Push notifications not configured'}), 503
     return jsonify({'public_key': VAPID_PUBLIC_KEY})
 
-def send_web_push(subscription_info, message_body, subscription_id=None):
+def send_web_push(subscription_info: dict, message_body: str, subscription_id: int | None = None) -> None:
     if not VAPID_PRIVATE_KEY:
         app.logger.warning("VAPID_PRIVATE_KEY not configured, push skipped")
         return
@@ -12353,18 +12353,20 @@ def send_web_push(subscription_info, message_body, subscription_id=None):
                 db.session.commit()
             except IntegrityError:
                 db.session.rollback()
-                flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
-                return redirect(request.referrer or url_for('index'))
+                app.logger.warning("Integrity error in send_web_push", exc_info=True)
+                return
             except OperationalError:
                 db.session.rollback()
-                flash("Koneksi database terganggu. Silakan coba lagi.", "error")
-                return redirect(request.referrer or url_for('index'))
+                app.logger.warning("Operational error in send_web_push", exc_info=True)
+                return
             except Exception:
                 db.session.rollback()
+                app.logger.error("Unexpected error in send_web_push", exc_info=True)
+                return
     except WebPushException:
         app.logger.error("Web Push delivery failed", exc_info=True)
 
-def send_all_pushes_only(schedules_data, subscriptions_data):
+def send_all_pushes_only(schedules_data: list, subscriptions_data: list) -> None:
     with app.app_context():
         for sched in schedules_data:
             for sub_info, sub_id in subscriptions_data:
@@ -12373,7 +12375,7 @@ def send_all_pushes_only(schedules_data, subscriptions_data):
                 except Exception:
                     app.logger.error('Push notification delivery failed', exc_info=True)
 
-def check_medications():
+def check_medications() -> None:
     with app.app_context():
         wita = pytz.timezone('Asia/Makassar')
         now = datetime.datetime.now(wita)
@@ -12423,21 +12425,21 @@ def check_medications():
             eventlet.spawn_n(send_all_pushes_only, schedules_data, subscriptions_data)
         except IntegrityError:
             db.session.rollback()
-            flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
-            return redirect(request.referrer or url_for('index'))
+            app.logger.warning("Integrity error in check_medications", exc_info=True)
+            return
         except OperationalError:
             db.session.rollback()
-            flash("Koneksi database terganggu. Silakan coba lagi.", "error")
-            return redirect(request.referrer or url_for('index'))
+            app.logger.warning("Operational error in check_medications", exc_info=True)
+            return
         except Exception as e:
             db.session.rollback()
-            app.logger.error('Medication check commit failed', exc_info=True)
+            app.logger.error("Unexpected error in check_medications", exc_info=True)
             return
 
 # Add job to scheduler (running every minute)
 scheduler.add_job(id='Medication Check', func=check_medications, trigger='cron', minute='*', max_instances=1, coalesce=True, misfire_grace_time=120)
 
-def cleanup_push_subscriptions():
+def cleanup_push_subscriptions() -> None:
     with app.app_context():
         try:
             thirty_days_ago = datetime.datetime.now() - datetime.timedelta(days=30)
@@ -12445,15 +12447,16 @@ def cleanup_push_subscriptions():
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
-            flash("Data duplikat terdeteksi. Silakan periksa kembali.", "error")
-            return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
+            app.logger.warning("Integrity error in cleanup_push_subscriptions", exc_info=True)
+            return
         except OperationalError:
             db.session.rollback()
-            flash("Koneksi database terganggu. Silakan coba lagi.", "error")
-            return jsonify({'error': 'Data siswa tidak ditemukan'}), 404
+            app.logger.warning("Operational error in cleanup_push_subscriptions", exc_info=True)
+            return
         except Exception as e:
             db.session.rollback()
-            app.logger.error('Subscription cleanup failed', exc_info=True)
+            app.logger.error("Unexpected error in cleanup_push_subscriptions", exc_info=True)
+            return
 
 scheduler.add_job(id='Cleanup Subscriptions', func=cleanup_push_subscriptions, trigger='cron', hour=3, minute=0, max_instances=1, coalesce=True, misfire_grace_time=3600)
 
@@ -12637,7 +12640,9 @@ def slb_tunaganda() -> Response | str | tuple[Response, int]:
     """Handles requests to the slb_tunaganda endpoint."""
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='slb', content=SLB_TUNAGANDA_HTML, hide_nav=True, full_width=True, is_admin=session.get('is_admin', False), settings=get_settings(), needs_socketio=False)
 
-def manifest():
+@app.route('/manifest.json')
+def manifest() -> Response | str | tuple[Response, int]:
+    """Returns the JSON manifest for the PWA."""
     return jsonify({
         "name": "Sekolah Luar Biasa",
         "short_name": "SLB",
@@ -13211,7 +13216,7 @@ def upload_karya() -> Response | str | tuple[Response, int]:
             
     return redirect(url_for('galeri_karya'))
 
-def start_scheduler_if_primary():
+def start_scheduler_if_primary() -> None:
     try:
         r = redis.Redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379/0'))
         worker_id = str(uuid.uuid4())
