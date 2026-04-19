@@ -14,7 +14,6 @@ import math
 import time
 import io
 import urllib.parse
-import urllib.request
 import requests
 import json
 import csv
@@ -93,6 +92,61 @@ RATE_LIMIT_CALCULATOR = "30 per minute"
 RATE_LIMIT_OT_API = "20 per minute"
 RATE_LIMIT_UPLOAD = "10 per minute"
 
+"""
+PRODUCTION INVOCATION:
+    gunicorn -k eventlet -w 1 --worker-connections 1000 \\
+             --bind 0.0.0.0:${PORT:-5001} \\
+             --graceful-timeout 30 --timeout 120 \\
+             --access-logfile - --error-logfile - \\
+             sekolah_luar_biasa_89___idcloudhost_-_Nineteenth_Layer_of_Quality_Control_-_Deployment___Production_Readiness_-_v_88_-_Opus_4_7_Ad__Think__:app
+
+Notes:
+  - Use exactly ONE eventlet worker per Python process. Horizontal scaling
+    is achieved by running multiple gunicorn processes behind the load
+    balancer with REDIS_URL set so socketio.message_queue fans out broadcasts.
+  - The `if __name__ == '__main__'` block at the bottom of this file is for
+    local development ONLY. It refuses to start if any production indicator
+    is detected (PRODUCTION=1, IDCLOUDHOST=1, or a remote DATABASE_URL).
+
+REQUIRED ENVIRONMENT VARIABLES (production):
+  SECRET_KEY              (>=32 chars, not a placeholder)
+  SQLALCHEMY_DATABASE_URI
+  ALLOWED_ORIGINS         (comma-separated list of origins)
+  BRANKAS_KODE
+  VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY
+
+OPTIONAL ENVIRONMENT VARIABLES:
+  REDIS_URL            (enables multi-worker SocketIO + scheduler leader election)
+  PORT                 (default 5001)
+  WEB_CONCURRENCY      (default 1, informs DB pool sizing)
+  DB_MAX_CONNECTIONS   (default 80, leave headroom under PG limit)
+  UPLOAD_FOLDER        (default ./uploads)
+  LOG_LEVEL            (default INFO)
+  SENTRY_DSN, SENTRY_TRACES_RATE
+  FLASK_AUTO_UPGRADE=1 (apply Alembic migrations at startup)
+  FLASK_INIT_DB=1      (development-only bootstrap)
+"""
+# ============================================================
+# OPERATOR RUNBOOK — ONE-TIME ALEMBIC INITIALIZATION
+# ============================================================
+# Run the following sequence EXACTLY ONCE against a safe database
+# snapshot before the next production deploy. This scaffolds the
+# ./migrations/ directory and generates the initial baseline revision.
+# Commit the ./migrations/ directory into source control afterwards.
+#
+#   export FLASK_APP=<this_filename>.py
+#   export SQLALCHEMY_DATABASE_URI=postgresql://...  # same URI as prod
+#   flask db init
+#   flask db migrate -m "initial schema from v.88"
+#   # Carefully inspect migrations/versions/*.py before applying.
+#   # Edit if SQLAlchemy reflection missed any manually-added column.
+#   flask db upgrade
+#
+# After the migrations directory is committed, every future schema
+# change follows: flask db migrate -m "..." → inspect → flask db upgrade.
+# The FLASK_AUTO_UPGRADE=1 startup path will then run cleanly on deploy.
+# ============================================================
+
 load_dotenv()
 
 # --- KONFIGURASI FLASK ---
@@ -153,7 +207,6 @@ else:
             
         response.set_data(gzip_buffer.getvalue())
         response.headers['Content-Encoding'] = 'gzip'
-        response.headers['Content-Length'] = response.content_length
         response.headers.add('Vary', 'Accept-Encoding')
         return response
 
@@ -4590,7 +4643,45 @@ def readyz() -> Response:
 
 limiter.exempt(readyz)
 
-_CSP_HTML = "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://cdnjs.cloudflare.com; connect-src 'self' wss: ws:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+_CSP_HTML = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' "
+        "https://cdn.tailwindcss.com "
+        "https://cdnjs.cloudflare.com "
+        "https://cdn.jsdelivr.net "
+        "https://cdn.socket.io; "
+    "style-src 'self' 'unsafe-inline' "
+        "https://cdnjs.cloudflare.com "
+        "https://fonts.googleapis.com; "
+    "font-src 'self' data: "
+        "https://cdnjs.cloudflare.com "
+        "https://fonts.gstatic.com; "
+    "img-src 'self' data: blob: "
+        "https://cdnjs.cloudflare.com "
+        "https://api.dicebear.com "
+        "https://commons.wikimedia.org "
+        "https://upload.wikimedia.org "
+        "https://www.lifeprint.com "
+        "https://media.giphy.com "
+        "https://www.transparenttextures.com; "
+    "media-src 'self' blob: "
+        "https://commons.wikimedia.org "
+        "https://upload.wikimedia.org "
+        "https://media.giphy.com "
+        "https://server8.mp3quran.net "
+        "https://cdn.freesound.org; "
+    "connect-src 'self' wss: ws: "
+        "https://equran.id "
+        "https://pmpk.kemdikbud.go.id "
+        "https://api.giphy.com "
+        "https://api.allorigins.win "
+        "https://zenquotes.io "
+        "https://api.aladhan.com; "
+    "frame-src https://www.youtube.com; "
+    "frame-ancestors 'none'; "
+    "base-uri 'self'; "
+    "form-action 'self'"
+)
 _CSP_JSON = "default-src 'none'; frame-ancestors 'none'"
 _PERMISSIONS_POLICY = "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=(), interest-cohort=()"
 
