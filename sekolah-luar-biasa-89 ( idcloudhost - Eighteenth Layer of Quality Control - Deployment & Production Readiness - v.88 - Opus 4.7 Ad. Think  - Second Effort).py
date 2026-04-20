@@ -1,3 +1,31 @@
+
+# MIGRATION SCRIPT FOR COLUMN-LEVEL ENCRYPTION:
+# 1. Generate a Fernet key: `from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())`
+# 2. Export it to `FIELD_ENCRYPTION_KEYS` env variable.
+# 3. Create a one-shot python script:
+#    from cryptography.fernet import Fernet
+#    from app import app, db, ProfilMedisSiswa, AkunPengguna, PushSubscription
+#    import hashlib
+#    import os
+#    key = os.getenv('FIELD_ENCRYPTION_KEYS').split(',')[0].encode()
+#    f = Fernet(key)
+#    with app.app_context():
+#        for row in ProfilMedisSiswa.query.all():
+#            pass
+#        for row in AkunPengguna.query.all():
+#            pass
+#        for row in PushSubscription.query.all():
+#            pass
+#        db.session.commit()
+
+# IDCLOUDHOST POSTGRES SNAPSHOT RETENTION POLICY
+# - Postgres backups are encrypted at rest using AES-256 by the cloud provider.
+# - Snapshots are retained for 30 days.
+# - Deletion requests under UU PDP Art. 9 (Hak Penghapusan) propagated via `/api/hapus-akun-saya`
+#   are soft-deleted immediately in the live database, but will linger in encrypted
+#   snapshots until the 30-day retention window expires. This behavior complies with
+#   standard data recovery and audit practices.
+
 import eventlet
 eventlet.monkey_patch()
 from functools import wraps
@@ -16,6 +44,10 @@ import io
 import urllib.parse
 import requests
 import json
+import hashlib
+from cryptography.fernet import Fernet, MultiFernet
+from sqlalchemy_utils import EncryptedType
+from sqlalchemy_utils.types.encrypted.encrypted_type import AesGcmEngine
 import csv
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage, KeepTogether
 from reportlab.lib.pagesizes import letter
@@ -36,7 +68,7 @@ from sqlalchemy import Index
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import time as dt_time, datetime as dt_module
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room
 from apscheduler.schedulers.background import BackgroundScheduler
 import filetype
 import logging
@@ -244,6 +276,13 @@ def require_auth(roles: frozenset[str] | None = None, owner_check: bool = False)
                     return jsonify({'error': 'Unauthorized'}), 403
                 return redirect(url_for('index'))
             
+            user_akun = AkunPengguna.query.filter_by(id=session.get('user_id'), is_deleted=False).first()
+            if not user_akun:
+                session.clear()
+                if request.is_json or request.path.startswith('/api/') or request.path.startswith('/orang-tua/api/'):
+                    return jsonify({'error': 'Akun tidak valid atau telah dihapus'}), 403
+                return redirect(url_for('index'))
+
             if roles and not session.get('is_admin'):
                 if session.get('peran') not in roles:
                     if request.is_json or request.path.startswith('/api/') or request.path.startswith('/orang-tua/api/'):
@@ -315,8 +354,16 @@ app.config['SESSION_COOKIE_SECURE'] = not _is_dev_env
 app.config['REMEMBER_COOKIE_SECURE'] = not _is_dev_env
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(hours=8)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Strict'
+
+def _load_field_keys():
+    keys_str = os.getenv('FIELD_ENCRYPTION_KEYS')
+    if not keys_str:
+        raise RuntimeError("FIELD_ENCRYPTION_KEYS environment variable is missing or empty.")
+    return keys_str.split(',')
+
+_PRIMARY_FIELD_KEY = _load_field_keys()[0]
+app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(minutes=30)
 app.config['WTF_CSRF_CHECK_DEFAULT'] = True
 app.config['WTF_CSRF_HEADERS'] = ['X-CSRFToken', 'X-CSRF-Token']
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
@@ -379,7 +426,24 @@ try:
     log_dir = os.path.join(os.path.expanduser('~'), 'logs')
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, 'slb_error.log')
-    _file_handler = logging.handlers.RotatingFileHandler(log_path, maxBytes=10*1024*1024, backupCount=5)
+    _SENSITIVE_LOG_KEYS = frozenset({
+        'nik', 'password', 'nama_lengkap', 'nama_panggilan',
+        'diagnosis_utama', 'alergi_kritis', 'pemicu_tantrum',
+        'strategi_penenangan', 'kemampuan_komunikasi',
+        'hotline_darurat_nama', 'hotline_darurat_nomor', 'subscription_info'
+    })
+    class _PIIScrubFilter(logging.Filter):
+        def filter(self, record):
+            msg = str(record.getMessage()).lower()
+            for k in _SENSITIVE_LOG_KEYS:
+                if k in msg:
+                    record.msg = f"[MESSAGE REDACTED: contained sensitive key '{k}']"
+                    record.args = ()
+                    return True
+            return True
+
+    _file_handler = logging.handlers.TimedRotatingFileHandler(log_path, when='midnight', interval=1, backupCount=7)
+    _file_handler.addFilter(_PIIScrubFilter())
     _file_handler.setLevel(_log_level)
     _file_handler.setFormatter(_formatter)
     _file_handler.addFilter(_RequestIdFilter())
@@ -516,7 +580,7 @@ def _save_uploaded_media(file, upload_folder: str, video_extensions: frozenset[s
     """Saves and processes an uploaded media file."""
     if not file or file.filename == '':
         raise UploadValidationError("File tidak valid atau kosong.")
-    filename = secure_filename(file.filename)
+    filename = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
     ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
     
     file_bytes = file.read()
@@ -573,42 +637,71 @@ class Siswa(db.Model):
     nama: Mapped[str] = mapped_column(db.String(255), nullable=False)
     kelas: Mapped[str | None] = mapped_column(db.String(255))
     diagnosis: Mapped[str | None] = mapped_column(db.String(255))
-    profil_medis = db.relationship('ProfilMedisSiswa', backref='siswa', cascade='all, delete-orphan', uselist=False, lazy='select')
-    emotion_journals = db.relationship('EmotionJournal', backref='siswa', cascade='all, delete-orphan', lazy='select')
-    epilepsi_logs = db.relationship('EpilepsiLog', backref='siswa', cascade='all, delete-orphan', lazy='select')
-    buku_entries = db.relationship('OrangTuaBuku', backref='siswa', cascade='all, delete-orphan', lazy='select')
-    tantrum_entries = db.relationship('OrangTuaTantrum', backref='siswa', cascade='all, delete-orphan', lazy='select')
-    jadwal_entries = db.relationship('OrangTuaJadwal', backref='siswa', cascade='all, delete-orphan', lazy='select')
-    nutrisi_entries = db.relationship('OrangTuaNutrisi', backref='siswa', cascade='all, delete-orphan', lazy='select')
-    burnout_entries = db.relationship('OrangTuaBurnout', backref='siswa', cascade='all, delete-orphan', lazy='select')
+    profil_medis = db.relationship('ProfilMedisSiswa', backref='siswa', cascade='save-update', uselist=False, lazy='select')
+    emotion_journals = db.relationship('EmotionJournal', backref='siswa', cascade='save-update', lazy='select')
+    epilepsi_logs = db.relationship('EpilepsiLog', backref='siswa', cascade='save-update', lazy='select')
+    buku_entries = db.relationship('OrangTuaBuku', backref='siswa', cascade='save-update', lazy='select')
+    tantrum_entries = db.relationship('OrangTuaTantrum', backref='siswa', cascade='save-update', lazy='select')
+    jadwal_entries = db.relationship('OrangTuaJadwal', backref='siswa', cascade='save-update', lazy='select')
+    nutrisi_entries = db.relationship('OrangTuaNutrisi', backref='siswa', cascade='save-update', lazy='select')
+    burnout_entries = db.relationship('OrangTuaBurnout', backref='siswa', cascade='save-update', lazy='select')
 
 class ProfilMedisSiswa(db.Model):
     __tablename__ = 'profil_medis_siswa'
     id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
     siswa_id: Mapped[int | None] = mapped_column(db.Integer, db.ForeignKey('siswa.id'), unique=True, index=True, nullable=False)
-    nama_lengkap: Mapped[str | None] = mapped_column(db.String(255))
-    nama_panggilan: Mapped[str | None] = mapped_column(db.String(100))
+    nama_lengkap: Mapped[str | None] = mapped_column(EncryptedType(db.String(512), _PRIMARY_FIELD_KEY, AesGcmEngine, 'pkcs5'))
+    nama_panggilan: Mapped[str | None] = mapped_column(EncryptedType(db.String(256), _PRIMARY_FIELD_KEY, AesGcmEngine, 'pkcs5'))
     usia: Mapped[int | None] = mapped_column(db.Integer)
     kelas: Mapped[str | None] = mapped_column(db.String(50))
     jenis_slb: Mapped[str | None] = mapped_column(db.String(100))
-    kategori_hambatan: Mapped[str | None] = mapped_column(db.String(100))
-    diagnosis_utama: Mapped[str | None] = mapped_column(db.Text)
-    tingkat_hambatan: Mapped[str | None] = mapped_column(db.String(100))
-    alergi_kritis: Mapped[str | None] = mapped_column(db.Text)
-    pemicu_tantrum: Mapped[str | None] = mapped_column(db.Text)
-    strategi_penenangan: Mapped[str | None] = mapped_column(db.Text)
-    kemampuan_komunikasi: Mapped[str | None] = mapped_column(db.Text)
-    hotline_darurat_nama: Mapped[str | None] = mapped_column(db.String(100))
-    hotline_darurat_nomor: Mapped[str | None] = mapped_column(db.String(30))
-    kondisi_terkini: Mapped[str | None] = mapped_column(db.String(100))
+    kategori_hambatan: Mapped[str | None] = mapped_column(EncryptedType(db.String(256), _PRIMARY_FIELD_KEY, AesGcmEngine, 'pkcs5'))
+    diagnosis_utama: Mapped[str | None] = mapped_column(EncryptedType(db.Text, _PRIMARY_FIELD_KEY, AesGcmEngine, 'pkcs5'))
+    tingkat_hambatan: Mapped[str | None] = mapped_column(EncryptedType(db.String(256), _PRIMARY_FIELD_KEY, AesGcmEngine, 'pkcs5'))
+    alergi_kritis: Mapped[str | None] = mapped_column(EncryptedType(db.Text, _PRIMARY_FIELD_KEY, AesGcmEngine, 'pkcs5'))
+    pemicu_tantrum: Mapped[str | None] = mapped_column(EncryptedType(db.Text, _PRIMARY_FIELD_KEY, AesGcmEngine, 'pkcs5'))
+    strategi_penenangan: Mapped[str | None] = mapped_column(EncryptedType(db.Text, _PRIMARY_FIELD_KEY, AesGcmEngine, 'pkcs5'))
+    kemampuan_komunikasi: Mapped[str | None] = mapped_column(EncryptedType(db.Text, _PRIMARY_FIELD_KEY, AesGcmEngine, 'pkcs5'))
+    hotline_darurat_nama: Mapped[str | None] = mapped_column(EncryptedType(db.String(256), _PRIMARY_FIELD_KEY, AesGcmEngine, 'pkcs5'))
+    hotline_darurat_nomor: Mapped[str | None] = mapped_column(EncryptedType(db.String(128), _PRIMARY_FIELD_KEY, AesGcmEngine, 'pkcs5'))
+    kondisi_terkini: Mapped[str | None] = mapped_column(EncryptedType(db.String(256), _PRIMARY_FIELD_KEY, AesGcmEngine, 'pkcs5'))
     kondisi_warna: Mapped[str | None] = mapped_column(db.String(20))
     updated_at = db.Column(db.DateTime, server_default=func.now(), onupdate=func.now())
+
+class ProfilMedisSiswaAudit(db.Model):
+    __tablename__ = 'profil_medis_siswa_audit'
+    __table_args__ = (Index('idx_pms_audit_siswa_id', 'siswa_id'), Index('idx_pms_audit_changed_at', 'changed_at'))
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    siswa_id: Mapped[int | None] = mapped_column(db.Integer, db.ForeignKey('siswa.id'), nullable=True)
+    changed_by: Mapped[int | None] = mapped_column(db.Integer, db.ForeignKey('akun_pengguna.id'), nullable=True)
+    changed_by_peran: Mapped[str | None] = mapped_column(db.String(50))
+    change_ip: Mapped[str | None] = mapped_column(db.String(100))
+    request_id: Mapped[str | None] = mapped_column(db.String(100))
+    changed_at = db.Column(db.DateTime, server_default=func.now())
+    prior_state_json: Mapped[str | None] = mapped_column(db.Text)
+    new_state_json: Mapped[str | None] = mapped_column(db.Text)
+    action: Mapped[str] = mapped_column(db.String(10), nullable=False)
+
 
 class AkunPengguna(db.Model):
     __tablename__ = 'akun_pengguna'
     __table_args__ = (Index('idx_akun_pengguna_status_akun', 'status_akun'), Index('idx_akun_pengguna_anak_id', 'anak_id'),)
     id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
-    nik: Mapped[str] = mapped_column(db.String(50), unique=True, nullable=False)
+    is_deleted: Mapped[bool] = mapped_column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+
+class ConsentRecord(db.Model):
+    __tablename__ = 'consent_record'
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    akun_id: Mapped[int | None] = mapped_column(db.Integer, db.ForeignKey('akun_pengguna.id'), nullable=True, index=True)
+    policy_version: Mapped[str] = mapped_column(db.String(32), nullable=False)
+    granted_at = db.Column(db.DateTime, server_default=func.now())
+    withdrawn_at = db.Column(db.DateTime, nullable=True)
+    consent_ip: Mapped[str | None] = mapped_column(db.String(100))
+    scope: Mapped[str] = mapped_column(db.String(128), nullable=False)
+    nik: Mapped[str] = mapped_column(EncryptedType(db.String(128), _PRIMARY_FIELD_KEY, AesGcmEngine, 'pkcs5'), nullable=False)
+    nik_hash: Mapped[str] = mapped_column(db.String(64), unique=True, nullable=False, index=True)
+    tanggal_lahir: Mapped[datetime.date | None] = mapped_column(db.Date, nullable=True)
     nama_lengkap: Mapped[str] = mapped_column(db.String(255), nullable=False)
     username: Mapped[str] = mapped_column(db.String(100), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(db.String(255), nullable=False)
@@ -738,7 +831,7 @@ def seed_slb_data() -> None:
 # CONSUMED BY: multiple route handlers
 # ============================================================
 STYLES_HTML = """
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="/static/tailwind.min.css" rel="stylesheet" integrity="sha384-dummy" crossorigin="anonymous">
     <script>tailwind.config = { theme: { extend: { colors: { emerald: { 50: '#ecfdf5', 100: '#d1fae5', 400: '#34d399', 500: '#10b981', 600: '#059669' }, amber: { 300: '#fcd34d', 400: '#fbbf24' } }, fontFamily: { sans: ['Poppins', 'sans-serif'] }, borderRadius: { '3xl': '1.5rem' } } } }</script>
     <style>
         @supports (-webkit-touch-callout: none) { input, select, textarea { font-size: 16px !important; } }
@@ -884,12 +977,12 @@ BASE_LAYOUT = """
         }
     </script>
     <title>Sekolah Luar Biasa</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Poppins:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Poppins:wght@400;500;600;700&display=swap"></noscript>
+
+
+    <link rel="stylesheet" href="/static/fonts.css" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="/static/fonts.css"></noscript>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+    <noscript><link href="/static/all.min.css" rel="stylesheet" integrity="sha384-dummy" crossorigin="anonymous"></noscript>
     {# SAFE: styles is developer-controlled static HTML generated in Python, never contains user input #}
     {{ styles|safe }}
 </head>
@@ -1014,8 +1107,7 @@ BASE_LAYOUT = """
             <div class="flex p-1 bg-gray-100 rounded-xl mb-6">
                 <button onclick="switchAuthTab('login')" id="tab-btn-login" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-emerald-600 transition">Masuk</button>
                 <button onclick="switchAuthTab('register')" id="tab-btn-register" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition">Daftar</button>
-                <button onclick="switchAuthTab('validator')" id="tab-btn-validator" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition flex items-center justify-center gap-1"><i class="fas fa-lock"></i> Akses Validator</button>
-            </div>
+                </div>
 
             <div id="auth-content-login">
                 <form action="/login" method="POST" class="space-y-4">
@@ -1093,55 +1185,17 @@ BASE_LAYOUT = """
                 </script>
             </div>
             
-            <div id="auth-content-validator" class="hidden">
-                <div class="bg-gray-900 rounded-3xl p-6 text-center shadow-inner relative overflow-hidden" id="brankas-container">
-                    <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-700 to-gray-900 opacity-50"></div>
-                    <div class="flex justify-between items-center mb-6 relative z-10">
-                        <h4 class="text-gray-600 text-xs font-bold tracking-widest uppercase"><i class="fas fa-shield-alt mr-2"></i>Brankas Digital Akses Validator</h4>
-                        <button id="btn-fullscreen" class="text-gray-600 hover:text-emerald-400 hover:drop-shadow-[0_0_8px_rgba(52,211,153,0.8)] transition-all">
-                            <svg id="icon-expand" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
-                            <svg id="icon-compress" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 14h4v4m0-4l-5 5m11-5h-4v4m0-4l5 5M10 10V6H6m4 4l-5-5m11 5h4V6m-4 4l5-5"></path></svg>
-                        </button>
-                    </div>
-                    
-                    <div class="relative w-48 h-48 mx-auto mb-6 z-10" id="brankas-dial-wrapper">
-                        <!-- Outer Rim & Fixed Top Marker -->
-                        <div class="absolute inset-0 rounded-full border-8 border-gray-700 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] z-30 pointer-events-none"></div>
-                        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-4 bg-red-500 z-40 rounded-sm shadow-md"></div>
-                        
-                        <!-- Rotating Dial containing Ticks and Numbers -->
-                        <div id="brankas-dial" class="absolute inset-2 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 shadow-[0_10px_20px_rgba(0,0,0,0.6),_inset_0_2px_5px_rgba(255,255,255,0.2)] cursor-grab active:cursor-grabbing touch-none z-20" style="transform: rotate(0deg);">
-                            <svg id="brankas-ticks" class="absolute inset-0 w-full h-full" viewBox="0 0 100 100"></svg>
-                            <div class="absolute inset-0 m-auto w-16 h-16 rounded-full bg-gradient-to-br from-gray-600 to-gray-700 shadow-[0_5px_15px_rgba(0,0,0,0.8)] flex items-center justify-center">
-                                <div class="w-4 h-4 rounded-full bg-gray-900 shadow-inner"></div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="relative z-10 flex justify-center gap-4 text-xs font-bold text-gray-500" id="brankas-status">
-                        <span id="brankas-state-1" class="w-8 h-8 rounded-full border-2 border-gray-600 flex items-center justify-center"><i class="fas fa-lock text-[10px]"></i></span>
-                        <span id="brankas-state-2" class="w-8 h-8 rounded-full border-2 border-gray-600 flex items-center justify-center"><i class="fas fa-lock text-[10px]"></i></span>
-                        <span id="brankas-state-3" class="w-8 h-8 rounded-full border-2 border-gray-600 flex items-center justify-center"><i class="fas fa-lock text-[10px]"></i></span>
-                    </div>
-                    
-                    <p class="text-gray-500 text-[10px] mt-6 relative z-10" style="opacity: 0.6; font-family: serif;">Lupa kode brankas ? Bisa hubungi developer untuk kodenya.</p>
-                </div>
-            </div>
-
             <script>
                 function switchAuthTab(tab) {
                     document.getElementById('auth-content-login').classList.add('hidden');
                     document.getElementById('auth-content-register').classList.add('hidden');
-                    document.getElementById('auth-content-validator').classList.add('hidden');
                     document.getElementById('auth-content-' + tab).classList.remove('hidden');
                     
                     const btnLogin = document.getElementById('tab-btn-login');
                     const btnRegister = document.getElementById('tab-btn-register');
-                    const btnValidator = document.getElementById('tab-btn-validator');
-                    
-                    [btnLogin, btnRegister, btnValidator].forEach(btn => {
+                    [btnLogin, btnRegister].forEach(btn => {
                         btn.className = "flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 hover:bg-gray-50 transition";
-                        if(btn.querySelector('.fa-lock') && btn !== btnValidator) {
+                        if(btn.querySelector(\'.fa-lock\')) {
                             btn.className += " flex items-center justify-center gap-1";
                         }
                     });
@@ -1150,9 +1204,6 @@ BASE_LAYOUT = """
                         btnLogin.className = "flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-emerald-600 transition";
                     } else if (tab === 'register') {
                         btnRegister.className = "flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-emerald-600 transition";
-                    } else if (tab === 'validator') {
-                        btnValidator.className = "flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-emerald-600 transition flex items-center justify-center gap-1";
-                        initBrankasDial();
                     }
                 }
                 
@@ -1166,310 +1217,13 @@ BASE_LAYOUT = """
                     }
                 }
 
-                // --- BRANKAS DIGITAL LOGIC ---
-                let brankasState = 0; // 0: Start, 1: State 1 Reached, 2: State 2 Reached
-                let currentAngle = 0;
-                let lastAngle = 0;
-                let isDragging = false;
-                let centerPoint = { x: 0, y: 0 };
-                let direction = null; // 'CCW' (Left) or 'CW' (Right)
-                let lastNumber = 0;
-                let ticksDrawn = false;
                 
-                let brankasAudioCtx = null;
-
-                function initBrankasDial() {
-                    if (ticksDrawn) return;
-                    
-                    const svg = document.getElementById('brankas-ticks');
-                    const cx = 50, cy = 50, r = 45;
-                    for (let i = 0; i < 100; i++) {
-                        const angle = (i * 3.6 - 90) * (Math.PI / 180);
-                        const x1 = cx + (r - (i % 5 === 0 ? 5 : 2)) * Math.cos(angle);
-                        const y1 = cy + (r - (i % 5 === 0 ? 5 : 2)) * Math.sin(angle);
-                        const x2 = cx + r * Math.cos(angle);
-                        const y2 = cy + r * Math.sin(angle);
-                        
-                        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-                        line.setAttribute('x1', x1);
-                        line.setAttribute('y1', y1);
-                        line.setAttribute('x2', x2);
-                        line.setAttribute('y2', y2);
-                        line.setAttribute('stroke', i % 5 === 0 ? '#9CA3AF' : '#4B5563'); // Gray-400 / Gray-600
-                        line.setAttribute('stroke-width', i % 5 === 0 ? '1' : '0.5');
-                        svg.appendChild(line);
-                        
-                        if (i % 10 === 0) {
-                            const textAngle = (i * 3.6 - 90) * (Math.PI / 180);
-                            const tx = cx + (r - 12) * Math.cos(textAngle);
-                            const ty = cy + (r - 12) * Math.sin(textAngle);
-                            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-                            text.setAttribute('x', tx);
-                            text.setAttribute('y', ty);
-                            text.setAttribute('fill', '#9CA3AF');
-                            text.setAttribute('font-size', '5');
-                            text.setAttribute('text-anchor', 'middle');
-                            text.setAttribute('dominant-baseline', 'middle');
-                            text.setAttribute('font-family', 'sans-serif');
-                            text.textContent = i;
-                            svg.appendChild(text);
-                        }
-                    }
-                    ticksDrawn = true;
-                    
-                    const dial = document.getElementById('brankas-dial');
-                    
-                    function updateCenter() {
-                        const rect = dial.getBoundingClientRect();
-                        centerPoint = {
-                            x: rect.left + rect.width / 2,
-                            y: rect.top + rect.height / 2
-                        };
-                    }
-
-                    function onDragStart(e) {
-                        isDragging = true;
-                        updateCenter();
-                        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                        const startAngle = Math.atan2(clientY - centerPoint.y, clientX - centerPoint.x) * (180 / Math.PI);
-                        lastAngle = startAngle - currentAngle;
-                        e.preventDefault();
-                        
-                        if (!brankasAudioCtx) {
-                            brankasAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                        }
-                        if (brankasAudioCtx.state === 'suspended') {
-                            brankasAudioCtx.resume();
-                        }
-                    }
-
-                    function playTick() {
-                        if (!brankasAudioCtx) return;
-                        const osc = brankasAudioCtx.createOscillator();
-                        const gain = brankasAudioCtx.createGain();
-                        osc.type = 'sine';
-                        osc.frequency.setValueAtTime(1000, brankasAudioCtx.currentTime); // 1000Hz
-                        
-                        gain.gain.setValueAtTime(0, brankasAudioCtx.currentTime);
-                        gain.gain.linearRampToValueAtTime(0.5, brankasAudioCtx.currentTime + 0.01);
-                        gain.gain.exponentialRampToValueAtTime(0.001, brankasAudioCtx.currentTime + 0.05);
-                        
-                        osc.connect(gain);
-                        gain.connect(brankasAudioCtx.destination);
-                        osc.start();
-                        osc.stop(brankasAudioCtx.currentTime + 0.05);
-                    }
-
-                    function playUnlock() {
-                        if (!brankasAudioCtx) return;
-                        
-                        // Heavy Mechanical Door - Oscillator Square (40Hz to 20Hz)
-                        const osc = brankasAudioCtx.createOscillator();
-                        const oscGain = brankasAudioCtx.createGain();
-                        osc.type = 'square';
-                        osc.frequency.setValueAtTime(40, brankasAudioCtx.currentTime); 
-                        osc.frequency.exponentialRampToValueAtTime(20, brankasAudioCtx.currentTime + 1.0);
-                        
-                        oscGain.gain.setValueAtTime(0, brankasAudioCtx.currentTime);
-                        oscGain.gain.linearRampToValueAtTime(0.8, brankasAudioCtx.currentTime + 0.1);
-                        oscGain.gain.exponentialRampToValueAtTime(0.001, brankasAudioCtx.currentTime + 1.0);
-                        
-                        osc.connect(oscGain);
-                        oscGain.connect(brankasAudioCtx.destination);
-                        osc.start(brankasAudioCtx.currentTime);
-                        osc.stop(brankasAudioCtx.currentTime + 1.0);
-
-                        // White noise for Clank-Swooosh-Thud
-                        const bufferSize = brankasAudioCtx.sampleRate * 1.0;
-                        const buffer = brankasAudioCtx.createBuffer(1, bufferSize, brankasAudioCtx.sampleRate);
-                        const data = buffer.getChannelData(0);
-                        for (let i = 0; i < bufferSize; i++) {
-                            data[i] = Math.random() * 2 - 1;
-                        }
-
-                        const noiseSource = brankasAudioCtx.createBufferSource();
-                        noiseSource.buffer = buffer;
-
-                        const lowpass = brankasAudioCtx.createBiquadFilter();
-                        lowpass.type = 'lowpass';
-                        lowpass.frequency.setValueAtTime(1000, brankasAudioCtx.currentTime);
-                        lowpass.frequency.exponentialRampToValueAtTime(100, brankasAudioCtx.currentTime + 0.5);
-
-                        const bandpass = brankasAudioCtx.createBiquadFilter();
-                        bandpass.type = 'bandpass';
-                        bandpass.frequency.setValueAtTime(500, brankasAudioCtx.currentTime);
-
-                        const noiseGain = brankasAudioCtx.createGain();
-                        noiseGain.gain.setValueAtTime(0, brankasAudioCtx.currentTime);
-                        noiseGain.gain.linearRampToValueAtTime(1.0, brankasAudioCtx.currentTime + 0.1);
-                        noiseGain.gain.exponentialRampToValueAtTime(0.001, brankasAudioCtx.currentTime + 1.0);
-
-                        noiseSource.connect(lowpass);
-                        lowpass.connect(bandpass);
-                        bandpass.connect(noiseGain);
-                        noiseGain.connect(brankasAudioCtx.destination);
-
-                        noiseSource.start(brankasAudioCtx.currentTime);
-                        noiseSource.stop(brankasAudioCtx.currentTime + 1.0);
-                    }
-
-                    function onDragMove(e) {
-                        if (!isDragging) return;
-                        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                        
-                        const angle = Math.atan2(clientY - centerPoint.y, clientX - centerPoint.x) * (180 / Math.PI);
-                        let newAngle = angle - lastAngle;
-                        
-                        // Calculate direction and delta
-                        let deltaAngle = newAngle - currentAngle;
-                        // Handle wraparound
-                        if (deltaAngle > 180) deltaAngle -= 360;
-                        if (deltaAngle < -180) deltaAngle += 360;
-                        
-                        currentAngle += deltaAngle;
-                        
-                        let currentDirection = null;
-                        if (deltaAngle < 0) currentDirection = 'CCW';
-                        if (deltaAngle > 0) currentDirection = 'CW';
-                        
-                        if (currentDirection && currentDirection !== direction) {
-                            direction = currentDirection;
-                            // Checking if we overshot or changed direction improperly happens in checkCombination
-                        }
-
-                        // Apply visual rotation. The SVG has 0 at top, so angle needs adjustment if we want 0 up.
-                        // Our tick calculation puts 0 at the top. 
-                        // The dial's red marker is at the top initially.
-                        dial.style.transform = `rotate(${currentAngle}deg)`;
-                        
-                        // Map angle to numbers 0-99
-                        // 360 degrees = 100 ticks. 1 tick = 3.6 degrees.
-                        // Clockwise rotation (CW) positive degrees -> means numbers go up if CW, but standard safes numbers go down when turning right.
-                        // Let's make standard mapping: 0 at top. 
-                        let normalizedAngle = currentAngle % 360;
-                        if (normalizedAngle < 0) normalizedAngle += 360;
-                        
-                        // Current number under the top mark
-                        let currentNumber = Math.round((360 - normalizedAngle) / 3.6) % 100;
-                        
-                        if (currentNumber !== lastNumber) {
-                            if (currentNumber % 1 === 0) playTick();
-                            lastNumber = currentNumber;
-                            checkCombination(currentNumber, direction);
-                        }
-                    }
-
-                    function onDragEnd() {
-                        isDragging = false;
-                        direction = null;
-                    }
-
-                    function updateStatusUI() {
-                        const s1 = document.getElementById('brankas-state-1');
-                        const s2 = document.getElementById('brankas-state-2');
-                        const s3 = document.getElementById('brankas-state-3');
-                        
-                        s1.className = brankasState >= 1 ? "w-8 h-8 rounded-full border-2 border-green-500 bg-green-500 text-white flex items-center justify-center shadow-[0_0_10px_rgba(34,197,94,0.5)]" : "w-8 h-8 rounded-full border-2 border-gray-600 flex items-center justify-center";
-                        s1.innerHTML = brankasState >= 1 ? '<i class="fas fa-unlock text-[10px]"></i>' : '<i class="fas fa-lock text-[10px]"></i>';
-                        
-                        s2.className = brankasState >= 2 ? "w-8 h-8 rounded-full border-2 border-green-500 bg-green-500 text-white flex items-center justify-center shadow-[0_0_10px_rgba(34,197,94,0.5)]" : "w-8 h-8 rounded-full border-2 border-gray-600 flex items-center justify-center";
-                        s2.innerHTML = brankasState >= 2 ? '<i class="fas fa-unlock text-[10px]"></i>' : '<i class="fas fa-lock text-[10px]"></i>';
-                        
-                        s3.className = brankasState >= 3 ? "w-8 h-8 rounded-full border-2 border-green-500 bg-green-500 text-white flex items-center justify-center shadow-[0_0_10px_rgba(34,197,94,0.5)]" : "w-8 h-8 rounded-full border-2 border-gray-600 flex items-center justify-center";
-                        s3.innerHTML = brankasState >= 3 ? '<i class="fas fa-unlock text-[10px]"></i>' : '<i class="fas fa-lock text-[10px]"></i>';
-                    }
-
-                    function resetBrankas() {
-                        brankasState = 0;
-                        updateStatusUI();
-                    }
-
-                    function checkCombination(num, dir) {
-                        // Kombinasi Absolut: 30 Kiri (CCW), 10 Kanan (CW), 50 Kiri (CCW)
-                        
-                        if (brankasState === 0) {
-                            if (dir === 'CCW' && num === 30) {
-                                brankasState = 1;
-                                updateStatusUI();
-                            } else if (dir === 'CW') {
-                                resetBrankas();
-                            }
-                        } 
-                        else if (brankasState === 1) {
-                            if (dir === 'CW' && num === 10) {
-                                brankasState = 2;
-                                updateStatusUI();
-                            } else if (dir === 'CCW' && num !== 30) {
-                                // If they overshoot or start moving CCW again before hitting 10
-                                resetBrankas();
-                            }
-                        }
-                        else if (brankasState === 2) {
-                            if (dir === 'CCW' && num === 50) {
-                                brankasState = 3;
-                                updateStatusUI();
-                                unlockVault();
-                            } else if (dir === 'CW' && num !== 10) {
-                                resetBrankas();
-                            }
-                        }
-                    }
-
-                    function unlockVault() {
-                        playUnlock();
-                        const container = document.getElementById('brankas-container');
-                        container.style.transition = 'all 1s ease';
-                        container.style.transform = 'scale(1.1)';
-                        container.style.opacity = '0';
-                        
-                        fetch('/brankas_unlock', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
-                            body: JSON.stringify({ kode: 'your-vault-code' })
-                        }).then(response => response.json())
-                          .then(data => {
-                            if(data.status === 'success') {
-                                setTimeout(() => {
-                                    window.location.href = data.redirect_url;
-                                }, 1000);
-                            }
-                        });
-                    }
-
-                    dial.addEventListener('mousedown', onDragStart);
-                    document.addEventListener('mousemove', onDragMove);
-                    document.addEventListener('mouseup', onDragEnd);
-                    
-                    dial.addEventListener('touchstart', onDragStart, {passive: false});
-                    document.addEventListener('touchmove', onDragMove, {passive: false});
-                    document.addEventListener('touchend', onDragEnd);
-                    
-                    const btnFullscreen = document.getElementById('btn-fullscreen');
-                    const iconExpand = document.getElementById('icon-expand');
-                    const iconCompress = document.getElementById('icon-compress');
-                    
-                    btnFullscreen.addEventListener('click', () => {
-                        if (!document.fullscreenElement) {
-                            document.documentElement.requestFullscreen().catch(err => {
-                                console.error(`Error attempting to enable fullscreen: ${err.message}`);
-                            });
-                            iconExpand.classList.add('hidden');
-                            iconCompress.classList.remove('hidden');
-                        } else {
-                            document.exitFullscreen();
-                            iconExpand.classList.remove('hidden');
-                            iconCompress.classList.add('hidden');
-                        }
-                    });
-                }
             </script>
         </div>
     </div>
 
     <!-- Socket.IO globally for student receiving -->
-    {% if needs_socketio %}<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>{% endif %}
+    {% if needs_socketio %}<script src="/static/socket.io.min.js"></script>{% endif %}
     <script>
         // CLIENT WEBSOCKET RECEPTION (for all pages)
         const socket = (typeof io !== 'undefined') ? io() : null;
@@ -1948,11 +1702,11 @@ HOME_HTML = """
                         <div class="flex items-center gap-4">
                             <div class="w-14 h-14 rounded-full bg-white shadow-md border-2 border-white flex items-center justify-center overflow-hidden shrink-0">
                                 {% if profil_medis %}
-                                <img src="https://api.dicebear.com/7.x/notionists/svg?seed={{ profil_medis.nama_panggilan if profil_medis else \'\' }}&backgroundColor=e0e7ff" alt="Avatar" class="w-full h-full object-cover">
+                                <img src="/avatar/{{ profil_medis.id if profil_medis else \'default\' }}.svg" alt="Avatar" class="w-full h-full object-cover">
                                 {% elif anak_nama %}
-                                <img src="https://api.dicebear.com/7.x/notionists/svg?seed={{ anak_nama }}&backgroundColor=e0e7ff" alt="Avatar" class="w-full h-full object-cover">
+                                <img src="/avatar/{{ akun.anak_id if akun and akun.anak_id else \'default\' }}.svg" alt="Avatar" class="w-full h-full object-cover">
                                 {% else %}
-                                <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Default&backgroundColor=e0e7ff" alt="Avatar Default" class="w-full h-full object-cover">
+                                <img src="/avatar/default.svg" alt="Avatar Default" class="w-full h-full object-cover">
                                 {% endif %}
                             </div>
                             <div>
@@ -2905,7 +2659,7 @@ HOME_HTML = """
             <div class="flex justify-between items-start mb-4">
                 <div class="flex items-center gap-4">
                     <div class="w-14 h-14 rounded-full bg-white shadow-md border-2 border-indigo-100 flex items-center justify-center overflow-hidden shrink-0">
-                        <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Budi&backgroundColor=e0e7ff" alt="Avatar Budi" class="w-full h-full object-cover">
+                        <img src="/avatar/default.svg" alt="Avatar Budi" class="w-full h-full object-cover">
                     </div>
                     <div>
                         <h3 class="text-xl font-extrabold text-gray-800 tracking-tight leading-none mb-1">Budi Santoso</h3>
@@ -3344,7 +3098,7 @@ HOME_HTML = """
                 // Update Chart
                 if (!window.Chart) {
                     const script = document.createElement('script');
-                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                    script.src = '/static/chart.umd.js';
                     script.onload = () => drawJurnalHomeChart(data);
                     document.head.appendChild(script);
                 } else {
@@ -3516,7 +3270,7 @@ HOME_HTML = """
                     const titleEl = document.querySelector('#modal-medical-panel h3');
                     const seedName = data.nama_panggilan || siswaNama || 'Default';
                     if (titleEl) {
-                        titleEl.innerHTML = `<img src="https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(seedName)}&backgroundColor=e0e7ff" alt="${escapeHtml(data.nama_lengkap || siswaNama)}" class="w-8 h-8 rounded-full border border-indigo-200 shadow-sm mr-3 inline-block"> ${escapeHtml(data.nama_lengkap || siswaNama)} <span class="text-xs font-bold text-gray-600 block mt-1 ml-11">Rekam Digital Siswa</span>`;
+                        titleEl.innerHTML = `<img src="/avatar/${data.id || \'default\'}.svg" alt="${escapeHtml(data.nama_lengkap || siswaNama)}" class="w-8 h-8 rounded-full border border-indigo-200 shadow-sm mr-3 inline-block"> ${escapeHtml(data.nama_lengkap || siswaNama)} <span class="text-xs font-bold text-gray-600 block mt-1 ml-11">Rekam Digital Siswa</span>`;
                     }
 
                     document.getElementById('view-med-identitas').innerText = getVal(data.nama_lengkap, 'Nama Lengkap') + ' (' + getVal(data.nama_panggilan, 'Nama Panggilan') + ')';
@@ -4646,19 +4400,13 @@ limiter.exempt(readyz)
 _CSP_HTML = ( 
     "default-src 'self'; " 
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' " 
-        "https://cdn.tailwindcss.com " 
         "https://cdnjs.cloudflare.com " 
-        "https://cdn.jsdelivr.net " 
-        "https://cdn.socket.io; " 
     "style-src 'self' 'unsafe-inline' " 
         "https://cdnjs.cloudflare.com " 
-        "https://fonts.googleapis.com; " 
     "font-src 'self' data: " 
         "https://cdnjs.cloudflare.com " 
-        "https://fonts.gstatic.com; " 
     "img-src 'self' data: blob: " 
         "https://cdnjs.cloudflare.com " 
-        "https://api.dicebear.com " 
         "https://commons.wikimedia.org " 
         "https://upload.wikimedia.org " 
         "https://www.lifeprint.com " 
@@ -4673,9 +4421,6 @@ _CSP_HTML = (
     "connect-src 'self' wss: ws: " 
         "https://equran.id " 
         "https://pmpk.kemdikbud.go.id " 
-        "https://api.giphy.com " 
-        "https://api.allorigins.win " 
-        "https://zenquotes.io " 
         "https://api.aladhan.com; " 
     "frame-src https://www.youtube.com; " 
     "frame-ancestors 'none'; " 
@@ -4755,7 +4500,9 @@ def index() -> Response | str | tuple[Response, int]:
     )
     return cached_render('BASE_LAYOUT', BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=rendered_home, is_admin=session.get('is_admin', False), settings=get_settings(), list_siswa=list_siswa)
 
+# PRIVACY GUARDRAIL: do NOT add @cache.cached or @cache.memoize here without a session-qualified key_prefix — this endpoint returns per-user medical data.
 @app.route('/api/profil-medis/<int:siswa_id>', methods=['GET'])
+@limiter.limit("60 per hour;10 per minute", key_func=lambda: str(session.get("user_id") or get_remote_address()))
 def get_profil_medis(siswa_id: int) -> Response | str | tuple[Response, int]:
     """Handles requests to the get_profil_medis endpoint."""
     peran = session.get('peran')
@@ -4811,7 +4558,9 @@ def get_profil_medis(siswa_id: int) -> Response | str | tuple[Response, int]:
         app.logger.error('Failed to fetch profil medis', exc_info=True)
         return jsonify({'error': 'Gagal memuat data.'}), 500
 
+# PRIVACY GUARDRAIL: do NOT add @cache.cached or @cache.memoize here without a session-qualified key_prefix — this endpoint returns per-user medical data.
 @app.route('/api/profil-medis/<int:siswa_id>', methods=['POST'])
+@limiter.limit("30 per hour;5 per minute", key_func=lambda: str(session.get("user_id") or get_remote_address()))
 def update_profil_medis(siswa_id: int) -> Response | str | tuple[Response, int]:
     """Handles requests to the update_profil_medis endpoint."""
     peran = session.get('peran')
@@ -4827,8 +4576,15 @@ def update_profil_medis(siswa_id: int) -> Response | str | tuple[Response, int]:
     if not data:
         return jsonify({'error': 'No data provided'}), 400
 
-    profil = ProfilMedisSiswa.query.filter_by(siswa_id=siswa_id).first()  # Create if missing logic handles None case
-    if not profil:
+    profil = ProfilMedisSiswa.query.filter_by(siswa_id=siswa_id).first()
+    prior_snapshot = "{}"
+    if profil:
+        action = 'UPDATE'
+        prior_dict = {c.name: getattr(profil, c.name) for c in profil.__table__.columns}
+        import json
+        prior_snapshot = json.dumps(prior_dict, default=str, ensure_ascii=False)
+    else:
+        action = 'INSERT'
         profil = ProfilMedisSiswa(siswa_id=siswa_id)
         db.session.add(profil)
     
@@ -4856,6 +4612,22 @@ def update_profil_medis(siswa_id: int) -> Response | str | tuple[Response, int]:
     profil.kondisi_terkini = validate_str(data.get('kondisi_terkini'), 1000) or profil.kondisi_terkini
     profil.kondisi_warna = validate_str(data.get('kondisi_warna'), 20) or profil.kondisi_warna
     
+    import json
+    new_dict = {c.name: getattr(profil, c.name) for c in profil.__table__.columns}
+    new_snapshot = json.dumps(new_dict, default=str, ensure_ascii=False)
+
+    audit_row = ProfilMedisSiswaAudit(
+        siswa_id=siswa_id,
+        changed_by=session.get('user_id'),
+        changed_by_peran=session.get('peran'),
+        change_ip=request.headers.get('X-Forwarded-For', request.remote_addr),
+        request_id=getattr(g, 'request_id', None),
+        prior_state_json=prior_snapshot,
+        new_state_json=new_snapshot,
+        action=action
+    )
+    db.session.add(audit_row)
+
     try:
         db.session.commit()
         return jsonify({'status': 'success'})
@@ -4920,21 +4692,53 @@ def register() -> Response | str | tuple[Response, int]:
             return "Peran tidak valid.", 400
 
         # Check if username or nik already exists
-        if AkunPengguna.query.filter((AkunPengguna.username == username) | (AkunPengguna.nik == nik)).first():  # Returns None if not found; boolean evaluation handles None safely
+        nik_hash = hashlib.sha256(nik.encode('utf-8')).hexdigest()
+        if AkunPengguna.query.filter((AkunPengguna.username == username) | (AkunPengguna.nik_hash == nik_hash)).first():  # Returns None if not found; boolean evaluation handles None safely
             return "Username atau NIK sudah terdaftar.", 400
 
-        hashed_password = generate_password_hash(password)
+
+        if not request.form.get('persetujuan_privasi'):
+            return "Persetujuan privasi wajib untuk mendaftar.", 400
+        policy_version = request.form.get('persetujuan_privasi')
+
+        tgl_lahir_raw = request.form.get('tanggal_lahir')
+        tgl_lahir = None
+        if tgl_lahir_raw:
+            try:
+                tgl_lahir = datetime.date.fromisoformat(tgl_lahir_raw)
+            except (ValueError, TypeError):
+                return "Tanggal lahir tidak valid.", 400
+
+            age_years = (datetime.date.today() - tgl_lahir).days // 365
+            if peran == ROLE_ORANG_TUA and age_years < 18:
+                return "Pendaftaran sebagai Orang Tua harus berusia 18 tahun ke atas.", 400
+        else:
+            if peran == ROLE_ORANG_TUA:
+                return "Tanggal lahir wajib diisi untuk pendaftaran Orang Tua.", 400
+
+        hashed_password = generate_password_hash(password, method='scrypt:32768:8:1')
         
         akun = AkunPengguna(
             nik=nik,
+            nik_hash=nik_hash,
             nama_lengkap=nama_lengkap,
             username=username,
             password_hash=hashed_password,
             peran=peran,
             status_akun=STATUS_MENUNGGU,
-            anak_id=anak_id
+            anak_id=anak_id,
+            tanggal_lahir=tgl_lahir
         )
         db.session.add(akun)
+        db.session.flush()
+
+        consent = ConsentRecord(
+            akun_id=akun.id,
+            policy_version=policy_version,
+            consent_ip=request.headers.get('X-Forwarded-For', request.remote_addr),
+            scope='processing_child_medical' if peran == ROLE_ORANG_TUA else 'processing_staff_pii'
+        )
+        db.session.add(consent)
         db.session.commit()
         return "Pendaftaran berhasil. Silakan tunggu verifikasi dari Kepala Sekolah. <a href='/'>Kembali ke Beranda</a>"
     except IntegrityError:
@@ -4948,30 +4752,27 @@ def register() -> Response | str | tuple[Response, int]:
         app.logger.error("Registration error", exc_info=True)
         return "Terjadi kesalahan saat mendaftar. Silakan coba lagi.", 500
 
-@app.route('/brankas_unlock', methods=['POST'])
-@limiter.limit("3 per hour")
-def brankas_unlock() -> Response | str | tuple[Response, int]:
-    """Handles requests to the brankas_unlock endpoint."""
-    if not request.is_json:
-        return jsonify({"status": "error", "message": "Format tidak valid"}), 400
-        
-    brankas_kode = os.getenv('BRANKAS_KODE')
-    if not brankas_kode:
-        app.logger.error("BRANKAS_KODE is not configured")
-        return jsonify({'error': 'Vault is not configured'}), 503
-    if not brankas_kode:
-        return jsonify({"status": "error", "message": "Brankas not configured"}), 500
 
-    data = request.get_json()
-    if data.get('kode') == brankas_kode:
-        # Kunci dewa - Verifikasi kode kombinasi dilewati frontend, disahkan backend
-        session.clear()
-        session['user_id'] = 1
-        session['peran'] = ROLE_KEPALA_SEKOLAH
-        session['is_admin'] = True
-        session.permanent = True
-        return jsonify({'status': 'success', 'redirect_url': url_for('dashboard_validator')})
-    return jsonify({"status": "error", "message": "Kombinasi salah"}), 403
+
+@app.route('/kebijakan-privasi')
+def kebijakan_privasi():
+    return '''<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Kebijakan Privasi v1.0</title>
+</head>
+<body style="font-family: sans-serif; padding: 2rem; max-width: 800px; margin: 0 auto; line-height: 1.6;">
+    <h1>Kebijakan Privasi v1.0</h1>
+    <p>Kami memproses data kesehatan dan log tingkah laku siswa demi mendukung kegiatan terapi dan pembelajaran SLB. Data diproses sesuai UU PDP No. 27/2022.</p>
+    <p><strong>Pengungkapan ke Pihak Ketiga:</strong> Kami menggunakan layanan pihak ketiga yang mungkin menerima sebagian data IP/User-Agent Anda:</p>
+    <ul>
+        <li><strong>pmpk.kemdikbud.go.id:</strong> Pencarian SIBI lokal Indonesia.</li>
+        <li><strong>equran.id & aladhan.com:</strong> Data jadwal sholat & Al-Quran.</li>
+        <li><strong>YouTube:</strong> Video pembelajaran disematkan (embed).</li>
+    </ul>
+</body>
+</html>'''
 
 @app.route('/login', methods=['POST'])
 @limiter.limit('5 per minute')
@@ -5006,6 +4807,66 @@ def login() -> Response | str | tuple[Response, int]:
     except Exception:
         app.logger.error('Login failed due to system error', exc_info=True)
         return "Sistem login sedang mengalami kendala. Silakan coba beberapa saat lagi. <a href='/'>Kembali</a>", 503
+
+
+@app.route('/api/unduh-data-saya', methods=['GET'])
+@limiter.limit('3 per hour')
+@require_auth(roles=ALL_ROLES)
+def unduh_data_saya() -> Response | str | tuple[Response, int]:
+    akun = AkunPengguna.query.get(session['user_id'])
+    if not akun:
+        return jsonify({'error': 'Akun tidak ditemukan'}), 404
+
+    data = {
+        'akun': {
+            'nama_lengkap': akun.nama_lengkap,
+            'username': akun.username,
+            'peran': akun.peran,
+            'status_akun': akun.status_akun
+        }
+    }
+
+    if session.get('peran') == ROLE_ORANG_TUA and akun.anak_id:
+        siswa = Siswa.query.get(akun.anak_id)
+        if siswa:
+            data['siswa'] = {
+                'nama': siswa.nama,
+                'kelas': siswa.kelas,
+                'jenis_slb': siswa.jenis_slb
+            }
+        profil = ProfilMedisSiswa.query.filter_by(siswa_id=akun.anak_id).first()
+        if profil:
+            profil_dict = {c.name: getattr(profil, c.name) for c in profil.__table__.columns if c.name not in ('id', 'siswa_id', 'kondisi_warna')}
+            data['profil_medis'] = profil_dict
+
+    return jsonify(data)
+
+@app.route('/api/hapus-akun-saya', methods=['POST'])
+@limiter.limit('1 per day')
+@require_auth(roles=ALL_ROLES)
+def hapus_akun_saya() -> Response | str | tuple[Response, int]:
+    uid = session.get('user_id')
+    akun = AkunPengguna.query.get(uid)
+    if not akun:
+        return jsonify({'error': 'Akun tidak ditemukan'}), 404
+
+    akun.is_deleted = True
+    akun.deleted_at = datetime.datetime.now()
+    akun.nama_lengkap = f"[DELETED-{uid}]"
+    akun.username = f"deleted_{uid}"
+
+    consents = ConsentRecord.query.filter_by(akun_id=uid, withdrawn_at=None).all()
+    for c in consents:
+        c.withdrawn_at = datetime.datetime.now()
+
+    try:
+        db.session.commit()
+        session.clear()
+        return jsonify({'status': 'success', 'message': 'Akun berhasil dihapus'})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error("Error in hapus_akun_saya", exc_info=True)
+        return jsonify({'error': 'Gagal menghapus akun'}), 500
 
 @app.route('/logout')
 def logout() -> Response | str | tuple[Response, int]:
@@ -5121,7 +4982,7 @@ def kepala_sekolah_dashboard() -> Response | str | tuple[Response, int]:
                         <tbody class="divide-y divide-gray-100">
                             {% for akun in akun_pending %}
                             <tr class="hover:bg-gray-50 transition">
-                                <td class="p-4">{{ akun.nik }}</td>
+                                <td class="p-4" title="NIK disamarkan demi privasi">{{ \'*\' * 12 + akun.nik[-4:] if akun.nik else \'-\' }}</td>
                                 <td class="p-4 font-bold text-gray-800">{{ akun.nama_lengkap }}<br><span class="text-xs font-normal text-gray-500">{{ akun.username }}</span></td>
                                 <td class="p-4 uppercase text-xs font-bold">{{ akun.peran }}</td>
                                 <td class="p-4">{{ akun.anak_id or '-' }}</td>
@@ -5159,7 +5020,7 @@ def kepala_sekolah_dashboard() -> Response | str | tuple[Response, int]:
                         <tbody class="divide-y divide-gray-100">
                             {% for akun in akun_disetujui %}
                             <tr class="hover:bg-gray-50 transition">
-                                <td class="p-4">{{ akun.nik }}</td>
+                                <td class="p-4" title="NIK disamarkan demi privasi">{{ \'*\' * 12 + akun.nik[-4:] if akun.nik else \'-\' }}</td>
                                 <td class="p-4 font-bold text-gray-800">{{ akun.nama_lengkap }}</td>
                                 <td class="p-4 uppercase text-xs font-bold">{{ akun.peran }}</td>
                                 <td class="p-4 text-center">
@@ -5292,15 +5153,44 @@ def therapy_log() -> Response | str | tuple[Response, int]:
     return redirect(url_for('index', open='modal-terapi-log'))
 
 # ACCEPTED RISK: UUID filenames prevent enumeration. Public access needed for /galeri images.
+
+@app.route('/avatar/<key>.svg')
+@require_auth(roles=ALL_ROLES)
+def serve_avatar(key: str) -> Response | str | tuple[Response, int]:
+    safe_key = "".join([c for c in key if c.isalnum() or c in "-_"])[:64]
+    if not safe_key:
+        safe_key = "default"
+    hue = int(hashlib.sha256(safe_key.encode()).hexdigest()[:2], 16) % 360
+    initial = safe_key[0].upper() if safe_key else '?'
+
+    svg_content = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+        <rect width="100" height="100" fill="hsl({hue}, 70%, 80%)"/>
+        <text x="50" y="50" dominant-baseline="central" text-anchor="middle" font-family="sans-serif" font-size="50" font-weight="bold" fill="rgba(0,0,0,0.5)">
+            {initial}
+        </text>
+    </svg>'''
+
+    response = make_response(svg_content)
+    response.mimetype = 'image/svg+xml'
+    response.headers['Cache-Control'] = 'private, max-age=86400'
+    return response
+
 @app.route('/uploads/<filename>')
+@require_auth(roles=ALL_ROLES)
 def uploaded_file(filename: str) -> Response | str | tuple[Response, int]:
     """Handles requests to the uploaded_file endpoint."""
     secure_name = secure_filename(filename)
     if not secure_name or secure_name != filename:
         return "Invalid filename", 400
-    response = send_from_directory(app.config['UPLOAD_FOLDER'], secure_name, max_age=31536000)
+
+    if session.get('peran') == ROLE_ORANG_TUA:
+        owned = StudentPortfolio.query.filter_by(filename=secure_name).first()
+        if not owned or owned.student_id != session.get('anak_id'):
+            return "Forbidden", 403
+
+    response = send_from_directory(app.config['UPLOAD_FOLDER'], secure_name, max_age=300)
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    response.headers['Cache-Control'] = 'private, max-age=300'
     response.headers['Content-Security-Policy'] = "default-src 'none'"
     return response
 
@@ -6489,7 +6379,7 @@ RAMADHAN_DASHBOARD_HTML = """
 
             if (!window.Chart) {
                 const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                script.src = '/static/chart.umd.js';
                 script.onload = () => drawTantrumChart(data);
                 document.head.appendChild(script);
             } else {
@@ -6549,7 +6439,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `IEP_${formData.get('student_name')}.pdf`;
+                a.download = 'IEP_download.pdf';
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
@@ -6569,7 +6459,7 @@ RAMADHAN_DASHBOARD_HTML = """
     function initSocket() {
         if (!window.io) {
             const script = document.createElement('script');
-            script.src = 'https://cdn.socket.io/4.0.0/socket.io.min.js';
+            script.src = '/static/socket.io.min.js';
             script.onload = () => connectSocket();
             document.head.appendChild(script);
         } else {
@@ -6742,7 +6632,7 @@ RAMADHAN_DASHBOARD_HTML = """
 
             if (!window.Chart) {
                 const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                script.src = '/static/chart.umd.js';
                 script.onload = () => drawReactionChart(data);
                 document.head.appendChild(script);
             } else {
@@ -7173,7 +7063,18 @@ class OrangTuaBurnout(db.Model):
 class PushSubscription(db.Model):
     __tablename__ = 'push_subscription'
     id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
-    subscription_info: Mapped[str] = mapped_column(db.Text, nullable=False)
+    subscription_info: Mapped[str] = mapped_column(EncryptedType(db.Text, _PRIMARY_FIELD_KEY, AesGcmEngine, 'pkcs5'), nullable=False)
+    endpoint_hash: Mapped[str] = mapped_column(db.String(64), unique=True, nullable=False, index=True)
+
+class IEPDownloadAudit(db.Model):
+    __tablename__ = 'iep_download_audit'
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    downloaded_by: Mapped[int | None] = mapped_column(db.Integer, db.ForeignKey('akun_pengguna.id'), nullable=True)
+    student_name: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    downloaded_at = db.Column(db.DateTime, server_default=func.now(), index=True)
+    request_id: Mapped[str | None] = mapped_column(db.String(100))
+    ip: Mapped[str | None] = mapped_column(db.String(100))
+
     created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
     last_used = db.Column(db.DateTime, server_default=func.now())
 
@@ -7335,6 +7236,27 @@ def prefetch_emoji_icons() -> None:
             
     eventlet.spawn(_download)
 
+
+import random
+ZEN_QUOTES = [
+    {"q": "Anak-anak adalah bintang yang akan bersinar di waktu yang tepat.", "a": "Anonim"},
+    {"q": "Keterbatasan bukan berarti ketidakmampuan.", "a": "Anonim"},
+    {"q": "Setiap anak adalah bunga yang berbeda, dan semuanya membuat taman yang indah.", "a": "Anonim"},
+    {"q": "Di balik setiap tantangan, ada kekuatan baru yang tumbuh.", "a": "Anonim"}
+]
+
+@app.route('/api/sibi/lookup', methods=['GET'])
+def sibi_lookup():
+    q = request.args.get('q', '').strip()
+    if not q:
+        return jsonify({'error': 'no query'}), 400
+    entry = SignLanguageDictionary.query.filter_by(word=q).first()
+    if entry:
+        return jsonify({'image_url': entry.image_url})
+    return jsonify({}), 404
+@app.route('/api/quote', methods=['GET'])
+def get_quote():
+    return jsonify(random.choice(ZEN_QUOTES))
 @app.route('/guru/iep', methods=['POST'])
 @limiter.limit("10 per hour")
 @require_auth(roles=STAFF_ROLES)
@@ -7702,6 +7624,13 @@ def handle_disconnect() -> None:
         emit('client_count', {'count': _connected_clients.count(), 'clients': list(_connected_clients.snapshot().values())}, broadcast=True)
     except Exception:
         app.logger.error('SocketIO disconnect handler failed', exc_info=True)
+
+
+@socketio.on('request_client_detail')
+def request_client_detail():
+    if session.get('peran') not in STAFF_ROLES:
+        return
+    emit('client_detail', {'clients': list(_connected_clients.snapshot().values())})
 
 @socketio.on('set_frequency')
 def handle_set_frequency(data: dict) -> None:
@@ -8531,8 +8460,7 @@ SLB_TUNARUNGU_HTML = """
             // Strategy Fallback or for other categories: Giphy API with "sign language ASL" filter
             if (!mediaUrl) {
                 try {
-                    const giphyUrl = `https://api.giphy.com/v1/gifs/search?api_key=${API_KEY}&q=${encodeURIComponent(wordEn + ' sign language ASL')}&limit=1`;
-                    const res = await fetch(giphyUrl);
+                    const res = await fetch(`/api/sibi?q=${encodeURIComponent(wordEn)}`);
                     if(res.ok) {
                         const data = await res.json();
                         if (data.data && data.data.length > 0) {
@@ -8663,7 +8591,7 @@ SLB_TUNARUNGU_HTML = """
                         gifUrl = FALLBACK_DATA[word];
                     } else {
                         try {
-                            const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${API_KEY}&q=${word} sign language indonesia&limit=1`);
+                            const res = await fetch(`/api/sibi?q=${encodeURIComponent(word)}`);
                             const data = await res.json();
                             if (data.data && data.data.length > 0) {
                                 gifUrl = data.data[0].images.fixed_height.url;
@@ -8897,7 +8825,7 @@ def slb_tunarungu() -> Response | str | tuple[Response, int]:
 SLB_TUNAGRAHITA_HTML = """
 <div class="min-h-[100dvh] bg-[#F3E8FF] pt-24 px-5 pb-32">
     <!-- Confetti Library -->
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="/static/confetti.browser.min.js" integrity="sha384-dummy" crossorigin="anonymous"></script>
 
     <h2 class="text-3xl font-bold text-purple-900 mb-6 border-l-4 border-purple-500 pl-3">Game Runtutan Kognitif</h2>
     
@@ -9832,7 +9760,7 @@ def slb_tunadaksa() -> Response | str | tuple[Response, int]:
 SLB_TUNALARAS_HTML = """
 <div class="min-h-[100dvh] bg-emerald-50 pt-24 px-5 pb-32 transition-colors duration-1000" id="main-bg">
     <!-- Confetti Library -->
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="/static/confetti.browser.min.js" integrity="sha384-dummy" crossorigin="anonymous"></script>
 
     <h2 class="text-3xl font-bold text-emerald-800 mb-6 border-l-4 border-emerald-500 pl-3">Jurnal Emosi</h2>
     
@@ -11732,7 +11660,7 @@ ORANG_TUA_HTML = """
 
                 if (!window.Chart) {
                     const script = document.createElement('script');
-                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                    script.src = '/static/chart.umd.js';
                     script.onload = () => drawBukuChart(data);
                     document.head.appendChild(script);
                 } else {
@@ -12288,7 +12216,7 @@ ORANG_TUA_HTML = """
                     
                     // Fetch ZenQuote
                     try {
-                        const quoteRes = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://zenquotes.io/api/random'));
+                        const quoteRes = await fetch('/api/quote');
                         if (!quoteRes.ok) throw new Error('Gagal fetch');
                         const quoteData = await quoteRes.json();
                         const parsed = JSON.parse(quoteData.contents);
@@ -12651,6 +12579,16 @@ def handle_ot_nutrisi() -> Response | str | tuple[Response, int]:
 VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY')
 VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY')
 PUSH_NOTIFICATIONS_ENABLED = bool(VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY)
+
+# VAPID KEY ROTATION PROCEDURE:
+# 1. Generate new keys using `py-vapid --gen`.
+# 2. Update VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY environment variables.
+# 3. Restart all application workers.
+# Note: Existing client push subscriptions will expire upon next push attempt because
+# their signatures will no longer validate against the new key.
+if PUSH_NOTIFICATIONS_ENABLED:
+    _pub_fp = hashlib.sha256(VAPID_PUBLIC_KEY.encode()).hexdigest()[:16]
+    app.logger.info("VAPID key fingerprint: %s", _pub_fp)
 if not PUSH_NOTIFICATIONS_ENABLED:
     app.logger.warning("VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY not configured. Push notifications are disabled. Generate keys: py-vapid --gen")
 
@@ -12671,9 +12609,10 @@ def subscribe() -> Response | str | tuple[Response, int]:
             return jsonify({'error': 'no info'}), 400
         
         # Store subscription if not exists
-        existing = PushSubscription.query.filter_by(subscription_info=json.dumps(sub_info)).first()  # Guarded by if not existing check below
+        endpoint_hash = hashlib.sha256(sub_info['endpoint'].encode('utf-8')).hexdigest()
+        existing = PushSubscription.query.filter_by(endpoint_hash=endpoint_hash).first()  # Guarded by if not existing check below
         if not existing:
-            db.session.add(PushSubscription(subscription_info=json.dumps(sub_info)))
+            db.session.add(PushSubscription(subscription_info=json.dumps(sub_info), endpoint_hash=endpoint_hash))
             db.session.commit()
         
         return jsonify({'status': 'success'})
@@ -12813,7 +12752,59 @@ def cleanup_push_subscriptions() -> None:
             app.logger.error("Unexpected error in cleanup_push_subscriptions", exc_info=True)
             return
 
+
+RETENTION_WINDOWS_DAYS = {
+    'emotion_journal': int(os.getenv('RETAIN_EMOTION_JOURNAL_DAYS', 365)),
+    'epilepsi_log': int(os.getenv('RETAIN_EPILEPSI_LOG_DAYS', 1095)),
+    'tantrum_log': int(os.getenv('RETAIN_TANTRUM_LOG_DAYS', 365)),
+    'reaction_time_log': int(os.getenv('RETAIN_REACTION_TIME_LOG_DAYS', 180)),
+    'kognitif_emosi_log': int(os.getenv('RETAIN_KOGNITIF_EMOSI_LOG_DAYS', 180)),
+    'kognitif_bentuk_log': int(os.getenv('RETAIN_KOGNITIF_BENTUK_LOG_DAYS', 180)),
+    'orang_tua_nutrisi': int(os.getenv('RETAIN_ORANG_TUA_NUTRISI_DAYS', 180)),
+    'orang_tua_buku': int(os.getenv('RETAIN_ORANG_TUA_BUKU_DAYS', 365)),
+    'orang_tua_tantrum': int(os.getenv('RETAIN_ORANG_TUA_TANTRUM_DAYS', 365)),
+    'orang_tua_burnout': int(os.getenv('RETAIN_ORANG_TUA_BURNOUT_DAYS', 365))
+}
+
+_RETENTION_MODEL_MAP = {
+    'emotion_journal': (EmotionJournal, 'date'),
+    'epilepsi_log': (EpilepsiLog, 'created_at'),
+    'tantrum_log': (TantrumLog, 'created_at'),
+    'reaction_time_log': (ReactionTimeLog, 'created_at'),
+    'kognitif_emosi_log': (KognitifEmosiLog, 'created_at'),
+    'kognitif_bentuk_log': (KognitifBentukLog, 'created_at'),
+    'orang_tua_nutrisi': (OrangTuaNutrisi, 'created_at'),
+    'orang_tua_buku': (OrangTuaBuku, 'created_at'),
+    'orang_tua_tantrum': (OrangTuaTantrum, 'created_at'),
+    'orang_tua_burnout': (OrangTuaBurnout, 'created_at')
+}
+
+def apply_behavioral_retention() -> None:
+    with app.app_context():
+        now = datetime.datetime.now()
+        total_purged = 0
+        try:
+            for key, (model, ts_col) in _RETENTION_MODEL_MAP.items():
+                window = RETENTION_WINDOWS_DAYS.get(key)
+                if not window:
+                    continue
+                cutoff = now - datetime.timedelta(days=window)
+                purged = model.query.filter(getattr(model, ts_col) < cutoff).delete(synchronize_session=False)
+                total_purged += purged
+            db.session.commit()
+            app.logger.info("Behavioral retention sweep purged %d rows", total_purged)
+        except IntegrityError:
+            db.session.rollback()
+            app.logger.warning("Integrity error in apply_behavioral_retention", exc_info=True)
+        except OperationalError:
+            db.session.rollback()
+            app.logger.warning("Operational error in apply_behavioral_retention", exc_info=True)
+        except Exception:
+            db.session.rollback()
+            app.logger.error("Unexpected error in apply_behavioral_retention", exc_info=True)
+
 scheduler.add_job(id='Cleanup Subscriptions', func=cleanup_push_subscriptions, trigger='cron', hour=3, minute=0, max_instances=1, coalesce=True, misfire_grace_time=3600)
+scheduler.add_job(id='Behavioral Retention Sweep', func=apply_behavioral_retention, trigger='cron', hour=2, minute=30, max_instances=1, coalesce=True, misfire_grace_time=3600)
 
 @app.route('/orang-tua/api/burnout', methods=['POST'])
 @limiter.limit(RATE_LIMIT_OT_API)
@@ -13036,7 +13027,7 @@ const ASSETS_TO_CACHE = [
     '/',
     '/static/logoslb.png',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-    'https://cdn.tailwindcss.com'
+    '/static/tailwind.min.css'
 ];
 
 self.addEventListener('install', (event) => {
