@@ -1,0 +1,10 @@
+Flask
+Flask-SQLAlchemy
+Flask-WTF
+Flask-Limiter
+Flask-Caching
+python-dotenv
+filetype
+pytz
+PyMySQL
+Pillow
