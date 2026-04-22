@@ -225,6 +225,33 @@ class QurbanAttendance(db.Model):
     check_in_time = db.Column(db.DateTime, server_default=func.now())
     status = db.Column(db.String(50), nullable=False) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
 
+class QurbanShohibul(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    phone = db.Column(db.String(50), nullable=True)
+    animal_number = db.Column(db.String(50), nullable=False)
+    animal_type = db.Column(db.String(50), nullable=False) # 'Sapi' or 'Kambing'
+    status = db.Column(db.String(50), nullable=False, default='Waiting') # 'Waiting', 'Slaughtering', 'Butchering', 'Ready'
+    pin = db.Column(db.String(50), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class QurbanVoucher(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nik_or_code = db.Column(db.String(100), unique=True, nullable=False)
+    rt_number = db.Column(db.String(50), nullable=False)
+    arrival_time = db.Column(db.String(50), nullable=False)
+    is_claimed = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
+class QurbanRTQuota(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    rt_number = db.Column(db.String(50), unique=True, nullable=False)
+    quota = db.Column(db.Integer, nullable=False)
+    claimed_count = db.Column(db.Integer, default=0)
+    is_locked = db.Column(db.Boolean, default=False)
+
+
+
 def get_settings():
     try:
         settings = {item.key: item.value for item in AppSettings.query.all()}
@@ -2585,44 +2612,44 @@ IDUL_ADHA_DASHBOARD_HTML = """
                     </form>
                     {% endif %}
 
-                    <!-- PLACEHOLDER 1 -->
-                    <a href="#" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+                    <!-- SCOREBOARD -->
+                    <a href="/idul-adha/scoreboard" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
                         <div class="bg-stone-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-stone-600 group-hover:bg-stone-500 group-hover:text-white transition-colors">
-                            <i class="fas fa-file-invoice text-2xl md:text-3xl"></i>
+                            <i class="fas fa-chart-bar text-2xl md:text-3xl"></i>
                         </div>
-                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-stone-600">Laporan Qurban</span>
+                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-stone-600 text-center">Public Transparency Scoreboard</span>
                     </a>
                     
-                    <!-- PLACEHOLDER 2 -->
-                    <a href="#" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+                    <!-- SHOHIBUL TRACKER -->
+                    <a href="/idul-adha/track" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
                         <div class="bg-red-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-red-600 group-hover:bg-red-500 group-hover:text-white transition-colors">
-                            <i class="fas fa-cow text-2xl md:text-3xl"></i>
+                            <i class="fas fa-search-location text-2xl md:text-3xl"></i>
                         </div>
-                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-red-600">Daftar Shohibul</span>
+                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-red-600 text-center">Sohibul Qurban Tracker</span>
                     </a>
                     
-                    <!-- PLACEHOLDER 3 -->
+                    <!-- DISTRIBUTION QUEUE -->
                     <a href="/idul-adha/distribution" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
                         <div class="bg-emerald-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                            <i class="fas fa-balance-scale text-2xl md:text-3xl"></i>
+                            <i class="fas fa-ticket-alt text-2xl md:text-3xl"></i>
                         </div>
-                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-emerald-600">Pembagian</span>
+                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-emerald-600 text-center">Smart Meat Distribution</span>
                     </a>
                     
-                     <!-- PLACEHOLDER 4 -->
-                    <a href="#" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+                     <!-- PETA DISTRIBUSI -->
+                    <a href="/idul-adha/rt-log" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
                         <div class="bg-orange-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                            <i class="fas fa-images text-2xl md:text-3xl"></i>
+                            <i class="fas fa-map-marked-alt text-2xl md:text-3xl"></i>
                         </div>
-                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-orange-600">Galeri Qurban</span>
+                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-orange-600 text-center">Peta Distribusi (Admin)</span>
                     </a>
                     
-                    <!-- PLACEHOLDER 5 -->
-                    <a href="#" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+                    <!-- FIKIH QURBAN -->
+                    <a href="/idul-adha/fikih" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
                         <div class="bg-blue-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                            <i class="fas fa-info-circle text-2xl md:text-3xl"></i>
+                            <i class="fas fa-book-open text-2xl md:text-3xl"></i>
                         </div>
-                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-blue-600">Panduan</span>
+                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-blue-600 text-center">Fikih Qurban & Kalkulator</span>
                     </a>
                 </div>
             </div>
@@ -7707,6 +7734,550 @@ def idul_adha_distribution():
             'Terlambat / Siluman': 'Leftover / Denied'
         }
     })
+
+
+# ==========================================
+# IDUL ADHA REVOLUTIONARY FEATURES
+# ==========================================
+import uuid
+import datetime
+
+# 1. Sohibul Qurban Tracker HTMLs
+SHOHIBUL_TRACKER_HTML = '''
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sohibul Qurban Tracker - Masjid Al Hijrah</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-stone-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-md">
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-bold text-red-800">Tracker Qurban</h1>
+            <p class="text-gray-600">Pantau proses pemotongan hewan Qurban Anda</p>
+        </div>
+
+        {% if shohibul %}
+            <div class="bg-white rounded-2xl p-6 shadow-xl border border-red-100">
+                <h2 class="text-xl font-bold text-gray-800 mb-2">{{ shohibul.name }}</h2>
+                <p class="text-gray-600 mb-6">Hewan: {{ shohibul.animal_type }} (No: {{ shohibul.animal_number }})</p>
+
+                <div class="space-y-6">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center {% if shohibul.status in ['Waiting', 'Slaughtering', 'Butchering', 'Ready'] %}bg-amber-500 text-white{% else %}bg-gray-200 text-gray-400{% endif %}">
+                            <i class="fas fa-hourglass-half"></i>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="font-bold {% if shohibul.status in ['Waiting', 'Slaughtering', 'Butchering', 'Ready'] %}text-gray-800{% else %}text-gray-400{% endif %}">Menunggu Antrian</h3>
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center {% if shohibul.status in ['Slaughtering', 'Butchering', 'Ready'] %}bg-red-500 text-white{% else %}bg-gray-200 text-gray-400{% endif %}">
+                            <i class="fas fa-cut"></i>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="font-bold {% if shohibul.status in ['Slaughtering', 'Butchering', 'Ready'] %}text-gray-800{% else %}text-gray-400{% endif %}">Proses Penyembelihan</h3>
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center {% if shohibul.status in ['Butchering', 'Ready'] %}bg-orange-500 text-white{% else %}bg-gray-200 text-gray-400{% endif %}">
+                            <i class="fas fa-drumstick-bite"></i>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="font-bold {% if shohibul.status in ['Butchering', 'Ready'] %}text-gray-800{% else %}text-gray-400{% endif %}">Proses Pencacahan</h3>
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center {% if shohibul.status == 'Ready' %}bg-emerald-500 text-white{% else %}bg-gray-200 text-gray-400{% endif %}">
+                            <i class="fas fa-box-open"></i>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="font-bold {% if shohibul.status == 'Ready' %}text-gray-800{% else %}text-gray-400{% endif %}">Bagian Shohibul Siap Diambil</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8">
+                    <a href="/idul-adha" class="block w-full bg-gray-100 text-center py-3 rounded-xl font-bold text-gray-600">Kembali</a>
+                </div>
+            </div>
+        {% else %}
+            <form action="/idul-adha/track" method="POST" class="bg-white rounded-2xl p-6 shadow-xl border border-red-100">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-bold mb-2">Masukkan PIN Tracker</label>
+                    <input type="text" name="pin" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="Contoh: SHB-1234" required>
+                </div>
+                <button type="submit" class="w-full bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700">Lacak Status</button>
+            </form>
+            <div class="mt-4">
+                 <a href="/idul-adha" class="block w-full bg-gray-100 text-center py-3 rounded-xl font-bold text-gray-600">Kembali</a>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
+'''
+
+SHOHIBUL_ADMIN_HTML = '''
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>Admin Shohibul Qurban</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-md p-6">
+        <h1 class="text-2xl font-bold mb-6 text-red-800">Panel Admin Shohibul</h1>
+
+        <form action="/idul-adha/shohibul-admin/add" method="POST" class="mb-8 p-4 bg-gray-50 rounded-lg">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <h2 class="font-bold mb-4">Tambah Shohibul Baru</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <input type="text" name="name" placeholder="Nama Shohibul" class="border p-2 rounded" required>
+                <input type="text" name="animal_number" placeholder="Nomor Hewan" class="border p-2 rounded" required>
+                <select name="animal_type" class="border p-2 rounded" required>
+                    <option value="Sapi">Sapi</option>
+                    <option value="Kambing">Kambing</option>
+                </select>
+                <button type="submit" class="bg-blue-600 text-white rounded p-2">Tambah & Generate PIN</button>
+            </div>
+        </form>
+
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-gray-200">
+                    <th class="p-3">Nama</th>
+                    <th class="p-3">No Hewan</th>
+                    <th class="p-3">PIN</th>
+                    <th class="p-3">Status</th>
+                    <th class="p-3">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in shohibuls %}
+                <tr class="border-b">
+                    <td class="p-3">{{ s.name }}</td>
+                    <td class="p-3">{{ s.animal_type }} - {{ s.animal_number }}</td>
+                    <td class="p-3 font-mono text-sm bg-gray-100 px-2">{{ s.pin }}</td>
+                    <td class="p-3 font-bold text-red-600">{{ s.status }}</td>
+                    <td class="p-3">
+                        <form action="/idul-adha/shohibul-admin/update" method="POST" class="flex gap-2">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" name="id" value="{{ s.id }}">
+                            <select name="status" class="border rounded p-1">
+                                <option value="Waiting" {% if s.status == 'Waiting' %}selected{% endif %}>Waiting</option>
+                                <option value="Slaughtering" {% if s.status == 'Slaughtering' %}selected{% endif %}>Slaughtering</option>
+                                <option value="Butchering" {% if s.status == 'Butchering' %}selected{% endif %}>Butchering</option>
+                                <option value="Ready" {% if s.status == 'Ready' %}selected{% endif %}>Ready</option>
+                            </select>
+                            <button type="submit" class="bg-green-500 text-white px-3 py-1 rounded text-sm">Update</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="mt-8">
+            <a href="/idul-adha" class="block w-full bg-gray-100 text-center py-3 rounded-xl font-bold text-gray-600">Kembali ke Menu Utama</a>
+        </div>
+    </div>
+</body>
+</html>
+'''
+
+# 2. Smart Meat Distribution HTMLs
+DISTRIBUTION_QUEUE_HTML = '''
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>E-Kupon Daging Qurban</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-emerald-50 p-8">
+    <div class="max-w-md mx-auto bg-white rounded-2xl shadow-xl p-6 text-center">
+        <h1 class="text-2xl font-bold text-emerald-800 mb-2">E-Kupon Qurban</h1>
+        <p class="text-gray-600 mb-6">Masukkan NIK atau Kode Voucher untuk mendapatkan jadwal pengambilan.</p>
+
+        {% if voucher %}
+            <div class="bg-emerald-100 border-2 border-emerald-500 p-6 rounded-xl mb-6">
+                <h2 class="text-lg font-bold text-emerald-800">Jadwal Anda</h2>
+                <div class="text-4xl font-black text-emerald-600 my-4">{{ voucher.arrival_time }}</div>
+                <p class="text-sm text-gray-700">RT: {{ voucher.rt_number }} | Status: {% if voucher.is_claimed %}Sudah Diambil{% else %}Belum Diambil{% endif %}</p>
+            </div>
+            <p class="text-sm text-red-500 font-bold mb-4">Tunjukkan layar ini kepada petugas keamanan di gerbang.</p>
+        {% else %}
+            <form action="/idul-adha/distribution" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="text" name="nik" placeholder="NIK / Kode Voucher" class="w-full border p-3 rounded-xl mb-4 text-center text-lg tracking-widest font-mono" required>
+                <input type="text" name="rt" placeholder="Nomor RT (Contoh: 01)" class="w-full border p-3 rounded-xl mb-4 text-center" required>
+                <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700">Dapatkan Jadwal</button>
+            </form>
+        {% endif %}
+        <div class="mt-6">
+            <a href="/idul-adha" class="text-emerald-600 hover:underline">Kembali</a>
+        </div>
+    </div>
+</body>
+</html>
+'''
+
+DISTRIBUTION_VERIFY_HTML = '''
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>Verifikasi Keamanan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 p-8">
+    <div class="max-w-md mx-auto bg-white rounded-2xl shadow-xl p-6">
+        <h1 class="text-2xl font-bold text-center mb-6">Verifikasi Gerbang</h1>
+        <form action="/idul-adha/verify" method="POST" class="mb-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="text" name="nik" placeholder="Masukkan NIK/Voucher" class="w-full border-2 border-gray-300 p-3 rounded-xl mb-4 text-center font-mono text-xl" required autofocus>
+            <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl">Cek Database</button>
+        </form>
+
+        {% if result %}
+            <div class="p-4 rounded-xl text-center text-white {% if result.valid %}bg-green-500{% else %}bg-red-500{% endif %}">
+                <h2 class="text-xl font-bold mb-2">{% if result.valid %}DIIZINKAN MASUK{% else %}DITOLAK{% endif %}</h2>
+                <p>{{ result.msg }}</p>
+                {% if result.valid %}
+                <form action="/idul-adha/verify/claim" method="POST" class="mt-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="nik" value="{{ result.nik }}">
+                    <button type="submit" class="bg-white text-green-600 font-bold py-2 px-4 rounded">Tandai Sudah Diambil</button>
+                </form>
+                {% endif %}
+            </div>
+        {% endif %}
+        <div class="mt-6 text-center">
+            <a href="/idul-adha" class="text-gray-500 hover:underline">Kembali ke Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>
+'''
+
+# 3. Public Transparency Scoreboard HTML
+QURBAN_SCOREBOARD_HTML = '''
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>Transparansi Qurban</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 p-4 md:p-8">
+    <div class="max-w-5xl mx-auto">
+        <h1 class="text-3xl font-black text-center text-emerald-800 mb-8">Scoreboard Transparansi Qurban</h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-2xl shadow-lg text-center border-t-4 border-red-500">
+                <i class="fas fa-cow text-4xl text-red-500 mb-4"></i>
+                <h2 class="text-gray-500 font-bold">Total Sapi</h2>
+                <p class="text-4xl font-black text-gray-800">{{ sapi_count }}</p>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-lg text-center border-t-4 border-amber-500">
+                <i class="fas fa-sheep text-4xl text-amber-500 mb-4"></i>
+                <h2 class="text-gray-500 font-bold">Total Kambing</h2>
+                <p class="text-4xl font-black text-gray-800">{{ kambing_count }}</p>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-lg text-center border-t-4 border-emerald-500">
+                <i class="fas fa-weight-hanging text-4xl text-emerald-500 mb-4"></i>
+                <h2 class="text-gray-500 font-bold">Estimasi Daging</h2>
+                <p class="text-4xl font-black text-gray-800">{{ est_weight }} <span class="text-lg text-gray-500">Kg</span></p>
+            </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-2xl shadow-lg mb-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Progres Distribusi</h2>
+            <div class="w-full bg-gray-200 rounded-full h-8 mb-4 overflow-hidden relative">
+                <div class="bg-emerald-500 h-8 rounded-full" style="width: {{ progress_pct }}%"></div>
+                <div class="absolute inset-0 flex items-center justify-center font-bold text-sm {% if progress_pct > 50 %}text-white{% else %}text-gray-700{% endif %}">
+                    {{ distributed }} / {{ total_target }} Paket ({{ progress_pct }}%)
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <a href="/idul-adha" class="inline-block bg-gray-800 text-white font-bold py-3 px-8 rounded-full hover:bg-gray-700">Kembali</a>
+        </div>
+    </div>
+</body>
+</html>
+'''
+
+# 4. Mustahik Mapping HTML
+RT_LOG_HTML = '''
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>Peta Distribusi & Log RT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-orange-50 p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-md p-6">
+        <h1 class="text-2xl font-bold mb-6 text-orange-800">Log Distribusi RT (Admin)</h1>
+
+        <form action="/idul-adha/rt-log/add" method="POST" class="mb-8 p-4 bg-orange-100 rounded-lg">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <h2 class="font-bold mb-4">Atur Kuota RT Baru</h2>
+            <div class="flex gap-4">
+                <input type="text" name="rt_number" placeholder="Nomor RT (ex: 01)" class="border p-2 rounded flex-1" required>
+                <input type="number" name="quota" placeholder="Total Kuota Kantong" class="border p-2 rounded flex-1" required>
+                <button type="submit" class="bg-orange-600 text-white rounded p-2 px-6">Simpan</button>
+            </div>
+        </form>
+
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-orange-200">
+                    <th class="p-3">RT</th>
+                    <th class="p-3">Kuota</th>
+                    <th class="p-3">Telah Diambil</th>
+                    <th class="p-3">Status</th>
+                    <th class="p-3">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in quotas %}
+                <tr class="border-b">
+                    <td class="p-3 font-bold">RT {{ r.rt_number }}</td>
+                    <td class="p-3">{{ r.quota }}</td>
+                    <td class="p-3">{{ r.claimed_count }}</td>
+                    <td class="p-3">
+                        {% if r.is_locked %}
+                        <span class="bg-red-100 text-red-800 py-1 px-3 rounded-full text-xs font-bold">TERKUNCI (LENGKAP)</span>
+                        {% else %}
+                        <span class="bg-green-100 text-green-800 py-1 px-3 rounded-full text-xs font-bold">AKTIF</span>
+                        {% endif %}
+                    </td>
+                    <td class="p-3">
+                        {% if not r.is_locked %}
+                        <form action="/idul-adha/rt-log/claim" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" name="id" value="{{ r.id }}">
+                            <input type="number" name="amount" value="1" min="1" max="{{ r.quota - r.claimed_count }}" class="border w-16 p-1 rounded">
+                            <button type="submit" class="bg-blue-500 text-white px-3 py-1 rounded text-sm ml-2">Log Pengambilan</button>
+                        </form>
+                        {% else %}
+                        <span class="text-gray-400 text-sm">Quota Terpenuhi</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="mt-8">
+            <a href="/idul-adha" class="block w-full bg-gray-100 text-center py-3 rounded-xl font-bold text-gray-600">Kembali</a>
+        </div>
+    </div>
+</body>
+</html>
+'''
+
+# 5. Fikih Qurban HTML
+FIKIH_QURBAN_HTML = '''
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>Fikih Qurban & Kalkulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-amber-50 p-4 md:p-8">
+    <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-blue-800 p-6 text-white text-center">
+            <h1 class="text-3xl font-bold">Ensiklopedia Fikih Qurban</h1>
+            <p class="mt-2 text-blue-200">Syariat, Tata Cara, dan Kalkulator Patungan</p>
+        </div>
+
+        <div class="p-6 md:p-8 space-y-8">
+            <section>
+                <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">Hukum & Larangan</h2>
+                <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                    <li>Tidak boleh memberikan daging, kulit, atau bagian apapun dari hewan qurban sebagai upah bagi panitia/tukang jagal. Panitia bekerja lillahi ta'ala atau dibayar dari kas masjid/sohibul secara terpisah.</li>
+                    <li>Sohibul Qurban disunnahkan untuk tidak memotong rambut dan kuku sejak 1 Dzulhijjah hingga hewan disembelih.</li>
+                    <li>Pembagian: 1/3 untuk Sohibul, 1/3 untuk dihadiahkan (tetangga/kerabat), 1/3 disedekahkan (fakir miskin).</li>
+                </ul>
+            </section>
+
+            <section class="bg-blue-50 p-6 rounded-xl border border-blue-100">
+                <h2 class="text-xl font-bold text-blue-800 mb-4">Kalkulator Patungan Sapi (7 Orang)</h2>
+                <div class="flex flex-col md:flex-row gap-4 items-end">
+                    <div class="flex-1 w-full">
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Total Harga Sapi (Rp)</label>
+                        <input type="number" id="cowPrice" class="w-full p-3 border rounded-lg focus:ring focus:ring-blue-200" placeholder="Contoh: 21000000">
+                    </div>
+                    <div class="flex-1 w-full">
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Biaya Operasional (Rp/Sapi)</label>
+                        <input type="number" id="opPrice" class="w-full p-3 border rounded-lg focus:ring focus:ring-blue-200" placeholder="Contoh: 500000" value="500000">
+                    </div>
+                    <button onclick="calculate()" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg w-full md:w-auto">Hitung</button>
+                </div>
+                <div id="resultBox" class="mt-4 p-4 bg-white rounded-lg border border-green-200 hidden">
+                    <p class="text-gray-600 text-sm">Biaya per Orang (1/7):</p>
+                    <p class="text-2xl font-black text-green-600" id="resultText">Rp 0</p>
+                </div>
+            </section>
+        </div>
+
+        <div class="p-6 bg-gray-50 border-t text-center">
+            <a href="/idul-adha" class="text-blue-600 font-bold hover:underline">Kembali ke Dashboard</a>
+        </div>
+    </div>
+
+    <script>
+        function calculate() {
+            const cow = parseFloat(document.getElementById('cowPrice').value) || 0;
+            const op = parseFloat(document.getElementById('opPrice').value) || 0;
+            if (cow > 0) {
+                const total = cow + op;
+                const perPerson = total / 7;
+                document.getElementById('resultText').innerText = "Rp " + perPerson.toLocaleString('id-ID');
+                document.getElementById('resultBox').classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
+'''
+
+# --- ROUTES ---
+
+@app.route('/idul-adha/track', methods=['GET', 'POST'])
+def shohibul_track():
+    shohibul = None
+    if request.method == 'POST':
+        pin = request.form.get('pin')
+        shohibul = QurbanShohibul.query.filter_by(pin=pin).first()
+    return render_template_string(SHOHIBUL_TRACKER_HTML, shohibul=shohibul)
+
+@app.route('/idul-adha/shohibul-admin', methods=['GET'])
+def shohibul_admin():
+    shohibuls = QurbanShohibul.query.all()
+    return render_template_string(SHOHIBUL_ADMIN_HTML, shohibuls=shohibuls)
+
+@app.route('/idul-adha/shohibul-admin/add', methods=['POST'])
+def shohibul_admin_add():
+    name = request.form.get('name')
+    animal_num = request.form.get('animal_number')
+    animal_type = request.form.get('animal_type')
+    pin = f"SHB-{uuid.uuid4().hex[:6].upper()}"
+    new_s = QurbanShohibul(name=name, animal_number=animal_num, animal_type=animal_type, pin=pin)
+    db.session.add(new_s)
+    db.session.commit()
+    return redirect('/idul-adha/shohibul-admin')
+
+@app.route('/idul-adha/shohibul-admin/update', methods=['POST'])
+def shohibul_admin_update():
+    sid = request.form.get('id')
+    status = request.form.get('status')
+    s = db.session.get(QurbanShohibul, sid)
+    if s:
+        s.status = status
+        db.session.commit()
+    return redirect('/idul-adha/shohibul-admin')
+
+@app.route('/idul-adha/distribution', methods=['GET', 'POST'])
+def distribution_queue():
+    voucher = None
+    if request.method == 'POST':
+        nik = request.form.get('nik')
+        rt = request.form.get('rt')
+        voucher = QurbanVoucher.query.filter_by(nik_or_code=nik).first()
+        if not voucher:
+            # Simple scheduling algorithm: Time staggered by RT
+            base_time = datetime.datetime.strptime("13:00", "%H:%M")
+            try:
+                rt_int = int(rt)
+            except:
+                rt_int = 1
+            added_minutes = (rt_int - 1) * 30
+            scheduled = (base_time + datetime.timedelta(minutes=added_minutes)).strftime("%H:%M")
+
+            voucher = QurbanVoucher(nik_or_code=nik, rt_number=rt, arrival_time=scheduled)
+            db.session.add(voucher)
+            db.session.commit()
+    return render_template_string(DISTRIBUTION_QUEUE_HTML, voucher=voucher)
+
+@app.route('/idul-adha/verify', methods=['GET', 'POST'])
+def verify_queue():
+    result = None
+    if request.method == 'POST':
+        nik = request.form.get('nik')
+        v = QurbanVoucher.query.filter_by(nik_or_code=nik).first()
+        if v:
+            if v.is_claimed:
+                result = {"valid": False, "msg": "Voucher ini sudah diklaim sebelumnya!"}
+            else:
+                result = {"valid": True, "msg": f"Jadwal: {v.arrival_time} | RT: {v.rt_number}", "nik": nik}
+        else:
+            result = {"valid": False, "msg": "Voucher/NIK tidak ditemukan dalam sistem."}
+    return render_template_string(DISTRIBUTION_VERIFY_HTML, result=result)
+
+@app.route('/idul-adha/verify/claim', methods=['POST'])
+def verify_claim():
+    nik = request.form.get('nik')
+    v = QurbanVoucher.query.filter_by(nik_or_code=nik).first()
+    if v:
+        v.is_claimed = True
+        db.session.commit()
+    return redirect('/idul-adha/verify')
+
+@app.route('/idul-adha/scoreboard')
+def scoreboard():
+    sapi_count = QurbanShohibul.query.filter_by(animal_type='Sapi').count()
+    kambing_count = QurbanShohibul.query.filter_by(animal_type='Kambing').count()
+    est_weight = (sapi_count * 70) + (kambing_count * 15) # Rough estimate logic
+
+    total_target_result = db.session.query(func.sum(QurbanRTQuota.quota)).scalar() or 0
+    distributed_result = db.session.query(func.sum(QurbanRTQuota.claimed_count)).scalar() or 0
+
+    progress_pct = 0
+    if total_target_result > 0:
+        progress_pct = int((distributed_result / total_target_result) * 100)
+
+    return render_template_string(QURBAN_SCOREBOARD_HTML,
+                                sapi_count=sapi_count, kambing_count=kambing_count,
+                                est_weight=est_weight, total_target=total_target_result,
+                                distributed=distributed_result, progress_pct=progress_pct)
+
+@app.route('/idul-adha/rt-log')
+def rt_log():
+    quotas = QurbanRTQuota.query.all()
+    return render_template_string(RT_LOG_HTML, quotas=quotas)
+
+@app.route('/idul-adha/rt-log/add', methods=['POST'])
+def rt_log_add():
+    rt = request.form.get('rt_number')
+    quota = request.form.get('quota')
+    try:
+        q = QurbanRTQuota(rt_number=rt, quota=int(quota))
+        db.session.add(q)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+    return redirect('/idul-adha/rt-log')
+
+@app.route('/idul-adha/rt-log/claim', methods=['POST'])
+def rt_log_claim():
+    qid = request.form.get('id')
+    amount = int(request.form.get('amount', 1))
+    q = db.session.get(QurbanRTQuota, qid)
+    if q and not q.is_locked:
+        q.claimed_count += amount
+        if q.claimed_count >= q.quota:
+            q.is_locked = True
+        db.session.commit()
+    return redirect('/idul-adha/rt-log')
+
+@app.route('/idul-adha/fikih')
+def fikih_qurban():
+    return render_template_string(FIKIH_QURBAN_HTML)
+
 
 if __name__ == '__main__':
     with app.app_context():
