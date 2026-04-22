@@ -18,6 +18,7 @@ from flask_caching import Cache
 from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 import filetype
+import pytz
 
 load_dotenv()
 
@@ -217,6 +218,12 @@ class EpilepsiLog(db.Model):
 class AppSettings(db.Model):
     key = db.Column(db.String(255), primary_key=True)
     value = db.Column(db.Text)
+
+class QurbanAttendance(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    check_in_time = db.Column(db.DateTime, server_default=func.now())
+    status = db.Column(db.String(50), nullable=False) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
 
 def get_settings():
     try:
@@ -781,7 +788,7 @@ def model_getitem(self, key):
 
 for model in [Finance, Agenda, Booking, Zakat, GalleryDakwah, Suggestion, RamadhanKas, 
               TarawihSchedule, IrmaSchedule, IrmaMember, IrmaKas, IrmaGallery, 
-              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings]:
+              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings, QurbanAttendance]:
     model.__getitem__ = model_getitem
 
 STYLES_HTML = """
@@ -2495,6 +2502,151 @@ FITUR_MASJID_HTML = """
 </script>
 """
 
+IDUL_ADHA_DASHBOARD_HTML = """
+<div class="pt-20 md:pt-32 pb-32 px-5 md:px-8 bg-gray-50 font-sans text-gray-800 selection:bg-amber-200 selection:text-amber-900">
+    <!-- HERO SECTION: IDUL ADHA -->
+    <div class="relative w-full bg-[#451a03] overflow-hidden pt-6 pb-12 mb-8 shadow-2xl rounded-[2.5rem] md:rounded-[4rem] border-b-4 border-[#78350f]">
+        <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+        <div class="absolute right-[-10%] top-0 opacity-10 transform rotate-12 pointer-events-none">
+            <i class="fas fa-kaaba text-[250px] md:text-[400px] text-[#fcd34d]"></i>
+        </div>
+
+        <div class="container mx-auto px-4 md:px-8 relative z-10 text-center mt-4">
+            <h1 class="text-4xl md:text-6xl font-bold text-[#fcd34d] mb-4 font-sans tracking-tight drop-shadow-lg">
+                Idul Adha Mode
+            </h1>
+            <p class="text-white/80 text-lg md:text-xl font-medium max-w-2xl mx-auto mb-8">
+                Portal Khusus Informasi & Kegiatan Qurban Masjid Al-Hijrah
+            </p>
+            <a href="/" class="inline-block bg-white/10 hover:bg-white/20 text-[#fcd34d] border border-[#fcd34d]/30 px-6 py-2.5 rounded-full font-bold transition backdrop-blur-sm">
+                <i class="fas fa-arrow-left mr-2"></i> Kembali ke Beranda
+            </a>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="container mx-auto px-4 md:px-8 max-w-6xl mb-12">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- LEFT COLUMN: MENU GRID -->
+            <div class="lg:col-span-2">
+                <h2 class="text-2xl font-bold text-[#451a03] mb-6 flex items-center border-l-4 border-[#78350f] pl-4">
+                    <i class="fas fa-th-large text-[#78350f] mr-3"></i>Menu Qurban
+                </h2>
+
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8 mb-8">
+                    <!-- ABSEN PANITIA (Time-Gated) -->
+                    {% if not is_valid_window %}
+                    <!-- DISABLED LATE STATE -->
+                    <div class="bg-red-50 p-5 md:p-8 rounded-3xl shadow-lg flex flex-col items-center justify-center h-36 md:h-48 border-2 border-red-500 opacity-80 relative overflow-hidden">
+                        <div class="absolute -right-4 -top-4 w-16 h-16 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold transform rotate-12 shadow-lg">LATE</div>
+                        <div class="bg-red-100 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-red-600">
+                            <i class="fas fa-times-circle text-2xl md:text-3xl"></i>
+                        </div>
+                        <span class="text-sm md:text-base font-bold text-red-700">Terlambat</span>
+                        <span class="text-[10px] text-red-500 text-center mt-1">Absensi Ditutup</span>
+                    </div>
+                    {% else %}
+                    <!-- ACTIVE FORM -->
+                    <form action="/idul-adha/absen" method="POST" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-amber-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-amber-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300 relative cursor-pointer" onclick="this.submit()">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="bg-amber-100 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-amber-700 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                            <i class="fas fa-clipboard-check text-2xl md:text-3xl"></i>
+                        </div>
+                        <span class="text-sm md:text-base font-bold text-[#78350f] group-hover:text-amber-700">Absen Panitia</span>
+                        <span class="text-[10px] text-amber-600 font-medium absolute bottom-3">Batas: 08:30 AM</span>
+                    </form>
+                    {% endif %}
+
+                    <!-- PLACEHOLDER 1 -->
+                    <a href="#" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+                        <div class="bg-stone-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-stone-600 group-hover:bg-stone-500 group-hover:text-white transition-colors">
+                            <i class="fas fa-file-invoice text-2xl md:text-3xl"></i>
+                        </div>
+                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-stone-600">Laporan Qurban</span>
+                    </a>
+
+                    <!-- PLACEHOLDER 2 -->
+                    <a href="#" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+                        <div class="bg-red-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-red-600 group-hover:bg-red-500 group-hover:text-white transition-colors">
+                            <i class="fas fa-cow text-2xl md:text-3xl"></i>
+                        </div>
+                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-red-600">Daftar Shohibul</span>
+                    </a>
+
+                    <!-- PLACEHOLDER 3 -->
+                    <a href="/idul-adha/distribution" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+                        <div class="bg-emerald-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                            <i class="fas fa-balance-scale text-2xl md:text-3xl"></i>
+                        </div>
+                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-emerald-600">Pembagian</span>
+                    </a>
+
+                     <!-- PLACEHOLDER 4 -->
+                    <a href="#" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+                        <div class="bg-orange-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                            <i class="fas fa-images text-2xl md:text-3xl"></i>
+                        </div>
+                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-orange-600">Galeri Qurban</span>
+                    </a>
+
+                    <!-- PLACEHOLDER 5 -->
+                    <a href="#" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+                        <div class="bg-blue-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                            <i class="fas fa-info-circle text-2xl md:text-3xl"></i>
+                        </div>
+                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-blue-600">Panduan</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: PRAYER CARD -->
+            <div class="flex flex-col gap-6">
+                <!-- PRAYER CARD -->
+                <div class="bg-gradient-to-br from-[#78350f] to-[#451a03] rounded-3xl p-6 md:p-10 text-white shadow-xl relative overflow-hidden transform md:hover:scale-[1.02] transition-transform duration-500 border border-[#fcd34d]/30">
+                    <a href="{{ url_for('fitur_masjid') }}" class="absolute top-4 right-4 bg-white/10 hover:bg-white text-white hover:text-[#78350f] px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.4)] z-20 flex items-center gap-1 backdrop-blur-sm">
+                        <i class="fas fa-mosque"></i> Fitur Lainnya
+                    </a>
+                    <div class="absolute top-0 right-0 opacity-5 transform translate-x-4 -translate-y-4">
+                        <i class="fas fa-mosque text-9xl"></i>
+                    </div>
+                    <div class="relative z-10">
+                        <p class="text-xs font-medium opacity-80 mb-1 tracking-wide uppercase text-[#fcd34d]">Waktu Sholat Berikutnya</p>
+                        <h2 class="text-4xl font-bold mb-3" id="next-prayer-name">--:--</h2>
+                        <div class="bg-black/30 backdrop-blur-md rounded-xl px-4 py-2 inline-block mb-6 border border-white/10">
+                            <span class="font-mono text-2xl font-bold tracking-wider" id="countdown-timer">--:--:--</span>
+                        </div>
+
+                        <div class="grid grid-cols-5 gap-1 text-center text-xs opacity-90 border-t border-[#fcd34d]/20 pt-4">
+                            <div>
+                                <div class="font-semibold mb-1 text-[#fcd34d]">Subuh</div>
+                                <div id="fajr-time" class="font-mono">--:--</div>
+                            </div>
+                            <div>
+                                <div class="font-semibold mb-1 text-[#fcd34d]">Dzuhur</div>
+                                <div id="dhuhr-time" class="font-mono">--:--</div>
+                            </div>
+                            <div>
+                                <div class="font-semibold mb-1 text-[#fcd34d]">Ashar</div>
+                                <div id="asr-time" class="font-mono">--:--</div>
+                            </div>
+                            <div>
+                                <div class="font-semibold mb-1 text-[#fcd34d]">Maghrib</div>
+                                <div id="maghrib-time" class="font-mono">--:--</div>
+                            </div>
+                            <div>
+                                <div class="font-semibold mb-1 text-[#fcd34d]">Isya</div>
+                                <div id="isha-time" class="font-mono">--:--</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+
 HOME_HTML = """
 <div class="pt-20 md:pt-32 pb-32 px-5 md:px-8">
     
@@ -2557,29 +2709,66 @@ HOME_HTML = """
                 </div>
             </div>
 
-            <!-- RAMADHAN BANNER (MOVED HERE) -->
-            <a href="/ramadhan" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-[#0b162c]">
-                <!-- Background & Texture -->
-                <div class="absolute inset-0 bg-[#0b162c]"></div>
-                <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
-                
-                <!-- Crescent Moon Background -->
-                <div class="absolute right-12 top-1/2 transform -translate-y-1/2 opacity-10 text-[#FFD700] pointer-events-none">
-                    <i class="fas fa-moon text-9xl"></i>
-                </div>
-                
-                <div class="relative px-6 py-6 md:px-8 md:py-8 flex items-center justify-between">
-                    <div>
-                        <h2 class="text-2xl md:text-3xl font-bold text-[#FFD700] mb-1 font-sans tracking-wide leading-none">Ramadhan Mode</h2>
-                        <p class="text-white/60 text-xs md:text-sm font-medium">Akses Dashboard Khusus Ramadhan</p>
-                    </div>
+            <!-- DUAL BANNER CONTAINER -->
+            <div class="relative w-full h-[120px] md:h-[140px] perspective-1000 group">
+                <!-- Inner flipper container -->
+                <div id="banner-flipper" class="w-full h-full relative transition-transform duration-700 preserve-3d">
                     
-                    <!-- Gold Circle Button -->
-                    <div class="w-12 h-12 rounded-full bg-[#FFD700] flex items-center justify-center text-[#0b1026] shadow-[0_0_15px_rgba(255,215,0,0.4)] group-hover:scale-110 transition-transform duration-300 relative z-10">
-                        <i class="fas fa-arrow-right text-lg"></i>
+                    <!-- RAMADHAN BANNER (FRONT FACE) -->
+                    <div class="absolute w-full h-full backface-hidden rounded-3xl overflow-hidden shadow-xl border border-[#0b162c]">
+                        <!-- Background & Texture -->
+                        <div class="absolute inset-0 bg-[#0b162c]"></div>
+                        <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+
+                        <!-- Crescent Moon Background -->
+                        <div class="absolute right-24 top-1/2 transform -translate-y-1/2 opacity-10 text-[#FFD700] pointer-events-none">
+                            <i class="fas fa-moon text-7xl md:text-8xl"></i>
+                        </div>
+
+                        <div class="relative w-full h-full px-6 py-4 md:px-8 flex items-center justify-between">
+                            <a href="/ramadhan" class="flex-1">
+                                <h2 class="text-2xl md:text-3xl font-bold text-[#FFD700] mb-1 font-sans tracking-wide leading-none hover:text-white transition-colors">Ramadhan Mode</h2>
+                                <p class="text-white/60 text-xs md:text-sm font-medium">Akses Dashboard Khusus Ramadhan</p>
+                            </a>
+
+                            <!-- Trigger Button to flip -->
+                            <button onclick="document.getElementById('banner-flipper').classList.toggle('rotate-x-180')" class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/10 hover:bg-[#FFD700] flex items-center justify-center text-[#FFD700] hover:text-[#0b1026] transition-all duration-300 relative z-10 ml-4 group/btn border border-[#FFD700]/30 shadow-[0_0_15px_rgba(255,215,0,0.2)] hover:shadow-[0_0_20px_rgba(255,215,0,0.6)]">
+                                <i class="fas fa-arrow-down text-sm md:text-lg group-hover/btn:translate-y-1 transition-transform"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- IDUL ADHA BANNER (BACK FACE) -->
+                    <div class="absolute w-full h-full backface-hidden rotate-x-180 rounded-3xl overflow-hidden shadow-xl border border-[#78350f]">
+                        <div class="absolute inset-0 bg-gradient-to-br from-[#78350f] to-[#451a03]"></div>
+                        <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+
+                        <div class="absolute right-24 top-1/2 transform -translate-y-1/2 opacity-10 text-[#fcd34d] pointer-events-none">
+                            <i class="fas fa-kaaba text-7xl md:text-8xl"></i>
+                        </div>
+
+                        <div class="relative w-full h-full px-6 py-4 md:px-8 flex items-center justify-between">
+                            <a href="/idul-adha" class="flex-1">
+                                <h2 class="text-2xl md:text-3xl font-bold text-[#fcd34d] mb-1 font-sans tracking-wide leading-none hover:text-white transition-colors">Idul Adha Mode</h2>
+                                <p class="text-white/70 text-xs md:text-sm font-medium">Akses Dashboard Khusus Qurban</p>
+                            </a>
+
+                            <!-- Trigger Button to flip back -->
+                            <button onclick="document.getElementById('banner-flipper').classList.toggle('rotate-x-180')" class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/10 hover:bg-[#fcd34d] flex items-center justify-center text-[#fcd34d] hover:text-[#451a03] transition-all duration-300 relative z-10 ml-4 group/btn border border-[#fcd34d]/30 shadow-[0_0_15px_rgba(252,211,77,0.2)] hover:shadow-[0_0_20px_rgba(252,211,77,0.6)]">
+                                <i class="fas fa-arrow-up text-sm md:text-lg group-hover/btn:-translate-y-1 transition-transform"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </a>
+            </div>
+
+            <!-- CSS required for flip transition -->
+            <style>
+                .perspective-1000 { perspective: 1000px; }
+                .preserve-3d { transform-style: preserve-3d; }
+                .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+                .rotate-x-180 { transform: rotateX(180deg); }
+            </style>
 
             <!-- IRMA BANNER -->
             <a href="/irma" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-[#A0B391] mt-4">
@@ -7459,6 +7648,82 @@ def donate_update():
     db.session.commit()
     return redirect(request.referrer)
 
+# --- IDUL ADHA ROUTES ---
+
+@app.route('/idul-adha')
+def idul_adha_dashboard():
+    makassar_tz = pytz.timezone('Asia/Makassar')
+    current_time = datetime.datetime.now(makassar_tz)
+
+    # Check if time is between 06:30 AM and 08:30 AM
+    start_time = current_time.replace(hour=6, minute=30, second=0, microsecond=0)
+    cutoff_time = current_time.replace(hour=8, minute=30, second=0, microsecond=0)
+    is_valid_window = start_time <= current_time <= cutoff_time
+
+    rendered_content = render_template_string(IDUL_ADHA_DASHBOARD_HTML,
+                                              is_valid_window=is_valid_window,
+                                              settings=get_settings())
+
+    # We will use the existing BASE_LAYOUT which already manages headers/footers/styles/js
+    # instead of rendering a raw HTML string.
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML,
+                                  active_page='idul-adha',
+                                  content=rendered_content,
+                                  is_admin=session.get('is_admin', False),
+                                  settings=get_settings())
+
+@app.route('/idul-adha/absen', methods=['POST'])
+def idul_adha_absen():
+    makassar_tz = pytz.timezone('Asia/Makassar')
+    current_time = datetime.datetime.now(makassar_tz)
+
+    # 06:30 AM to 08:30 AM
+    start_time = current_time.replace(hour=6, minute=30, second=0, microsecond=0)
+    cutoff_time = current_time.replace(hour=8, minute=30, second=0, microsecond=0)
+
+    if start_time <= current_time <= cutoff_time:
+        status = 'Hadir Pagi'
+    else:
+        status = 'Terlambat'
+
+    username = session.get('username', 'Unknown/Guest')
+
+    attendance = QurbanAttendance(
+        name=username,
+        check_in_time=current_time,
+        status=status
+    )
+    db.session.add(attendance)
+    db.session.commit()
+
+    if status == 'Hadir Pagi':
+        flash('Berhasil absen. Anda tercatat Hadir Pagi.', 'success')
+    else:
+        flash('Absen gagal atau terlambat. Anda tercatat Terlambat.', 'error')
+
+    return redirect(url_for('idul_adha_dashboard'))
+
+@app.route('/idul-adha/distribution')
+def idul_adha_distribution():
+    # Segregate committee members based on attendance status
+    hadir_pagi = QurbanAttendance.query.filter_by(status='Hadir Pagi').all()
+    terlambat = QurbanAttendance.query.filter(QurbanAttendance.status.in_(['Terlambat', 'Siluman'])).all()
+
+    # In a real scenario, this would render a specific distribution dashboard template.
+    # For now, we return JSON to fulfill the logic requirement.
+    return jsonify({
+        'hadir_pagi_count': len(hadir_pagi),
+        'terlambat_count': len(terlambat),
+        'hadir_pagi_members': [a.name for a in hadir_pagi],
+        'terlambat_members': [a.name for a in terlambat],
+        'allocation_policy': {
+            'Hadir Pagi': 'Full Meat Allocation',
+            'Terlambat / Siluman': 'Leftover / Denied'
+        }
+    })
 
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
     app.run(debug=True, port=5000)
