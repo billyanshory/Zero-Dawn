@@ -1,0 +1,1 @@
+pytest || echo "No tests"

@@ -39,7 +39,7 @@ app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB Limit
 app.secret_key = os.environ.get("SECRET_KEY", "fallback_dev_key")
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.permanent_session_lifetime = datetime.timedelta(days=30)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://alhijrahdelima_user:4lh1jr4hd3l1m5A!@localhost/alhijrahdelima'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI', 'mysql+pymysql://root:@localhost/masjid_al_hijrah')
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_size': 100, 'max_overflow': 200, 'pool_recycle': 280}
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -2826,7 +2826,7 @@ IDUL_ADHA_LAPORAN_HTML = '''
                 </div>
             </div>
             
-            <form action="/admin/qurban/stats" method="POST" class="space-y-4">
+            <form id="admin-qurban-form" class="space-y-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2852,7 +2852,7 @@ IDUL_ADHA_LAPORAN_HTML = '''
                     </div>
                 </div>
                 
-                <button type="submit" class="w-full bg-[#1B4332] text-white font-bold py-4 mt-2 rounded-xl hover:bg-[#153426] transition shadow-lg flex items-center justify-center gap-2">
+                <button type="button" onclick="submitQurbanStats(event)" class="w-full bg-[#1B4332] text-white font-bold py-4 mt-2 rounded-xl hover:bg-[#153426] transition shadow-lg flex items-center justify-center gap-2">
                     <i class="fas fa-save"></i> Simpan Data Real-time
                 </button>
             </form>
@@ -2865,7 +2865,14 @@ IDUL_ADHA_LAPORAN_HTML = '''
     async function fetchStats() {
         try {
             const res = await fetch('/api/qurban/stats');
-            if(!res.ok) throw new Error('Network response was not ok');
+            if(!res.ok) {
+                let errText = "Terjadi kesalahan saat menghubungi server. Mencoba kembali...";
+                try {
+                    const errJson = await res.json();
+                    errText = errJson.error || errText;
+                } catch(parseErr) {}
+                throw new Error(errText);
+            }
             const data = await res.json();
             
             // Hide loading/error, show grid
@@ -2914,9 +2921,15 @@ IDUL_ADHA_LAPORAN_HTML = '''
             console.error('Fetch error:', e);
             document.getElementById('loading-state').classList.add('hidden');
             document.getElementById('dashboard-grid').classList.add('hidden');
-            document.getElementById('error-state').classList.remove('hidden');
+
+            const errorState = document.getElementById('error-state');
+            errorState.classList.remove('hidden');
+            const p = errorState.querySelector('p');
+            if(p) p.innerText = e.message;
         }
     }
+
+
 
     // Initial fetch
     fetchStats();
@@ -3035,6 +3048,147 @@ IDUL_ADHA_HEWAN_ADMIN_HTML = '''
 IDUL_ADHA_LACAK_HTML = '''
 <div class="min-h-screen bg-[#F5F0E8] font-sans pb-20 flex flex-col items-center justify-center p-4">
     <!-- Card Container -->
+
+            <!-- ADMIN PIN PANEL -->
+            {% if is_admin %}
+            <div class="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-red-100 mb-8 w-full max-w-xl mx-auto" id="admin-pin-panel">
+                <div class="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+                    <h3 class="text-lg font-bold text-red-700"><i class="fas fa-lock mr-2"></i>Panel Admin: Manajemen PIN Shohibul</h3>
+                    <button onclick="openPinListModal()" class="bg-[#1B4332] text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-[#153426] transition">
+                        <i class="fas fa-list mr-1"></i> Daftar PIN
+                    </button>
+                </div>
+
+                <form id="generate-pin-form" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Nama Shohibul</label>
+                            <input type="text" id="shohibul_name" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Jenis Hewan</label>
+                            <select id="animal_type" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500">
+                                <option value="Sapi">Sapi</option>
+                                <option value="Kambing">Kambing</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="button" onclick="generatePin()" class="w-full bg-red-700 text-white font-bold py-3 mt-2 rounded-xl hover:bg-red-800 transition shadow-lg">
+                        Generate PIN Baru
+                    </button>
+                </form>
+
+                <div id="new-pin-display" class="hidden mt-6 p-4 bg-green-50 rounded-xl border border-green-200 text-center">
+                    <p class="text-xs text-green-700 font-bold mb-1">PIN Berhasil Dibuat!</p>
+                    <div class="text-3xl font-mono font-bold text-green-800 tracking-widest" id="generated-pin-text"></div>
+                    <p class="text-sm mt-2 text-gray-600">Untuk Shohibul: <strong id="generated-name-text"></strong></p>
+                </div>
+            </div>
+
+            <!-- PIN LIST MODAL -->
+            <div id="modal-pin-list" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closePinListModal()"></div>
+                <div class="bg-white rounded-3xl w-full max-w-3xl relative z-10 shadow-2xl flex flex-col max-h-[80vh]">
+                    <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+                        <h2 class="text-xl font-bold text-gray-800">Daftar PIN Shohibul</h2>
+                        <button onclick="closePinListModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="p-6 overflow-y-auto">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm whitespace-nowrap">
+                                <thead class="bg-gray-50 text-gray-600 font-bold">
+                                    <tr>
+                                        <th class="p-3 rounded-tl-lg">PIN</th>
+                                        <th class="p-3">Nama</th>
+                                        <th class="p-3">Hewan</th>
+                                        <th class="p-3">Status</th>
+                                        <th class="p-3 rounded-tr-lg">Dibuat</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pin-list-tbody" class="divide-y divide-gray-100 text-gray-700">
+                                    <tr><td colspan="5" class="p-4 text-center">Memuat data...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                async function generatePin() {
+                    const name = document.getElementById('shohibul_name').value;
+                    const type = document.getElementById('animal_type').value;
+                    if(!name) { alert("Nama Shohibul harus diisi"); return; }
+
+                    try {
+                        const res = await fetch('/api/qurban/shohibul/generate_pin', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({name: name, type: type})
+                        });
+                        if(!res.ok) {
+                            let errText = "Gagal membuat PIN";
+                            try { const errJson = await res.json(); errText = errJson.error || errText; } catch(e) {}
+                            throw new Error(errText);
+                        }
+                        const data = await res.json();
+                        if(data.success) {
+                            document.getElementById('generated-pin-text').innerText = data.pin;
+                            document.getElementById('generated-name-text').innerText = name;
+                            document.getElementById('new-pin-display').classList.remove('hidden');
+                            document.getElementById('shohibul_name').value = '';
+                        } else {
+                            throw new Error(data.error || "Gagal membuat PIN");
+                        }
+                    } catch(e) {
+                        alert(e.message);
+                    }
+                }
+
+                function closePinListModal() {
+                    document.getElementById('modal-pin-list').classList.add('hidden');
+                }
+
+                async function openPinListModal() {
+                    document.getElementById('modal-pin-list').classList.remove('hidden');
+                    const tbody = document.getElementById('pin-list-tbody');
+                    tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center">Memuat data...</td></tr>';
+
+                    try {
+                        const res = await fetch('/api/qurban/shohibul/list_pins');
+                        if(!res.ok) {
+                            let errText = "Gagal memuat data";
+                            try { const errJson = await res.json(); errText = errJson.error || errText; } catch(e) {}
+                            throw new Error(errText);
+                        }
+                        const data = await res.json();
+                        if(data.success) {
+                            if(data.pins.length === 0) {
+                                tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">Belum ada PIN.</td></tr>';
+                                return;
+                            }
+                            tbody.innerHTML = data.pins.map(p => `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="p-3 font-mono font-bold text-red-700">${p.pin}</td>
+                                    <td class="p-3">${p.name}</td>
+                                    <td class="p-3">${p.type}</td>
+                                    <td class="p-3"><span class="bg-gray-100 px-2 py-1 rounded text-xs">${p.status}</span></td>
+                                    <td class="p-3 text-xs text-gray-500">...</td>
+                                </tr>
+                            `).join('');
+                        } else {
+                            throw new Error(data.error || "Gagal memuat data");
+                        }
+                    } catch(e) {
+                        tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">${e.message}</td></tr>`;
+                    }
+                }
+            </script>
+            {% endif %}
+
+
+
+
     <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden relative">
         <!-- Header -->
         <div class="bg-[#1B4332] text-white p-6 relative">
@@ -3051,100 +3205,140 @@ IDUL_ADHA_LACAK_HTML = '''
         </div>
 
         <div class="p-6 md:p-8">
-            {% if error %}
-            <div class="text-center">
-                <div class="w-20 h-20 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-times text-4xl"></i>
-                </div>
-                <h3 class="text-xl font-bold text-gray-800 mb-2">PIN Tidak Ditemukan</h3>
-                <p class="text-sm text-gray-500 mb-6">{{ error }}</p>
-                <form action="/qurban/lacak" method="GET" class="flex gap-2">
-                    <input type="text" name="pin" placeholder="Masukkan PIN 6 karakter" class="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-mono font-bold uppercase text-center focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017]">
-                    <button type="submit" class="bg-[#1B4332] text-white px-6 rounded-xl font-bold text-sm shadow-md hover:bg-[#153426] transition">Cari</button>
-                </form>
-            </div>
-            {% elif animal %}
-            <!-- Identity -->
-            <div class="text-center mb-8 border-b border-gray-100 pb-6">
-                <div class="inline-flex items-center gap-2 bg-[#D4A017]/10 text-[#D4A017] px-4 py-2 rounded-full mb-3">
-                    <i class="fas {{ 'fa-cow' if animal.animal_type == 'Sapi' else 'fa-sheep' }}"></i>
-                    <span class="font-bold text-sm uppercase tracking-wider">{{ animal.animal_type }} No. {{ animal.queue_number }}</span>
-                </div>
-                <h3 class="text-2xl font-bold text-gray-800">{{ animal.sohibul_name }}</h3>
-            </div>
-
-            <!-- Progress Tracker -->
-            <div class="relative pl-6 space-y-8">
-                <!-- Line connection -->
-                <div class="absolute left-[35px] top-4 bottom-4 w-1 bg-gray-100 rounded-full"></div>
-
-                <!-- Step 1: Menunggu -->
-                <div class="relative flex items-center gap-4">
-                    <div class="w-6 h-6 rounded-full flex items-center justify-center z-10 
-                        {{ 'bg-[#1B4332] text-white shadow-[0_0_10px_rgba(27,67,50,0.5)]' if animal.status in ['menunggu_giliran', 'sedang_disembelih', 'proses_pencacahan', 'siap_diambil'] else 'bg-gray-200 text-gray-400' }}">
-                        <i class="fas fa-check text-[10px]"></i>
-                    </div>
-                    <div class="flex-1 bg-white p-3 rounded-xl border {{ 'border-[#D4A017] shadow-lg ring-1 ring-[#D4A017]' if animal.status == 'menunggu_giliran' else 'border-gray-100 opacity-60' }}">
-                        <p class="text-sm font-bold {{ 'text-[#D4A017]' if animal.status == 'menunggu_giliran' else 'text-gray-800' }}">⏳ Menunggu Giliran</p>
-                        <p class="text-[10px] text-gray-500 mt-1">Hewan sedang dalam antrean pemotongan.</p>
+            <!-- Main Content Container -->
+            <div id="lacak-container" class="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-gray-100 w-full max-w-xl mx-auto">
+                <div id="lacak-form-section">
+                    <div class="text-center py-6">
+                        <i class="fas fa-qrcode text-5xl text-gray-300 mb-4"></i>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Lacak Hewan Qurban Anda</h3>
+                        <p class="text-xs text-gray-500 mb-6">Masukkan PIN yang diberikan oleh panitia untuk melacak status hewan secara real-time.</p>
+                        <form id="lacak-form" class="flex flex-col gap-3">
+                            <input type="text" id="track-pin" required placeholder="Masukkan PIN 6 karakter" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-center font-mono font-bold text-lg uppercase focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017] tracking-widest">
+                            <button type="submit" class="w-full bg-[#1B4332] text-white py-4 rounded-xl font-bold shadow-lg hover:bg-[#153426] transition text-sm">Lacak Sekarang</button>
+                        </form>
                     </div>
                 </div>
 
-                <!-- Step 2: Disembelih -->
-                <div class="relative flex items-center gap-4">
-                    <div class="w-6 h-6 rounded-full flex items-center justify-center z-10 
-                        {{ 'bg-[#1B4332] text-white shadow-[0_0_10px_rgba(27,67,50,0.5)]' if animal.status in ['sedang_disembelih', 'proses_pencacahan', 'siap_diambil'] else 'bg-gray-200 text-gray-400' }}">
-                        <i class="fas {{ 'fa-check text-[10px]' if animal.status in ['proses_pencacahan', 'siap_diambil'] else 'fa-circle text-[8px]' }}"></i>
+                <div id="lacak-error-section" class="hidden text-center py-6 border border-red-100 bg-red-50 rounded-2xl mb-6">
+                    <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-times text-3xl"></i>
                     </div>
-                    <div class="flex-1 bg-white p-3 rounded-xl border {{ 'border-[#D4A017] shadow-lg ring-1 ring-[#D4A017]' if animal.status == 'sedang_disembelih' else 'border-gray-100 opacity-60' }}">
-                        <p class="text-sm font-bold {{ 'text-[#D4A017]' if animal.status == 'sedang_disembelih' else 'text-gray-800' }}">🔪 Sedang Disembelih</p>
-                        <p class="text-[10px] text-gray-500 mt-1">Panitia sedang melakukan proses penyembelihan.</p>
-                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Pencarian Gagal</h3>
+                    <p class="text-sm text-gray-500 mb-6" id="lacak-error-text"></p>
+                    <button onclick="resetLacak()" class="bg-[#1B4332] text-white px-6 py-2 rounded-xl font-bold text-sm shadow-md hover:bg-[#153426] transition">Coba Lagi</button>
                 </div>
 
-                <!-- Step 3: Pencacahan -->
-                <div class="relative flex items-center gap-4">
-                    <div class="w-6 h-6 rounded-full flex items-center justify-center z-10 
-                        {{ 'bg-[#1B4332] text-white shadow-[0_0_10px_rgba(27,67,50,0.5)]' if animal.status in ['proses_pencacahan', 'siap_diambil'] else 'bg-gray-200 text-gray-400' }}">
-                        <i class="fas {{ 'fa-check text-[10px]' if animal.status == 'siap_diambil' else 'fa-circle text-[8px]' }}"></i>
+                <div id="lacak-result-section" class="hidden">
+                    <div class="text-center mb-8 border-b border-gray-100 pb-6">
+                        <div class="inline-flex items-center gap-2 bg-[#D4A017]/10 text-[#D4A017] px-4 py-2 rounded-full mb-3">
+                            <i id="res-animal-icon" class="fas fa-cow"></i>
+                            <span class="font-bold text-sm uppercase tracking-wider" id="res-animal-type"></span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-gray-800" id="res-sohibul-name"></h3>
                     </div>
-                    <div class="flex-1 bg-white p-3 rounded-xl border {{ 'border-[#D4A017] shadow-lg ring-1 ring-[#D4A017]' if animal.status == 'proses_pencacahan' else 'border-gray-100 opacity-60' }}">
-                        <p class="text-sm font-bold {{ 'text-[#D4A017]' if animal.status == 'proses_pencacahan' else 'text-gray-800' }}">🥩 Proses Pencacahan & Penimbangan</p>
-                        <p class="text-[10px] text-gray-500 mt-1">Daging sedang dicacah dan ditimbang.</p>
-                    </div>
-                </div>
 
-                <!-- Step 4: Selesai -->
-                <div class="relative flex items-center gap-4">
-                    <div class="w-6 h-6 rounded-full flex items-center justify-center z-10 
-                        {{ 'bg-[#1B4332] text-white shadow-[0_0_10px_rgba(27,67,50,0.5)]' if animal.status == 'siap_diambil' else 'bg-gray-200 text-gray-400' }}">
-                        <i class="fas fa-check text-[10px]"></i>
+                    <div class="relative pl-6 space-y-8">
+                        <div class="absolute left-[35px] top-4 bottom-4 w-1 bg-gray-100 rounded-full"></div>
+
+                        <!-- Steps will be generated by JS -->
+                        <div id="res-steps-container"></div>
                     </div>
-                    <div class="flex-1 bg-white p-3 rounded-xl border {{ 'border-[#D4A017] shadow-lg ring-1 ring-[#D4A017] bg-[#D4A017]/5' if animal.status == 'siap_diambil' else 'border-gray-100 opacity-60' }}">
-                        <p class="text-sm font-bold {{ 'text-[#D4A017]' if animal.status == 'siap_diambil' else 'text-gray-800' }}">✅ Jatah Sohibul Siap Diambil</p>
-                        <p class="text-[10px] text-gray-500 mt-1">Silakan menuju masjid untuk mengambil jatah qurban Anda.</p>
+
+                    <div class="mt-8 pt-6 border-t border-gray-100 text-center">
+                        <button onclick="resetLacak()" class="bg-gray-100 text-gray-600 px-6 py-2 rounded-xl font-bold text-sm shadow-sm hover:bg-gray-200 transition">Cek PIN Lainnya</button>
                     </div>
                 </div>
             </div>
 
-            <div class="mt-8 text-center">
-                <button onclick="window.location.reload()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-6 py-2 rounded-full font-bold text-xs transition-colors border border-gray-200">
-                    <i class="fas fa-sync-alt mr-1"></i> Segarkan Status
-                </button>
-                <p class="text-[10px] text-gray-400 mt-3">Halaman ini diperbarui sesuai dengan ketukan panitia di lapangan.</p>
-            </div>
-            {% else %}
-            <!-- Initial Search Form -->
-            <div class="text-center py-6">
-                <i class="fas fa-qrcode text-5xl text-gray-300 mb-4"></i>
-                <h3 class="text-lg font-bold text-gray-800 mb-2">Lacak Hewan Qurban Anda</h3>
-                <p class="text-xs text-gray-500 mb-6">Masukkan PIN yang diberikan oleh panitia untuk melacak status hewan secara real-time.</p>
-                <form action="/qurban/lacak" method="GET" class="flex flex-col gap-3">
-                    <input type="text" name="pin" required placeholder="Masukkan PIN 6 karakter" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-center font-mono font-bold text-lg uppercase focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017] tracking-widest">
-                    <button type="submit" class="w-full bg-[#1B4332] text-white py-4 rounded-xl font-bold shadow-lg hover:bg-[#153426] transition text-sm">Lacak Sekarang</button>
-                </form>
-            </div>
-            {% endif %}
+            <script>
+                document.getElementById('lacak-form').addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const pin = document.getElementById('track-pin').value;
+                    const btn = this.querySelector('button');
+                    btn.disabled = true;
+                    btn.innerText = 'Mencari...';
+
+                    try {
+                        const res = await fetch('/qurban/lacak', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({pin: pin})
+                        });
+                        if(!res.ok) {
+                            let errText = "Terjadi kesalahan sistem saat mencari data.";
+                            try { const errJson = await res.json(); errText = errJson.error || errText; } catch(e) {}
+                            throw new Error(errText);
+                        }
+                        const data = await res.json();
+
+                        if(data.success) {
+                            showLacakResult(data.data);
+                        } else {
+                            throw new Error(data.error || "PIN Tidak Ditemukan");
+                        }
+                    } catch(err) {
+                        document.getElementById('lacak-form-section').classList.add('hidden');
+                        document.getElementById('lacak-error-section').classList.remove('hidden');
+                        document.getElementById('lacak-error-text').innerText = err.message;
+                    } finally {
+                        btn.disabled = false;
+                        btn.innerText = 'Lacak Sekarang';
+                    }
+                });
+
+                function resetLacak() {
+                    document.getElementById('lacak-result-section').classList.add('hidden');
+                    document.getElementById('lacak-error-section').classList.add('hidden');
+                    document.getElementById('lacak-form-section').classList.remove('hidden');
+                    document.getElementById('track-pin').value = '';
+                }
+
+                function showLacakResult(data) {
+                    document.getElementById('lacak-form-section').classList.add('hidden');
+                    document.getElementById('lacak-error-section').classList.add('hidden');
+                    document.getElementById('lacak-result-section').classList.remove('hidden');
+
+                    document.getElementById('res-animal-icon').className = data.animal_type === 'Sapi' ? 'fas fa-cow' : 'fas fa-sheep';
+                    document.getElementById('res-animal-type').innerText = data.animal_type + ' No. ' + data.queue_number;
+                    document.getElementById('res-sohibul-name').innerText = data.sohibul_name;
+
+                    const statuses = [
+                        {id: 'menunggu_giliran', label: 'Menunggu', desc: 'Hewan qurban sedang menunggu antrean pemotongan.', icon: 'fa-hourglass-half'},
+                        {id: 'sedang_disembelih', label: 'Diproses', desc: 'Sedang dalam proses penyembelihan sesuai syariat.', icon: 'fa-cut'},
+                        {id: 'proses_pencacahan', label: 'Pencacahan', desc: 'Daging sedang dicacah dan ditimbang.', icon: 'fa-balance-scale'},
+                        {id: 'siap_diambil', label: 'Selesai', desc: 'Daging qurban siap didistribusikan.', icon: 'fa-box-open'}
+                    ];
+
+                    let activeIdx = statuses.findIndex(s => s.id === data.status);
+                    if(activeIdx === -1) activeIdx = 0;
+
+                    const stepsHtml = statuses.map((s, idx) => {
+                        let statusColor = 'gray-300';
+                        let iconBg = 'bg-white border-2 border-gray-200 text-gray-300';
+                        if(idx < activeIdx) {
+                            statusColor = '#1B4332';
+                            iconBg = 'bg-[#1B4332] text-white border-2 border-[#1B4332]';
+                        } else if (idx === activeIdx) {
+                            statusColor = '#D4A017';
+                            iconBg = 'bg-[#D4A017] text-white border-4 border-white shadow-[0_0_0_2px_#D4A017] animate-pulse';
+                        }
+
+                        return `
+                        <div class="flex items-start gap-4 relative z-10">
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-1 ${iconBg} transition-all duration-500">
+                                <i class="fas ${s.icon}"></i>
+                            </div>
+                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex-1 ${idx === activeIdx ? 'ring-1 ring-[#D4A017]' : ''}">
+                                <h4 class="font-bold text-[${statusColor}]">${idx+1}. ${s.label}</h4>
+                                <p class="text-xs text-gray-500 mt-1">${s.desc}</p>
+                            </div>
+                        </div>
+                        `;
+                    }).join('');
+
+                    document.getElementById('res-steps-container').innerHTML = stepsHtml;
+                }
+            </script>
         </div>
     </div>
 </div>
@@ -3154,6 +3348,163 @@ IDUL_ADHA_LACAK_HTML = '''
 
 IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
 <div class="min-h-screen bg-[#F5F0E8] font-sans pb-20 flex flex-col items-center justify-center p-4">
+
+            <!-- ADMIN KUPON PANEL -->
+            {% if is_admin %}
+            <div class="bg-white rounded-3xl p-6 shadow-xl border border-yellow-500/20 mb-8 w-full max-w-md mx-auto relative z-20">
+                <div class="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+                    <h3 class="text-lg font-bold text-[#D4A017]"><i class="fas fa-lock mr-2"></i>Panel Admin: Manajemen Kupon</h3>
+                    <button onclick="openKuponListModal()" class="bg-[#1B4332] text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-[#153426] transition">
+                        <i class="fas fa-list mr-1"></i> Daftar Kupon
+                    </button>
+                </div>
+
+                <form id="generate-kupon-form" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">NIK Warga</label>
+                        <input type="text" id="warga_nik" required pattern="[0-9]{16}" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017]">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Slot RT / Waktu</label>
+                        <select id="slot_id" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017]">
+                            <option value="">Memuat slot...</option>
+                        </select>
+                    </div>
+                    <button type="button" onclick="generateKupon()" class="w-full bg-[#D4A017] text-[#1B4332] font-bold py-3 mt-2 rounded-xl hover:bg-[#b8860b] transition shadow-lg">
+                        Generate Kupon Baru
+                    </button>
+                </form>
+
+                <div id="new-kupon-display" class="hidden mt-6 p-4 bg-yellow-50 rounded-xl border border-yellow-200 text-center">
+                    <p class="text-xs text-[#D4A017] font-bold mb-1">Kupon Berhasil Dibuat!</p>
+                    <div class="text-3xl font-mono font-bold text-[#1B4332] tracking-widest uppercase" id="generated-kupon-text"></div>
+                    <p class="text-sm mt-2 text-gray-600">NIK: <strong id="generated-nik-text"></strong></p>
+                </div>
+            </div>
+
+            <!-- KUPON LIST MODAL -->
+            <div id="modal-kupon-list" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeKuponListModal()"></div>
+                <div class="bg-white rounded-3xl w-full max-w-3xl relative z-10 shadow-2xl flex flex-col max-h-[80vh]">
+                    <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+                        <h2 class="text-xl font-bold text-gray-800">Daftar Kupon Distribusi</h2>
+                        <button onclick="closeKuponListModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="p-6 overflow-y-auto">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm whitespace-nowrap">
+                                <thead class="bg-gray-50 text-gray-600 font-bold">
+                                    <tr>
+                                        <th class="p-3 rounded-tl-lg">Kupon</th>
+                                        <th class="p-3">NIK</th>
+                                        <th class="p-3">RT / Waktu</th>
+                                        <th class="p-3">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="kupon-list-tbody" class="divide-y divide-gray-100 text-gray-700">
+                                    <tr><td colspan="4" class="p-4 text-center">Memuat data...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                async function loadSlots() {
+                    try {
+                        const res = await fetch('/api/qurban/pembagian/slots');
+                        if(!res.ok) throw new Error('Gagal memuat slot');
+                        const data = await res.json();
+                        if(data.success) {
+                            const select = document.getElementById('slot_id');
+                            if(data.slots.length === 0) {
+                                select.innerHTML = '<option value="">Belum ada slot dikonfigurasi</option>';
+                            } else {
+                                select.innerHTML = data.slots.map(s => `<option value="${s.id}">${s.rt} (${s.time})</option>`).join('');
+                            }
+                        }
+                    } catch(e) {
+                        console.error('Failed to load slots', e);
+                    }
+                }
+
+                async function generateKupon() {
+                    const nik = document.getElementById('warga_nik').value;
+                    const slot_id = document.getElementById('slot_id').value;
+                    if(!nik || nik.length !== 16) { alert("NIK harus 16 digit angka"); return; }
+                    if(!slot_id) { alert("Pilih slot RT"); return; }
+
+                    try {
+                        const res = await fetch('/api/qurban/pembagian/generate_kupon', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({nik: nik, slot_id: slot_id})
+                        });
+                        if(!res.ok) {
+                            let errText = "Gagal membuat Kupon";
+                            try { const errJson = await res.json(); errText = errJson.error || errText; } catch(e) {}
+                            throw new Error(errText);
+                        }
+                        const data = await res.json();
+                        if(data.success) {
+                            document.getElementById('generated-kupon-text').innerText = data.kupon;
+                            document.getElementById('generated-nik-text').innerText = nik;
+                            document.getElementById('new-kupon-display').classList.remove('hidden');
+                            document.getElementById('warga_nik').value = '';
+                        } else {
+                            throw new Error(data.error || "Gagal membuat Kupon");
+                        }
+                    } catch(e) {
+                        alert(e.message);
+                    }
+                }
+
+                function closeKuponListModal() {
+                    document.getElementById('modal-kupon-list').classList.add('hidden');
+                }
+
+                async function openKuponListModal() {
+                    document.getElementById('modal-kupon-list').classList.remove('hidden');
+                    const tbody = document.getElementById('kupon-list-tbody');
+                    tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Memuat data...</td></tr>';
+
+                    try {
+                        const res = await fetch('/api/qurban/pembagian/list_kupons');
+                        if(!res.ok) {
+                            let errText = "Gagal memuat data";
+                            try { const errJson = await res.json(); errText = errJson.error || errText; } catch(e) {}
+                            throw new Error(errText);
+                        }
+                        const data = await res.json();
+                        if(data.success) {
+                            if(data.kupons.length === 0) {
+                                tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">Belum ada Kupon.</td></tr>';
+                                return;
+                            }
+                            tbody.innerHTML = data.kupons.map(k => `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="p-3 font-mono font-bold text-[#D4A017] uppercase">${k.kupon}</td>
+                                    <td class="p-3">${k.nik}</td>
+                                    <td class="p-3">${k.slot}</td>
+                                    <td class="p-3"><span class="bg-gray-100 px-2 py-1 rounded text-xs">${k.status}</span></td>
+                                </tr>
+                            `).join('');
+                        } else {
+                            throw new Error(data.error || "Gagal memuat data");
+                        }
+                    } catch(e) {
+                        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">${e.message}</td></tr>`;
+                    }
+                }
+
+                // Load slots if admin
+                if(document.getElementById('slot_id')) {
+                    loadSlots();
+                }
+            </script>
+            {% endif %}
+
     <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden relative">
         <!-- Header -->
         <div class="bg-[#D4A017] text-[#1B4332] p-6 relative">
@@ -3170,11 +3521,124 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
         </div>
 
         <div class="p-6 md:p-8">
-            {% if error %}
-            <div class="bg-[#8B2635]/10 border border-[#8B2635]/20 text-[#8B2635] p-4 rounded-xl text-sm font-bold text-center mb-6">
-                {{ error }}
+            <div id="pembagian-form-section">
+                <div class="text-center mb-6">
+                    <p class="text-sm text-gray-600">Hindari antrean panjang. Cek jadwal pengambilan daging qurban RT Anda di sini.</p>
+                </div>
+                <form id="pembagian-form" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">NIK (Nomor Induk Kependudukan)</label>
+                        <input type="text" id="cek_nik" required pattern="[0-9]{16}" title="Masukkan 16 digit angka NIK" placeholder="Contoh: 6472010000000001" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-mono focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017] tracking-widest text-center">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Nomor Kupon (2FA)</label>
+                        <input type="text" id="cek_kupon" required placeholder="Sesuai yang diberikan RT" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-mono focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017] tracking-widest text-center uppercase">
+                    </div>
+
+                    <button type="submit" class="w-full bg-[#1B4332] text-white py-4 rounded-xl font-bold shadow-lg hover:bg-[#153426] transition mt-2">Cek Jadwal Saya</button>
+                </form>
             </div>
-            {% endif %}
+
+            <div id="pembagian-error-section" class="hidden text-center py-6 border border-red-100 bg-red-50 rounded-2xl mb-6 mt-4">
+                <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-exclamation-triangle text-3xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">Gagal Memuat Jadwal</h3>
+                <p class="text-sm text-gray-500 mb-6" id="pembagian-error-text"></p>
+                <button onclick="resetPembagian()" class="bg-[#1B4332] text-white px-6 py-2 rounded-xl font-bold text-sm shadow-md hover:bg-[#153426] transition">Coba Lagi</button>
+            </div>
+
+            <div id="pembagian-result-section" class="hidden">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner border border-green-200">
+                        <i class="fas fa-check text-3xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-[#1B4332] mb-1">Kupon Valid</h3>
+                    <p class="text-sm text-gray-500">Silakan ambil paket qurban Anda sesuai jadwal di bawah ini.</p>
+                </div>
+
+                <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center shadow-inner">
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Identitas (Sesuai NIK)</p>
+                    <p class="text-lg font-bold text-gray-800 mb-6" id="res-kupon-nik"></p>
+
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Waktu & Sesi Pengambilan (<span id="res-kupon-rt"></span>)</p>
+                    <p class="text-3xl font-mono font-bold text-[#D4A017] mb-6" id="res-kupon-time"></p>
+
+                    <p class="text-xs text-gray-600 mb-1">Kupon: <strong class="font-mono text-gray-800" id="res-kupon-number"></strong></p>
+                    <p class="text-xs text-gray-500">Status: <strong id="res-kupon-status" class="uppercase"></strong></p>
+                </div>
+
+                <div class="mt-6 text-center">
+                    <button onclick="resetPembagian()" class="text-xs font-bold text-gray-500 hover:text-[#1B4332] transition">Cek NIK Lainnya</button>
+                </div>
+            </div>
+
+            <script>
+                document.getElementById('pembagian-form').addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const nik = document.getElementById('cek_nik').value;
+                    const kupon = document.getElementById('cek_kupon').value;
+                    const btn = this.querySelector('button');
+                    btn.disabled = true;
+                    btn.innerText = 'Mengecek...';
+
+                    try {
+                        const res = await fetch('/qurban/pembagian/cek', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({nik: nik, coupon_number: kupon})
+                        });
+                        if(!res.ok) {
+                            let errText = "Terjadi kesalahan sistem saat mencari data.";
+                            try { const errJson = await res.json(); errText = errJson.message || errText; } catch(e) {}
+                            throw new Error(errText);
+                        }
+                        const data = await res.json();
+
+                        if(data.found) {
+                            showPembagianResult(data.data);
+                        } else {
+                            throw new Error(data.message || "Data tidak ditemukan. Silakan hubungi panitia.");
+                        }
+                    } catch(err) {
+                        document.getElementById('pembagian-form-section').classList.add('hidden');
+                        document.getElementById('pembagian-error-section').classList.remove('hidden');
+                        document.getElementById('pembagian-error-text').innerText = err.message;
+                    } finally {
+                        btn.disabled = false;
+                        btn.innerText = 'Cek Jadwal Saya';
+                    }
+                });
+
+                function resetPembagian() {
+                    document.getElementById('pembagian-result-section').classList.add('hidden');
+                    document.getElementById('pembagian-error-section').classList.add('hidden');
+                    document.getElementById('pembagian-form-section').classList.remove('hidden');
+                    document.getElementById('cek_nik').value = '';
+                    document.getElementById('cek_kupon').value = '';
+                }
+
+                function showPembagianResult(data) {
+                    document.getElementById('pembagian-form-section').classList.add('hidden');
+                    document.getElementById('pembagian-error-section').classList.add('hidden');
+                    document.getElementById('pembagian-result-section').classList.remove('hidden');
+
+                    document.getElementById('res-kupon-nik').innerText = data.nik.substring(0, 4) + '********' + data.nik.substring(12, 16);
+                    document.getElementById('res-kupon-rt').innerText = data.rt_identifier;
+                    document.getElementById('res-kupon-time').innerText = data.time_start + ' - ' + data.time_end;
+                    document.getElementById('res-kupon-number').innerText = data.coupon_number;
+
+                    const statEl = document.getElementById('res-kupon-status');
+                    if(data.is_claimed) {
+                        statEl.innerText = 'SUDAH DIAMBIL';
+                        statEl.className = 'text-red-500 font-bold uppercase';
+                    } else {
+                        statEl.innerText = 'BELUM DIAMBIL';
+                        statEl.className = 'text-green-500 font-bold uppercase';
+                    }
+                }
+            </script>
             
             {% if kupon %}
             <!-- Result Display -->
@@ -3304,7 +3768,7 @@ IDUL_ADHA_PEMBAGIAN_ADMIN_HTML = '''
                     </div>
                 </div>
                 
-                <button type="submit" class="w-full bg-[#1B4332] text-white font-bold py-4 mt-2 rounded-xl hover:bg-[#153426] transition shadow-lg flex items-center justify-center gap-2">
+                <button type="button" onclick="submitQurbanStats(event)" class="w-full bg-[#1B4332] text-white font-bold py-4 mt-2 rounded-xl hover:bg-[#153426] transition shadow-lg flex items-center justify-center gap-2">
                     <i class="fas fa-plus"></i> Buat Slot Alokasi
                 </button>
             </form>
@@ -8965,6 +9429,7 @@ def api_qurban_stats():
         stats = QurbanStats.query.first()
         if not stats:
             return jsonify({
+                'success': True,
                 'total_cattle': 0,
                 'total_goat': 0,
                 'total_meat_weight_kg': 0.0,
@@ -8973,6 +9438,7 @@ def api_qurban_stats():
             })
             
         return jsonify({
+            'success': True,
             'total_cattle': stats.total_cattle,
             'total_goat': stats.total_goat,
             'total_meat_weight_kg': stats.total_meat_weight_kg,
@@ -8980,32 +9446,36 @@ def api_qurban_stats():
             'total_packages_distributed': stats.total_packages_distributed
         })
     except Exception as e:
-        app.logger.error(f"Error fetching Qurban stats: {e}")
-        return jsonify({'error': 'Failed to fetch data'}), 500
+        app.logger.error(f"Error fetching Qurban stats: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to fetch data'}), 500
 
 @app.route('/admin/qurban/stats', methods=['POST'])
 def admin_qurban_stats():
     if not session.get('is_admin'):
-        return redirect(url_for('index'))
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
         
     try:
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({'success': False, 'error': 'Invalid JSON body'}), 400
+
         stats = QurbanStats.query.first()
         if not stats:
             stats = QurbanStats()
             db.session.add(stats)
             
-        stats.total_cattle = int(request.form.get('total_cattle', 0))
-        stats.total_goat = int(request.form.get('total_goat', 0))
-        stats.total_meat_weight_kg = float(request.form.get('total_meat_weight_kg', 0.0))
-        stats.total_packages_prepared = int(request.form.get('total_packages_prepared', 0))
-        stats.total_packages_distributed = int(request.form.get('total_packages_distributed', 0))
+        stats.total_cattle = int(data.get('total_cattle', 0))
+        stats.total_goat = int(data.get('total_goat', 0))
+        stats.total_meat_weight_kg = float(data.get('total_meat_weight_kg', 0.0))
+        stats.total_packages_prepared = int(data.get('total_packages_prepared', 0))
+        stats.total_packages_distributed = int(data.get('total_packages_distributed', 0))
         
         db.session.commit()
+        return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Error saving Qurban stats: {e}")
-        
-    return redirect(url_for('idul_adha_laporan'))
+        app.logger.error(f"Error saving Qurban stats: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Terjadi kesalahan internal server'}), 500
 
 
 @app.route('/admin/qurban/hewan')
@@ -9070,51 +9540,237 @@ def admin_qurban_hewan_update_status(animal_id):
     return redirect(url_for('admin_qurban_hewan'))
 
 
-@app.route('/qurban/lacak', methods=['GET'])
+@app.route('/qurban/lacak', methods=['GET', 'POST'])
 def qurban_lacak():
-    pin = request.args.get('pin', '').strip().upper()
-    animal = None
-    error = None
-    
-    try:
-        if pin:
+    if request.method == 'POST':
+        try:
+            data = request.get_json(silent=True)
+            if not data:
+                return jsonify({'success': False, 'error': 'Invalid request format'}), 400
+
+            pin = data.get('pin', '').strip().upper()
+            if not pin:
+                return jsonify({'success': False, 'error': 'PIN wajib diisi'}), 400
+
             animal = QurbanAnimal.query.filter_by(pin=pin).first()
             if not animal:
-                error = "Silakan periksa kembali PIN Anda. Pastikan tidak ada salah ketik."
-    except Exception as e:
-        app.logger.error(f"Error looking up PIN: {e}")
-        error = "Terjadi kesalahan sistem saat mencari data."
-        
-    rendered_content = render_template_string(IDUL_ADHA_LACAK_HTML, animal=animal, error=error, settings=get_settings())
+                return jsonify({'success': False, 'error': 'PIN Tidak Ditemukan. Silakan periksa kembali PIN Anda.'})
+
+            return jsonify({
+                'success': True,
+                'data': {
+                    'animal_type': animal.animal_type,
+                    'queue_number': animal.queue_number,
+                    'sohibul_name': animal.sohibul_name,
+                    'status': animal.status
+                }
+            })
+        except Exception as e:
+            app.logger.error(f"Error looking up PIN: {e}", exc_info=True)
+            return jsonify({'success': False, 'error': 'Terjadi kesalahan sistem saat mencari data.'}), 500
+
+    # GET request just serves the page
+    rendered_content = render_template_string(IDUL_ADHA_LACAK_HTML, is_admin=session.get('is_admin', False))
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=session.get('is_admin', False), settings=get_settings())
+
+@app.route('/api/qurban/shohibul/generate_pin', methods=['POST'])
+def api_qurban_generate_pin():
+    if not session.get('is_admin'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    try:
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({'success': False, 'error': 'Invalid JSON body'}), 400
+
+        name = data.get('name', '').strip()
+        animal_type = data.get('type', 'Sapi').strip()
+
+        if not name:
+            return jsonify({'success': False, 'error': 'Nama required'}), 400
+
+        pin = None
+        for _ in range(10):
+            candidate = secrets.token_hex(3).upper()
+            if not QurbanAnimal.query.filter_by(pin=candidate).first():
+                pin = candidate
+                break
+
+        if not pin:
+            return jsonify({'success': False, 'error': 'Gagal generate PIN unik, coba lagi'}), 500
+
+        # Get highest queue number
+        highest_queue = db.session.query(db.func.max(QurbanAnimal.queue_number)).filter_by(animal_type=animal_type).scalar() or 0
+
+        animal = QurbanAnimal(
+            animal_type=animal_type,
+            queue_number=highest_queue + 1,
+            sohibul_name=name,
+            wa_number='',
+            pin=pin,
+            status='menunggu_giliran'
+        )
+        db.session.add(animal)
+        db.session.commit()
+
+        return jsonify({'success': True, 'pin': pin})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error generating PIN: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Terjadi kesalahan sistem'}), 500
+
+@app.route('/api/qurban/shohibul/list_pins', methods=['GET'])
+def api_qurban_list_pins():
+    if not session.get('is_admin'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        
+    try:
+        animals = QurbanAnimal.query.order_by(QurbanAnimal.id.desc()).all()
+        pins_data = []
+        for a in animals:
+            pins_data.append({
+                'pin': a.pin,
+                'name': a.sohibul_name,
+                'type': a.animal_type,
+                'status': a.status.replace('_', ' ').title(),
+                'created_at': a.id # no created_at column explicitly, use ID/implicit
+            })
+        return jsonify({'success': True, 'pins': pins_data})
+    except Exception as e:
+        app.logger.error(f"Error listing PINs: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Terjadi kesalahan sistem'}), 500
 
 
 @app.route('/qurban/pembagian/cek', methods=['GET', 'POST'])
 @limiter.limit("20 per hour")
 def qurban_pembagian_cek():
-    kupon = None
-    slot = None
-    error = None
-    
-    try:
-        if request.method == 'POST':
-            nik = request.form.get('nik', '').strip()
-            coupon_number = request.form.get('coupon_number', '').strip().upper()
+    if request.method == 'POST':
+        try:
+            data = request.get_json(silent=True)
+            if not data:
+                return jsonify({'found': False, 'message': 'Format request tidak valid.'}), 400
+
+            nik = data.get('nik', '').strip()
+            coupon_number = data.get('coupon_number', '').strip().upper()
             
             if not nik.isdigit() or len(nik) != 16:
-                error = "Format NIK tidak valid. Harus 16 digit angka."
-            else:
-                kupon = DistribusiKupon.query.filter_by(nik=nik, coupon_number=coupon_number).first()
-                if kupon:
-                    slot = DistribusiSlot.query.get(kupon.slot_id)
-                else:
-                    error = "Kombinasi NIK dan Nomor Kupon tidak ditemukan."
-    except Exception as e:
-        app.logger.error(f"Error checking coupon: {e}")
-        error = "Terjadi kesalahan sistem."
+                return jsonify({'found': False, 'message': 'Format NIK tidak valid. Harus 16 digit angka.'}), 400
 
-    rendered_content = render_template_string(IDUL_ADHA_PEMBAGIAN_CEK_HTML, kupon=kupon, slot=slot, error=error, settings=get_settings())
+            kupon = DistribusiKupon.query.filter_by(nik=nik, coupon_number=coupon_number).first()
+            if not kupon:
+                return jsonify({'found': False, 'message': 'Data tidak ditemukan. Silakan hubungi panitia.'})
+
+            slot = DistribusiSlot.query.get(kupon.slot_id)
+            if not slot:
+                return jsonify({'found': False, 'message': 'Slot distribusi tidak ditemukan.'})
+
+            return jsonify({
+                'found': True,
+                'data': {
+                    'nik': kupon.nik,
+                    'coupon_number': kupon.coupon_number,
+                    'rt_identifier': slot.rt_identifier,
+                    'time_start': slot.time_start,
+                    'time_end': slot.time_end,
+                    'is_claimed': kupon.is_claimed,
+                    'quota_left': slot.total_quota - slot.distributed_count
+                }
+            })
+        except Exception as e:
+            app.logger.error(f"Error checking kupon: {e}", exc_info=True)
+            return jsonify({'found': False, 'message': 'Terjadi kesalahan sistem saat mencari data.'}), 500
+
+    # GET request just serves the page
+    rendered_content = render_template_string(IDUL_ADHA_PEMBAGIAN_CEK_HTML, is_admin=session.get('is_admin', False))
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=session.get('is_admin', False), settings=get_settings())
+
+@app.route('/api/qurban/pembagian/slots', methods=['GET'])
+def api_qurban_pembagian_slots():
+    if not session.get('is_admin'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    try:
+        # Default initialization if empty
+        if DistribusiSlot.query.count() == 0:
+            default_slots = [
+                DistribusiSlot(rt_identifier='RT 01', time_start='08:00', time_end='10:00', total_quota=100),
+                DistribusiSlot(rt_identifier='RT 02', time_start='10:00', time_end='12:00', total_quota=100)
+            ]
+            db.session.bulk_save_objects(default_slots)
+            db.session.commit()
+
+        slots = DistribusiSlot.query.all()
+        slots_data = [{'id': s.id, 'rt': s.rt_identifier, 'time': f"{s.time_start} - {s.time_end}"} for s in slots]
+        return jsonify({'success': True, 'slots': slots_data})
+    except Exception as e:
+        app.logger.error(f"Error loading slots: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Terjadi kesalahan sistem'}), 500
+
+@app.route('/api/qurban/pembagian/generate_kupon', methods=['POST'])
+def api_qurban_generate_kupon():
+    if not session.get('is_admin'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    try:
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({'success': False, 'error': 'Invalid JSON body'}), 400
+
+        nik = data.get('nik', '').strip()
+        slot_id = data.get('slot_id')
+
+        if not nik or len(nik) != 16 or not nik.isdigit():
+            return jsonify({'success': False, 'error': 'NIK tidak valid'}), 400
+
+        slot = DistribusiSlot.query.get(slot_id)
+        if not slot:
+            return jsonify({'success': False, 'error': 'Slot tidak valid'}), 400
+
+        # check existing nik
+        if DistribusiKupon.query.filter_by(nik=nik).first():
+             return jsonify({'success': False, 'error': 'NIK sudah terdaftar'}), 400
+
+        kupon_number = None
+        for _ in range(10):
+            candidate = secrets.token_hex(4).upper()
+            if not DistribusiKupon.query.filter_by(coupon_number=candidate).first():
+                kupon_number = candidate
+                break
+
+        if not kupon_number:
+            return jsonify({'success': False, 'error': 'Gagal generate kupon unik'}), 500
+
+        new_kupon = DistribusiKupon(
+            slot_id=slot.id,
+            nik=nik,
+            coupon_number=kupon_number,
+            is_claimed=False
+        )
+        db.session.add(new_kupon)
+        db.session.commit()
+        return jsonify({'success': True, 'kupon': kupon_number})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error generating kupon: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Terjadi kesalahan sistem'}), 500
+
+@app.route('/api/qurban/pembagian/list_kupons', methods=['GET'])
+def api_qurban_list_kupons():
+    if not session.get('is_admin'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    try:
+        kupons = DistribusiKupon.query.order_by(DistribusiKupon.id.desc()).all()
+        kupons_data = []
+        for k in kupons:
+            slot = DistribusiSlot.query.get(k.slot_id)
+            kupons_data.append({
+                'kupon': k.coupon_number,
+                'nik': k.nik[:4] + '********' + k.nik[-4:],
+                'slot': f"{slot.rt_identifier} ({slot.time_start}-{slot.time_end})" if slot else "N/A",
+                'status': 'Diambil' if k.is_claimed else 'Belum Diambil'
+            })
+        return jsonify({'success': True, 'kupons': kupons_data})
+    except Exception as e:
+        app.logger.error(f"Error listing kupons: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Terjadi kesalahan sistem'}), 500
 
 
 @app.route('/admin/qurban/distribusi', methods=['GET', 'POST'])
@@ -9213,6 +9869,16 @@ def admin_qurban_peta():
         
     try:
         slots = DistribusiSlot.query.all()
+        # Add default slots if missing, to prevent UI crashes if slots is empty and total calculation behaves weirdly (though sum should be safe)
+        if not slots:
+            default_slots = [
+                DistribusiSlot(rt_identifier='RT 01', time_start='08:00', time_end='10:00', total_quota=100),
+                DistribusiSlot(rt_identifier='RT 02', time_start='10:00', time_end='12:00', total_quota=100)
+            ]
+            db.session.bulk_save_objects(default_slots)
+            db.session.commit()
+            slots = DistribusiSlot.query.all()
+
         total_rt = len(slots)
         total_quota = sum([s.total_quota for s in slots])
         total_distributed = sum([s.distributed_count for s in slots])
@@ -9228,7 +9894,7 @@ def admin_qurban_peta():
                                                   settings=get_settings())
         return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=True, settings=get_settings())
     except Exception as e:
-        app.logger.error(f"Error loading peta: {e}")
+        app.logger.error(f"Error loading Peta Distribusi: {e}", exc_info=True)
         return "Internal Server Error", 500
 
 @app.route('/admin/qurban/distribusi/handover/<int:slot_id>', methods=['POST'])
