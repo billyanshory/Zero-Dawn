@@ -248,7 +248,7 @@ class QurbanAnimal(db.Model):
     queue_number = db.Column(db.Integer, nullable=False)
     sohibul_name = db.Column(db.String(255), nullable=False)
     wa_number = db.Column(db.String(50), nullable=False)
-    pin = db.Column(db.String(10), nullable=False)
+    pin = db.Column(db.String(10), unique=True, nullable=False)
     status = db.Column(db.String(50), default='menunggu_giliran', nullable=False) # menunggu_giliran, sedang_disembelih, proses_pencacahan, siap_diambil
     updated_at = db.Column(db.DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -4084,14 +4084,14 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
         {% endwith %}
 
         <!-- Missing RTs -->
-        {% if missing_rts %}
+        {% if pending_rts %}
         <div class="bg-[#D4A017]/10 rounded-2xl p-5 border border-[#D4A017]/30 flex items-start gap-4">
             <div class="w-10 h-10 rounded-full bg-[#D4A017]/20 text-[#D4A017] flex items-center justify-center flex-shrink-0">
                 <i class="fas fa-exclamation-triangle"></i>
             </div>
             <div>
                 <h4 class="text-sm font-bold text-[#D4A017] mb-1 uppercase tracking-widest">RT Belum Terlayani</h4>
-                <p class="text-sm text-gray-800 font-bold">{{ missing_rts|join(', ') }}</p>
+                <p class="text-sm text-gray-800 font-bold">{{ pending_rts|join(', ') }}</p>
             </div>
         </div>
         {% endif %}
@@ -6462,7 +6462,8 @@ def therapy_log():
         db.session.add(log)
         db.session.commit()
     except Exception as e:
-        print(f"Error logging therapy: {e}")
+        db.session.rollback()
+        app.logger.error(f"Error logging therapy: {e}", exc_info=True)
     return redirect(url_for('index', open='modal-terapi-log'))
 
 @app.route('/finance', methods=['GET', 'POST'])
@@ -6483,7 +6484,7 @@ def finance():
             db.session.commit()
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"DB Error: {e}")
+            app.logger.error(f"DB Error: {e}", exc_info=True)
         return redirect(url_for('finance'))
     
     try:
@@ -6493,7 +6494,7 @@ def finance():
         total_out = db.session.query(func.sum(Finance.amount)).filter_by(type='Pengeluaran').scalar() or 0
         balance = total_in - total_out
     except Exception as e:
-        app.logger.error(f"DB Error: {e}")
+        app.logger.error(f"DB Error: {e}", exc_info=True)
         items = []
         total_in = total_out = balance = 0
 
@@ -6629,13 +6630,13 @@ def agenda():
             db.session.commit()
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"DB Error: {e}")
+            app.logger.error(f"DB Error: {e}", exc_info=True)
         return redirect(url_for('agenda'))
 
     try:
         items = Agenda.query.order_by(Agenda.date.asc(), Agenda.time.asc()).all()
     except Exception as e:
-        app.logger.error(f"DB Error: {e}")
+        app.logger.error(f"DB Error: {e}", exc_info=True)
         items = []
 
 #     conn.close()
@@ -6741,13 +6742,13 @@ def booking():
             db.session.commit()
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"DB Error: {e}")
+            app.logger.error(f"DB Error: {e}", exc_info=True)
         return redirect(url_for('booking'))
 
     try:
         items = Booking.query.order_by(Booking.created_at.desc()).all()
     except Exception as e:
-        app.logger.error(f"DB Error: {e}")
+        app.logger.error(f"DB Error: {e}", exc_info=True)
         items = []
 
 #     conn.close()
@@ -6848,7 +6849,7 @@ def zakat():
              db.session.commit()
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"DB Error: {e}")
+            app.logger.error(f"DB Error: {e}", exc_info=True)
         return redirect(url_for('zakat'))
     
     try:
@@ -6861,7 +6862,7 @@ def zakat():
         total_sapi = Zakat.query.filter_by(type='Qurban Sapi').count()
         total_kambing = Zakat.query.filter_by(type='Qurban Kambing').count()
     except Exception as e:
-        app.logger.error(f"DB Error: {e}")
+        app.logger.error(f"DB Error: {e}", exc_info=True)
         items = []
         total_zakat_fitrah = total_sapi = total_kambing = 0
 
@@ -6992,7 +6993,8 @@ def zakat_status():
             item.status = request.form.get('status', '')
             db.session.commit()
     except Exception as e:
-        print(f"Error updating zakat status: {e}")
+        db.session.rollback()
+        app.logger.error(f"Error updating zakat status: {e}", exc_info=True)
     return redirect(url_for('zakat'))
 
 @app.route('/gallery-dakwah', methods=['GET', 'POST'])
@@ -7019,13 +7021,13 @@ def gallery_dakwah():
             db.session.commit()
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"DB Error: {e}")
+            app.logger.error(f"DB Error: {e}", exc_info=True)
         return redirect(url_for('gallery_dakwah'))
     
     try:
         items = GalleryDakwah.query.order_by(GalleryDakwah.created_at.desc()).all()
     except Exception as e:
-        app.logger.error(f"DB Error: {e}")
+        app.logger.error(f"DB Error: {e}", exc_info=True)
         items = []
 
 #     conn.close()
@@ -7137,7 +7139,7 @@ def suggestion():
              db.session.add(item)
              db.session.commit()
          except Exception as e:
-             print(f"Error saving suggestion: {e}")
+             app.logger.error(f"Error saving suggestion: {e}", exc_info=True)
              db.session.rollback()
          return redirect(url_for('suggestion', success=1))
     
@@ -7222,7 +7224,7 @@ def donate():
             db.session.commit()
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"DB Error: {e}")
+            app.logger.error(f"DB Error: {e}", exc_info=True)
         return redirect(url_for('donate', source=request.args.get('source')))
 
     # Fetch settings
@@ -9050,7 +9052,7 @@ def ramadhan_dashboard():
         kas_in = db.session.query(func.sum(RamadhanKas.amount)).filter_by(type='Pemasukan').scalar() or 0
         kas_out = db.session.query(func.sum(RamadhanKas.amount)).filter_by(type='Pengeluaran').scalar() or 0
     except Exception as e:
-        app.logger.error(f"DB Error: {e}")
+        app.logger.error(f"DB Error: {e}", exc_info=True)
         ramadhan_kas_items = []
         kas_in = kas_out = 0
     
@@ -9059,7 +9061,7 @@ def ramadhan_dashboard():
         seed_ramadhan_schedule()
         tarawih_schedule = TarawihSchedule.query.order_by(TarawihSchedule.night_index.asc()).all()
     except Exception as e:
-        app.logger.error(f"DB Error: {e}")
+        app.logger.error(f"DB Error: {e}", exc_info=True)
         tarawih_schedule = []
         
     # Render CONTENT first
@@ -9095,7 +9097,8 @@ def ramadhan_kas_action():
         db.session.add(item)
         db.session.commit()
     except Exception as e:
-        print(f"Error saving kas: {e}")
+        db.session.rollback()
+        app.logger.error(f"Error saving kas: {e}", exc_info=True)
     return redirect(url_for('ramadhan_dashboard', open='modal-kas-ramadhan'))
 
 @app.route('/ramadhan/tarawih', methods=['POST'])
@@ -9117,7 +9120,8 @@ def ramadhan_tarawih_action():
             db.session.add(item)
         db.session.commit()
     except Exception as e:
-        print(f"Error saving tarawih: {e}")
+        db.session.rollback()
+        app.logger.error(f"Error saving tarawih: {e}", exc_info=True)
     return redirect(url_for('ramadhan_dashboard', open='modal-tarawih'))
 
 # --- IRMA ROUTES ---
@@ -9239,7 +9243,7 @@ def irma_schedule():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"DB Error: {e}")
+        app.logger.error(f"DB Error: {e}", exc_info=True)
     return redirect(url_for('irma_dashboard', open='modal-duty'))
 
 @app.route('/irma/join', methods=['GET', 'POST'])
@@ -9265,7 +9269,7 @@ def irma_join():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"DB Error: {e}")
+        app.logger.error(f"DB Error: {e}", exc_info=True)
     return redirect(url_for('irma_dashboard', open='modal-join'))
 
 @app.route('/irma/kas', methods=['POST'])
@@ -9281,7 +9285,7 @@ def irma_kas():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"DB Error: {e}")
+        app.logger.error(f"DB Error: {e}", exc_info=True)
     return redirect(url_for('irma_dashboard', open='modal-finance'))
 
 @app.route('/irma/gallery', methods=['POST'])
@@ -9308,7 +9312,7 @@ def irma_gallery():
         db.session.add(item)
         db.session.commit()
     except Exception as e:
-        print(f"Error uploading gallery: {e}")
+        app.logger.error(f"Error uploading gallery: {e}", exc_info=True)
         db.session.rollback()
         
     return redirect(url_for('irma_dashboard', open='modal-wall'))
@@ -9326,7 +9330,7 @@ def irma_proker():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"DB Error: {e}")
+        app.logger.error(f"DB Error: {e}", exc_info=True)
     return redirect(url_for('irma_dashboard', open='modal-events'))
 
 @app.route('/irma/curhat', methods=['POST'])
@@ -9343,7 +9347,7 @@ def irma_curhat():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"DB Error: {e}")
+        app.logger.error(f"DB Error: {e}", exc_info=True)
     return redirect(url_for('irma_dashboard', open='modal-qa'))
 
 def manifest():
@@ -9455,7 +9459,7 @@ def donate_update():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"DB Error: {e}")
+        app.logger.error(f"DB Error: {e}", exc_info=True)
     return redirect(request.referrer)
 
 # --- IDUL ADHA ROUTES ---
@@ -9537,7 +9541,7 @@ def idul_adha_absen():
                 flash('Absen gagal atau terlambat. Anda tercatat Terlambat.', 'error')
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"DB Error: {e}")
+            app.logger.error(f"DB Error: {e}", exc_info=True)
             flash('Terjadi kesalahan sistem saat absensi.', 'error')
             
         return redirect(url_for('idul_adha_absen'))
@@ -9570,7 +9574,7 @@ def admin_qurban_absen_verify(attendance_id):
             flash('Data kehadiran tidak ditemukan.', 'error')
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Error verifying attendance: {e}")
+        app.logger.error(f"Error verifying attendance: {e}", exc_info=True)
         flash('Terjadi kesalahan sistem.', 'error')
         
     return redirect(url_for('idul_adha_absen'))
@@ -9604,7 +9608,7 @@ def admin_qurban_absen_settings():
             flash('Waktu mulai dan selesai harus diisi.', 'error')
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Error saving absen settings: {e}")
+        app.logger.error(f"Error saving absen settings: {e}", exc_info=True)
         flash('Terjadi kesalahan sistem.', 'error')
         
     return redirect(url_for('idul_adha_absen'))
@@ -9626,7 +9630,7 @@ def idul_adha_distribution():
             }
         })
     except Exception as e:
-        app.logger.error(f"DB Error: {e}")
+        app.logger.error(f"DB Error: {e}", exc_info=True)
         return jsonify({'error': 'Terjadi kesalahan sistem'}), 500
 
 
@@ -9643,6 +9647,7 @@ def idul_adha_laporan():
                                   settings=get_settings())
 
 @app.route('/api/qurban/stats', methods=['GET'])
+@limiter.limit('20 per hour')
 def api_qurban_stats():
     try:
         stats = QurbanStats.query.first()
@@ -9705,7 +9710,7 @@ def admin_qurban_hewan():
     try:
         animals = QurbanAnimal.query.order_by(QurbanAnimal.id.desc()).all()
     except Exception as e:
-        app.logger.error(f"DB Error: {e}")
+        app.logger.error(f"DB Error: {e}", exc_info=True)
         animals = []
     rendered_content = render_template_string(IDUL_ADHA_HEWAN_ADMIN_HTML, animals=animals, is_admin=True)
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=True, settings=get_settings())
@@ -9732,7 +9737,7 @@ def admin_qurban_hewan_tambah():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Error saving animal: {e}")
+        app.logger.error(f"Error saving animal: {e}", exc_info=True)
         return jsonify({'error': 'Database error'}), 500
         
     return redirect(url_for('admin_qurban_hewan'))
@@ -9754,7 +9759,7 @@ def admin_qurban_hewan_update_status(animal_id):
             db.session.commit()
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Error updating animal status: {e}")
+        app.logger.error(f"Error updating animal status: {e}", exc_info=True)
         return jsonify({'error': 'Database error'}), 500
         
     return redirect(url_for('admin_qurban_hewan'))
@@ -9878,7 +9883,7 @@ def qurban_pembagian_cek():
             coupon_number = data.get('coupon_number', '').strip().upper()
             
             if not nik:
-                return jsonify({'found': False, 'message': 'Format Nama tidak valid.'}), 400
+                return jsonify({'found': False, 'message': 'Format NIK tidak valid.'}), 400
                 
             kupon = DistribusiKupon.query.filter_by(nik=nik, coupon_number=coupon_number).first()
             if not kupon:
@@ -9908,19 +9913,65 @@ def qurban_pembagian_cek():
     rendered_content = render_template_string(IDUL_ADHA_PEMBAGIAN_CEK_HTML, is_admin=session.get('is_admin', False))
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=session.get('is_admin', False), settings=get_settings())
 
+
+def init_default_slots():
+    try:
+        if DistribusiSlot.query.count() == 0:
+            if DistribusiSlot.query.with_for_update().count() == 0:
+                default_slots = [
+                    DistribusiSlot(rt_identifier='RT 01', time_start='08:00', time_end='10:00', total_quota=100),
+                    DistribusiSlot(rt_identifier='RT 02', time_start='10:00', time_end='12:00', total_quota=100)
+                ]
+                db.session.bulk_save_objects(default_slots)
+                db.session.commit()
+                return True
+    except Exception as e:
+        db.session.rollback()
+        app.logger.warning(f"Slot initialization race handled: {e}")
+    return False
+
+@app.route('/api/qurban/pembagian/slots', methods=['GET'])
+
+def init_default_slots():
+    try:
+        if DistribusiSlot.query.count() == 0:
+            if DistribusiSlot.query.with_for_update().count() == 0:
+                default_slots = [
+                    DistribusiSlot(rt_identifier='RT 01', time_start='08:00', time_end='10:00', total_quota=100),
+                    DistribusiSlot(rt_identifier='RT 02', time_start='10:00', time_end='12:00', total_quota=100)
+                ]
+                db.session.bulk_save_objects(default_slots)
+                db.session.commit()
+                return True
+    except Exception as e:
+        db.session.rollback()
+        app.logger.warning(f"Slot initialization race handled: {e}")
+    return False
+
+
+def init_default_slots():
+    try:
+        if DistribusiSlot.query.count() == 0:
+            if DistribusiSlot.query.with_for_update().count() == 0:
+                default_slots = [
+                    DistribusiSlot(rt_identifier='RT 01', time_start='08:00', time_end='10:00', total_quota=100),
+                    DistribusiSlot(rt_identifier='RT 02', time_start='10:00', time_end='12:00', total_quota=100)
+                ]
+                db.session.bulk_save_objects(default_slots)
+                db.session.commit()
+                return True
+    except Exception as e:
+        db.session.rollback()
+        app.logger.warning(f"Slot initialization race handled: {e}")
+    return False
+
 @app.route('/api/qurban/pembagian/slots', methods=['GET'])
 def api_qurban_pembagian_slots():
     if not session.get('is_admin'):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     try:
         # Default initialization if empty
-        if DistribusiSlot.query.count() == 0:
-            default_slots = [
-                DistribusiSlot(rt_identifier='RT 01', time_start='08:00', time_end='10:00', total_quota=100),
-                DistribusiSlot(rt_identifier='RT 02', time_start='10:00', time_end='12:00', total_quota=100)
-            ]
-            db.session.bulk_save_objects(default_slots)
-            db.session.commit()
+        init_default_slots()
             
         slots = DistribusiSlot.query.all()
         slots_data = [{'id': s.id, 'rt': s.rt_identifier, 'time': f"{s.time_start} - {s.time_end}"} for s in slots]
@@ -9943,7 +9994,7 @@ def api_qurban_generate_kupon():
         slot_id = data.get('slot_id')
         
         if not nik:
-            return jsonify({'success': False, 'error': 'Nama tidak valid'}), 400
+            return jsonify({'success': False, 'error': 'NIK tidak valid'}), 400
             
         slot = DistribusiSlot.query.get(slot_id)
         if not slot:
@@ -10029,14 +10080,14 @@ def admin_qurban_distribusi():
             return redirect(url_for('admin_qurban_distribusi'))
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Error in admin distribusi: {e}")
+        app.logger.error(f"Error in admin distribusi: {e}", exc_info=True)
         flash('Terjadi kesalahan pada database.', 'error')
 
     try:
         slots = DistribusiSlot.query.order_by(DistribusiSlot.time_start.asc()).all()
         kupons = DistribusiKupon.query.all()
     except Exception as e:
-        app.logger.error(f"Error loading distribusi data: {e}")
+        app.logger.error(f"Error loading distribusi data: {e}", exc_info=True)
         slots = []
         kupons = []
         
@@ -10082,7 +10133,7 @@ def admin_qurban_distribusi_tandai_selesai(kupon_id):
         
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Error claiming kupon: {e}")
+        app.logger.error(f"Error claiming kupon: {e}", exc_info=True)
         flash('Terjadi kesalahan sistem saat memproses kupon.', 'error')
         
     return redirect(url_for('admin_qurban_distribusi'))
@@ -10114,12 +10165,12 @@ def idul_adha_peta():
                                                   total_rt=total_rt,
                                                   total_quota=total_quota,
                                                   total_distributed=total_distributed,
-                                                  missing_rts=pending_rts,
+                                                  pending_rts=pending_rts,
                                                   is_admin=session.get('is_admin', False),
                                                   settings=get_settings())
         return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=session.get('is_admin', False), settings=get_settings())
     except Exception as e:
-        app.logger.error(f"Error loading peta distribusi: {e}")
+        app.logger.error(f"Error loading peta distribusi: {e}", exc_info=True)
         return "Internal Server Error", 500
 
 @app.route('/admin/qurban/peta')
@@ -10129,14 +10180,9 @@ def admin_qurban_peta():
         
     try:
         slots = DistribusiSlot.query.all()
-        # Add default slots if missing, to prevent UI crashes if slots is empty and total calculation behaves weirdly (though sum should be safe)
+        # Add default slots if missing
         if not slots:
-            default_slots = [
-                DistribusiSlot(rt_identifier='RT 01', time_start='08:00', time_end='10:00', total_quota=100),
-                DistribusiSlot(rt_identifier='RT 02', time_start='10:00', time_end='12:00', total_quota=100)
-            ]
-            db.session.bulk_save_objects(default_slots)
-            db.session.commit()
+            init_default_slots()
             slots = DistribusiSlot.query.all()
 
         total_rt = len(slots)
@@ -10149,7 +10195,7 @@ def admin_qurban_peta():
                                                   total_rt=total_rt,
                                                   total_quota=total_quota,
                                                   total_distributed=total_distributed,
-                                                  missing_rts=pending_rts,
+                                                  pending_rts=pending_rts,
                                                   is_admin=True, 
                                                   settings=get_settings())
         return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=True, settings=get_settings())
@@ -10185,7 +10231,7 @@ def admin_qurban_distribusi_handover(slot_id):
         flash(f'Serah terima {slot.rt_identifier} berhasil dicatat dan dikunci.', 'success')
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Error in handover: {e}")
+        app.logger.error(f"Error in handover: {e}", exc_info=True)
         flash('Terjadi kesalahan sistem saat menyimpan serah terima.', 'error')
         
     return redirect(url_for('admin_qurban_peta'))
@@ -10216,7 +10262,7 @@ def admin_qurban_distribusi_unlock(slot_id):
         flash(f'Kunci {slot.rt_identifier} berhasil dibuka.', 'success')
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Error in unlock override: {e}")
+        app.logger.error(f"Error in unlock override: {e}", exc_info=True)
         flash('Terjadi kesalahan sistem saat membuka kunci.', 'error')
         
     return redirect(url_for('admin_qurban_peta'))
