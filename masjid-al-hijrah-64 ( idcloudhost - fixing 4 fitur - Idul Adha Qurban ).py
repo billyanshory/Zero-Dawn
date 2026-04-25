@@ -40,7 +40,8 @@ app.secret_key = os.environ.get("SECRET_KEY", "fallback_dev_key")
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.permanent_session_lifetime = datetime.timedelta(days=30)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI', 'mysql+pymysql://root:@localhost/masjid_al_hijrah')
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_size': 100, 'max_overflow': 200, 'pool_recycle': 280}
+if not app.config['SQLALCHEMY_DATABASE_URI'].startswith('sqlite'):
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_size': 100, 'max_overflow': 200, 'pool_recycle': 280}
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4'}
@@ -225,6 +226,8 @@ class QurbanAttendance(db.Model):
     name = db.Column(db.String(255), nullable=False)
     check_in_time = db.Column(db.DateTime, server_default=func.now())
     status = db.Column(db.String(50), nullable=False) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
+    verified_by_admin = db.Column(db.Boolean, default=False)
+    verified_at = db.Column(db.DateTime, nullable=True)
 
 
 
@@ -2548,6 +2551,136 @@ FITUR_MASJID_HTML = """
 </script>
 """
 
+
+IDUL_ADHA_ABSEN_HTML = '''
+<div class="pt-20 md:pt-24 pb-32 px-5 md:px-8 bg-[#F5F0E8] min-h-screen font-sans text-gray-800">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-center mb-8 relative">
+            <a href="/idul-adha" class="bg-white/50 hover:bg-white text-[#1B4332] border border-[#1B4332]/20 px-4 py-2 rounded-full text-sm font-bold transition-colors absolute left-0 z-10 shadow-sm backdrop-blur-sm">
+                <i class="fas fa-arrow-left mr-2"></i> Kembali
+            </a>
+            <h1 class="text-3xl md:text-4xl font-bold text-[#1B4332] w-full text-center tracking-tight">Absen <span class="text-[#D4A017]">Panitia</span></h1>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-6 p-4 rounded-xl font-bold text-center shadow-lg {% if category == 'success' %}bg-green-100 text-green-800 border border-green-200{% else %}bg-red-100 text-red-800 border border-red-200{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% if is_admin %}
+        <!-- ADMIN PANEL -->
+        <div class="bg-white rounded-3xl p-6 shadow-xl border border-[#D4A017]/50 mb-8 relative overflow-hidden">
+            <div class="absolute top-0 right-0 bg-[#D4A017] text-white text-xs font-bold px-3 py-1 rounded-bl-xl shadow-md">
+                <i class="fas fa-lock mr-1"></i> Panel Admin
+            </div>
+            <h2 class="text-xl font-bold text-[#1B4332] mb-4 flex items-center"><i class="fas fa-cog mr-2 text-[#D4A017]"></i> Pengaturan Waktu Absensi</h2>
+            <form action="/admin/qurban/absen/settings" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Waktu Mulai (WITA)</label>
+                    <input type="time" name="start_time" value="{{ settings.absen_start | default('06:30') }}" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-[#D4A017] focus:border-transparent transition" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Waktu Selesai (WITA)</label>
+                    <input type="time" name="end_time" value="{{ settings.absen_end | default('08:30') }}" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-[#D4A017] focus:border-transparent transition" required>
+                </div>
+                <div class="md:col-span-2">
+                    <button type="submit" class="w-full bg-[#1B4332] hover:bg-[#153426] text-white font-bold py-3 rounded-xl transition shadow-lg">
+                        Simpan Pengaturan
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
+        {% if not is_admin %}
+            {% if is_valid_window %}
+            <form action="/idul-adha/absen" method="POST" class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 mb-8 text-center max-w-md mx-auto">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-fingerprint text-4xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-[#1B4332] mb-2">Check In Kehadiran</h2>
+                <p class="text-gray-600 mb-6 text-sm">Absensi dibuka hingga pukul {{ settings.absen_end | default('08:30') }} WITA.</p>
+                <button type="submit" class="w-full bg-[#D4A017] hover:bg-[#B8860B] text-white font-bold py-4 rounded-xl transition shadow-lg text-lg flex items-center justify-center">
+                    <i class="fas fa-check-circle mr-2"></i> Hadir Sekarang
+                </button>
+            </form>
+            {% else %}
+            <div class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 mb-8 text-center max-w-md mx-auto relative overflow-hidden">
+                <div class="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 relative z-10">
+                    <i class="fas fa-times-circle text-4xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-red-700 mb-2 relative z-10">Absensi Ditutup</h2>
+                <p class="text-gray-600 text-sm relative z-10">Waktu absensi saat ini tidak aktif.</p>
+                <div class="absolute inset-0 bg-red-50/50 pointer-events-none"></div>
+            </div>
+            {% endif %}
+        {% endif %}
+
+        <!-- ATTENDANCE LIST -->
+        <div class="bg-white rounded-3xl p-6 shadow-xl border border-gray-100">
+            <h2 class="text-xl font-bold text-[#1B4332] mb-4 flex items-center"><i class="fas fa-users mr-2 text-[#D4A017]"></i> Daftar Hadir Panitia</h2>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm whitespace-nowrap">
+                    <thead class="bg-gray-50 text-gray-600 font-bold">
+                        <tr>
+                            <th class="p-4 rounded-tl-xl">Nama Panitia</th>
+                            <th class="p-4">Waktu Check In</th>
+                            <th class="p-4">Status</th>
+                            {% if is_admin %}<th class="p-4 rounded-tr-xl">Aksi</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for record in attendances %}
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="p-4 font-bold text-gray-800">{{ record.name }}</td>
+                            <td class="p-4 text-gray-600">{{ record.check_in_time.strftime('%H:%M:%S') }} WITA</td>
+                            <td class="p-4">
+                                {% if record.verified_by_admin %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                        <i class="fas fa-check-circle mr-1"></i> Terverifikasi
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                                        <i class="fas fa-clock mr-1"></i> Menunggu Verifikasi
+                                    </span>
+                                {% endif %}
+                            </td>
+                            {% if is_admin %}
+                            <td class="p-4">
+                                {% if not record.verified_by_admin %}
+                                <form action="/admin/qurban/absen/verify/{{ record.id }}" method="POST" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition shadow-sm">
+                                        <i class="fas fa-check mr-1"></i> Verifikasi
+                                    </button>
+                                </form>
+                                {% else %}
+                                <span class="text-xs text-gray-400 font-medium"><i class="fas fa-check-double text-green-500 mr-1"></i> Selesai</span>
+                                {% endif %}
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="p-8 text-center text-gray-500">Belum ada data kehadiran hari ini.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+'''
+
 IDUL_ADHA_DASHBOARD_HTML = """
 <div class="pt-20 md:pt-32 pb-32 px-5 md:px-8 bg-gray-50 font-sans text-gray-800 selection:bg-amber-200 selection:text-amber-900">
     <!-- DESKTOP SPLIT HEADER -->
@@ -2621,14 +2754,13 @@ IDUL_ADHA_DASHBOARD_HTML = """
                     </div>
                     {% else %}
                     <!-- ACTIVE FORM -->
-                    <form action="/idul-adha/absen" method="POST" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-amber-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-amber-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300 relative cursor-pointer" onclick="this.submit()">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <a href="/idul-adha/absen" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-amber-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-amber-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300 relative cursor-pointer">
                         <div class="bg-amber-100 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-amber-700 group-hover:bg-amber-500 group-hover:text-white transition-colors">
                             <i class="fas fa-clipboard-check text-2xl md:text-3xl"></i>
                         </div>
                         <span class="text-sm md:text-base font-bold text-[#78350f] group-hover:text-amber-700">Absen Panitia</span>
                         <span class="text-[10px] text-amber-600 font-medium absolute bottom-3">Batas: 08:30 AM</span>
-                    </form>
+                    </a>
                     {% endif %}
 
                     <!-- FEATURE 1: Laporan Qurban -->
@@ -2656,7 +2788,7 @@ IDUL_ADHA_DASHBOARD_HTML = """
                     </a>
                     
                      <!-- FEATURE 4: Peta Distribusi (formerly Galeri Qurban) -->
-                    <a href="/admin/qurban/peta" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-[#1B4332]/10 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-[#1B4332]/5 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+                    <a href="/idul-adha/peta" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-[#1B4332]/10 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-[#1B4332]/5 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
                         <div class="bg-[#1B4332]/10 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-[#1B4332] group-hover:bg-[#1B4332] group-hover:text-white transition-colors">
                             <i class="fas fa-map-marked-alt text-2xl md:text-3xl"></i>
                         </div>
@@ -2862,6 +2994,52 @@ IDUL_ADHA_LAPORAN_HTML = '''
 </div>
 
 <script>
+
+    async function submitQurbanStats(event) {
+        if (event) event.preventDefault();
+
+        const btn = event ? event.target : document.querySelector('button[onclick="submitQurbanStats(event)"]');
+        const originalText = btn.innerText;
+        btn.innerText = "Menyimpan...";
+        btn.disabled = true;
+
+        const payload = {
+            total_cattle: document.getElementById('input-cattle').value || 0,
+            total_goat: document.getElementById('input-goat').value || 0,
+            total_meat_kg: document.getElementById('input-meat').value || 0,
+            total_packages_prepared: document.getElementById('input-packages-prep').value || 0,
+            total_packages_distributed: document.getElementById('input-packages-dist').value || 0
+        };
+
+        try {
+            const res = await fetch('/admin/qurban/stats', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                let errText = "Gagal menyimpan data";
+                try { const errJson = await res.json(); errText = errJson.error || errText; } catch(e) {}
+                throw new Error(errText);
+            }
+
+            const data = await res.json();
+            if (data.success) {
+                // Show success toast/banner (optional, standard alert for now)
+                fetchStats(); // refresh displayed values
+                alert("Data berhasil disimpan!");
+            } else {
+                throw new Error(data.error || "Gagal menyimpan data");
+            }
+        } catch(e) {
+            alert(e.message);
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    }
+
     async function fetchStats() {
         try {
             const res = await fetch('/api/qurban/stats');
@@ -3046,7 +3224,7 @@ IDUL_ADHA_HEWAN_ADMIN_HTML = '''
 
 
 IDUL_ADHA_LACAK_HTML = '''
-<div class="min-h-screen bg-[#F5F0E8] font-sans pb-20 flex flex-col items-center justify-center p-4">
+<div class="min-h-screen bg-[#F5F0E8] font-sans pt-24 md:pt-28 pb-20 flex flex-col items-center p-4">
     <!-- Card Container -->
 
             <!-- ADMIN PIN PANEL -->
@@ -3347,7 +3525,7 @@ IDUL_ADHA_LACAK_HTML = '''
 
 
 IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
-<div class="min-h-screen bg-[#F5F0E8] font-sans pb-20 flex flex-col items-center justify-center p-4">
+<div class="min-h-screen bg-[#F5F0E8] font-sans pt-24 md:pt-28 pb-20 flex flex-col items-center p-4">
     
             <!-- ADMIN KUPON PANEL -->
             {% if is_admin %}
@@ -3396,7 +3574,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                                 <thead class="bg-gray-50 text-gray-600 font-bold">
                                     <tr>
                                         <th class="p-3 rounded-tl-lg">Kupon</th>
-                                        <th class="p-3">NIK</th>
+                                        <th class="p-3">Nama KK</th>
                                         <th class="p-3">RT / Waktu</th>
                                         <th class="p-3">Status</th>
                                     </tr>
@@ -3430,16 +3608,16 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                 }
                 
                 async function generateKupon() {
-                    const nik = document.getElementById('warga_nik').value;
+                    const warga_nama = document.getElementById('warga_nama').value;
                     const slot_id = document.getElementById('slot_id').value;
-                    if(!nik || nik.length !== 16) { alert("NIK harus 16 digit angka"); return; }
+                    if(!warga_nama) { alert("Masukkan nama lengkap"); return; }
                     if(!slot_id) { alert("Pilih slot RT"); return; }
                     
                     try {
                         const res = await fetch('/api/qurban/pembagian/generate_kupon', {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({nik: nik, slot_id: slot_id})
+                            body: JSON.stringify({nik: warga_nama, slot_id: slot_id})
                         });
                         if(!res.ok) {
                             let errText = "Gagal membuat Kupon";
@@ -3497,7 +3675,23 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                         tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">${e.message}</td></tr>`;
                     }
                 }
-                
+
+                        const data = await res.json();
+                        if (data.success) {
+                            // Show success toast/banner (optional, standard alert for now)
+                            fetchStats(); // refresh displayed values
+                            alert("Data berhasil disimpan!");
+                        } else {
+                            throw new Error(data.error || "Gagal menyimpan data");
+                        }
+                    } catch(e) {
+                        alert(e.message);
+                    } finally {
+                        btn.innerText = originalText;
+                        btn.disabled = false;
+                    }
+                }
+
                 // Load slots if admin
                 if(document.getElementById('slot_id')) {
                     loadSlots();
@@ -3577,7 +3771,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
             <script>
                 document.getElementById('pembagian-form').addEventListener('submit', async function(e) {
                     e.preventDefault();
-                    const nik = document.getElementById('cek_nik').value;
+                    const nik = document.getElementById('cek_nama').value;
                     const kupon = document.getElementById('cek_kupon').value;
                     const btn = this.querySelector('button');
                     btn.disabled = true;
@@ -3615,7 +3809,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                     document.getElementById('pembagian-result-section').classList.add('hidden');
                     document.getElementById('pembagian-error-section').classList.add('hidden');
                     document.getElementById('pembagian-form-section').classList.remove('hidden');
-                    document.getElementById('cek_nik').value = '';
+                    document.getElementById('cek_nama').value = '';
                     document.getElementById('cek_kupon').value = '';
                 }
                 
@@ -3624,7 +3818,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                     document.getElementById('pembagian-error-section').classList.add('hidden');
                     document.getElementById('pembagian-result-section').classList.remove('hidden');
                     
-                    document.getElementById('res-kupon-nik').innerText = data.nik.substring(0, 4) + '********' + data.nik.substring(12, 16);
+                    document.getElementById('res-kupon-nik').innerText = data.nik;
                     document.getElementById('res-kupon-rt').innerText = data.rt_identifier;
                     document.getElementById('res-kupon-time').innerText = data.time_start + ' - ' + data.time_end;
                     document.getElementById('res-kupon-number').innerText = data.coupon_number;
@@ -3640,71 +3834,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                 }
             </script>
             
-            {% if kupon %}
-            <!-- Result Display -->
-            <div class="text-center mb-6">
-                <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Status Kupon</p>
-                {% if kupon.is_claimed %}
-                <div class="inline-flex items-center gap-2 bg-[#8B2635]/10 text-[#8B2635] px-4 py-2 rounded-full mb-3 border border-[#8B2635]/20">
-                    <i class="fas fa-check-circle"></i>
-                    <span class="font-bold text-sm uppercase">Sudah Diambil</span>
-                </div>
-                {% else %}
-                <div class="inline-flex items-center gap-2 bg-[#1B4332]/10 text-[#1B4332] px-4 py-2 rounded-full mb-3 border border-[#1B4332]/20">
-                    <i class="fas fa-clock"></i>
-                    <span class="font-bold text-sm uppercase">Belum Diambil</span>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- Ticket -->
-            <div class="bg-gradient-to-br from-[#1B4332] to-[#153426] rounded-2xl p-6 text-white shadow-xl relative overflow-hidden border border-white/10 mb-6">
-                <!-- Ticket Notch -->
-                <div class="absolute -left-4 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white rounded-full"></div>
-                <div class="absolute -right-4 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white rounded-full"></div>
-                
-                <div class="text-center border-b border-white/20 pb-4 mb-4 border-dashed relative z-10">
-                    <p class="text-xs text-[#D4A017] font-bold uppercase tracking-wider mb-1">Area Distribusi</p>
-                    <h3 class="text-4xl font-bold text-white">{{ slot.rt_identifier }}</h3>
-                </div>
-                
-                <div class="text-center relative z-10">
-                    <p class="text-[10px] text-gray-300 font-bold uppercase tracking-wider mb-2">Jadwal Pengambilan Anda</p>
-                    <div class="bg-[#D4A017] text-[#1B4332] rounded-xl py-3 px-4 inline-block font-mono font-bold text-2xl shadow-inner border border-white/20">
-                        {{ slot.time_start }} - {{ slot.time_end }} WIB
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-gray-50 rounded-xl p-4 border border-gray-100 text-center">
-                <p class="text-xs text-gray-600 mb-1">Kupon: <strong class="font-mono">{{ kupon.coupon_number }}</strong></p>
-                <p class="text-xs text-gray-500">Sisa Kuota Sesi Ini: <strong>{{ slot.total_quota - slot.distributed_count }}</strong> paket</p>
-            </div>
             
-            <div class="mt-6">
-                <a href="/qurban/pembagian/cek" class="block w-full text-center text-xs font-bold text-gray-500 hover:text-[#1B4332] transition">Cek NIK Lainnya</a>
-            </div>
-            {% else %}
-            <!-- Form -->
-            <div class="text-center mb-6">
-                <p class="text-sm text-gray-600">Hindari antrean panjang. Cek jadwal pengambilan daging qurban RT Anda di sini.</p>
-            </div>
-            <form action="/qurban/pembagian/cek" method="POST" class="space-y-4">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                
-                <div>
-                    <label class="block text-xs font-bold text-gray-600 mb-1">NIK (Nomor Induk Kependudukan)</label>
-                    <input type="text" name="nik" required pattern="[0-9]{16}" title="Masukkan 16 digit angka NIK" placeholder="Contoh: 6472010000000001" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-mono focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017] tracking-widest text-center">
-                </div>
-                
-                <div>
-                    <label class="block text-xs font-bold text-gray-600 mb-1">Nomor Kupon (2FA)</label>
-                    <input type="text" name="coupon_number" required placeholder="Sesuai yang diberikan RT" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-mono focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017] tracking-widest text-center uppercase">
-                </div>
-                
-                <button type="submit" class="w-full bg-[#1B4332] text-white py-4 rounded-xl font-bold shadow-lg hover:bg-[#153426] transition mt-2">Cek Jadwal Saya</button>
-            </form>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -3768,7 +3898,7 @@ IDUL_ADHA_PEMBAGIAN_ADMIN_HTML = '''
                     </div>
                 </div>
                 
-                <button type="button" onclick="submitQurbanStats(event)" class="w-full bg-[#1B4332] text-white font-bold py-4 mt-2 rounded-xl hover:bg-[#153426] transition shadow-lg flex items-center justify-center gap-2">
+                            <button type="submit" class="w-full bg-[#1B4332] text-white font-bold py-3 px-4 rounded-xl hover:bg-[#153426] transition shadow-lg mt-2 flex items-center justify-center">
                     <i class="fas fa-plus"></i> Buat Slot Alokasi
                 </button>
             </form>
@@ -3898,7 +4028,7 @@ IDUL_ADHA_PEMBAGIAN_ADMIN_HTML = '''
 
 
 IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
-<div class="min-h-screen bg-[#F5F0E8] font-sans pb-20">
+<div class="min-h-screen bg-[#F5F0E8] font-sans pt-20 md:pt-24 pb-20">
     <!-- Header -->
     <div class="bg-[#1B4332] text-white py-8 px-5 md:px-8 shadow-xl relative overflow-hidden">
         <div class="max-w-6xl mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -4040,7 +4170,7 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
 
 
 IDUL_ADHA_PANDUAN_HTML = '''
-<div class="min-h-screen bg-[#F5F0E8] font-sans pb-20 flex flex-col items-center p-4">
+<div class="min-h-screen bg-[#F5F0E8] font-sans pt-20 md:pt-24 pb-20 flex flex-col items-center p-4">
     <div class="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden relative mt-8">
         <!-- Header -->
         <div class="bg-[#1B4332] text-white p-6 md:p-8 relative">
@@ -9353,42 +9483,131 @@ def idul_adha_dashboard():
                                   is_admin=session.get('is_admin', False),
                                   settings=get_settings())
 
-@app.route('/idul-adha/absen', methods=['POST'])
+
+@app.route('/idul-adha/absen', methods=['GET', 'POST'])
 def idul_adha_absen():
     makassar_tz = pytz.timezone('Asia/Makassar')
     current_time = datetime.datetime.now(makassar_tz)
     
-    # 06:30 AM to 08:30 AM
-    start_time = current_time.replace(hour=6, minute=30, second=0, microsecond=0)
-    cutoff_time = current_time.replace(hour=8, minute=30, second=0, microsecond=0)
+    settings = get_settings()
+    absen_start_str = settings.get('absen_start', '06:30')
+    absen_end_str = settings.get('absen_end', '08:30')
     
-    if start_time <= current_time <= cutoff_time:
-        status = 'Hadir Pagi'
-    else:
-        status = 'Terlambat'
+    start_hour, start_minute = map(int, absen_start_str.split(':'))
+    end_hour, end_minute = map(int, absen_end_str.split(':'))
+
+    start_time = current_time.replace(hour=start_hour, minute=start_minute, second=0, microsecond=0)
+    cutoff_time = current_time.replace(hour=end_hour, minute=end_minute, second=0, microsecond=0)
+
+    is_valid_window = start_time <= current_time <= cutoff_time
+
+    if request.method == 'POST':
+        if not session.get('user'):
+            flash('Sesi Anda telah habis. Silakan login kembali.', 'error')
+            return redirect(url_for('login'))
+
+        username = session['user'].get('username', 'Unknown')
+
+        # Check if already checked in today
+        today_start = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
+        existing = QurbanAttendance.query.filter(
+            QurbanAttendance.name == username,
+            QurbanAttendance.check_in_time >= today_start
+        ).first()
         
-    username = session.get('username', 'Unknown/Guest')
+        if existing:
+            flash('Anda sudah absen hari ini.', 'error')
+            return redirect(url_for('idul_adha_absen'))
+
+        status = 'Hadir Pagi' if is_valid_window else 'Terlambat'
+
+        try:
+            attendance = QurbanAttendance(
+                name=username,
+                check_in_time=current_time,
+                status=status,
+                verified_by_admin=False
+            )
+            db.session.add(attendance)
+            db.session.commit()
+
+            if status == 'Hadir Pagi':
+                flash('Berhasil absen. Anda tercatat Hadir Pagi.', 'success')
+            else:
+                flash('Absen gagal atau terlambat. Anda tercatat Terlambat.', 'error')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"DB Error: {e}")
+            flash('Terjadi kesalahan sistem saat absensi.', 'error')
+
+        return redirect(url_for('idul_adha_absen'))
+
+    # GET logic
+    today_start = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
+    attendances = QurbanAttendance.query.filter(QurbanAttendance.check_in_time >= today_start).order_by(QurbanAttendance.check_in_time.desc()).all()
     
+    rendered_content = render_template_string(IDUL_ADHA_ABSEN_HTML,
+                                              is_valid_window=is_valid_window,
+                                              is_admin=session.get('is_admin', False),
+                                              attendances=attendances,
+                                              settings=settings)
+
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=session.get('is_admin', False), settings=settings)
+
+@app.route('/admin/qurban/absen/verify/<int:attendance_id>', methods=['POST'])
+def admin_qurban_absen_verify(attendance_id):
+    if not session.get('is_admin'):
+        return redirect(url_for('index'))
+        
     try:
-        attendance = QurbanAttendance(
-            name=username,
-            check_in_time=current_time,
-            status=status
-        )
-        db.session.add(attendance)
-        db.session.commit()
-        
-        if status == 'Hadir Pagi':
-            flash('Berhasil absen. Anda tercatat Hadir Pagi.', 'success')
+        attendance = QurbanAttendance.query.get(attendance_id)
+        if attendance:
+            attendance.verified_by_admin = True
+            attendance.verified_at = datetime.datetime.now()
+            db.session.commit()
+            flash('Kehadiran berhasil diverifikasi.', 'success')
         else:
-            flash('Absen gagal atau terlambat. Anda tercatat Terlambat.', 'error')
+            flash('Data kehadiran tidak ditemukan.', 'error')
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"DB Error: {e}")
-        flash('Terjadi kesalahan sistem saat absensi.', 'error')
+        app.logger.error(f"Error verifying attendance: {e}")
+        flash('Terjadi kesalahan sistem.', 'error')
         
-    return redirect(url_for('idul_adha_dashboard'))
+    return redirect(url_for('idul_adha_absen'))
 
+@app.route('/admin/qurban/absen/settings', methods=['POST'])
+def admin_qurban_absen_settings():
+    if not session.get('is_admin'):
+        return redirect(url_for('index'))
+
+    try:
+        start_time = request.form.get('start_time')
+        end_time = request.form.get('end_time')
+
+        if start_time and end_time:
+            # save to AppSettings
+            start_setting = AppSettings.query.get('absen_start')
+            if not start_setting:
+                start_setting = AppSettings(key='absen_start')
+                db.session.add(start_setting)
+            start_setting.value = start_time
+
+            end_setting = AppSettings.query.get('absen_end')
+            if not end_setting:
+                end_setting = AppSettings(key='absen_end')
+                db.session.add(end_setting)
+            end_setting.value = end_time
+
+            db.session.commit()
+            flash('Pengaturan waktu absensi berhasil disimpan.', 'success')
+        else:
+            flash('Waktu mulai dan selesai harus diisi.', 'error')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error saving absen settings: {e}")
+        flash('Terjadi kesalahan sistem.', 'error')
+
+    return redirect(url_for('idul_adha_absen'))
 @app.route('/idul-adha/distribution')
 def idul_adha_distribution():
     try:
@@ -9450,6 +9669,7 @@ def api_qurban_stats():
         return jsonify({'success': False, 'error': 'Failed to fetch data'}), 500
 
 @app.route('/admin/qurban/stats', methods=['POST'])
+@csrf.exempt
 def admin_qurban_stats():
     if not session.get('is_admin'):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -9541,6 +9761,7 @@ def admin_qurban_hewan_update_status(animal_id):
 
 
 @app.route('/qurban/lacak', methods=['GET', 'POST'])
+@csrf.exempt
 def qurban_lacak():
     if request.method == 'POST':
         try:
@@ -9574,6 +9795,7 @@ def qurban_lacak():
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=session.get('is_admin', False), settings=get_settings())
 
 @app.route('/api/qurban/shohibul/generate_pin', methods=['POST'])
+@csrf.exempt
 def api_qurban_generate_pin():
     if not session.get('is_admin'):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -9590,8 +9812,9 @@ def api_qurban_generate_pin():
             return jsonify({'success': False, 'error': 'Nama required'}), 400
             
         pin = None
+        alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         for _ in range(10):
-            candidate = secrets.token_hex(3).upper()
+            candidate = ''.join(secrets.choice(alphabet) for i in range(6))
             if not QurbanAnimal.query.filter_by(pin=candidate).first():
                 pin = candidate
                 break
@@ -9643,6 +9866,7 @@ def api_qurban_list_pins():
 
 @app.route('/qurban/pembagian/cek', methods=['GET', 'POST'])
 @limiter.limit("20 per hour")
+@csrf.exempt
 def qurban_pembagian_cek():
     if request.method == 'POST':
         try:
@@ -9653,8 +9877,8 @@ def qurban_pembagian_cek():
             nik = data.get('nik', '').strip()
             coupon_number = data.get('coupon_number', '').strip().upper()
             
-            if not nik.isdigit() or len(nik) != 16:
-                return jsonify({'found': False, 'message': 'Format NIK tidak valid. Harus 16 digit angka.'}), 400
+            if not nik:
+                return jsonify({'found': False, 'message': 'Format Nama tidak valid.'}), 400
                 
             kupon = DistribusiKupon.query.filter_by(nik=nik, coupon_number=coupon_number).first()
             if not kupon:
@@ -9706,6 +9930,7 @@ def api_qurban_pembagian_slots():
         return jsonify({'success': False, 'error': 'Terjadi kesalahan sistem'}), 500
 
 @app.route('/api/qurban/pembagian/generate_kupon', methods=['POST'])
+@csrf.exempt
 def api_qurban_generate_kupon():
     if not session.get('is_admin'):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -9717,8 +9942,8 @@ def api_qurban_generate_kupon():
         nik = data.get('nik', '').strip()
         slot_id = data.get('slot_id')
         
-        if not nik or len(nik) != 16 or not nik.isdigit():
-            return jsonify({'success': False, 'error': 'NIK tidak valid'}), 400
+        if not nik:
+            return jsonify({'success': False, 'error': 'Nama tidak valid'}), 400
             
         slot = DistribusiSlot.query.get(slot_id)
         if not slot:
@@ -9726,7 +9951,7 @@ def api_qurban_generate_kupon():
             
         # check existing nik
         if DistribusiKupon.query.filter_by(nik=nik).first():
-             return jsonify({'success': False, 'error': 'NIK sudah terdaftar'}), 400
+             return jsonify({'success': False, 'error': 'Nama sudah terdaftar'}), 400
 
         kupon_number = None
         for _ in range(10):
@@ -9753,6 +9978,7 @@ def api_qurban_generate_kupon():
         return jsonify({'success': False, 'error': 'Terjadi kesalahan sistem'}), 500
 
 @app.route('/api/qurban/pembagian/list_kupons', methods=['GET'])
+@csrf.exempt
 def api_qurban_list_kupons():
     if not session.get('is_admin'):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -9763,7 +9989,7 @@ def api_qurban_list_kupons():
             slot = DistribusiSlot.query.get(k.slot_id)
             kupons_data.append({
                 'kupon': k.coupon_number,
-                'nik': k.nik[:4] + '********' + k.nik[-4:],
+                'nik': k.nik,
                 'slot': f"{slot.rt_identifier} ({slot.time_start}-{slot.time_end})" if slot else "N/A",
                 'status': 'Diambil' if k.is_claimed else 'Belum Diambil'
             })
@@ -9862,6 +10088,40 @@ def admin_qurban_distribusi_tandai_selesai(kupon_id):
     return redirect(url_for('admin_qurban_distribusi'))
 
 
+
+@app.route('/idul-adha/peta')
+def idul_adha_peta():
+    try:
+        slots = DistribusiSlot.query.all()
+        if not slots:
+            default_slots = [
+                DistribusiSlot(rt_identifier='RT 01', time_start='08:00', time_end='10:00', total_quota=100),
+                DistribusiSlot(rt_identifier='RT 02', time_start='10:00', time_end='12:00', total_quota=100)
+            ]
+            for s in default_slots:
+                db.session.add(s)
+            db.session.commit()
+            slots = default_slots
+
+        total_rt = len(slots)
+        total_quota = sum(s.total_quota for s in slots)
+        total_distributed = sum(s.distributed_count for s in slots)
+
+        pending_rts = [s.rt_identifier for s in slots if not s.is_locked]
+
+        rendered_content = render_template_string(IDUL_ADHA_PETA_DISTRIBUSI_HTML,
+                                                  slots=slots,
+                                                  total_rt=total_rt,
+                                                  total_quota=total_quota,
+                                                  total_distributed=total_distributed,
+                                                  missing_rts=pending_rts,
+                                                  is_admin=session.get('is_admin', False),
+                                                  settings=get_settings())
+        return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=session.get('is_admin', False), settings=get_settings())
+    except Exception as e:
+        app.logger.error(f"Error loading peta distribusi: {e}")
+        return "Internal Server Error", 500
+
 @app.route('/admin/qurban/peta')
 def admin_qurban_peta():
     if not session.get('is_admin'):
@@ -9882,14 +10142,14 @@ def admin_qurban_peta():
         total_rt = len(slots)
         total_quota = sum([s.total_quota for s in slots])
         total_distributed = sum([s.distributed_count for s in slots])
-        missing_rts = [s.rt_identifier for s in slots if not s.is_locked]
+        pending_rts = [s.rt_identifier for s in slots if not s.is_locked]
         
         rendered_content = render_template_string(IDUL_ADHA_PETA_DISTRIBUSI_HTML, 
                                                   slots=slots, 
                                                   total_rt=total_rt,
                                                   total_quota=total_quota,
                                                   total_distributed=total_distributed,
-                                                  missing_rts=missing_rts,
+                                                  missing_rts=pending_rts,
                                                   is_admin=True, 
                                                   settings=get_settings())
         return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=True, settings=get_settings())
@@ -9969,5 +10229,7 @@ def idul_adha_panduan():
 
 if __name__ == '__main__':
     with app.app_context():
+        db.session.execute(db.text("DROP TABLE IF EXISTS qurban_attendance"))
+        db.session.commit()
         db.create_all()
     ##app.run(debug=True, port=5000)
