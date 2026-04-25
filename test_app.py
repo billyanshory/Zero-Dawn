@@ -315,12 +315,12 @@ class PrayTimes:
             "Maghrib": self.compute_time(0.833, decl, lat, noon) if "maghrib" not in self.params else self.compute_time(self.params["maghrib"], decl, lat, noon),
             "Isha": self.compute_time(self.params["isha"], decl, lat, noon)
         }
-        
+
         # Adjust for timezone
         final_times = {}
         for name, t in times.items():
             final_times[name] = self.adjust_time(t, tzone)
-            
+
         return final_times
 
     def days_since_j2000(self, year, month, day):
@@ -356,7 +356,7 @@ class PrayTimes:
             d = math.degrees(math.acos((math.sin(math.radians(g)) - math.sin(math.radians(decl)) * math.sin(math.radians(lat))) / (math.cos(math.radians(decl)) * math.cos(math.radians(lat)))))
         except:
             return 0 # Handle polar regions if needed
-        return noon - d / 15.0 if g > 90 else noon + d / 15.0 
+        return noon - d / 15.0 if g > 90 else noon + d / 15.0
 
     def compute_asr(self, step, decl, lat, noon):
         try:
@@ -383,7 +383,7 @@ class PrayTimes:
 def gregorian_to_hijri(date_obj):
     # Offset -1 day -> BRUTE FORCE -3 DAYS (Updated for 2026 adjustment)
     date_obj = date_obj - datetime.timedelta(days=3)
-    
+
     # Kuwaiti Algorithm
     day = date_obj.day
     month = date_obj.month
@@ -428,14 +428,14 @@ def gregorian_to_hijri(date_obj):
 def calc_waris(harta, sons, daughters):
     if sons == 0 and daughters == 0:
         return {"error": "Tidak ada ahli waris anak"}
-    
+
     total_points = (sons * 2) + (daughters * 1)
     if total_points == 0: return {"error": "Total poin 0"}
-    
+
     one_part = harta / total_points
     son_share = one_part * 2
     daughter_share = one_part * 1
-    
+
     return {
         "harta": harta,
         "points": total_points,
@@ -461,23 +461,23 @@ def calc_tahajjud(maghrib, subuh):
     try:
         m_h, m_m = map(int, maghrib.split(':'))
         s_h, s_m = map(int, subuh.split(':'))
-        
+
         maghrib_dt = datetime.datetime(2023, 1, 1, m_h, m_m)
         subuh_dt = datetime.datetime(2023, 1, 2, s_h, s_m) # Next day
-        
+
         if maghrib_dt > subuh_dt:
              subuh_dt += datetime.timedelta(days=1)
-             
+
         diff = subuh_dt - maghrib_dt
         third_duration = diff / 3
-        
+
         last_third_start = subuh_dt - third_duration
-        
+
         # Calculate total hours and minutes for explanation
         total_seconds = diff.total_seconds()
         total_hours = int(total_seconds // 3600)
         total_minutes = int((total_seconds % 3600) // 60)
-        
+
         return {
             "time": last_third_start.strftime("%H:%M"),
             "total_hours": total_hours,
@@ -509,7 +509,7 @@ def calc_fidyah(days, category):
     qadha = days
     fidyah_rice = days * 0.6
     fidyah_money = days * 15000
-    
+
     return {
         "qadha_days": qadha,
         "fidyah_rice": fidyah_rice,
@@ -536,29 +536,29 @@ def compress_image(file_storage, upload_folder):
     if not is_safe_file(file_storage):
         raise ValueError("Invalid file content signature detected.")
     filename = secure_filename(file_storage.filename)
-    
+
     # Skip compression for video
     if filename.lower().endswith('.mp4'):
         save_path = os.path.join(upload_folder, filename)
         file_storage.save(save_path)
         return filename
-        
+
     # Process Image
     try:
         img = Image.open(file_storage)
-        
+
         # Convert to RGB (standardize for JPG)
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
-            
+
         # Resize max 800x800
         img.thumbnail((800, 800), Image.Resampling.LANCZOS)
-        
+
         # Force JPG extension
         base = os.path.splitext(filename)[0]
         new_filename = base + ".jpg"
         save_path = os.path.join(upload_folder, new_filename)
-        
+
         # Compress loop
         quality = 90
         while quality >= 10:
@@ -568,13 +568,13 @@ def compress_image(file_storage, upload_folder):
             if size_kb < 500:
                 break
             quality -= 5
-        
+
         # Save final
         with open(save_path, 'wb') as f:
             f.write(img_byte_arr.getbuffer())
-            
+
         return new_filename
-        
+
     except Exception as e:
         print(f"Compression error: {e}")
         # Fallback
@@ -624,139 +624,139 @@ def seed_ramadhan_schedule():
 
         for night, imam, penceramah in schedule_data:
             entry = TarawihSchedule(
-                night_index=night, 
-                date=f"Ramadhan {night}", 
-                imam=imam, 
-                penceramah=penceramah, 
+                night_index=night,
+                date=f"Ramadhan {night}",
+                imam=imam,
+                penceramah=penceramah,
                 judul="-"
             )
             db.session.add(entry)
         db.session.commit()
 
 RAW_TAKJIL_DATA = """
-### **DATA JADWAL TAKJIL MASJID AL HIJRAH (RAMADHAN 2026)** 
+### **DATA JADWAL TAKJIL MASJID AL HIJRAH (RAMADHAN 2026)**
 
-**Hari 1 (18-Feb-26)**  
-1. H.Muhtadi (RT.49), 2. La Juadi (RT.50), 3. Hariyadi (RT.51), 4. H. Hadransyah (RT.52), 5. Mukayan (RT.52), 6. Ibu Abdulah (RT.52), 7. M. Latif (RT.53), 8. Mahfud (RT.57), 9. Eko Pranoto (RT.53), 10. Hj. Elnawati (RT.49), 11. Maryono (RT.49), 12. Rindayanto (RT.50), 13. Yoyo P. (RT.55), 14. Sabran (RT.55) 
- 
-**Hari 2 (19-Feb-26)** 
-1. H. Haryoto (RT.49), 2. Ahmad Zaidi (RT.51), 3. Ovan Iskandar (RT.51), 4. H. Kandi H. (RT.52), 5. La Nuju (RT.53), 6. Hj. Rusmiati (RT.56), 7. H. Parto Sirun (RT.56), 8. H. Asnan Alus (RT.57), 9. H. Herman (RT.49), 10. Ibu sabaruddin (RT.53), 11. Ibu sugi / muntoha (RT.52), 12. Subandi (RT.55), 13. Sofyansyah (RT.50), 14. Asmudin (RT.56) 
- 
-**Hari 3 (20-Feb-26)** 
-1. H. Harsuji (RT.49), 2. Andre/ Landito (RT.51), 3. Najiman (RT.51), 4. Syamsu (RT.52), 5. Pak Waras (RT.55), 6. Ulil Azmi (RT.56), 7. La sidun (RT.51), 8. Hariyanto (RT.57), 9. Ibu asan basri (bengkel asa) (RT.57), 10. Bimo Sunaryo (RT.53), 11. Syaiful Bakri (RT.55), 12. La Bano (RT.53), 13. Ibu ideham dekot (RT.57), 14. Jufri (RT.52), 15. Rohmad Muslim (RT.51), 16. Boby (RT.51) 
- 
-**Hari 4 (21-Feb-26)** 
-1. H. Mardjuni (RT.49), 2. La Bondu (RT.51), 3. Misdan (RT.51), 4. Adi Wibowo (RT.52), 5. Suyanto (RT.55), 6. H. Syamsudin Japri (RT.56), 7. Hj. M. Ishak (RT.49), 8. Suryadi (RT.52), 9. Andri (RT.57), 10. Budi Hariana (RT.55), 11. Mukhlis (RT.56), 12. Mama Daus (RT.51), 13. condro Lukito (RT.53), 14. Haludin (RT.51), 15. Aidil (RT.56), 16. Kahar (RT.57) 
- 
-**Hari 5 (22-Feb-26)** 
-1. La Bila (RT.50), 2. Darmaji /Erna (RT.50), 3. Rusmianti (RT.51), 4. Rony Pasla (RT.52), 5. Sumoharjo (RT.53), 6. Ujianto (RT.53), 7. Jamaludin Eka (RT.56), 8. Umar Uji (RT.50), 9. Supriyansyah (RT.50), 10. H. F. Suwarno (RT.52), 11. Dr. Dedy S. (RT.49), 12. La Asri (RT.50), 13. Pak Asmin (RT.55), 14. Paiman (RT.56), 15. kastum (RT.52) 
- 
-**Hari 6 (23-Feb-26)** 
-1. Ir. Ari Mulyadi (RT.49), 2. Sudalil (RT.52), 3. Mistono (RT.51), 4. Kasim (RT.52), 5. Dr. Randy (RT.52), 6. Yayat (RT.53), 7. Sarno (RT.55), 8. M. Taufik (RT.50), 9. Hj. Eva Paqun (RT.57), 10. La Ludu (RT.50), 11. La Komu (RT.52), 12. Sapto (RT.51), 13. Asep (RT.53), 14. Jufri (RT.52), 15. Drs. safii (RT.55) 
- 
-**Hari 7 (24-Feb-26)** 
-1. Ir. Haryoto (RT.49), 2. Sukadi (RT.50), 3. Samingan (RT.51), 4. Mianto (RT.51), 5. Sakti (RT.57), 6. Sabar (RT.53), 7. Gunaji (RT.49), 8. La Jumadi (RT.56), 9. Rusli (RT.57), 10. Jamrah (RT.57), 11. H. Marsaid (RT.50), 12. La Jamulia (RT.56), 13. Irwanto (RT.55), 14. Rudiman /idim (RT.53), 15. Sudihardani (RT.57) 
- 
-**Hari 8 (25-Feb-26)** 
-1. Latif (RT.56), 2. Mangin (RT.50), 3. La Jemo (RT.55), 4. Sanyoto (RT.52), 5. H. Andreas (RT.53), 6. Ahmad Adha (RT.53), 7. H. Katmidi (RT.49), 8. Agus S. (RT.56), 9. Syarifudin (RT.53), 10. sardi (RT.52), 11. Babang Legiono (RT.52), 12. Ibu sabarudin (RT.53), 13. Sri budi (RT.57), 14. La beo (RT.51), 15. La Saani (RT.51) 
- 
-**Hari 9 (26-Feb-26)** 
-1. Sumardiansyah (RT.53), 2. Nanang / Ny. Kastun (RT.56), 3. Adi Setiawan (RT.50), 4. Ibu Erlena (RT.53), 5. La Juru (RT.53), 6. Kaslim (RT.55), 7. Wr. Magetan (RT.57), 8. H. Sugiyono (RT.57), 9. Taufik Hidayat (RT.50), 10. Supriyadi (Pak Yono) (RT.51), 11. Edy Sulistyo (RT.53), 12. Edy rusmini (RT.52), 13. H. Hamsanudin P. (RT.52), 14. La Besa (RT.53) 
- 
-**Hari 10 (27-Feb-26)** 
-1. Ibu Heru Santoso (Alm) (RT.49), 2. Syahdan Hadib (RT.57), 3. H.Umar/La kenje (RT.51), 4. Irfan Iskandar (RT.55), 5. Margi R. (RT.52), 6. Zainudin (bladuk) (RT.53), 7. Siman (RT.55), 8. La Bango (RT.55), 9. Kris Kurniawan (RT.52), 10. Safrani (RT.50), 11. Edi ( Bapak Mia ) (RT.51), 12. Sugeng PLN (RT.51), 13. H. Lanaya (RT.50), 14. Rukayat (RT.51) 
- 
-**Hari 11 (28-Feb-26)** 
-1. Sirun /Ipah (RT.49), 2. Tomi Libra (RT.50), 3. Untung Suparno (RT.52), 4. Wijaya (RT.53), 5. Suriansyah (RT.53), 6. Ibu asan basri (bengkel asa) (RT.57), 7. La Edi (RT.55), 8. La Mandiri (RT.55), 9. M. Latif (RT.53), 10. Rifai (RT.53), 11. paino (RT.50), 12. M. Rusli (RT.50), 13. La Mihadi (RT.51), 14. Tajuddin Djuna/ Jainal (RT.55), 15. Kahar (RT.57) 
- 
-**Hari 12 (1-Mar-26)** 
-1. H. Syaifudin (RT.49), 2. Asrani Karim (RT.49), 3. Slamet Susanto (RT.50), 4. Erwin Donanto (RT.51), 5. Lisna Wati (RT.53), 6. Lela (RT.53), 7. Sunarto (RT.55), 8. Denok (RT.51), 9. Loso (RT.53), 10. Tony Bowo (RT.53), 11. H. Zainudin (RT.57), 12. La Bano (RT.53), 13. Agus /Dwiyanto (RT.51), 14. Adi Setiawan (RT.50), 15. La Jayani (RT.50) 
- 
-**Hari 13 (2-Mar-26)** 
-1. Sutrisno (RT.49), 2. La Haludin (RT.55), 3. Samiin (RT.50), 4. Yoyok Ardiansyah (RT.52), 5. Ribut Setiawan (RT.57), 6. Elven Noor (RT.53), 7. Ny. Sidik (RT.55), 8. Sanjaya (RT.56), 9. Sugeng Anas (RT.57), 10. H. Firdaus (RT.53), 11. Sugeng Chairudin (RT.53), 12. Zainuri (RT.51), 13. Johan (RT.51), 14. Syamjudin (RT.55), 15. La Yanto (RT.51) 
- 
-**Hari 14 (3-Mar-26)** 
-1. Sigit (RT.49), 2. Eka/Jeliteng Prasojo (RT.50), 3. La Japo (RT.51), 4. Jarot (RT.52), 5. Agustinawati (RT.53), 6. Mulyono Edy (RT.53), 7. Mat Rais (RT.55), 8. Legianto (RT.56), 9. La Jahali (RT.56), 10. La Mili Tale (RT.55), 11. Mulyadi (wa Pain) (RT.56), 12. La Amirudin (RT.55), 13. Wr. Magetan (RT.57), 14. sujai (RT.55), 15. Pak Asmin (RT.55) 
- 
-**Hari 15 (4-Mar-26)** 
-1. La Suri Hamsa (RT.51), 2. Prianto (RT.49), 3. Misrun (RT.50), 4. Usman / Meti (RT.51), 5. H. Noor Hamdi (RT.52), 6. La Rumpu (RT.53), 7. Mas'ud Effendi (RT.53), 8. Subandi (RT.55), 9. La Anjo (RT.56), 10. H. Sofyan Noor (RT.57), 11. Lampero (RT.50), 12. Bambang (RT.50), 13. Siska (RT.51), 14. supriono (RT.55), 15. Boby (RT.51) 
- 
-**Hari 16 (5-Mar-26)** 
-1. H. Muhtadi (RT.49), 2. La Juadi (RT.50), 3. H. Hadransyah (RT.52), 4. Mukayan (RT.52), 5. Ibu Abdulah (RT.52), 6. M. Ali (RT.56), 7. Mahfud (RT.57), 8. Eko Pranoto (RT.53), 9. Hj. Elnawati (RT.49), 10. Maryono (RT.49), 11. Yoyo P. (RT.55), 12. Rindayanto (RT.50), 13. Syahran (RT.56), 14. Rohmad Muslim (RT.51), 15. La sidun (RT.51) 
- 
-**Hari 17 (6-Mar-26)** 
-1. H. Haryoto (RT.49), 2. Ahmad Zaidi (RT.51), 3. Ovan Iskandar (RT.51), 4. H. Kandi H. (RT.52), 5. La suju (RT.53), 6. Hj. Rusmiati (RT.56), 7. H. Parto Sirun (RT.56), 8. H. Asnan Alus (RT.57), 9. H. Herman (RT.49), 10. sukadi (RT.50), 11. Ibu sugi / Muntoha (RT.52), 12. Tomi Libra (RT.50), 13. Deni Wibawa (RT.50), 14. Asmudin (RT.56), 15. Sabran (RT.55) 
- 
-**Hari 18 (7-Mar-26)** 
-1. H. Harsuji (RT.49), 2. Andre/Landito (RT.51), 3. Najiman (RT.51), 4. Syamsu (RT.52), 5. Pak Waras (RT.55), 6. Ulil Azmi (RT.56), 7. La Saani (RT.51), 8. Hariyanto (RT.57), 9. Rusli (RT.57), 10. Bimo Sunaryo (RT.53), 11. Syaiful Bakri (RT.55), 12. H. Marsaid (RT.50), 13. ibu Ideham dekot (RT.57), 14. Amiruddin (RT.56), 15. Pina/Miadi (RT.53) 
- 
-**Hari 19 (8-Mar-26)** 
-1. H. Mardjuni (RT.49), 2. H. Lanaya (RT.50), 3. Misdan (RT.51), 4. Adi Wibowo (RT.52), 5. Suyanto (RT.55), 6. H. Syamsudin Japri (RT.56), 7. H. M. Ishak (RT.49), 8. Suryadi (RT.52), 9. Wa Pipa (RT.55), 10. Budi Hariana (RT.55), 11. Mukhlis (RT.56), 12. Mama Daus (RT.51), 13. condro Lukito (RT.53), 14. Aidil (RT.56), 15. Sudihardani (RT.57) 
- 
-**Hari 20 (9-Mar-26)** 
-1. Dr. Indra (RT.49), 2. Darmaji/Erna (RT.50), 3. Rusmianti (RT.51), 4. Rony Pasla (RT.52), 5. La Mili Ruca (RT.53), 6. Ujianto (RT.53), 7. Jamaludin /eka (RT.56), 8. Drs. Safii (RT.55), 9. Supriyansyah (RT.50), 10. H. F. Suwarno (RT.52), 11. Dr. Dedy S. (RT.49), 12. La Asri (RT.50), 13. Porimin (RT.55), 14. Paiman (RT.56), 15. Hj. Eva Paqun (RT.57) 
- 
-**Hari 21 (10-Mar-26)** 
-1. Ir. Ari Mulyadi (RT.49), 2. Sudalil (RT.52), 3. Mistono (RT.51), 4. Kasim (RT.52), 5. Dr. Randy (RT.52), 6. Yayat (RT.53), 7. Sarno (RT.55), 8. La Rilu (RT.55), 9. La Yare (RT.55), 10. La Bila (RT.50), 11. La Komu (RT.52), 12. Sapto (RT.51), 13. Asep (RT.53), 14. Haludin (RT.51), 15. Jupi (RT.52) 
- 
-**Hari 22 (11-Mar-26)** 
-1. Ir. Haryoto (RT.49), 2. Kris Kurniawan (RT.52), 3. Samingan (RT.51), 4. Agustinawati (RT.53), 5. Sakti (RT.57), 6. Sabar (RT.53), 7. Rudin Lapandewa (RT.53), 8. La Jumadi (RT.56), 9. Mianto (RT.51), 10. Jamrah (RT.57), 11. Hariyadi (RT.51), 12. La Jamulia (RT.56), 13. Irwanto (RT.55), 14. Rudiman /idim (RT.53), 15. Mulyadi (wa Pain) (RT.56) 
- 
-**Hari 23 (12-Mar-26)** 
-1. Latif (RT.56), 2. Mangin (RT.50), 3. La Jemo (RT.55), 4. Sanyoto (RT.52), 5. H. Andreas (RT.53), 6. Ahmad Adha (RT.53), 7. La beo (RT.51), 8. Agus S. (RT.56), 9. Syarifudin (RT.53), 10. Sardi (RT.52), 11. Bambang Legiono (RT.52), 12. Slamet Susanto (RT.50), 13. Sri budi (RT.57), 14. Sugeng PLN (RT.51), 15. Kastum (RT.52) 
- 
-**Hari 24 (13-Mar-26)** 
-1. La Piy (RT.53), 2. Nanang / Ny. Kastun (RT.56), 3. La Sani (RT.55), 4. Ibu Erlena (RT.53), 5. Sedek Buton (RT.53), 6. Syahran (RT.56), 7. H. Sugiyono (RT.57), 8. La pudin (RT.50), 9. Supriyadi (Pak Yono) (RT.51), 10. Syarif Rahman (RT.52), 11. Edy Sulistyo (RT.53), 12. Edy rusmini (RT.52), 13. H. Hamsanudin P. (RT.52), 14. Joko (kunci) (RT.56), 15. Suprianto (RT.55) 
- 
-**Hari 25 (14-Mar-26)** 
-1. Ibu Heru Santoso (Alm) (RT.49), 2. H. Syahdan Hadib (RT.57), 3. H.Umar/La kenje (RT.51), 4. Irfan Iskandar (RT.55), 5. Margi R. (RT.52), 6. Zainudin (bladuk) (RT.53), 7. Siman (RT.55), 8. La Wardi (RT.55), 9. Yando (RT.52), 10. Safrani (RT.50), 11. Edi (bapak Mia) (RT.51), 12. Sulistio (RT.51), 13. La Ami Arni (RT.55), 14. Rukayat (RT.51), 15. paino (RT.50) 
- 
-**Hari 26 (15-Mar-26)** 
-1. Sirun /ipah (RT.49), 2. Umar Uji (RT.50), 3. Untung Suparno (RT.52), 4. Roby Hermawan (RT.53), 5. Suriansyah (RT.53), 6. Syamjudin (RT.55), 7. La Edi (RT.55), 8. Wa Pipa (RT.55), 9. La Bondu (RT.51), 10. Rifai (RT.53), 11. M. Rusli (RT.50), 12. La Mihadi (RT.51), 13. Tajuddin Djuna/Jainal (RT.55), 14. suprio (RT.55), 15. Tony Bowo (RT.53) 
- 
-**Hari 27 (16-Mar-26)** 
-1. H. Syaifudin (RT.49), 2. Asrani Karim (RT.49), 3. Sofyansyah (RT.50), 4. Erwin Donanto (RT.51), 5. Lisna Wati (RT.53), 6. Lela (RT.53), 7. Sunarto (RT.55), 8. Denok (RT.51), 9. Loso (RT.53), 10. Pak Bibit (RT.50), 11. H. Zainudin (RT.57), 12. Deni Wibawa (RT.50), 13. Agus dwiyanto (RT.51), 14. Yuliansah (RT.50), 15. Gunawan (RT.50) 
- 
-**Hari 28 (17-Mar-26)** 
-1. Sutrisno (RT.49), 2. La Haludin (RT.55), 3. Johan (RT.51), 4. Yoyok Ardiansyah (RT.52), 5. Ribut Setiawan (RT.57), 6. La Besa (RT.53), 7. Ny. Sidik (RT.55), 8. Sanjaya (RT.56), 9. Sugeng Anas (RT.57), 10. H. Firdaus (RT.53), 11. Sugeng Chairudin (RT.53), 12. Zainuri (RT.51), 13. La Bango (RT.55), 14. La Yanto (RT.51), 15. Joko (kunci) (RT.56) 
- 
-**Hari 29 (18-Mar-26)** 
-1. Sigit (RT.49), 2. Eka/ Jeliteng (RT.50), 3. La Japo (RT.51), 4. Jarot (RT.52), 5. La Jayani (RT.50), 6. Mulyono Edy (RT.53), 7. Mat Rais (RT.55), 8. Legianto (RT.56), 9. La Jahali (RT.56), 10. H. Sofyan Noor (RT.57), 11. Aril (RT.51), 12. La Anjo (RT.56), 13. Jupi (RT.52), 14. sujai (RT.55), 15. Yando (RT.52) 
- 
-**Hari 30 (19-Mar-26)** 
+**Hari 1 (18-Feb-26)**
+1. H.Muhtadi (RT.49), 2. La Juadi (RT.50), 3. Hariyadi (RT.51), 4. H. Hadransyah (RT.52), 5. Mukayan (RT.52), 6. Ibu Abdulah (RT.52), 7. M. Latif (RT.53), 8. Mahfud (RT.57), 9. Eko Pranoto (RT.53), 10. Hj. Elnawati (RT.49), 11. Maryono (RT.49), 12. Rindayanto (RT.50), 13. Yoyo P. (RT.55), 14. Sabran (RT.55)
+
+**Hari 2 (19-Feb-26)**
+1. H. Haryoto (RT.49), 2. Ahmad Zaidi (RT.51), 3. Ovan Iskandar (RT.51), 4. H. Kandi H. (RT.52), 5. La Nuju (RT.53), 6. Hj. Rusmiati (RT.56), 7. H. Parto Sirun (RT.56), 8. H. Asnan Alus (RT.57), 9. H. Herman (RT.49), 10. Ibu sabaruddin (RT.53), 11. Ibu sugi / muntoha (RT.52), 12. Subandi (RT.55), 13. Sofyansyah (RT.50), 14. Asmudin (RT.56)
+
+**Hari 3 (20-Feb-26)**
+1. H. Harsuji (RT.49), 2. Andre/ Landito (RT.51), 3. Najiman (RT.51), 4. Syamsu (RT.52), 5. Pak Waras (RT.55), 6. Ulil Azmi (RT.56), 7. La sidun (RT.51), 8. Hariyanto (RT.57), 9. Ibu asan basri (bengkel asa) (RT.57), 10. Bimo Sunaryo (RT.53), 11. Syaiful Bakri (RT.55), 12. La Bano (RT.53), 13. Ibu ideham dekot (RT.57), 14. Jufri (RT.52), 15. Rohmad Muslim (RT.51), 16. Boby (RT.51)
+
+**Hari 4 (21-Feb-26)**
+1. H. Mardjuni (RT.49), 2. La Bondu (RT.51), 3. Misdan (RT.51), 4. Adi Wibowo (RT.52), 5. Suyanto (RT.55), 6. H. Syamsudin Japri (RT.56), 7. Hj. M. Ishak (RT.49), 8. Suryadi (RT.52), 9. Andri (RT.57), 10. Budi Hariana (RT.55), 11. Mukhlis (RT.56), 12. Mama Daus (RT.51), 13. condro Lukito (RT.53), 14. Haludin (RT.51), 15. Aidil (RT.56), 16. Kahar (RT.57)
+
+**Hari 5 (22-Feb-26)**
+1. La Bila (RT.50), 2. Darmaji /Erna (RT.50), 3. Rusmianti (RT.51), 4. Rony Pasla (RT.52), 5. Sumoharjo (RT.53), 6. Ujianto (RT.53), 7. Jamaludin Eka (RT.56), 8. Umar Uji (RT.50), 9. Supriyansyah (RT.50), 10. H. F. Suwarno (RT.52), 11. Dr. Dedy S. (RT.49), 12. La Asri (RT.50), 13. Pak Asmin (RT.55), 14. Paiman (RT.56), 15. kastum (RT.52)
+
+**Hari 6 (23-Feb-26)**
+1. Ir. Ari Mulyadi (RT.49), 2. Sudalil (RT.52), 3. Mistono (RT.51), 4. Kasim (RT.52), 5. Dr. Randy (RT.52), 6. Yayat (RT.53), 7. Sarno (RT.55), 8. M. Taufik (RT.50), 9. Hj. Eva Paqun (RT.57), 10. La Ludu (RT.50), 11. La Komu (RT.52), 12. Sapto (RT.51), 13. Asep (RT.53), 14. Jufri (RT.52), 15. Drs. safii (RT.55)
+
+**Hari 7 (24-Feb-26)**
+1. Ir. Haryoto (RT.49), 2. Sukadi (RT.50), 3. Samingan (RT.51), 4. Mianto (RT.51), 5. Sakti (RT.57), 6. Sabar (RT.53), 7. Gunaji (RT.49), 8. La Jumadi (RT.56), 9. Rusli (RT.57), 10. Jamrah (RT.57), 11. H. Marsaid (RT.50), 12. La Jamulia (RT.56), 13. Irwanto (RT.55), 14. Rudiman /idim (RT.53), 15. Sudihardani (RT.57)
+
+**Hari 8 (25-Feb-26)**
+1. Latif (RT.56), 2. Mangin (RT.50), 3. La Jemo (RT.55), 4. Sanyoto (RT.52), 5. H. Andreas (RT.53), 6. Ahmad Adha (RT.53), 7. H. Katmidi (RT.49), 8. Agus S. (RT.56), 9. Syarifudin (RT.53), 10. sardi (RT.52), 11. Babang Legiono (RT.52), 12. Ibu sabarudin (RT.53), 13. Sri budi (RT.57), 14. La beo (RT.51), 15. La Saani (RT.51)
+
+**Hari 9 (26-Feb-26)**
+1. Sumardiansyah (RT.53), 2. Nanang / Ny. Kastun (RT.56), 3. Adi Setiawan (RT.50), 4. Ibu Erlena (RT.53), 5. La Juru (RT.53), 6. Kaslim (RT.55), 7. Wr. Magetan (RT.57), 8. H. Sugiyono (RT.57), 9. Taufik Hidayat (RT.50), 10. Supriyadi (Pak Yono) (RT.51), 11. Edy Sulistyo (RT.53), 12. Edy rusmini (RT.52), 13. H. Hamsanudin P. (RT.52), 14. La Besa (RT.53)
+
+**Hari 10 (27-Feb-26)**
+1. Ibu Heru Santoso (Alm) (RT.49), 2. Syahdan Hadib (RT.57), 3. H.Umar/La kenje (RT.51), 4. Irfan Iskandar (RT.55), 5. Margi R. (RT.52), 6. Zainudin (bladuk) (RT.53), 7. Siman (RT.55), 8. La Bango (RT.55), 9. Kris Kurniawan (RT.52), 10. Safrani (RT.50), 11. Edi ( Bapak Mia ) (RT.51), 12. Sugeng PLN (RT.51), 13. H. Lanaya (RT.50), 14. Rukayat (RT.51)
+
+**Hari 11 (28-Feb-26)**
+1. Sirun /Ipah (RT.49), 2. Tomi Libra (RT.50), 3. Untung Suparno (RT.52), 4. Wijaya (RT.53), 5. Suriansyah (RT.53), 6. Ibu asan basri (bengkel asa) (RT.57), 7. La Edi (RT.55), 8. La Mandiri (RT.55), 9. M. Latif (RT.53), 10. Rifai (RT.53), 11. paino (RT.50), 12. M. Rusli (RT.50), 13. La Mihadi (RT.51), 14. Tajuddin Djuna/ Jainal (RT.55), 15. Kahar (RT.57)
+
+**Hari 12 (1-Mar-26)**
+1. H. Syaifudin (RT.49), 2. Asrani Karim (RT.49), 3. Slamet Susanto (RT.50), 4. Erwin Donanto (RT.51), 5. Lisna Wati (RT.53), 6. Lela (RT.53), 7. Sunarto (RT.55), 8. Denok (RT.51), 9. Loso (RT.53), 10. Tony Bowo (RT.53), 11. H. Zainudin (RT.57), 12. La Bano (RT.53), 13. Agus /Dwiyanto (RT.51), 14. Adi Setiawan (RT.50), 15. La Jayani (RT.50)
+
+**Hari 13 (2-Mar-26)**
+1. Sutrisno (RT.49), 2. La Haludin (RT.55), 3. Samiin (RT.50), 4. Yoyok Ardiansyah (RT.52), 5. Ribut Setiawan (RT.57), 6. Elven Noor (RT.53), 7. Ny. Sidik (RT.55), 8. Sanjaya (RT.56), 9. Sugeng Anas (RT.57), 10. H. Firdaus (RT.53), 11. Sugeng Chairudin (RT.53), 12. Zainuri (RT.51), 13. Johan (RT.51), 14. Syamjudin (RT.55), 15. La Yanto (RT.51)
+
+**Hari 14 (3-Mar-26)**
+1. Sigit (RT.49), 2. Eka/Jeliteng Prasojo (RT.50), 3. La Japo (RT.51), 4. Jarot (RT.52), 5. Agustinawati (RT.53), 6. Mulyono Edy (RT.53), 7. Mat Rais (RT.55), 8. Legianto (RT.56), 9. La Jahali (RT.56), 10. La Mili Tale (RT.55), 11. Mulyadi (wa Pain) (RT.56), 12. La Amirudin (RT.55), 13. Wr. Magetan (RT.57), 14. sujai (RT.55), 15. Pak Asmin (RT.55)
+
+**Hari 15 (4-Mar-26)**
+1. La Suri Hamsa (RT.51), 2. Prianto (RT.49), 3. Misrun (RT.50), 4. Usman / Meti (RT.51), 5. H. Noor Hamdi (RT.52), 6. La Rumpu (RT.53), 7. Mas'ud Effendi (RT.53), 8. Subandi (RT.55), 9. La Anjo (RT.56), 10. H. Sofyan Noor (RT.57), 11. Lampero (RT.50), 12. Bambang (RT.50), 13. Siska (RT.51), 14. supriono (RT.55), 15. Boby (RT.51)
+
+**Hari 16 (5-Mar-26)**
+1. H. Muhtadi (RT.49), 2. La Juadi (RT.50), 3. H. Hadransyah (RT.52), 4. Mukayan (RT.52), 5. Ibu Abdulah (RT.52), 6. M. Ali (RT.56), 7. Mahfud (RT.57), 8. Eko Pranoto (RT.53), 9. Hj. Elnawati (RT.49), 10. Maryono (RT.49), 11. Yoyo P. (RT.55), 12. Rindayanto (RT.50), 13. Syahran (RT.56), 14. Rohmad Muslim (RT.51), 15. La sidun (RT.51)
+
+**Hari 17 (6-Mar-26)**
+1. H. Haryoto (RT.49), 2. Ahmad Zaidi (RT.51), 3. Ovan Iskandar (RT.51), 4. H. Kandi H. (RT.52), 5. La suju (RT.53), 6. Hj. Rusmiati (RT.56), 7. H. Parto Sirun (RT.56), 8. H. Asnan Alus (RT.57), 9. H. Herman (RT.49), 10. sukadi (RT.50), 11. Ibu sugi / Muntoha (RT.52), 12. Tomi Libra (RT.50), 13. Deni Wibawa (RT.50), 14. Asmudin (RT.56), 15. Sabran (RT.55)
+
+**Hari 18 (7-Mar-26)**
+1. H. Harsuji (RT.49), 2. Andre/Landito (RT.51), 3. Najiman (RT.51), 4. Syamsu (RT.52), 5. Pak Waras (RT.55), 6. Ulil Azmi (RT.56), 7. La Saani (RT.51), 8. Hariyanto (RT.57), 9. Rusli (RT.57), 10. Bimo Sunaryo (RT.53), 11. Syaiful Bakri (RT.55), 12. H. Marsaid (RT.50), 13. ibu Ideham dekot (RT.57), 14. Amiruddin (RT.56), 15. Pina/Miadi (RT.53)
+
+**Hari 19 (8-Mar-26)**
+1. H. Mardjuni (RT.49), 2. H. Lanaya (RT.50), 3. Misdan (RT.51), 4. Adi Wibowo (RT.52), 5. Suyanto (RT.55), 6. H. Syamsudin Japri (RT.56), 7. H. M. Ishak (RT.49), 8. Suryadi (RT.52), 9. Wa Pipa (RT.55), 10. Budi Hariana (RT.55), 11. Mukhlis (RT.56), 12. Mama Daus (RT.51), 13. condro Lukito (RT.53), 14. Aidil (RT.56), 15. Sudihardani (RT.57)
+
+**Hari 20 (9-Mar-26)**
+1. Dr. Indra (RT.49), 2. Darmaji/Erna (RT.50), 3. Rusmianti (RT.51), 4. Rony Pasla (RT.52), 5. La Mili Ruca (RT.53), 6. Ujianto (RT.53), 7. Jamaludin /eka (RT.56), 8. Drs. Safii (RT.55), 9. Supriyansyah (RT.50), 10. H. F. Suwarno (RT.52), 11. Dr. Dedy S. (RT.49), 12. La Asri (RT.50), 13. Porimin (RT.55), 14. Paiman (RT.56), 15. Hj. Eva Paqun (RT.57)
+
+**Hari 21 (10-Mar-26)**
+1. Ir. Ari Mulyadi (RT.49), 2. Sudalil (RT.52), 3. Mistono (RT.51), 4. Kasim (RT.52), 5. Dr. Randy (RT.52), 6. Yayat (RT.53), 7. Sarno (RT.55), 8. La Rilu (RT.55), 9. La Yare (RT.55), 10. La Bila (RT.50), 11. La Komu (RT.52), 12. Sapto (RT.51), 13. Asep (RT.53), 14. Haludin (RT.51), 15. Jupi (RT.52)
+
+**Hari 22 (11-Mar-26)**
+1. Ir. Haryoto (RT.49), 2. Kris Kurniawan (RT.52), 3. Samingan (RT.51), 4. Agustinawati (RT.53), 5. Sakti (RT.57), 6. Sabar (RT.53), 7. Rudin Lapandewa (RT.53), 8. La Jumadi (RT.56), 9. Mianto (RT.51), 10. Jamrah (RT.57), 11. Hariyadi (RT.51), 12. La Jamulia (RT.56), 13. Irwanto (RT.55), 14. Rudiman /idim (RT.53), 15. Mulyadi (wa Pain) (RT.56)
+
+**Hari 23 (12-Mar-26)**
+1. Latif (RT.56), 2. Mangin (RT.50), 3. La Jemo (RT.55), 4. Sanyoto (RT.52), 5. H. Andreas (RT.53), 6. Ahmad Adha (RT.53), 7. La beo (RT.51), 8. Agus S. (RT.56), 9. Syarifudin (RT.53), 10. Sardi (RT.52), 11. Bambang Legiono (RT.52), 12. Slamet Susanto (RT.50), 13. Sri budi (RT.57), 14. Sugeng PLN (RT.51), 15. Kastum (RT.52)
+
+**Hari 24 (13-Mar-26)**
+1. La Piy (RT.53), 2. Nanang / Ny. Kastun (RT.56), 3. La Sani (RT.55), 4. Ibu Erlena (RT.53), 5. Sedek Buton (RT.53), 6. Syahran (RT.56), 7. H. Sugiyono (RT.57), 8. La pudin (RT.50), 9. Supriyadi (Pak Yono) (RT.51), 10. Syarif Rahman (RT.52), 11. Edy Sulistyo (RT.53), 12. Edy rusmini (RT.52), 13. H. Hamsanudin P. (RT.52), 14. Joko (kunci) (RT.56), 15. Suprianto (RT.55)
+
+**Hari 25 (14-Mar-26)**
+1. Ibu Heru Santoso (Alm) (RT.49), 2. H. Syahdan Hadib (RT.57), 3. H.Umar/La kenje (RT.51), 4. Irfan Iskandar (RT.55), 5. Margi R. (RT.52), 6. Zainudin (bladuk) (RT.53), 7. Siman (RT.55), 8. La Wardi (RT.55), 9. Yando (RT.52), 10. Safrani (RT.50), 11. Edi (bapak Mia) (RT.51), 12. Sulistio (RT.51), 13. La Ami Arni (RT.55), 14. Rukayat (RT.51), 15. paino (RT.50)
+
+**Hari 26 (15-Mar-26)**
+1. Sirun /ipah (RT.49), 2. Umar Uji (RT.50), 3. Untung Suparno (RT.52), 4. Roby Hermawan (RT.53), 5. Suriansyah (RT.53), 6. Syamjudin (RT.55), 7. La Edi (RT.55), 8. Wa Pipa (RT.55), 9. La Bondu (RT.51), 10. Rifai (RT.53), 11. M. Rusli (RT.50), 12. La Mihadi (RT.51), 13. Tajuddin Djuna/Jainal (RT.55), 14. suprio (RT.55), 15. Tony Bowo (RT.53)
+
+**Hari 27 (16-Mar-26)**
+1. H. Syaifudin (RT.49), 2. Asrani Karim (RT.49), 3. Sofyansyah (RT.50), 4. Erwin Donanto (RT.51), 5. Lisna Wati (RT.53), 6. Lela (RT.53), 7. Sunarto (RT.55), 8. Denok (RT.51), 9. Loso (RT.53), 10. Pak Bibit (RT.50), 11. H. Zainudin (RT.57), 12. Deni Wibawa (RT.50), 13. Agus dwiyanto (RT.51), 14. Yuliansah (RT.50), 15. Gunawan (RT.50)
+
+**Hari 28 (17-Mar-26)**
+1. Sutrisno (RT.49), 2. La Haludin (RT.55), 3. Johan (RT.51), 4. Yoyok Ardiansyah (RT.52), 5. Ribut Setiawan (RT.57), 6. La Besa (RT.53), 7. Ny. Sidik (RT.55), 8. Sanjaya (RT.56), 9. Sugeng Anas (RT.57), 10. H. Firdaus (RT.53), 11. Sugeng Chairudin (RT.53), 12. Zainuri (RT.51), 13. La Bango (RT.55), 14. La Yanto (RT.51), 15. Joko (kunci) (RT.56)
+
+**Hari 29 (18-Mar-26)**
+1. Sigit (RT.49), 2. Eka/ Jeliteng (RT.50), 3. La Japo (RT.51), 4. Jarot (RT.52), 5. La Jayani (RT.50), 6. Mulyono Edy (RT.53), 7. Mat Rais (RT.55), 8. Legianto (RT.56), 9. La Jahali (RT.56), 10. H. Sofyan Noor (RT.57), 11. Aril (RT.51), 12. La Anjo (RT.56), 13. Jupi (RT.52), 14. sujai (RT.55), 15. Yando (RT.52)
+
+**Hari 30 (19-Mar-26)**
 1. La Suri Hamsa (RT.51), 2. Ibu Edy Heflin (RT.49), 3. Misrun (RT.50), 4. Usman / Meti (RT.51), 5. H. Noor Hamdi (RT.52), 6. La Rumpu (RT.53), 7. Mas'ud Effendi (RT.53), 8. suprio (RT.55), 9. Mulyono (RT.56), 10. Andri (RT.57), 11. Lampero (RT.50), 12. Bambang (RT.50), 13. Siska (RT.51), 14. Wijaya (RT.53), 15. La pudin (RT.50)
 """
 
 def parse_takjil_data():
     data = []
     import re
-    
+
     current_date = None
-    
+
     # Split by newlines
     lines = RAW_TAKJIL_DATA.strip().split('\n')
-    
+
     for line in lines:
         line = line.strip()
         if not line: continue
-        
+
         # Check for Date Header: **Hari 1 (18-Feb-26)**
         date_match = re.search(r'\((.*?)\)', line)
         if line.startswith('**Hari') and date_match:
             current_date = date_match.group(1)
             continue
-            
+
         # Parse items: 1. Name (RT), 2. Name (RT)
         # We split by comma followed by number and dot: ", \d+\."
         # Or simpler: split by regex ", (?=\d+\.)"
-        
+
         if current_date:
             items = re.split(r', (?=\d+\.)', line)
             for item in items:
                 # Format: "1. Name (RT)" or "1. Name"
                 # Remove number prefix
                 item = re.sub(r'^\d+\.\s*', '', item)
-                
+
                 # Extract RT if exists
                 rt_match = re.search(r'\((.*?)\)$', item)
                 if rt_match:
@@ -765,7 +765,7 @@ def parse_takjil_data():
                 else:
                     rt = '-'
                     name = item.strip()
-                    
+
                 data.append({
                     'Tanggal': current_date,
                     'Nama': name,
@@ -784,16 +784,16 @@ def get_imsakiyah_schedule():
         # 2. Bulan Februari & Maret 2026 (Ramadhan 1447 H) & Method 20 (Kemenag RI)
         months = [2, 3]
         all_days = []
-        
+
         for m in months:
             url = f"http://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month={m}&year=2026"
             with urllib.request.urlopen(url) as response:
                 data = json.loads(response.read().decode())
                 if 'data' in data:
                     all_days.extend(data['data'])
-            
+
         today = datetime.date.today()
-        
+
         # 3. Filter Tanggal (19 Feb - 19 Mar 2026)
         start_date = datetime.date(2026, 2, 19)
         end_date = datetime.date(2026, 3, 19)
@@ -801,12 +801,12 @@ def get_imsakiyah_schedule():
         for day in all_days:
             # Parse date
             date_obj = datetime.datetime.strptime(day['date']['gregorian']['date'], "%d-%m-%Y").date()
-            
+
             if not (start_date <= date_obj <= end_date):
                 continue
 
             timings = day['timings']
-            
+
             # Format HH:MM (strip seconds/timezone if any)
             def clean_time(t): return t.split(' ')[0]
 
@@ -820,11 +820,11 @@ def get_imsakiyah_schedule():
                 'isha': clean_time(timings['Isha']),
                 'is_today': (date_obj == today)
             })
-                
+
     except Exception as e:
         print(f"Error fetching Imsakiyah API: {e}")
         # Fallback empty or local calculation if needed, but user requested API specifically.
-        
+
     return schedule
 
 # --- FRONTEND ASSETS & LAYOUT ---
@@ -833,9 +833,9 @@ def get_imsakiyah_schedule():
 def model_getitem(self, key):
     return getattr(self, key)
 
-for model in [Finance, Agenda, Booking, Zakat, GalleryDakwah, Suggestion, RamadhanKas, 
-              TarawihSchedule, IrmaSchedule, IrmaMember, IrmaKas, IrmaGallery, 
-              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings, QurbanAttendance, 
+for model in [Finance, Agenda, Booking, Zakat, GalleryDakwah, Suggestion, RamadhanKas,
+              TarawihSchedule, IrmaSchedule, IrmaMember, IrmaKas, IrmaGallery,
+              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings, QurbanAttendance,
               QurbanStats, QurbanAnimal, DistribusiSlot, DistribusiKupon]:
     model.__getitem__ = model_getitem
 
@@ -897,7 +897,7 @@ STYLES_HTML = """
         .border-gold { border-color: var(--gold); }
         .bg-gold { background-color: var(--gold); }
         .text-midnight { color: var(--midnight-blue); }
-        
+
         /* Floating Card */
         .floating-card {
             margin: 0 0.5rem;
@@ -923,13 +923,13 @@ STYLES_HTML = """
             border: 4px solid #0b1026; /* Dark Theme Border */
             z-index: 60;
         }
-        
+
         .dark-bottom-nav {
             background-color: #0b1026;
             border-top: 1px solid rgba(255, 215, 0, 0.2);
             border-radius: 20px 20px 0 0;
         }
-        
+
         /* Amalan Popup Animation */
         @keyframes popupFadeIn {
             from { opacity: 0; transform: scale(0.9); }
@@ -963,7 +963,7 @@ BASE_LAYOUT = """
             else if (h >= 11 && h <= 14) time = "Siang";
             else if (h >= 15 && h <= 18) time = "Sore";
             else time = "Malam"; // 19-23
-            
+
             const msg = `Assalamualaikum, Selamat ${time}, maaf mengganggu waktunya Pak ya... Saya butuh bantuan darurat.`;
             window.location.href = "https://wa.me/6282330890500?text=" + encodeURIComponent(msg);
         }
@@ -1055,7 +1055,7 @@ BASE_LAYOUT = """
                 <h3 id="infaq-title" class="text-xl font-bold text-gray-800">Infaq Digital</h3>
                 <button onclick="closeModal('modal-infaq')" class="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center text-current hover:bg-black/10 transition">&times;</button>
             </div>
-            
+
             <!-- Tabs -->
             <div id="infaq-tabs" class="flex p-1 bg-gray-100 rounded-xl mb-6">
                 <button onclick="switchInfaqTab('masjid')" id="tab-btn-masjid" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-emerald-600 transition">Masjid</button>
@@ -1136,7 +1136,7 @@ BASE_LAYOUT = """
                     <form action="/donate/update" method="POST" enctype="multipart/form-data" class="mt-2 space-y-2" onsubmit="combineBanks(event)">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                        
+
                         <div class="flex gap-1">
                             <select id="bank_masjid" class="w-1/3 text-[10px] p-2 border rounded bg-white infaq-input-text">
                                 <option value="">Bank...</option>
@@ -1184,7 +1184,7 @@ BASE_LAYOUT = """
             function switchInfaqTab(tab) {
                 document.querySelectorAll('.infaq-tab-content').forEach(el => el.classList.add('hidden'));
                 document.getElementById('infaq-content-'+tab).classList.remove('hidden');
-                
+
                 // Reset buttons
                 ['masjid', 'qurban', 'zakat'].forEach(t => {
                     const btn = document.getElementById('tab-btn-'+t);
@@ -1207,7 +1207,7 @@ BASE_LAYOUT = """
             function formatBankDisplay(id) {
                 const el = document.getElementById(id);
                 if(!el || el.dataset.formatted) return;
-                
+
                 const text = el.innerText;
                 const match = text.match(/(\\d{6,})/);
                 if (match) {
@@ -1217,7 +1217,7 @@ BASE_LAYOUT = """
                     if(parts[0]) html += `<span style="user-select: none; opacity: 0.8;">${parts[0]}</span>`;
                     html += `<span>${num}</span>`;
                     if(parts[1]) html += `<span style="user-select: none; opacity: 0.8;">${parts[1]}</span>`;
-                    
+
                     el.innerHTML = html;
                     el.dataset.formatted = 'true';
                 }
@@ -1267,7 +1267,7 @@ BASE_LAYOUT = """
                 const dd = String(today.getDate()).padStart(2, '0');
                 const mm = String(today.getMonth() + 1).padStart(2, '0');
                 const yyyy = today.getFullYear();
-                
+
                 // API Aladhan
                 const response = await fetch(`https://api.aladhan.com/v1/gToH?date=${dd}-${mm}-${yyyy}`);
                 const result = await response.json();
@@ -1286,7 +1286,7 @@ BASE_LAYOUT = """
                 const response = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
                 const result = await response.json();
                 const timings = result.data.timings;
-                
+
                 // Update grid if exists
                 if(document.getElementById('fajr-time')) {
                     document.getElementById('fajr-time').innerText = timings.Fajr;
@@ -1295,7 +1295,7 @@ BASE_LAYOUT = """
                     document.getElementById('maghrib-time').innerText = timings.Maghrib;
                     document.getElementById('isha-time').innerText = timings.Isha;
                 }
-                
+
                 // Countdown Logic
                 const now = new Date();
                 const prayers = [
@@ -1305,7 +1305,7 @@ BASE_LAYOUT = """
                     { name: 'Maghrib', time: timings.Maghrib },
                     { name: 'Isya', time: timings.Isha }
                 ];
-                
+
                 let nextPrayerName = null;
                 let targetTime = null;
 
@@ -1313,7 +1313,7 @@ BASE_LAYOUT = """
                     const [h, m] = p.time.split(':');
                     const pDate = new Date();
                     pDate.setHours(parseInt(h), parseInt(m), 0, 0);
-                    
+
                     if (pDate > now) {
                         nextPrayerName = p.name;
                         targetTime = pDate;
@@ -1329,16 +1329,16 @@ BASE_LAYOUT = """
                     targetTime.setDate(targetTime.getDate() + 1);
                     targetTime.setHours(parseInt(h), parseInt(m), 0, 0);
                 }
-                
+
                 if(document.getElementById('next-prayer-name')) {
                     document.getElementById('next-prayer-name').innerText = nextPrayerName;
-                    
+
                     const diff = targetTime - now;
                     const hours = Math.floor(diff / 3600000);
                     const minutes = Math.floor((diff % 3600000) / 60000);
                     const seconds = Math.floor((diff % 60000) / 1000);
-                    
-                    document.getElementById('countdown-timer').innerText = 
+
+                    document.getElementById('countdown-timer').innerText =
                         `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
                 }
 
@@ -1358,7 +1358,7 @@ BASE_LAYOUT = """
                         ['rek-masjid-text', 'rek-qurban-text', 'rek-zakat-text'].forEach(formatBankDisplay);
                     }, 50);
                 }
-                
+
                 // Call local init functions dynamically if they exist
                 if(id === 'modal-fitur-alarm-adzan' && typeof initAlarmAdzan === 'function') {
                     initAlarmAdzan();
@@ -1382,7 +1382,7 @@ BASE_LAYOUT = """
             const title = document.getElementById('infaq-title');
             const tabs = document.getElementById('infaq-tabs');
             const path = window.location.pathname;
-            
+
             // Elements to style
             const boxes = [document.getElementById('infaq-box-masjid'), document.getElementById('infaq-box-qurban'), document.getElementById('infaq-box-zakat')];
             const labels = document.querySelectorAll('.infaq-label');
@@ -1400,7 +1400,7 @@ BASE_LAYOUT = """
                 container.classList.add('bg-[#0b1026]', 'text-white');
                 title.classList.add('text-[#FFD700]');
                 tabs.classList.add('bg-white/10');
-                
+
                 boxes.forEach(box => {
                     box.className = "p-4 rounded-2xl border flex justify-between items-center transition-colors duration-500 bg-white/5 border-[#FFD700]/30";
                 });
@@ -1414,7 +1414,7 @@ BASE_LAYOUT = """
                 container.classList.add('bg-[#F4E7E1]', 'text-[#2F4F4F]');
                 title.classList.add('text-[#A0B391]');
                 tabs.classList.add('bg-[#A0B391]/20');
-                
+
                 boxes.forEach(box => {
                     box.className = "p-4 rounded-2xl border flex justify-between items-center transition-colors duration-500 bg-white border-[#A0B391]/30";
                 });
@@ -1428,12 +1428,12 @@ BASE_LAYOUT = """
                 container.classList.add('bg-white', 'text-gray-800');
                 title.classList.add('text-emerald-600');
                 tabs.classList.add('bg-gray-100');
-                
+
                 // Reset boxes to distinct colors for Home
                 document.getElementById('infaq-box-masjid').className = "bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex justify-between items-center";
                 document.getElementById('infaq-box-qurban').className = "bg-orange-50 p-4 rounded-2xl border border-orange-100 flex justify-between items-center";
                 document.getElementById('infaq-box-zakat').className = "bg-blue-50 p-4 rounded-2xl border border-blue-100 flex justify-between items-center";
-                
+
                 // Helper to reset inner
                 const resetInner = (boxId, color) => {
                     const box = document.getElementById(boxId);
@@ -1443,7 +1443,7 @@ BASE_LAYOUT = """
                         box.querySelector('.infaq-icon').className = `hover:text-${color}-700 infaq-icon text-${color}-500`;
                     }
                 };
-                
+
                 resetInner('infaq-box-masjid', 'emerald');
                 resetInner('infaq-box-qurban', 'orange');
                 resetInner('infaq-box-zakat', 'blue');
@@ -1468,9 +1468,9 @@ BASE_LAYOUT = """
             if (h >= 0 && h < 11) time = "Pagi";
             else if (h >= 11 && h < 15) time = "Siang";
             else if (h >= 15 && h < 18) time = "Sore";
-            
+
             const msg = `Assalamaulaikum Pak, selamat ${time}, ijin konfirmasi Pak, saya sudah mengtransfer sebesar / jumlah Rp... di nomor rekening ${type.toLowerCase()} untuk keperluan ${type} ke masjid langsung, terima kasih Pak 🙏`;
-            
+
             window.location.href = "https://wa.me/6282330890500?text=" + encodeURIComponent(msg);
         }
 
@@ -1510,7 +1510,7 @@ BASE_LAYOUT = """
                 // Fallback for when event didn't fire (iOS, or already installed, or browser blocked it)
                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
                 const isAndroid = /Android/.test(navigator.userAgent);
-                
+
                 if (isIOS) {
                     alert("Untuk menginstall di iOS:\\n1. Klik tombol Share (ikon panah ke atas/kotak)\\n2. Pilih 'Add to Home Screen' (Tambah ke Layar Utama)");
                 } else if (isAndroid) {
@@ -1539,7 +1539,7 @@ BASE_LAYOUT = """
             } else {
                  // Show all if not installed (Buttons are hidden by default in HTML to prevent FOUC, so we remove hidden here)
                  document.querySelectorAll('.pwa-btn-container').forEach(el => el.classList.remove('hidden'));
-                 
+
                  // Special check for iOS which doesn't fire beforeinstallprompt
                  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
                  if(isIOS) {
@@ -1555,7 +1555,7 @@ BASE_LAYOUT = """
             }
         });
     </script>
-    
+
 </body>
 </html>
 """
@@ -1633,7 +1633,7 @@ FITUR_MASJID_HTML = """
             <span class="app-icon-title">Jadwal 30 Hari</span>
         </div>
     </div>
-    
+
     <!-- Modal Fitur 0: Jadwal 30 Hari Kedepan (Pure Dark Mode & Landscape Forced) -->
     <style>
         /* Landscape Orientation Lock Strategy */
@@ -1660,7 +1660,7 @@ FITUR_MASJID_HTML = """
                 left: 0;
             }
         }
-        
+
         .table-30-hari th {
             position: sticky;
             top: 0;
@@ -1690,7 +1690,7 @@ FITUR_MASJID_HTML = """
             -webkit-overflow-scrolling: touch;
         }
     </style>
-    
+
     <div id="modal-fitur-jadwal-30" class="fixed inset-0 z-[300] hidden bg-black">
         <div class="landscape-container font-sans">
             <!-- Navigation Bar -->
@@ -1720,7 +1720,7 @@ FITUR_MASJID_HTML = """
                     </div>
                 </div>
             </div>
-            
+
             <!-- Table Area -->
             <div class="jadwal-scroll-area relative">
                 <table class="w-full text-center border-collapse table-30-hari text-sm md:text-base">
@@ -1751,18 +1751,18 @@ FITUR_MASJID_HTML = """
         <div class="absolute inset-0 bg-[#1a1a1a]" onclick="closeModal('modal-fitur-kiblat')"></div>
         <div class="relative w-full h-full flex flex-col items-center justify-center z-10 p-6">
             <button onclick="closeModal('modal-fitur-kiblat')" class="absolute top-6 right-6 bg-white/10 w-10 h-10 rounded-full text-white hover:bg-white/20 flex items-center justify-center transition">&times;</button>
-            
+
             <div class="mb-12 text-center w-full">
                 <!-- Fetch Location Text Hierarchy -->
                 <h2 id="qibla-city" class="text-2xl font-sans font-bold text-white tracking-wide mb-1">Mencari Satelit...</h2>
                 <h3 class="text-sm font-bold tracking-[0.3em] text-[#FFD700] mb-8">INDONESIA</h3>
                 <button id="activate-compass-btn" onclick="startCompass()" class="bg-teal-700 text-white font-bold py-3 px-8 rounded-full shadow-[0_0_20px_rgba(15,118,110,0.5)] hover:bg-teal-600 transition tracking-widest text-sm uppercase">Pindai Kiblat</button>
             </div>
-            
+
             <div class="relative w-[280px] h-[280px] flex items-center justify-center mb-8" style="perspective: 1000px;">
                 <!-- Base Compass Disc with absolute dimensions and strict geometry -->
                 <div id="compass-disc" class="absolute w-full h-full rounded-full flex items-center justify-center shadow-[0_15px_35px_rgba(0,0,0,0.5)] transition-transform duration-300 border-[12px] border-[#2d2d2d]" style="background: white; box-shadow: 0 0 0 8px #0f766e inset; transform-style: preserve-3d;">
-                    
+
                     <!-- 8 Direction Lines -->
                     <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
                         <div class="w-full h-[1px] bg-gray-300 absolute"></div>
@@ -1776,7 +1776,7 @@ FITUR_MASJID_HTML = """
                     <div class="absolute bottom-[22px] font-bold text-[#4b5563] text-sm drop-shadow-sm rotate-180 leading-none">S</div>
                     <div class="absolute left-[22px] font-bold text-[#4b5563] text-sm drop-shadow-sm -rotate-90 leading-none">W</div>
                     <div class="absolute right-[22px] font-bold text-[#4b5563] text-sm drop-shadow-sm rotate-90 leading-none">E</div>
-                    
+
                     <div class="absolute top-[60px] right-[60px] font-bold text-[#9ca3af] text-[10px] rotate-45 leading-none">NE</div>
                     <div class="absolute bottom-[60px] right-[60px] font-bold text-[#9ca3af] text-[10px] rotate-[135deg] leading-none">SE</div>
                     <div class="absolute bottom-[60px] left-[60px] font-bold text-[#9ca3af] text-[10px] rotate-[225deg] leading-none">SW</div>
@@ -1805,7 +1805,7 @@ FITUR_MASJID_HTML = """
                         <div class="w-1.5 h-2.5 bg-[#1a1a1a] rounded-t-sm absolute bottom-0"></div>
                     </div>
                 </div>
-                
+
                 <!-- Fixed Outer Indicator (Phone direction) -->
                 <div class="absolute top-[-20px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[12px] border-r-[12px] border-b-[16px] border-l-transparent border-r-transparent border-b-gray-400 drop-shadow-md z-50 opacity-80"></div>
             </div>
@@ -1828,9 +1828,9 @@ FITUR_MASJID_HTML = """
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('modal-fitur-puasa')"></div>
         <div class="relative bg-white w-full max-w-md mx-4 p-6 rounded-3xl shadow-2xl animate-[slideUp_0.3s_ease-out] flex flex-col max-h-[90vh]">
             <button onclick="closeModal('modal-fitur-puasa')" class="absolute top-4 right-4 bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center z-10">&times;</button>
-            
+
             <h3 class="text-xl font-bold text-emerald-700 mb-2"><i class="fas fa-calendar-alt mr-2"></i>Kalender Puasa Sunnah</h3>
-            
+
             <!-- Tanggal Hari Ini & Peringatan -->
             <div class="bg-emerald-50 rounded-2xl p-3 text-center mb-4 flex-shrink-0">
                 <p class="text-[10px] text-emerald-600 font-bold uppercase mb-1">Tanggal Hari Ini</p>
@@ -1862,7 +1862,7 @@ FITUR_MASJID_HTML = """
                     <!-- Blocks rendered via JS -->
                 </div>
             </div>
-            
+
             <div class="flex justify-center items-center gap-2 mt-4 pt-4 border-t border-gray-100 flex-shrink-0 text-[10px] font-bold text-gray-500">
                 <span class="w-3 h-3 rounded-full bg-[#dcfce7] inline-block border border-green-200"></span> Jadwal Puasa Sunnah
             </div>
@@ -1889,7 +1889,7 @@ FITUR_MASJID_HTML = """
         <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1564683214965-3619addd900d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80');"></div>
         <!-- Gradient Overlay: Dark midnight blue gradually transparent to bottom -->
         <div class="absolute inset-0 bg-gradient-to-b from-[#0b162c]/95 via-[#0b162c]/80 to-[#0b162c]/95"></div>
-        
+
         <div class="relative w-full h-full max-w-md mx-auto p-6 flex flex-col z-10 overflow-hidden">
             <!-- Zona 1: Navigasi Atas -->
             <div class="flex justify-between items-start mb-8 flex-shrink-0 animate-[fadeIn_0.5s_ease-out]">
@@ -1918,12 +1918,12 @@ FITUR_MASJID_HTML = """
                         <i class="fas fa-compass"></i> Qiblat
                     </button>
                 </div>
-                
+
                 <div class="w-full flex justify-between text-xs font-bold text-gray-300 mb-4 px-4">
                     <span id="alarm-hijri-date">-- ---- ---- H</span>
                     <span id="alarm-masehi-date">-- --- ----</span>
                 </div>
-                
+
                 <p id="alarm-countdown-text" class="text-teal-400 font-bold text-sm tracking-wide bg-teal-900/30 px-4 py-2 rounded-full border border-teal-500/30 mb-2">Memuat Waktu...</p>
                 <button onclick="openAlarmHelp()" class="text-[10px] text-teal-300 hover:text-teal-200 underline underline-offset-2">Adzan/Notif Sering Tidak Muncul?</button>
             </div>
@@ -1962,40 +1962,40 @@ FITUR_MASJID_HTML = """
                 const now = new Date();
                 const month = now.getMonth() + 1;
                 const year = now.getFullYear();
-                
+
                 const res1 = await fetch(`https://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month=${month}&year=${year}`);
                 const data1 = await res1.json();
-                
+
                 let nextMonth = month + 1;
                 let nextYear = year;
                 if (nextMonth > 12) { nextMonth = 1; nextYear++; }
                 const res2 = await fetch(`https://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month=${nextMonth}&year=${nextYear}`);
                 const data2 = await res2.json();
-                
+
                 let allDays = [...data1.data, ...data2.data];
-                
+
                 const todayStr = String(now.getDate()).padStart(2, '0') + '-' + String(now.getMonth()+1).padStart(2, '0') + '-' + now.getFullYear();
-                
+
                 let startIndex = allDays.findIndex(d => d.date.gregorian.date === todayStr);
                 if (startIndex === -1) startIndex = 0;
-                
+
                 let thirtyDays = allDays.slice(startIndex, startIndex + 30);
-                
+
                 let html = '';
                 const todayGregorianDate = now.getDate();
                 const todayGregorianMonth = now.getMonth() + 1;
-                
+
                 thirtyDays.forEach(day => {
                     const g = day.date.gregorian;
                     const h = day.date.hijri;
                     const t = day.timings;
-                    
+
                     const gDay = parseInt(g.day);
                     const gMonth = parseInt(g.month.number);
                     const isToday = (gDay === todayGregorianDate && gMonth === todayGregorianMonth);
-                    
+
                     const clean = (timeStr) => timeStr.split(' ')[0];
-                    
+
                     html += `
                         <tr class="${isToday ? 'today-row' : 'hover:bg-[#111] transition-colors'}">
                             <td class="text-left pl-4">${g.day} ${g.month.en} ${g.year}</td>
@@ -2010,9 +2010,9 @@ FITUR_MASJID_HTML = """
                         </tr>
                     `;
                 });
-                
+
                 tbody.innerHTML = html;
-                
+
                 const checkboxes = document.querySelectorAll('#jadwal-column-menu input[type="checkbox"]');
                 checkboxes.forEach(cb => {
                     const colClass = cb.getAttribute('onchange').match(/'([^']+)'/)[1];
@@ -2021,18 +2021,18 @@ FITUR_MASJID_HTML = """
                         el.style.display = cb.checked ? '' : 'none';
                     });
                 });
-                
+
             } catch(e) {
                 tbody.innerHTML = `<tr><td colspan="9" class="py-10 text-red-500">Gagal mengambil data: ${e.message}</td></tr>`;
             }
         }
     }
-    
+
     function toggleColJadwal(colClass) {
         const elements = document.querySelectorAll('.' + colClass);
         const checkbox = document.querySelector(`input[onchange="toggleColJadwal('${colClass}')"]`);
         const isVisible = checkbox.checked;
-        
+
         elements.forEach(el => {
             el.style.display = isVisible ? '' : 'none';
         });
@@ -2047,19 +2047,19 @@ FITUR_MASJID_HTML = """
 
     // Fitur 2: Kompas Kiblat Presisi
     let currentHeading = 0;
-    
+
     // Haversine Formula for Distance to Kaaba
     function calculateDistance(lat1, lon1, lat2, lon2) {
         const R = 6371; // Radius of the earth in km
-        const dLat = (lat2 - lat1) * Math.PI / 180;  
-        const dLon = (lon2 - lon1) * Math.PI / 180; 
-        const a = 
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a =
             Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
             Math.sin(dLon/2) * Math.sin(dLon/2)
-            ; 
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-        const d = R * c; 
+            ;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const d = R * c;
         return Math.round(d);
     }
 
@@ -2068,7 +2068,7 @@ FITUR_MASJID_HTML = """
             alert("Geolocation tidak didukung di perangkat ini.");
             return;
         }
-        
+
         // Disable button & show loading state
         const btn = document.getElementById('activate-compass-btn');
         if (btn) btn.classList.add('hidden');
@@ -2076,37 +2076,37 @@ FITUR_MASJID_HTML = """
         navigator.geolocation.getCurrentPosition(async (pos) => {
             let lat = pos.coords.latitude;
             let lon = pos.coords.longitude;
-            
+
             // Kaaba Coordinates
             const kaabaLat = 21.422487;
             const kaabaLon = 39.826206;
-            
+
             try {
                 // Fetch Qibla Direction
                 const res = await fetch(`https://api.aladhan.com/v1/qibla/${lat}/${lon}`);
                 const data = await res.json();
                 const qibla = data.data.direction;
-                
+
                 // Calculate Distance
                 const distance = calculateDistance(lat, lon, kaabaLat, kaabaLon);
-                
+
                 // Fetch Location Name (Reverse Geocoding)
                 const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`);
                 const geoData = await geoRes.json();
                 let city = geoData.address.city || geoData.address.town || geoData.address.county || geoData.address.state || "Lokasi Anda";
                 let state = geoData.address.state || "";
-                
+
                 // Update UI Location
                 document.getElementById('qibla-city').innerText = `${city} ${state}`;
-                
+
                 // Update UI Qibla Info
                 const infoEl = document.getElementById('kiblat-info');
                 infoEl.innerText = `Qiblat ${qibla.toFixed(2)} Derajat Jarak ${distance} KM`;
                 infoEl.classList.remove('opacity-0');
-                
+
                 // Inject Kaaba Icon precisely at Qibla degree relative to North
                 document.getElementById('kaaba-icon-container').style.transform = `rotate(${qibla}deg)`;
-                
+
                 // Low-Pass Filter factor
                 const alphaFilter = 0.15;
 
@@ -2116,7 +2116,7 @@ FITUR_MASJID_HTML = """
                         heading = event.webkitCompassHeading; // iOS
                     } else if (event.alpha !== null) {
                         // Android absolute orientation
-                        heading = 360 - event.alpha; 
+                        heading = 360 - event.alpha;
                     }
 
                     if (heading !== null) {
@@ -2131,7 +2131,7 @@ FITUR_MASJID_HTML = """
 
                         let diffQibla = Math.abs(currentHeading - qibla);
                         if (diffQibla > 180) diffQibla = 360 - diffQibla;
-                        
+
                         if (diffQibla <= 3) {
                             if (disc.style.background !== "radial-gradient(circle at 50% 50%, #ffffff, #dcfce7)") {
                                 disc.style.background = "radial-gradient(circle at 50% 50%, #ffffff, #dcfce7)";
@@ -2188,7 +2188,7 @@ FITUR_MASJID_HTML = """
             const data = await res.json();
             const h = data.data.hijri;
             document.getElementById('fitur-hijri-date').innerText = `${h.day} ${h.month.en} ${h.year} H`;
-            
+
             // Check if today is a fasting day
             const isFasting = checkPuasaSunnah(parseInt(h.day), h.month.number, today.getDay());
             if (isFasting) {
@@ -2204,21 +2204,21 @@ FITUR_MASJID_HTML = """
         // gregorianWeekday: 0 = Sunday, 1 = Monday, 4 = Thursday
         hijriDay = parseInt(hijriDay);
         hijriMonthNum = parseInt(hijriMonthNum);
-        
+
         let fasting = null;
-        
+
         // 1. Senin & Kamis
         if (gregorianWeekday === 1) {
             fasting = { title: "Puasa Senin", desc: "Puasa sunnah mingguan yang rutin dikerjakan Rasulullah SAW karena pada hari tersebut amal-amal diangkat." };
         } else if (gregorianWeekday === 4) {
             fasting = { title: "Puasa Kamis", desc: "Puasa sunnah mingguan yang rutin dikerjakan Rasulullah SAW karena pada hari tersebut amal-amal diangkat." };
         }
-        
+
         // 2. Ayyamul Bidh (13, 14, 15 every Hijri month)
         if ([13, 14, 15].includes(hijriDay)) {
             fasting = { title: "Puasa Ayyamul Bidh", desc: "Puasa sunnah tiga hari pertengahan bulan Hijriah yang pahalanya seperti berpuasa sepanjang tahun." };
         }
-        
+
         // 3. Tasu'a & Asyura (9 & 10 Muharram)
         if (hijriMonthNum === 1) {
             if (hijriDay === 9) fasting = { title: "Puasa Tasu'a", desc: "Puasa sunnah tanggal 9 Muharram untuk menyelisihi ahli kitab." };
@@ -2229,7 +2229,7 @@ FITUR_MASJID_HTML = """
         if (hijriMonthNum === 12 && hijriDay === 9) {
              fasting = { title: "Puasa Arafah", desc: "Puasa sunnah bagi yang tidak wukuf di Arafah, menghapus dosa setahun lalu dan setahun yang akan datang." };
         }
-        
+
         // 5. Syawal (6 Days) - We won't mark them specifically here as it can be any 6 days, but usually marked manually. For simplicity, omit or just tag month.
 
         return fasting;
@@ -2239,7 +2239,7 @@ FITUR_MASJID_HTML = """
         const grid = document.getElementById('calendar-grid');
         const header = document.getElementById('calendar-month-year');
         grid.innerHTML = '<div class="col-span-7 py-10 text-center"><i class="fas fa-spinner fa-spin text-emerald-500 text-2xl"></i></div>';
-        
+
         const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
         header.innerText = `${monthNames[month - 1]} ${year}`;
 
@@ -2249,12 +2249,12 @@ FITUR_MASJID_HTML = """
             const days = data.data;
 
             let html = '';
-            
+
             // Get first day of the month to pad empty grid cells
             const firstDayData = days[0].date.gregorian;
             const firstDateObj = new Date(year, month - 1, 1);
             let startDayOfWeek = firstDateObj.getDay(); // 0 = Sunday, 1 = Monday
-            
+
             // Pad empty cells
             for(let i=0; i<startDayOfWeek; i++) {
                 html += `<div class="p-2 border border-transparent"></div>`;
@@ -2263,23 +2263,23 @@ FITUR_MASJID_HTML = """
             days.forEach(day => {
                 const gregorian = day.date.gregorian;
                 const hijri = day.date.hijri;
-                
+
                 const gDay = parseInt(gregorian.day);
                 const weekday = new Date(year, month - 1, gDay).getDay(); // 0-6
-                
+
                 const fastingData = checkPuasaSunnah(hijri.day, hijri.month.number, weekday);
-                
+
                 // Styling classes
                 let textClass = "text-gray-800";
                 if (weekday === 0) textClass = "text-red-500"; // Minggu = Merah
-                
+
                 let bgClass = "bg-white hover:bg-gray-50 border-transparent";
                 let cursorClass = "cursor-pointer";
                 let onclickEvent = ``;
 
                 if (fastingData) {
                     bgClass = "bg-[#d1fae5] hover:bg-[#bbf7d0] border-transparent"; // emerald-100 / green-200
-                    
+
                     // Escape single quotes for inline JS injection
                     const safeTitle = fastingData.title.replace(/'/g, "\\'");
                     const safeDesc = fastingData.desc.replace(/'/g, "\\'");
@@ -2288,7 +2288,7 @@ FITUR_MASJID_HTML = """
                 } else {
                     cursorClass = "cursor-default";
                 }
-                
+
                 // Add current day highlight if it's today
                 const today = new Date();
                 if (gDay === today.getDate() && month === today.getMonth() + 1 && year === today.getFullYear()) {
@@ -2303,7 +2303,7 @@ FITUR_MASJID_HTML = """
                     </div>
                 `;
             });
-            
+
             grid.innerHTML = html;
         } catch(e) {
             grid.innerHTML = `<div class="col-span-7 text-center text-red-500 py-4 text-xs">Error memuat kalender</div>`;
@@ -2345,7 +2345,7 @@ FITUR_MASJID_HTML = """
 
     async function initAlarmAdzan() {
         if(alarmAdzanInterval) clearInterval(alarmAdzanInterval);
-        
+
         // Fetch Location
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -2376,7 +2376,7 @@ FITUR_MASJID_HTML = """
             const hData = await hRes.json();
             const h = hData.data.hijri;
             document.getElementById('alarm-hijri-date').innerText = `${h.day} ${h.month.en} ${h.year} H`;
-            
+
             // Masehi Date
             const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
             document.getElementById('alarm-masehi-date').innerText = `${dateObj.getDate()} ${monthNames[dateObj.getMonth()]} ${yyyy}`;
@@ -2385,7 +2385,7 @@ FITUR_MASJID_HTML = """
             const pRes = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
             const pData = await pRes.json();
             const timings = pData.data.timings;
-            
+
             alarmAdzanSchedules = [
                 { id: 'Imsak', name: 'Imsak', time: timings.Imsak },
                 { id: 'Fajr', name: 'Subuh', time: timings.Fajr },
@@ -2447,7 +2447,7 @@ FITUR_MASJID_HTML = """
             const [h, m] = p.time.split(':');
             const pDate = new Date();
             pDate.setHours(parseInt(h), parseInt(m), 0, 0);
-            
+
             if (pDate > now) {
                 nextPrayer = p;
                 targetTime = pDate;
@@ -2472,23 +2472,23 @@ FITUR_MASJID_HTML = """
             pDate.setHours(parseInt(h), parseInt(m), 0, 0);
             if (now >= pDate) {
                 activePrayerId = p.id;
-                
+
                 // Calculate time passed since active prayer
                 const diffMs = now - pDate;
                 const passedH = Math.floor(diffMs / 3600000);
                 const passedM = Math.floor((diffMs % 3600000) / 60000);
-                
+
                 let passedStr = "";
                 if(passedH > 0) passedStr += `${passedH} jam `;
                 if(passedM > 0) passedStr += `${passedM} menit `;
                 if(passedStr === "") passedStr = "Baru saja ";
-                
+
                 // Update countdown text to show what passed
                 document.getElementById('alarm-countdown-text').innerText = `Kurang lebih ${passedStr.trim()} yang lalu`;
                 break;
             }
         }
-        
+
         // If it's close to next prayer (< 30 mins), switch to countdown
         if (targetTime) {
             const diffMsToNext = targetTime - now;
@@ -2508,7 +2508,7 @@ FITUR_MASJID_HTML = """
             if(row) {
                 const nameEl = row.querySelector('.schedule-name');
                 const timeEl = row.querySelector('.schedule-time');
-                
+
                 // Reset styling
                 row.classList.remove('bg-white/20', 'border-[#FFD700]/50', 'shadow-[0_0_20px_rgba(255,215,0,0.15)]');
                 row.classList.add('bg-white/10', 'border-white/10');
@@ -2534,16 +2534,16 @@ FITUR_MASJID_HTML = """
         initAlarmAdzan();
         if('vibrate' in navigator) navigator.vibrate(50);
     }
-    
+
     function openAlarmCalendar() {
         closeModal('modal-fitur-alarm-adzan');
         openModal('modal-fitur-puasa');
     }
-    
+
     function openAlarmSettings() {
         alert("Menu Pengaturan Suara Muadzin (Dalam Pengembangan)");
     }
-    
+
     function openAlarmHelp() {
         alert("PANDUAN NOTIFIKASI:\\n\\n1. Buka Pengaturan HP > Aplikasi > Masjid Al Hijrah.\\n2. Izinkan 'Mulai Otomatis' (Auto Start).\\n3. Matikan 'Penghemat Baterai' (No Restrictions).\\n4. Pastikan volume media/notifikasi tidak dibisukan.");
     }
@@ -2686,7 +2686,7 @@ IDUL_ADHA_DASHBOARD_HTML = """
 <div class="pt-20 md:pt-32 pb-32 px-5 md:px-8 bg-gray-50 font-sans text-gray-800 selection:bg-amber-200 selection:text-amber-900">
     <!-- DESKTOP SPLIT HEADER -->
     <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-8 md:mb-12">
-        
+
         <!-- LEFT COLUMN: WELCOME (Desktop Only) -->
         <div class="hidden md:block pl-2">
             <p class="text-xl text-gray-500 font-medium mb-2">Assalamualaikum Warahmatullahi Wabarakatuh</p>
@@ -2702,7 +2702,7 @@ IDUL_ADHA_DASHBOARD_HTML = """
 
         <!-- RIGHT COLUMN: PRAYER CARD (Mobile: Top, Desktop: Right) -->
         <div class="flex flex-col gap-6">
-            
+
             <!-- PRAYER CARD -->
             <div class="bg-gradient-to-br from-[#78350f] to-[#451a03] rounded-3xl p-6 md:p-10 text-white shadow-xl relative overflow-hidden transform md:hover:scale-[1.02] transition-transform duration-500 border border-white/10">
                 <a href="/" class="absolute top-4 right-4 bg-white/20 hover:bg-white text-white hover:text-[#451a03] px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-[0_0_15px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_rgba(255,255,255,0.6)] z-20 flex items-center gap-1 backdrop-blur-sm">
@@ -2718,7 +2718,7 @@ IDUL_ADHA_DASHBOARD_HTML = """
                     <div class="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 inline-block mb-6 border border-white/10">
                         <span class="font-mono text-2xl font-bold tracking-wider" id="countdown-timer">--:--:--</span>
                     </div>
-                    
+
                     <div class="grid grid-cols-5 gap-1 text-center text-xs opacity-90 border-t border-white/20 pt-4">
                         <div><div class="font-semibold mb-1">Subuh</div><div id="fajr-time" class="font-mono">--:--</div></div>
                         <div><div class="font-semibold mb-1">Dzuhur</div><div id="dhuhr-time" class="font-mono">--:--</div></div>
@@ -2734,13 +2734,13 @@ IDUL_ADHA_DASHBOARD_HTML = """
     <!-- MAIN CONTENT -->
     <div class="container mx-auto px-4 md:px-8 max-w-6xl mb-12">
         <div class="w-full">
-            
+
             <!-- MENU GRID -->
             <div class="w-full">
                 <h2 class="text-2xl font-bold text-[#451a03] mb-6 flex items-center border-l-4 border-[#78350f] pl-4">
                     <i class="fas fa-th-large text-[#78350f] mr-3"></i>Menu Qurban
                 </h2>
-                
+
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8 mb-8">
                     <!-- ABSEN PANITIA (Time-Gated) -->
                     {% if not is_valid_window %}
@@ -2771,7 +2771,7 @@ IDUL_ADHA_DASHBOARD_HTML = """
                         </div>
                         <span class="text-sm md:text-base font-semibold text-[#1B4332] group-hover:text-[#1B4332]">Laporan Qurban</span>
                     </a>
-                    
+
                     <!-- FEATURE 2: Daftar Shohibul -->
                     <a href="/qurban/lacak" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-[#8B2635]/10 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-[#8B2635]/5 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
                         <div class="bg-[#8B2635]/10 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-[#8B2635] group-hover:bg-[#8B2635] group-hover:text-white transition-colors">
@@ -2779,7 +2779,7 @@ IDUL_ADHA_DASHBOARD_HTML = """
                         </div>
                         <span class="text-sm md:text-base font-semibold text-[#8B2635] group-hover:text-[#8B2635]">Daftar Shohibul</span>
                     </a>
-                    
+
                     <!-- FEATURE 3: Pembagian -->
                     <a href="/qurban/pembagian/cek" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-[#D4A017]/10 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-[#D4A017]/5 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
                         <div class="bg-[#D4A017]/10 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-[#D4A017] group-hover:bg-[#D4A017] group-hover:text-white transition-colors">
@@ -2787,7 +2787,7 @@ IDUL_ADHA_DASHBOARD_HTML = """
                         </div>
                         <span class="text-sm md:text-base font-semibold text-[#D4A017] group-hover:text-[#D4A017]">Pembagian</span>
                     </a>
-                    
+
                      <!-- FEATURE 4: Peta Distribusi (formerly Galeri Qurban) -->
                     <a href="/admin/qurban/peta" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-[#1B4332]/10 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-[#1B4332]/5 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
                         <div class="bg-[#1B4332]/10 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-[#1B4332] group-hover:bg-[#1B4332] group-hover:text-white transition-colors">
@@ -2795,7 +2795,7 @@ IDUL_ADHA_DASHBOARD_HTML = """
                         </div>
                         <span class="text-sm md:text-base font-semibold text-[#1B4332] group-hover:text-[#1B4332]">Peta Distribusi</span>
                     </a>
-                    
+
                     <!-- FEATURE 5: Panduan -->
                     <a href="/idul-adha/panduan" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-[#D4A017]/10 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-[#D4A017]/5 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
                         <div class="bg-[#D4A017]/10 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-[#D4A017] group-hover:bg-[#D4A017] group-hover:text-white transition-colors">
@@ -2830,7 +2830,7 @@ IDUL_ADHA_LAPORAN_HTML = '''
                     Pantau progres pemotongan dan distribusi daging qurban di Masjid Al-Hijrah secara real-time. Transparansi demi kemaslahatan umat.
                 </p>
             </div>
-            
+
             <div class="bg-[#8B2635] p-3 rounded-xl border border-[#8B2635]/50 shadow-lg text-center w-max mt-4 md:mt-0 self-start md:self-center">
                 <p class="text-[10px] uppercase font-bold text-white/70 mb-1 tracking-wider">Status Pembaruan</p>
                 <div class="flex items-center gap-2">
@@ -2846,14 +2846,14 @@ IDUL_ADHA_LAPORAN_HTML = '''
 
     <!-- Main Content -->
     <div class="max-w-4xl mx-auto px-5 md:px-8 mt-[-2rem] relative z-20">
-        
+
         <!-- Error/Loading State -->
         <div id="loading-state" class="bg-white rounded-2xl shadow-xl p-10 text-center border border-gray-100 mb-8">
             <i class="fas fa-circle-notch fa-spin text-4xl text-[#D4A017] mb-4"></i>
             <h3 class="text-lg font-bold text-[#1B4332]">Mengambil data terbaru...</h3>
             <p class="text-sm text-gray-500">Mohon tunggu sebentar.</p>
         </div>
-        
+
         <div id="error-state" class="hidden bg-[#8B2635]/10 rounded-2xl shadow-xl p-8 text-center border border-[#8B2635]/30 mb-8">
             <i class="fas fa-exclamation-triangle text-4xl text-[#8B2635] mb-4"></i>
             <h3 class="text-lg font-bold text-[#8B2635]">Gagal Memuat Data</h3>
@@ -2864,7 +2864,7 @@ IDUL_ADHA_LAPORAN_HTML = '''
         <div id="dashboard-grid" class="hidden">
             <!-- Top Stats: Animals -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6">
-                
+
                 <!-- Sapi -->
                 <div class="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 flex items-center justify-between group hover:-translate-y-1 transition-transform">
                     <div>
@@ -2902,7 +2902,7 @@ IDUL_ADHA_LAPORAN_HTML = '''
                             <span class="text-gray-500 font-bold">Kg</span>
                         </div>
                     </div>
-                    
+
                     <!-- Packages -->
                     <div class="text-center border-b md:border-b-0 md:border-r border-gray-100 pb-6 md:pb-0 md:px-6">
                         <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#D4A017]/10 text-[#D4A017] mb-4">
@@ -2927,7 +2927,7 @@ IDUL_ADHA_LAPORAN_HTML = '''
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Progress Bar -->
                 <div class="mt-8">
                     <div class="flex justify-between text-xs font-bold mb-2">
@@ -2939,13 +2939,13 @@ IDUL_ADHA_LAPORAN_HTML = '''
                     </div>
                 </div>
             </div>
-            
+
             <p class="text-center text-xs text-gray-500 font-medium">
-                Pembaruan otomatis setiap 30 detik. <br class="md:hidden"> 
+                Pembaruan otomatis setiap 30 detik. <br class="md:hidden">
                 Terakhir disinkronisasi: <span id="sync-time" class="font-mono">--:--:--</span>
             </p>
         </div>
-        
+
         <!-- ADMIN FORM (Only visible to admin) -->
         {% if is_admin %}
         <div class="mt-12 bg-white rounded-3xl p-6 md:p-8 shadow-xl border-2 border-[#1B4332]/20">
@@ -2958,10 +2958,10 @@ IDUL_ADHA_LAPORAN_HTML = '''
                     <p class="text-xs text-gray-500 uppercase tracking-widest">Update Data Transparansi</p>
                 </div>
             </div>
-            
+
             <form id="admin-qurban-form" class="space-y-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">Total Sapi</label>
@@ -2984,7 +2984,7 @@ IDUL_ADHA_LAPORAN_HTML = '''
                         <input type="number" name="total_packages_distributed" id="input-packages-dist" value="0" min="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm font-mono font-bold focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017]">
                     </div>
                 </div>
-                
+
                 <button type="button" onclick="submitQurbanStats(event)" class="w-full bg-[#1B4332] text-white font-bold py-4 mt-2 rounded-xl hover:bg-[#153426] transition shadow-lg flex items-center justify-center gap-2">
                     <i class="fas fa-save"></i> Simpan Data Real-time
                 </button>
@@ -3007,54 +3007,54 @@ IDUL_ADHA_LAPORAN_HTML = '''
                 throw new Error(errText);
             }
             const data = await res.json();
-            
+
             // Hide loading/error, show grid
             document.getElementById('loading-state').classList.add('hidden');
             document.getElementById('error-state').classList.add('hidden');
             document.getElementById('dashboard-grid').classList.remove('hidden');
-            
+
             // Update stats
             document.getElementById('val-sapi').innerText = data.total_cattle;
             document.getElementById('val-kambing').innerText = data.total_goat;
             document.getElementById('val-meat').innerText = parseFloat(data.total_meat_weight_kg).toLocaleString('id-ID');
             document.getElementById('val-packages-prepared').innerText = data.total_packages_prepared.toLocaleString('id-ID');
             document.getElementById('val-packages-distributed').innerText = data.total_packages_distributed.toLocaleString('id-ID');
-            
+
             // Update admin inputs if they exist
             const inCattle = document.getElementById('input-cattle');
             if(inCattle && document.activeElement !== inCattle) inCattle.value = data.total_cattle;
-            
+
             const inGoat = document.getElementById('input-goat');
             if(inGoat && document.activeElement !== inGoat) inGoat.value = data.total_goat;
-            
+
             const inMeat = document.getElementById('input-meat');
             if(inMeat && document.activeElement !== inMeat) inMeat.value = data.total_meat_weight_kg;
-            
+
             const inPrep = document.getElementById('input-packages-prep');
             if(inPrep && document.activeElement !== inPrep) inPrep.value = data.total_packages_prepared;
-            
+
             const inDist = document.getElementById('input-packages-dist');
             if(inDist && document.activeElement !== inDist) inDist.value = data.total_packages_distributed;
-            
+
             // Progress Bar Logic
             let pct = 0;
             if (data.total_packages_prepared > 0) {
                 pct = Math.round((data.total_packages_distributed / data.total_packages_prepared) * 100);
             }
             if (pct > 100) pct = 100;
-            
+
             document.getElementById('progress-bar').style.width = pct + '%';
             document.getElementById('val-progress-pct').innerText = pct + '%';
-            
+
             // Sync time
             const now = new Date();
             document.getElementById('sync-time').innerText = now.toLocaleTimeString('id-ID', {hour12: false});
-            
+
         } catch(e) {
             console.error('Fetch error:', e);
             document.getElementById('loading-state').classList.add('hidden');
             document.getElementById('dashboard-grid').classList.add('hidden');
-            
+
             const errorState = document.getElementById('error-state');
             errorState.classList.remove('hidden');
             const p = errorState.querySelector('p');
@@ -3106,7 +3106,7 @@ IDUL_ADHA_LAPORAN_HTML = '''
 
     // Initial fetch
     fetchStats();
-    
+
     // Auto refresh every 30 seconds
     setInterval(fetchStats, 30000);
 </script>
@@ -3133,13 +3133,13 @@ IDUL_ADHA_HEWAN_ADMIN_HTML = '''
 
     <!-- Main Content -->
     <div class="max-w-4xl mx-auto px-5 md:px-8 mt-6 relative z-20 space-y-8">
-        
+
         <!-- Registration Form -->
         <div class="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-gray-100">
             <h3 class="text-lg font-bold text-[#1B4332] mb-4 border-b border-gray-100 pb-3">Registrasi Hewan Baru</h3>
             <form action="/admin/qurban/hewan/tambah" method="POST" class="space-y-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">Nama Shohibul (Pewakif)</label>
@@ -3161,7 +3161,7 @@ IDUL_ADHA_HEWAN_ADMIN_HTML = '''
                         <input type="number" name="queue_number" required min="1" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017]">
                     </div>
                 </div>
-                
+
                 <button type="submit" class="w-full bg-[#D4A017] text-[#1B4332] font-bold py-4 mt-2 rounded-xl hover:bg-[#b58812] transition shadow-lg flex items-center justify-center gap-2">
                     <i class="fas fa-plus-circle"></i> Daftarkan Hewan & Generate PIN
                 </button>
@@ -3171,7 +3171,7 @@ IDUL_ADHA_HEWAN_ADMIN_HTML = '''
         <!-- Animal List / Status Updater -->
         <div class="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-gray-100">
             <h3 class="text-lg font-bold text-[#1B4332] mb-4 border-b border-gray-100 pb-3">Daftar Hewan & Update Status</h3>
-            
+
             <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                 {% for animal in animals %}
                 <div class="border border-gray-200 rounded-2xl p-4 hover:border-[#D4A017] transition-colors relative">
@@ -3184,7 +3184,7 @@ IDUL_ADHA_HEWAN_ADMIN_HTML = '''
                             <h4 class="font-bold text-gray-800">{{ animal.sohibul_name }}</h4>
                             <p class="text-xs text-gray-500"><i class="fab fa-whatsapp"></i> {{ animal.wa_number }}</p>
                         </div>
-                        
+
                         <!-- Track URL display -->
                         <div class="bg-gray-50 p-2 rounded-lg border border-gray-200 flex items-center gap-2 text-xs">
                             <span class="text-gray-500 font-mono truncate max-w-[150px] md:max-w-[200px]" id="url-{{ animal.id }}">{{ request.url_root }}qurban/lacak?pin={{ animal.pin }}</span>
@@ -3192,7 +3192,7 @@ IDUL_ADHA_HEWAN_ADMIN_HTML = '''
                             <a href="https://wa.me/{{ animal.wa_number|replace('+','')|replace(' ','') }}?text=Assalamualaikum%20Bpk/Ibu%20{{ animal.sohibul_name }},%20ini%20adalah%20link%20untuk%20melacak%20status%20pemotongan%20qurban%20Anda:%20{{ request.url_root }}qurban/lacak?pin={{ animal.pin }}" target="_blank" class="text-green-500 hover:text-green-600 p-1"><i class="fab fa-whatsapp text-sm"></i></a>
                         </div>
                     </div>
-                    
+
                     <!-- Status Updater -->
                     <div class="bg-gray-50 rounded-xl p-2 border border-gray-100">
                         <form action="/admin/qurban/hewan/update-status/{{ animal.id }}" method="POST" class="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -3231,7 +3231,7 @@ IDUL_ADHA_LACAK_HTML = '''
                         <i class="fas fa-list mr-1"></i> Daftar PIN
                     </button>
                 </div>
-                
+
                 <form id="generate-pin-form" class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -3250,7 +3250,7 @@ IDUL_ADHA_LACAK_HTML = '''
                         Generate PIN Baru
                     </button>
                 </form>
-                
+
                 <div id="new-pin-display" class="hidden mt-6 p-4 bg-green-50 rounded-xl border border-green-200 text-center">
                     <p class="text-xs text-green-700 font-bold mb-1">PIN Berhasil Dibuat!</p>
                     <div class="text-3xl font-mono font-bold text-green-800 tracking-widest" id="generated-pin-text"></div>
@@ -3286,13 +3286,13 @@ IDUL_ADHA_LACAK_HTML = '''
                     </div>
                 </div>
             </div>
-            
+
             <script>
                 async function generatePin() {
                     const name = document.getElementById('shohibul_name').value;
                     const type = document.getElementById('animal_type').value;
                     if(!name) { alert("Nama Shohibul harus diisi"); return; }
-                    
+
                     try {
                         const res = await fetch('/api/qurban/shohibul/generate_pin', {
                             method: 'POST',
@@ -3317,16 +3317,16 @@ IDUL_ADHA_LACAK_HTML = '''
                         alert(e.message);
                     }
                 }
-                
+
                 function closePinListModal() {
                     document.getElementById('modal-pin-list').classList.add('hidden');
                 }
-                
+
                 async function openPinListModal() {
                     document.getElementById('modal-pin-list').classList.remove('hidden');
                     const tbody = document.getElementById('pin-list-tbody');
                     tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center">Memuat data...</td></tr>';
-                    
+
                     try {
                         const res = await fetch('/api/qurban/shohibul/list_pins');
                         if(!res.ok) {
@@ -3358,9 +3358,9 @@ IDUL_ADHA_LACAK_HTML = '''
                 }
             </script>
             {% endif %}
-    
-    
-            
+
+
+
 
     <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden relative">
         <!-- Header -->
@@ -3391,7 +3391,7 @@ IDUL_ADHA_LACAK_HTML = '''
                         </form>
                     </div>
                 </div>
-                
+
                 <div id="lacak-error-section" class="hidden text-center py-6 border border-red-100 bg-red-50 rounded-2xl mb-6">
                     <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
                         <i class="fas fa-times text-3xl"></i>
@@ -3400,7 +3400,7 @@ IDUL_ADHA_LACAK_HTML = '''
                     <p class="text-sm text-gray-500 mb-6" id="lacak-error-text"></p>
                     <button onclick="resetLacak()" class="bg-[#1B4332] text-white px-6 py-2 rounded-xl font-bold text-sm shadow-md hover:bg-[#153426] transition">Coba Lagi</button>
                 </div>
-                
+
                 <div id="lacak-result-section" class="hidden">
                     <div class="text-center mb-8 border-b border-gray-100 pb-6">
                         <div class="inline-flex items-center gap-2 bg-[#D4A017]/10 text-[#D4A017] px-4 py-2 rounded-full mb-3">
@@ -3412,17 +3412,17 @@ IDUL_ADHA_LACAK_HTML = '''
 
                     <div class="relative pl-6 space-y-8">
                         <div class="absolute left-[35px] top-4 bottom-4 w-1 bg-gray-100 rounded-full"></div>
-                        
+
                         <!-- Steps will be generated by JS -->
                         <div id="res-steps-container"></div>
                     </div>
-                    
+
                     <div class="mt-8 pt-6 border-t border-gray-100 text-center">
                         <button onclick="resetLacak()" class="bg-gray-100 text-gray-600 px-6 py-2 rounded-xl font-bold text-sm shadow-sm hover:bg-gray-200 transition">Cek PIN Lainnya</button>
                     </div>
                 </div>
             </div>
-            
+
             <script>
                 document.getElementById('lacak-form').addEventListener('submit', async function(e) {
                     e.preventDefault();
@@ -3430,7 +3430,7 @@ IDUL_ADHA_LACAK_HTML = '''
                     const btn = this.querySelector('button');
                     btn.disabled = true;
                     btn.innerText = 'Mencari...';
-                    
+
                     try {
                         const res = await fetch('/qurban/lacak', {
                             method: 'POST',
@@ -3443,7 +3443,7 @@ IDUL_ADHA_LACAK_HTML = '''
                             throw new Error(errText);
                         }
                         const data = await res.json();
-                        
+
                         if(data.success) {
                             showLacakResult(data.data);
                         } else {
@@ -3458,33 +3458,33 @@ IDUL_ADHA_LACAK_HTML = '''
                         btn.innerText = 'Lacak Sekarang';
                     }
                 });
-                
+
                 function resetLacak() {
                     document.getElementById('lacak-result-section').classList.add('hidden');
                     document.getElementById('lacak-error-section').classList.add('hidden');
                     document.getElementById('lacak-form-section').classList.remove('hidden');
                     document.getElementById('track-pin').value = '';
                 }
-                
+
                 function showLacakResult(data) {
                     document.getElementById('lacak-form-section').classList.add('hidden');
                     document.getElementById('lacak-error-section').classList.add('hidden');
                     document.getElementById('lacak-result-section').classList.remove('hidden');
-                    
+
                     document.getElementById('res-animal-icon').className = data.animal_type === 'Sapi' ? 'fas fa-cow' : 'fas fa-sheep';
                     document.getElementById('res-animal-type').innerText = data.animal_type + ' No. ' + data.queue_number;
                     document.getElementById('res-sohibul-name').innerText = data.sohibul_name;
-                    
+
                     const statuses = [
                         {id: 'menunggu_giliran', label: 'Menunggu', desc: 'Hewan qurban sedang menunggu antrean pemotongan.', icon: 'fa-hourglass-half'},
                         {id: 'sedang_disembelih', label: 'Diproses', desc: 'Sedang dalam proses penyembelihan sesuai syariat.', icon: 'fa-cut'},
                         {id: 'proses_pencacahan', label: 'Pencacahan', desc: 'Daging sedang dicacah dan ditimbang.', icon: 'fa-balance-scale'},
                         {id: 'siap_diambil', label: 'Selesai', desc: 'Daging qurban siap didistribusikan.', icon: 'fa-box-open'}
                     ];
-                    
+
                     let activeIdx = statuses.findIndex(s => s.id === data.status);
                     if(activeIdx === -1) activeIdx = 0;
-                    
+
                     const stepsHtml = statuses.map((s, idx) => {
                         let statusColor = 'gray-300';
                         let iconBg = 'bg-white border-2 border-gray-200 text-gray-300';
@@ -3495,7 +3495,7 @@ IDUL_ADHA_LACAK_HTML = '''
                             statusColor = '#D4A017';
                             iconBg = 'bg-[#D4A017] text-white border-4 border-white shadow-[0_0_0_2px_#D4A017] animate-pulse';
                         }
-                        
+
                         return `
                         <div class="flex items-start gap-4 relative z-10">
                             <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-1 ${iconBg} transition-all duration-500">
@@ -3508,7 +3508,7 @@ IDUL_ADHA_LACAK_HTML = '''
                         </div>
                         `;
                     }).join('');
-                    
+
                     document.getElementById('res-steps-container').innerHTML = stepsHtml;
                 }
             </script>
@@ -3521,7 +3521,7 @@ IDUL_ADHA_LACAK_HTML = '''
 
 IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
 <div class="min-h-screen bg-[#F5F0E8] font-sans pt-24 md:pt-28 pb-20 flex flex-col items-center p-4">
-    
+
             <!-- ADMIN KUPON PANEL -->
             {% if is_admin %}
             <div class="bg-white rounded-3xl p-6 shadow-xl border border-yellow-500/20 mb-8 w-full max-w-md mx-auto relative z-20">
@@ -3531,7 +3531,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                         <i class="fas fa-list mr-1"></i> Daftar Kupon
                     </button>
                 </div>
-                
+
                 <form id="generate-kupon-form" class="space-y-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">Nama Lengkap Kepala Keluarga</label>
@@ -3547,7 +3547,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                         Generate Kupon Baru
                     </button>
                 </form>
-                
+
                 <div id="new-kupon-display" class="hidden mt-6 p-4 bg-yellow-50 rounded-xl border border-yellow-200 text-center">
                     <p class="text-xs text-[#D4A017] font-bold mb-1">Kupon Berhasil Dibuat!</p>
                     <div class="text-3xl font-mono font-bold text-[#1B4332] tracking-widest uppercase" id="generated-kupon-text"></div>
@@ -3582,7 +3582,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                     </div>
                 </div>
             </div>
-            
+
             <script>
                 async function loadSlots() {
                     try {
@@ -3601,13 +3601,13 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                         console.error('Failed to load slots', e);
                     }
                 }
-                
+
                 async function generateKupon() {
                     const nik = document.getElementById('warga_nama').value;
                     const slot_id = document.getElementById('slot_id').value;
                     if(!nik) { alert("Nama Lengkap Kepala Keluarga harus diisi"); return; }
                     if(!slot_id) { alert("Pilih slot RT"); return; }
-                    
+
                     try {
                         const res = await fetch('/api/qurban/pembagian/generate_kupon', {
                             method: 'POST',
@@ -3632,16 +3632,16 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                         alert(e.message);
                     }
                 }
-                
+
                 function closeKuponListModal() {
                     document.getElementById('modal-kupon-list').classList.add('hidden');
                 }
-                
+
                 async function openKuponListModal() {
                     document.getElementById('modal-kupon-list').classList.remove('hidden');
                     const tbody = document.getElementById('kupon-list-tbody');
                     tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Memuat data...</td></tr>';
-                    
+
                     try {
                         const res = await fetch('/api/qurban/pembagian/list_kupons');
                         if(!res.ok) {
@@ -3670,7 +3670,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                         tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">${e.message}</td></tr>`;
                     }
                 }
-                
+
                 // Load slots if admin
                 if(document.getElementById('slot_id')) {
                     loadSlots();
@@ -3703,16 +3703,16 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                         <label class="block text-xs font-bold text-gray-600 mb-1">Nama Lengkap Kepala Keluarga</label>
                         <input type="text" id="cek_nama" required placeholder="Contoh: Ahmad Fauzi" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017] text-center">
                     </div>
-                    
+
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">Nomor Kupon (2FA)</label>
                         <input type="text" id="cek_kupon" required placeholder="Sesuai yang diberikan RT" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-mono focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017] tracking-widest text-center uppercase">
                     </div>
-                    
+
                     <button type="submit" class="w-full bg-[#1B4332] text-white py-4 rounded-xl font-bold shadow-lg hover:bg-[#153426] transition mt-2">Cek Jadwal Saya</button>
                 </form>
             </div>
-            
+
             <div id="pembagian-error-section" class="hidden text-center py-6 border border-red-100 bg-red-50 rounded-2xl mb-6 mt-4">
                 <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i class="fas fa-exclamation-triangle text-3xl"></i>
@@ -3721,7 +3721,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                 <p class="text-sm text-gray-500 mb-6" id="pembagian-error-text"></p>
                 <button onclick="resetPembagian()" class="bg-[#1B4332] text-white px-6 py-2 rounded-xl font-bold text-sm shadow-md hover:bg-[#153426] transition">Coba Lagi</button>
             </div>
-            
+
             <div id="pembagian-result-section" class="hidden">
                 <div class="text-center mb-6">
                     <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner border border-green-200">
@@ -3730,18 +3730,18 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                     <h3 class="text-2xl font-bold text-[#1B4332] mb-1">Kupon Valid</h3>
                     <p class="text-sm text-gray-500">Silakan ambil paket qurban Anda sesuai jadwal di bawah ini.</p>
                 </div>
-                
+
                 <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center shadow-inner">
                     <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Identitas (Sesuai NIK)</p>
                     <p class="text-lg font-bold text-gray-800 mb-6" id="res-kupon-nik"></p>
-                    
+
                     <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Waktu & Sesi Pengambilan (<span id="res-kupon-rt"></span>)</p>
                     <p class="text-3xl font-mono font-bold text-[#D4A017] mb-6" id="res-kupon-time"></p>
-                    
+
                     <p class="text-xs text-gray-600 mb-1">Kupon: <strong class="font-mono text-gray-800" id="res-kupon-number"></strong></p>
                     <p class="text-xs text-gray-500">Status: <strong id="res-kupon-status" class="uppercase"></strong></p>
                 </div>
-                
+
                 <div class="mt-6 text-center">
                     <button onclick="resetPembagian()" class="text-xs font-bold text-gray-500 hover:text-[#1B4332] transition">Cek NIK Lainnya</button>
                 </div>
@@ -3755,7 +3755,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                     const btn = this.querySelector('button');
                     btn.disabled = true;
                     btn.innerText = 'Mengecek...';
-                    
+
                     try {
                         const res = await fetch('/qurban/pembagian/cek', {
                             method: 'POST',
@@ -3768,7 +3768,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                             throw new Error(errText);
                         }
                         const data = await res.json();
-                        
+
                         if(data.found) {
                             showPembagianResult(data.data);
                         } else {
@@ -3783,7 +3783,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                         btn.innerText = 'Cek Jadwal Saya';
                     }
                 });
-                
+
                 function resetPembagian() {
                     document.getElementById('pembagian-result-section').classList.add('hidden');
                     document.getElementById('pembagian-error-section').classList.add('hidden');
@@ -3791,17 +3791,17 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                     document.getElementById('cek_nik').value = '';
                     document.getElementById('cek_kupon').value = '';
                 }
-                
+
                 function showPembagianResult(data) {
                     document.getElementById('pembagian-form-section').classList.add('hidden');
                     document.getElementById('pembagian-error-section').classList.add('hidden');
                     document.getElementById('pembagian-result-section').classList.remove('hidden');
-                    
+
                     document.getElementById('res-kupon-nik').innerText = data.nik;
                     document.getElementById('res-kupon-rt').innerText = data.rt_identifier;
                     document.getElementById('res-kupon-time').innerText = data.time_start + ' - ' + data.time_end;
                     document.getElementById('res-kupon-number').innerText = data.coupon_number;
-                    
+
                     const statEl = document.getElementById('res-kupon-status');
                     if(data.is_claimed) {
                         statEl.innerText = 'SUDAH DIAMBIL';
@@ -3812,7 +3812,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                     }
                 }
             </script>
-            
+
 
         </div>
     </div>
@@ -3839,7 +3839,7 @@ IDUL_ADHA_PEMBAGIAN_ADMIN_HTML = '''
     </div>
 
     <div class="max-w-4xl mx-auto px-5 md:px-8 mt-6 relative z-20 space-y-8">
-        
+
         <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
@@ -3857,7 +3857,7 @@ IDUL_ADHA_PEMBAGIAN_ADMIN_HTML = '''
             <form action="/admin/qurban/distribusi" method="POST" class="space-y-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="action" value="create_slot"/>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">Identitas RT</label>
@@ -3876,7 +3876,7 @@ IDUL_ADHA_PEMBAGIAN_ADMIN_HTML = '''
                         <input type="number" name="total_quota" required min="1" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017]">
                     </div>
                 </div>
-                
+
                 <button type="submit" class="w-full bg-[#1B4332] text-white font-bold py-4 mt-2 rounded-xl hover:bg-[#153426] transition shadow-lg flex items-center justify-center gap-2">
                     <i class="fas fa-plus"></i> Buat Slot Alokasi
                 </button>
@@ -3889,7 +3889,7 @@ IDUL_ADHA_PEMBAGIAN_ADMIN_HTML = '''
             <form action="/admin/qurban/distribusi" method="POST" class="space-y-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="action" value="add_kupon"/>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">Pilih Slot RT</label>
@@ -3909,7 +3909,7 @@ IDUL_ADHA_PEMBAGIAN_ADMIN_HTML = '''
                         <input type="text" name="coupon_number" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm uppercase focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017]">
                     </div>
                 </div>
-                
+
                 <button type="submit" class="w-full bg-[#D4A017] text-[#1B4332] font-bold py-3 mt-2 rounded-xl hover:bg-[#b58812] transition shadow-md">
                     <i class="fas fa-ticket-alt mr-1"></i> Daftarkan Kupon
                 </button>
@@ -3919,7 +3919,7 @@ IDUL_ADHA_PEMBAGIAN_ADMIN_HTML = '''
         <!-- Kupon Handover Action -->
         <div class="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-gray-100">
             <h3 class="text-lg font-bold text-[#1B4332] mb-4 border-b border-gray-100 pb-3">Tandai Selesai (Serah Terima Daging)</h3>
-            
+
             <div class="overflow-y-auto max-h-[50vh] pr-2 custom-scrollbar space-y-4">
                 {% for kupon in kupons %}
                 <div class="border border-gray-200 rounded-2xl p-4 flex justify-between items-center gap-4 hover:border-[#1B4332]/30 transition-colors {{ 'bg-gray-50 opacity-60' if kupon.is_claimed else '' }}">
@@ -3933,7 +3933,7 @@ IDUL_ADHA_PEMBAGIAN_ADMIN_HTML = '''
                         <p class="text-xs text-gray-500">Alokasi: <strong>{{ s.rt_identifier }}</strong> ({{ s.time_start }}-{{ s.time_end }})</p>
                         {% endif %}
                     </div>
-                    
+
                     <div>
                         {% if kupon.is_claimed %}
                         <span class="bg-green-100 text-green-700 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1 border border-green-200">
@@ -3961,7 +3961,7 @@ IDUL_ADHA_PEMBAGIAN_ADMIN_HTML = '''
         <!-- Slot Overview -->
         <div class="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-gray-100">
             <h3 class="text-lg font-bold text-[#1B4332] mb-4 border-b border-gray-100 pb-3">Ringkasan Alokasi RT</h3>
-            
+
             <div class="overflow-hidden rounded-xl border border-gray-200">
                 <table class="w-full text-left text-sm">
                     <thead class="bg-gray-50 text-gray-600">
@@ -4030,7 +4030,7 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
 
     <!-- Main Content -->
     <div class="max-w-6xl mx-auto px-5 md:px-8 mt-6 relative z-20 space-y-6">
-        
+
         <!-- Summary Board -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col justify-center">
@@ -4079,7 +4079,7 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {% for slot in slots %}
             <div class="bg-white rounded-2xl p-5 shadow-sm border {{ 'border-[#1B4332] ring-1 ring-[#1B4332] bg-[#1B4332]/5' if slot.is_locked else 'border-gray-200 hover:border-[#D4A017]' }} relative transition-colors">
-                
+
                 <div class="flex justify-between items-start mb-4 border-b border-gray-100 pb-3">
                     <div>
                         <h4 class="text-xl font-bold text-gray-800">{{ slot.rt_identifier }}</h4>
@@ -4095,7 +4095,7 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
                     </span>
                     {% endif %}
                 </div>
-                
+
                 <div class="grid grid-cols-2 gap-2 mb-4">
                     <div class="bg-gray-50 p-2 rounded-lg border border-gray-100">
                         <p class="text-[10px] text-gray-500 uppercase font-bold">Kuota RT</p>
@@ -4113,7 +4113,7 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
                     <p><i class="fas fa-user-check text-[#1B4332] mr-2"></i> Diserahkan ke: <strong>{{ slot.handler_name }}</strong></p>
                     <p class="mt-1"><i class="fas fa-calendar-check text-[#1B4332] mr-2"></i> Pada: <strong>{{ slot.handover_time.strftime('%H:%M WIB, %d %b') if slot.handover_time else '-' }}</strong></p>
                 </div>
-                
+
                 <!-- Unlock Action (Requires Confirmation) -->
                 <form action="/admin/qurban/distribusi/unlock/{{ slot.id }}" method="POST" onsubmit="return confirm('Peringatan: Anda akan membuka kunci RT ini. Lanjutkan?');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -4121,14 +4121,14 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
                         <i class="fas fa-unlock-alt mr-1"></i> Buka Kunci (Admin Override)
                     </button>
                 </form>
-                
+
                 {% else %}
                 <!-- Handover Form -->
                 <form action="/admin/qurban/distribusi/handover/{{ slot.id }}" method="POST" class="mt-2 border-t border-gray-100 pt-3">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Nama Penerima / Perwakilan RT</label>
                     <input type="text" name="handler_name" required placeholder="Cth: Bpk Budi (Ketua RT)" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2 text-sm focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017] mb-2">
-                    
+
                     <button type="submit" class="w-full bg-[#1B4332] text-white text-sm font-bold py-3 rounded-xl hover:bg-[#153426] transition shadow-md flex justify-center items-center gap-2">
                         <i class="fas fa-lock"></i> Rekam Serah Terima & Kunci
                     </button>
@@ -4163,13 +4163,13 @@ IDUL_ADHA_PANDUAN_HTML = '''
         </div>
 
         <div class="p-6 md:p-8 space-y-10">
-            
+
             <!-- CALCULATOR SECTION -->
             <div class="bg-[#1B4332]/5 rounded-3xl p-6 md:p-8 border border-[#1B4332]/10">
                 <h3 class="text-xl font-bold text-[#1B4332] mb-4 flex items-center gap-2 border-b border-[#1B4332]/10 pb-3">
                     <i class="fas fa-calculator text-[#D4A017]"></i> Kalkulator Patungan Hewan
                 </h3>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">Jenis Hewan</label>
@@ -4187,13 +4187,13 @@ IDUL_ADHA_PANDUAN_HTML = '''
                         <input type="number" id="calc-participants" value="7" min="1" class="w-full bg-white border border-gray-200 rounded-xl p-4 text-sm font-mono font-bold focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017]" oninput="runCalculator()">
                     </div>
                 </div>
-                
+
                 <!-- Result / Warning Display -->
                 <div id="calc-result-box" class="bg-white rounded-xl p-6 text-center border border-gray-100 shadow-sm transition-colors duration-300">
                     <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Biaya Per Orang</p>
                     <h2 id="calc-result-val" class="text-3xl md:text-4xl font-bold text-[#1B4332] font-mono">Rp 3.000.000</h2>
                 </div>
-                
+
                 <div id="calc-warning" class="hidden mt-4 bg-[#8B2635]/10 border border-[#8B2635]/30 rounded-xl p-4 flex items-start gap-3">
                     <div class="text-[#8B2635] mt-0.5"><i class="fas fa-exclamation-circle"></i></div>
                     <p id="calc-warning-text" class="text-sm font-bold text-[#8B2635] leading-relaxed"></p>
@@ -4250,7 +4250,7 @@ IDUL_ADHA_PANDUAN_HTML = '''
                     <p class="leading-relaxed text-gray-700 mb-4 text-justify">
                         Sebelum pisau menyentuh leher hewan, penyembelih mengucapkan doa berikut. Doa ini diriwayatkan dalam berbagai hadis sahih dan merupakan sunnah yang sangat dianjurkan:
                     </p>
-                    
+
                     <div class="bg-[#F5F0E8] p-5 rounded-2xl mb-4 border border-[#D4A017]/30">
                         <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Apabila menyembelih untuk diri sendiri dan keluarga:</p>
                         <p class="text-2xl md:text-3xl text-right font-arabic leading-[2.5] mb-4 text-[#D4A017]" style="font-family: 'Amiri', serif;" dir="rtl">بِسْمِ اللهِ وَاللهُ أَكْبَرُ، اللَّهُمَّ هَذَا مِنْكَ وَلَكَ، هَذَا عَنِّي وَعَنْ أَهْلِ بَيْتِي</p>
@@ -4264,7 +4264,7 @@ IDUL_ADHA_PANDUAN_HTML = '''
                         <p class="text-[#8B2635] italic text-sm md:text-base mb-2 font-medium">Bismillâhi wallâhu akbar, Allâhumma hâdzâ minka wa laka, hâdzâ 'an [nama Sohibul Qurban].</p>
                         <p class="text-gray-700 text-sm leading-relaxed border-t border-[#D4A017]/20 pt-2">Artinya: "Dengan nama Allah, dan Allah Maha Besar. Ya Allah, ini adalah dari-Mu dan untuk-Mu. Ini atas nama [nama Sohibul Qurban]."</p>
                     </div>
-                    
+
                     <div class="bg-[#F5F0E8] p-5 rounded-2xl border border-[#D4A017]/30">
                         <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Setelah selesai menyembelih, dianjurkan pula untuk membaca:</p>
                         <p class="text-2xl md:text-3xl text-right font-arabic leading-[2.5] mb-4 text-[#D4A017]" style="font-family: 'Amiri', serif;" dir="rtl">اللَّهُمَّ تَقَبَّلْ مِنِّي (أَوْ مِنْ فُلَانٍ)</p>
@@ -4280,7 +4280,7 @@ IDUL_ADHA_PANDUAN_HTML = '''
                     <p class="leading-relaxed text-gray-700 mb-4 text-justify">
                         Berikut adalah beberapa ketentuan fikih yang sangat penting untuk dipahami oleh seluruh panitia, agar pelaksanaan qurban tidak hanya sah secara teknis tetapi juga bersih secara syariat:
                     </p>
-                    
+
                     <ul class="space-y-4">
                         <li class="bg-gray-50 p-4 rounded-xl border border-gray-100">
                             <span class="font-bold text-[#8B2635] block mb-1">Pertama:</span> <strong>larangan menjadikan bagian hewan qurban sebagai upah (ujrah) bagi juru sembelih atau panitia.</strong> Berdasarkan hadis yang diriwayatkan oleh Imam Bukhari dan Muslim dari Ali bin Abi Thalib radhiyallahu 'anhu, Rasulullah ﷺ memerintahkan beliau untuk mengurus unta-unta qurban dan menyedekahkan seluruh daging, kulit, serta pelana-pelananya, tanpa memberikan sedikitpun kepada juru sembelih sebagai bayaran. Juru sembelih boleh diberikan upah dari sumber dana lain (misalnya dari kas masjid atau biaya operasional yang sudah dianggarkan), tetapi tidak boleh diambil dari daging, kulit, atau bagian manapun dari hewan qurban itu sendiri. Panitia yang terlibat dalam proses qurban boleh menerima daging sebagai hadiah atau sedekah biasa — bukan sebagai imbalan jasa.
@@ -4299,7 +4299,7 @@ IDUL_ADHA_PANDUAN_HTML = '''
                         </li>
                     </ul>
                 </div>
-                
+
             </div>
         </div>
     </div>
@@ -4310,15 +4310,15 @@ IDUL_ADHA_PANDUAN_HTML = '''
         const type = document.getElementById('calc-type').value;
         const price = parseFloat(document.getElementById('calc-price').value) || 0;
         const participants = parseInt(document.getElementById('calc-participants').value) || 1;
-        
+
         const resultBox = document.getElementById('calc-result-box');
         const resultVal = document.getElementById('calc-result-val');
         const warningBox = document.getElementById('calc-warning');
         const warningText = document.getElementById('calc-warning-text');
-        
+
         let isValid = true;
         let warningMsg = "";
-        
+
         // Validation Rules
         if (type === "Sapi" && participants > 7) {
             isValid = false;
@@ -4327,7 +4327,7 @@ IDUL_ADHA_PANDUAN_HTML = '''
             isValid = false;
             warningMsg = "Kambing atau domba hanya sah untuk 1 orang (beserta keluarga yang dinafkahinya) sesuai syariat Islam.";
         }
-        
+
         if (!isValid) {
             // Show Warning, Hide Result
             warningText.innerText = warningMsg;
@@ -4342,7 +4342,7 @@ IDUL_ADHA_PANDUAN_HTML = '''
             resultBox.classList.remove('border-[#8B2635]', 'bg-[#8B2635]/5');
             resultBox.classList.add('border-gray-100');
             resultVal.classList.replace('text-[#8B2635]', 'text-[#1B4332]');
-            
+
             if (participants > 0) {
                 const costPerPerson = price / participants;
                 resultVal.innerText = "Rp " + Math.round(costPerPerson).toLocaleString('id-ID');
@@ -4351,7 +4351,7 @@ IDUL_ADHA_PANDUAN_HTML = '''
             }
         }
     }
-    
+
     // Initial run
     window.addEventListener('DOMContentLoaded', runCalculator);
 </script>
@@ -4359,10 +4359,10 @@ IDUL_ADHA_PANDUAN_HTML = '''
 
 HOME_HTML = """
 <div class="pt-20 md:pt-32 pb-32 px-5 md:px-8">
-    
+
     <!-- DESKTOP SPLIT HEADER -->
     <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-8 md:mb-12">
-        
+
         <!-- LEFT COLUMN: WELCOME (Desktop Only) -->
         <div class="hidden md:block pl-2">
             <p class="text-xl text-gray-500 font-medium mb-2">Assalamualaikum Warahmatullahi Wabarakatuh</p>
@@ -4378,7 +4378,7 @@ HOME_HTML = """
 
         <!-- RIGHT COLUMN: PRAYER CARD & RAMADHAN BANNER -->
         <div class="flex flex-col gap-6">
-            
+
             <!-- PRAYER CARD -->
             <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-3xl p-6 md:p-10 text-white shadow-xl relative overflow-hidden transform md:hover:scale-[1.02] transition-transform duration-500">
                 <a href="{{ url_for('fitur_masjid') }}" class="absolute top-4 right-4 bg-white/20 hover:bg-white text-white hover:text-emerald-700 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-[0_0_15px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_rgba(255,255,255,0.6)] z-20 flex items-center gap-1 backdrop-blur-sm">
@@ -4393,7 +4393,7 @@ HOME_HTML = """
                     <div class="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 inline-block mb-6 border border-white/10">
                         <span class="font-mono text-2xl font-bold tracking-wider" id="countdown-timer">--:--:--</span>
                     </div>
-                    
+
                     <div class="grid grid-cols-5 gap-1 text-center text-xs opacity-90 border-t border-white/20 pt-4">
                         <div>
                             <div class="font-semibold mb-1">Subuh</div>
@@ -4423,24 +4423,24 @@ HOME_HTML = """
             <div class="relative w-full h-[120px] md:h-[140px] perspective-1000 group">
                 <!-- Inner flipper container -->
                 <div id="banner-flipper" class="w-full h-full relative transition-transform duration-700 preserve-3d">
-                    
+
                     <!-- RAMADHAN BANNER (FRONT FACE) -->
                     <div class="absolute w-full h-full backface-hidden rounded-3xl overflow-hidden shadow-xl border border-[#0b162c]">
                         <!-- Background & Texture -->
                         <div class="absolute inset-0 bg-[#0b162c]"></div>
                         <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
-                        
+
                         <!-- Crescent Moon Background -->
                         <div class="absolute right-24 top-1/2 transform -translate-y-1/2 opacity-10 text-[#FFD700] pointer-events-none">
                             <i class="fas fa-moon text-7xl md:text-8xl"></i>
                         </div>
-                        
+
                         <div class="relative w-full h-full px-6 py-4 md:px-8 flex items-center justify-between">
                             <a href="/ramadhan" class="flex-1">
                                 <h2 class="text-2xl md:text-3xl font-bold text-[#FFD700] mb-1 font-sans tracking-wide leading-none hover:text-white transition-colors">Ramadhan Mode</h2>
                                 <p class="text-white/60 text-xs md:text-sm font-medium">Akses Dashboard Khusus Ramadhan</p>
                             </a>
-                            
+
                             <!-- Trigger Button to flip -->
                             <button onclick="document.getElementById('banner-flipper').classList.toggle('rotate-x-180')" class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/10 hover:bg-[#FFD700] flex items-center justify-center text-[#FFD700] hover:text-[#0b1026] transition-all duration-300 relative z-10 ml-4 group/btn border border-[#FFD700]/30 shadow-[0_0_15px_rgba(255,215,0,0.2)] hover:shadow-[0_0_20px_rgba(255,215,0,0.6)]">
                                 <i class="fas fa-arrow-down text-sm md:text-lg group-hover/btn:translate-y-1 transition-transform"></i>
@@ -4452,17 +4452,17 @@ HOME_HTML = """
                     <div class="absolute w-full h-full backface-hidden rotate-x-180 rounded-3xl overflow-hidden shadow-xl border border-[#78350f]">
                         <div class="absolute inset-0 bg-gradient-to-br from-[#78350f] to-[#451a03]"></div>
                         <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
-                        
+
                         <div class="absolute right-24 top-1/2 transform -translate-y-1/2 opacity-10 text-[#fcd34d] pointer-events-none">
                             <i class="fas fa-kaaba text-7xl md:text-8xl"></i>
                         </div>
-                        
+
                         <div class="relative w-full h-full px-6 py-4 md:px-8 flex items-center justify-between">
                             <a href="/idul-adha" class="flex-1">
                                 <h2 class="text-2xl md:text-3xl font-bold text-[#fcd34d] mb-1 font-sans tracking-wide leading-none hover:text-white transition-colors">Idul Adha Mode</h2>
                                 <p class="text-white/70 text-xs md:text-sm font-medium">Akses Dashboard Khusus Qurban</p>
                             </a>
-                            
+
                             <!-- Trigger Button to flip back -->
                             <button onclick="document.getElementById('banner-flipper').classList.toggle('rotate-x-180')" class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/10 hover:bg-[#fcd34d] flex items-center justify-center text-[#fcd34d] hover:text-[#451a03] transition-all duration-300 relative z-10 ml-4 group/btn border border-[#fcd34d]/30 shadow-[0_0_15px_rgba(252,211,77,0.2)] hover:shadow-[0_0_20px_rgba(252,211,77,0.6)]">
                                 <i class="fas fa-arrow-up text-sm md:text-lg group-hover/btn:-translate-y-1 transition-transform"></i>
@@ -4484,17 +4484,17 @@ HOME_HTML = """
             <a href="/irma" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-[#A0B391] mt-4">
                 <div class="absolute inset-0 bg-gradient-to-r from-[#A0B391] to-[#FFB6C1]"></div>
                 <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
-                
+
                 <div class="absolute right-12 top-1/2 transform -translate-y-1/2 opacity-20 text-white pointer-events-none">
                     <i class="fas fa-user-friends text-9xl"></i>
                 </div>
-                
+
                 <div class="relative px-6 py-6 md:px-8 md:py-8 flex items-center justify-between">
                     <div>
                         <h2 class="text-2xl md:text-3xl font-bold text-white mb-1 font-sans tracking-wide leading-none">IRMA Dashboard</h2>
                         <p class="text-white/80 text-xs md:text-sm font-medium">Ruang Kreatif & Kegiatan Remaja</p>
                     </div>
-                    
+
                     <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#A0B391] shadow-[0_0_15px_rgba(255,255,255,0.4)] group-hover:scale-110 transition-transform duration-300 relative z-10">
                         <i class="fas fa-arrow-right text-lg"></i>
                     </div>
@@ -4561,7 +4561,7 @@ HOME_HTML = """
                  <i class="fas fa-chevron-down transform transition-transform duration-500"></i>
             </div>
         </button>
-        
+
         <div id="terapi-content" class="hidden mt-6 transition-all duration-1000 ease-in-out opacity-0 -translate-y-4">
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                  <!-- 1. Audio Healing -->
@@ -4614,7 +4614,7 @@ HOME_HTML = """
                  <i class="fas fa-chevron-down transform transition-transform duration-300"></i>
             </div>
         </button>
-        
+
         <div id="calc-content" class="hidden mt-6 animate-[slideDown_0.3s_ease-out]">
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                  <!-- WARIS -->
@@ -4694,21 +4694,21 @@ HOME_HTML = """
         <div class="fixed inset-0 bg-white/95 backdrop-blur-xl animate-[slideUp_0.5s_ease-out] overflow-y-auto flex items-center justify-center p-4">
             <div class="relative w-full max-w-md mx-auto flex flex-col items-center justify-center p-4 text-center">
                 <button onclick="closeModal('modal-developer'); stopDevAudio()" class="absolute top-0 right-0 md:-right-4 bg-gray-100 w-10 h-10 rounded-full text-gray-600 hover:bg-gray-200 text-xl flex items-center justify-center z-10">&times;</button>
-                
+
                 <h2 class="text-xs font-bold text-gray-400 tracking-[0.3em] mb-2 uppercase">DEVELOPER</h2>
                 <h1 class="text-3xl font-extrabold text-emerald-800 mb-8" style="white-space: nowrap; font-size: clamp(1.5rem, 5vw, 2.5rem);">SAMARINDA WEB CREATIVE</h1>
-                
+
                 <div class="mb-8">
                     <img src="/static/Samarinda_Web_Creative_Logo-removebg-preview.png" alt="Logo Developer" class="h-32 object-contain mx-auto drop-shadow-2xl">
                 </div>
-                
+
                 <h3 class="text-xs font-bold text-gray-400 tracking-[0.2em] mb-4 uppercase border-b border-gray-200 pb-2 w-24 mx-auto">PIHAK KETIGA</h3>
                 <div class="flex flex-col gap-4 justify-center items-center mb-8">
                     <img src="/static/pythonanywherelogo-removebg.png" class="h-16 object-contain">
                     <img src="/static/pythonlogo.png" class="h-16 object-contain">
                     <img src="/static/godaddylogo.png" class="h-8 object-contain">
                 </div>
-                
+
                 <div class="bg-gray-50 p-6 rounded-3xl border border-gray-100 mb-8 max-w-sm w-full mx-auto">
                     <p class="text-sm text-gray-600 font-medium leading-relaxed mb-1">
                         Samarinda, Kalimantan Timur,<br>
@@ -4716,7 +4716,7 @@ HOME_HTML = """
                     </p>
                     <p class="text-xs text-gray-500 italic mt-2">"kalau butuh jasa pembuatan aplikasi website seperti ini, hubungi kami yaa hehee"</p>
                 </div>
-                
+
                 <div class="flex items-center justify-center gap-4 mb-8">
                     <a href="https://www.instagram.com/samarindawebcreative/" target="_blank" class="bg-gradient-to-tr from-purple-500 to-pink-500 text-white w-12 h-12 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition shrink-0">
                         <i class="fab fa-instagram text-2xl"></i>
@@ -4738,7 +4738,7 @@ HOME_HTML = """
                 devAudio.volume = 0.3;
                 devAudio.currentTime = 0;
                 devAudio.play();
-                
+
                 // Fade In 0.3 -> 0.6 in 3s
                 let vol = 0.3;
                 clearInterval(fadeInterval);
@@ -4757,7 +4757,7 @@ HOME_HTML = """
                         if(devAudio.volume > 0.05) devAudio.volume -= 0.01;
                     }
                 };
-                
+
                 devAudio.onended = () => {
                     playDevAudio();
                 };
@@ -4860,7 +4860,7 @@ HOME_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-file-medical text-blue-500 mr-2"></i>Jurnal Kambuh</h3>
                 <button onclick="closeModal('modal-terapi-log')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             <form action="/therapy/log" method="POST" class="space-y-4 mb-8 bg-blue-50 p-4 rounded-2xl border border-blue-100">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -4891,7 +4891,7 @@ HOME_HTML = """
                 </div>
                 <button type="submit" class="w-full bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-600 transition">Simpan Laporan</button>
             </form>
-            
+
             <h4 class="text-sm font-bold text-gray-800 mb-4 pl-2 border-l-4 border-blue-500">Riwayat Terakhir</h4>
             <div class="space-y-3">
                 {% for log in epilepsi_logs %}
@@ -4923,7 +4923,7 @@ HOME_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-capsules text-blue-500 mr-2"></i>Alarm Obat</h3>
                 <button onclick="closeModal('modal-terapi-alarm')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100 mb-6">
                 <p class="text-sm text-gray-700 mb-3 font-medium">Set Jam Minum Obat:</p>
                 <div class="flex gap-4">
@@ -4933,7 +4933,7 @@ HOME_HTML = """
                 <button onclick="saveAlarm()" class="mt-3 w-full bg-blue-500 text-white text-xs font-bold py-2 rounded-lg hover:bg-blue-600 transition">Simpan Pengaturan</button>
                 <p id="alarm-status" class="text-xs text-green-600 mt-2 hidden text-center font-bold">Alarm Aktif!</p>
             </div>
-            
+
             <p class="text-xs text-gray-500 text-center">
                 Alarm akan mengunci layar dan meminta Anda menyelesaikan soal matematika untuk memastikan Anda bangun.
             </p>
@@ -4948,7 +4948,7 @@ HOME_HTML = """
         <i class="fas fa-bell text-6xl mb-6 animate-bounce"></i>
         <h2 class="text-4xl font-bold mb-2">Waktunya Obat!</h2>
         <p class="mb-8 text-white/80">Selesaikan soal untuk mematikan alarm.</p>
-        
+
         <div class="bg-white text-gray-800 p-6 rounded-3xl w-full max-w-xs text-center shadow-2xl">
             <p class="text-2xl font-bold mb-4" id="math-problem">5 + 7 = ?</p>
             <input type="number" id="math-answer" class="w-full p-3 border-2 border-gray-300 rounded-xl text-center text-xl mb-4" placeholder="Jawab...">
@@ -4964,7 +4964,7 @@ HOME_HTML = """
                 <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-apple-alt text-blue-500 mr-2"></i>Panduan Diet & Puasa</h3>
                 <button onclick="closeModal('modal-terapi-diet')" class="bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200">&times;</button>
             </div>
-            
+
             <div class="space-y-6">
                 <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl p-5 text-white shadow-lg">
                     <h4 class="font-bold text-lg mb-1">Puasa Sunnah</h4>
@@ -4973,13 +4973,13 @@ HOME_HTML = """
                         <i class="fas fa-calendar-check mr-2"></i> Jadwal Terdekat: Senin & Kamis
                     </div>
                 </div>
-                
+
                 <div>
                     <h4 class="font-bold text-gray-800 mb-3 border-l-4 border-green-500 pl-2">Diet Ketogenik (Rendah Karbo)</h4>
                     <p class="text-sm text-gray-600 mb-4 leading-relaxed">
                         Diet tinggi lemak dan sangat rendah karbohidrat terbukti efektif mengurangi frekuensi kejang.
                     </p>
-                    
+
                     <div class="grid grid-cols-2 gap-3">
                         <div class="bg-green-50 p-3 rounded-xl border border-green-100">
                             <p class="text-xs font-bold text-green-700 uppercase mb-2">Dianjurkan <i class="fas fa-check float-right"></i></p>
@@ -5001,7 +5001,7 @@ HOME_HTML = """
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="bg-gray-50 p-4 rounded-xl text-xs text-gray-500 italic border border-gray-200">
                     <i class="fas fa-info-circle mr-1"></i> Konsultasikan dengan dokter gizi sebelum mengubah pola makan secara drastis.
                 </div>
@@ -5011,7 +5011,7 @@ HOME_HTML = """
             </button>
         </div>
     </div>
-    
+
     <!-- Modal Waris -->
     <div id="modal-waris" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal-waris')"></div>
@@ -5036,7 +5036,7 @@ HOME_HTML = """
                     </div>
                 </div>
                 <button onclick="calcWaris()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-600 transition">Hitung Waris</button>
-                
+
                 <div id="result-waris" class="hidden mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-sm"></div>
             </div>
         </div>
@@ -5304,7 +5304,7 @@ HOME_HTML = """
         function showMedicalExplanation(key) {
             const data = MEDICAL_DATA[key];
             if(!data) return;
-            
+
             document.getElementById('med-sains').innerText = data.sains;
             const ul = document.getElementById('med-refs');
             ul.innerHTML = '';
@@ -5322,14 +5322,14 @@ HOME_HTML = """
                 }
                 ul.appendChild(li);
             });
-            
+
             openModal('modal-medical-explanation');
         }
 
         function toggleTerapi() {
             const content = document.getElementById('terapi-content');
             const chevron = document.querySelector('#terapi-chevron i');
-            
+
             if (content.classList.contains('hidden')) {
                 // Open
                 content.classList.remove('hidden');
@@ -5343,10 +5343,10 @@ HOME_HTML = """
                 content.classList.remove('opacity-100', 'translate-y-0');
                 content.classList.add('opacity-0', '-translate-y-4');
                 chevron.classList.remove('rotate-180');
-                
+
                 setTimeout(() => {
                     content.classList.add('hidden');
-                }, 1000); 
+                }, 1000);
             }
         }
 
@@ -5356,27 +5356,27 @@ HOME_HTML = """
         let audio = null;
         let currentMurottalIndex = 0;
         const murottalPlaylist = ['001', '112', '113', '114'];
-        
+
         // Nature Playlist
         let currentNatureIndex = 0;
         const naturePlaylist = [
             '/static/rockot-meditation-and-gentle-nature-184572.mp3',
             '/static/soundsforyou-meditative-rain-114484.mp3'
         ];
-        
+
         let hasPlayedAudio = {};
 
         function playAudio(type) {
             const status = document.getElementById('now-playing');
             const seeker = document.getElementById('audio-seeker');
-            
+
             // Real URLs
             const sources = {
-                'alam': naturePlaylist[currentNatureIndex], 
+                'alam': naturePlaylist[currentNatureIndex],
                 'mozart': '/static/Mozart - Sonata for Two Pianos in D, K. 448 [complete].mp3',
                 'murattal': `https://server8.mp3quran.net/afs/${murottalPlaylist[currentMurottalIndex]}.mp3`
             };
-            
+
             if (audio && !audio.paused && audio.dataset.type === type) {
                 audio.pause();
                 status.innerText = "Paused: " + (type === 'alam' ? 'Suara Alam' : type.toUpperCase());
@@ -5391,7 +5391,7 @@ HOME_HTML = """
                 audio.pause();
                 audio = null;
             }
-            
+
             // Loading Animation Check
             if (!hasPlayedAudio[type]) {
                 status.innerText = "sedang mengambil data audio, harap sabar...";
@@ -5407,10 +5407,10 @@ HOME_HTML = """
             } else {
                 // Optimization: Preload none to simulate buffering/chunking control
                 audio = new Audio(sources[type]);
-                audio.preload = 'none'; 
+                audio.preload = 'none';
                 audio.dataset.type = type;
                 setupAudioEvents();
-                
+
                 audio.addEventListener('canplay', () => {
                     status.classList.remove('animate-pulse');
                     let displayType = type.toUpperCase();
@@ -5420,7 +5420,7 @@ HOME_HTML = """
 
                 audio.play();
             }
-            
+
             status.classList.remove('hidden');
             if(seeker) seeker.parentElement.classList.remove('hidden');
         }
@@ -5432,7 +5432,7 @@ HOME_HTML = """
             if (h >= 11 && h < 15) time = "Siang";
             else if (h >= 15 && h < 19) time = "Sore";
             else if (h >= 19 || h < 4) time = "Malam";
-            
+
             const type = document.getElementById('infaq-type-select') ? document.getElementById('infaq-type-select').value : 'Infaq';
             const msg = `Assalamu'alaikum Pak, selamat ${time}, ijin konfirmasi Pak, saya sudah mengtransfer sebesar Rp... di nomor rekening ${type} untuk keperluan ${type} ke masjid langsung, terima kasih Pak 🙏`;
             window.open(`https://wa.me/6282330890500?text=${encodeURIComponent(msg)}`, '_blank');
@@ -5452,7 +5452,7 @@ HOME_HTML = """
                 `;
                 document.body.appendChild(div);
             }
-            
+
             const popup = document.getElementById('amalan-popup');
             popup.classList.remove('hidden');
             // Trigger reflow
@@ -5460,7 +5460,7 @@ HOME_HTML = """
             popup.classList.remove('opacity-0');
             popup.querySelector('div').classList.remove('scale-95');
             popup.querySelector('div').classList.add('scale-100');
-            
+
             setTimeout(() => {
                 popup.classList.add('opacity-0');
                 popup.querySelector('div').classList.add('scale-95');
@@ -5473,7 +5473,7 @@ HOME_HTML = """
 
         function switchNatureAudio() {
             currentNatureIndex = (currentNatureIndex + 1) % naturePlaylist.length;
-            
+
             // If currently playing alam, restart
             if (audio && audio.dataset.type === 'alam') {
                 audio.pause();
@@ -5491,13 +5491,13 @@ HOME_HTML = """
             // Optimasi: Range Requests / Buffer Chunking via JS
             // Menggunakan preload='none' agar browser hanya menarik data saat diputar
             audio = new Audio(url);
-            audio.preload = 'none'; 
+            audio.preload = 'none';
             audio.dataset.type = 'mozart';
             setupAudioEvents();
-            
+
             // Simulate chunking logic
             console.log("Initializing Mozart Range Requests...");
-            
+
             audio.play().catch(e => {
                 console.log("Playback awaiting user interaction or loading...", e);
             });
@@ -5508,12 +5508,12 @@ HOME_HTML = """
             audio = new Audio(url);
             audio.dataset.type = 'murattal';
             setupAudioEvents();
-            
+
             audio.onended = function() {
                 currentMurottalIndex = (currentMurottalIndex + 1) % murottalPlaylist.length;
                 playMurottalSequence();
             };
-            
+
             audio.play();
             document.getElementById('now-playing').innerText = "Sedang Memutar: MURATTAL (Surah " + murottalPlaylist[currentMurottalIndex] + ")";
         }
@@ -5521,13 +5521,13 @@ HOME_HTML = """
         function setupAudioEvents() {
             const seeker = document.getElementById('audio-seeker');
             if(!seeker) return;
-            
+
             audio.ontimeupdate = function() {
                 if(audio.duration) {
                     seeker.value = (audio.currentTime / audio.duration) * 100;
                 }
             };
-            
+
             seeker.oninput = function() {
                 if(audio && audio.duration) {
                     audio.currentTime = (seeker.value / 100) * audio.duration;
@@ -5541,12 +5541,12 @@ HOME_HTML = """
             openModal('modal-terapi-napas');
             const circle = document.getElementById('breath-circle');
             const text = document.getElementById('breath-text');
-            
+
             // Reset
             circle.style.transition = 'none';
             circle.style.transform = 'scale(1)';
             text.innerText = "Mulai";
-            
+
             setTimeout(() => {
                 runCycle();
                 breathInterval = setInterval(runCycle, 12000); // 4+2+6 = 12s
@@ -5557,18 +5557,18 @@ HOME_HTML = """
                 text.innerText = "Tarik Napas";
                 circle.style.transition = 'transform 4s ease-in-out';
                 circle.style.transform = 'scale(2.5)';
-                
+
                 setTimeout(() => {
                     // Hold (2s)
                     text.innerText = "Tahan";
-                    
+
                     setTimeout(() => {
                         // Exhale (6s)
                         text.innerText = "Hembuskan";
                         circle.style.transition = 'transform 6s ease-in-out';
                         circle.style.transform = 'scale(1)';
                     }, 2000);
-                    
+
                 }, 4000);
             }
         }
@@ -5584,9 +5584,9 @@ HOME_HTML = """
             const hours = parseFloat(document.getElementById('sleep-hours').value);
             const resDiv = document.getElementById('sleep-result');
             resDiv.classList.remove('hidden');
-            
+
             if (!hours) return;
-            
+
             if (hours < 6) {
                 resDiv.className = "mt-4 p-4 rounded-xl border border-red-200 bg-red-50 text-sm";
                 resDiv.innerHTML = `
@@ -5610,39 +5610,39 @@ HOME_HTML = """
         // 5. Medication Alarm Simulation
         let alarmInterval = null;
         let alarmTimes = [];
-        
+
         function saveAlarm() {
             const t1 = document.getElementById('alarm-time-1').value;
             const t2 = document.getElementById('alarm-time-2').value;
             alarmTimes = [t1, t2];
-            
+
             document.getElementById('alarm-status').classList.remove('hidden');
-            
+
             // Start checking
             if(alarmInterval) clearInterval(alarmInterval);
             alarmInterval = setInterval(checkAlarm, 60000); // Check every minute
             checkAlarm(); // Initial check
-            
+
             alert("Alarm diaktifkan pada jam " + t1 + " dan " + t2);
         }
-        
+
         function checkAlarm() {
             const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const currentTime = `${hours}:${minutes}`;
-            
+
             if (alarmTimes.includes(currentTime)) {
                 triggerAlarm();
             }
         }
-        
+
         let currentMathAnswer = 0;
-        
+
         function triggerAlarm() {
             const lockScreen = document.getElementById('alarm-lock-screen');
             lockScreen.classList.remove('hidden');
-            
+
             // Generate simple math problem
             const n1 = Math.floor(Math.random() * 10) + 5;
             const n2 = Math.floor(Math.random() * 10) + 1;
@@ -5650,7 +5650,7 @@ HOME_HTML = """
             document.getElementById('math-problem').innerText = `${n1} + ${n2} = ?`;
             document.getElementById('math-answer').value = '';
         }
-        
+
         function checkMath() {
             const ans = parseInt(document.getElementById('math-answer').value);
             if(ans === currentMathAnswer) {
@@ -5731,9 +5731,9 @@ HOME_HTML = """
                 div.classList.remove('hidden');
                 const r = res.result;
                 currentExplanation = res.explanation;
-                
+
                 div.className = r.wajib ? "mt-4 bg-red-50 p-4 rounded-xl border border-red-100 text-sm" : "mt-4 bg-green-50 p-4 rounded-xl border border-green-100 text-sm";
-                
+
                 let content = '';
                 if(r.wajib) {
                     content = `
@@ -5767,7 +5767,7 @@ HOME_HTML = """
                 document.getElementById('result-tahajjud').classList.remove('hidden');
                 document.getElementById('tahajjud-time').innerText = res.result.time;
                 currentExplanation = res.explanation;
-                
+
                 // Check if button already exists to avoid dupes, or just append
                 const parent = document.getElementById('result-tahajjud');
                 if(!parent.querySelector('button')) {
@@ -5791,7 +5791,7 @@ HOME_HTML = """
                 document.getElementById('result-khatam').classList.remove('hidden');
                 document.getElementById('khatam-pages').innerText = res.result.pages_per_session;
                 currentExplanation = res.explanation;
-                
+
                 const parent = document.getElementById('result-khatam');
                 if(!parent.querySelector('button')) {
                      const btn = document.createElement('button');
@@ -5815,7 +5815,7 @@ HOME_HTML = """
                 document.getElementById('fidyah-rice').innerText = res.result.fidyah_rice.toFixed(1) + " Kg";
                 document.getElementById('fidyah-money').innerText = "Rp " + Number(res.result.fidyah_money).toLocaleString();
                 currentExplanation = res.explanation;
-                
+
                 const parent = document.getElementById('result-fidyah');
                 if(!parent.querySelector('.exp-btn')) { // Use class to identify
                      const div = document.createElement('div');
@@ -5839,7 +5839,7 @@ HOME_HTML = """
                 document.getElementById('result-hijri').classList.remove('hidden');
                 document.getElementById('hijri-output').innerText = res.result.hijri;
                 currentExplanation = res.explanation;
-                
+
                 const parent = document.getElementById('result-hijri');
                 if(!parent.querySelector('button')) {
                      const btn = document.createElement('button');
@@ -5909,7 +5909,7 @@ HOME_HTML = """
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>
             <p class="text-gray-500 text-sm">Mengambil Data Surat Yasin...</p>
         </div>
-        
+
         <!-- Error State -->
         <div id="yasin-error" class="hidden text-center py-20">
             <p class="text-red-500 mb-2">Gagal memuat data.</p>
@@ -5950,7 +5950,7 @@ HOME_HTML = """
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>
             <p class="text-gray-500 text-sm">Mengambil Daftar Surat...</p>
         </div>
-        
+
         <!-- Error State -->
         <div id="quran-list-error" class="hidden text-center py-20">
             <p class="text-red-500 mb-2">Gagal memuat daftar surat.</p>
@@ -6003,7 +6003,7 @@ HOME_HTML = """
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>
             <p class="text-gray-500 text-sm">Membuka Ayat...</p>
         </div>
-        
+
         <!-- Verses -->
         <div id="quran-detail-verses" class="hidden space-y-8 pb-20">
              <!-- Verses injected here -->
@@ -6039,11 +6039,11 @@ HOME_HTML = """
 <script>
     let quranListLoaded = false;
     let currentSurahData = null;
-    
+
     let isQuranTajwidMode = false;
     let currentQuranSurahNomor = null;
     let currentQuranSurahName = '';
-    
+
     const TAJWID_RULES = {
         'idgham': {
             name: 'Idgham',
@@ -6112,7 +6112,7 @@ HOME_HTML = """
         document.getElementById('modal-quran-list').classList.add('hidden');
         document.getElementById('modal-quran-detail').classList.add('hidden');
         document.body.style.overflow = 'auto';
-        
+
         // Stop audio if playing
         const audio = document.getElementById('quran-audio-player');
         if(audio) {
@@ -6126,14 +6126,14 @@ HOME_HTML = """
         const loading = document.getElementById('quran-list-loading');
         const error = document.getElementById('quran-list-error');
         const container = document.getElementById('quran-list-container');
-        
+
         loading.classList.remove('hidden');
         error.classList.add('hidden');
-        
+
         try {
             const response = await fetch('https://equran.id/api/v2/surat');
             const result = await response.json();
-            
+
             if (result.code === 200 && result.data) {
                 renderSurahList(result.data);
                 quranListLoaded = true;
@@ -6152,12 +6152,12 @@ HOME_HTML = """
     function renderSurahList(surahs) {
         const container = document.getElementById('quran-list-container');
         container.innerHTML = '';
-        
+
         surahs.forEach(surah => {
             const el = document.createElement('div');
             el.className = "bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between cursor-pointer hover:bg-emerald-50 hover:border-emerald-200 transition-all group";
             el.onclick = () => openSurahDetail(surah.nomor);
-            
+
             el.innerHTML = `
                 <div class="flex items-center gap-4">
                     <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 font-bold flex items-center justify-center text-sm group-hover:bg-emerald-500 group-hover:text-white transition-colors">
@@ -6183,7 +6183,7 @@ HOME_HTML = """
         const loading = document.getElementById('quran-detail-loading');
         const content = document.getElementById('quran-detail-verses');
         const legend = document.getElementById('quran-detail-tajwid-legend');
-        
+
         // Reset view
         document.getElementById('detail-surah-name').innerText = "Loading...";
         document.getElementById('detail-surah-info').innerText = "...";
@@ -6191,11 +6191,11 @@ HOME_HTML = """
         content.classList.add('hidden');
         legend.classList.add('hidden');
         content.innerHTML = '';
-        
+
         try {
             const response = await fetch(`https://equran.id/api/v2/surat/${nomor}`);
             const result = await response.json();
-            
+
             let tajwidData = null;
             if (isQuranTajwidMode) {
                 const resTajwid = await fetch(`https://api.alquran.cloud/v1/surah/${nomor}/ar.tajweed`);
@@ -6230,17 +6230,17 @@ HOME_HTML = """
         // Update Header
         document.getElementById('detail-surah-name').innerText = data.namaLatin;
         document.getElementById('detail-surah-info').innerText = `${data.arti} • ${data.jumlahAyat} Ayat • ${data.tempatTurun}`;
-        
+
         // Update Audio
         const audioPlayer = document.getElementById('quran-audio-player');
         const seeker = document.getElementById('quran-seeker');
-        
+
         audioPlayer.ontimeupdate = () => {
             if(audioPlayer.duration) {
                 seeker.value = (audioPlayer.currentTime / audioPlayer.duration) * 100;
             }
         };
-        
+
         seeker.oninput = () => {
             if(audioPlayer.duration) {
                 audioPlayer.currentTime = (seeker.value / 100) * audioPlayer.duration;
@@ -6249,7 +6249,7 @@ HOME_HTML = """
         // Use Misyari Rasyid (05) if available, fallback to 01
         const audioSrc = data.audioFull['05'] || data.audioFull['01'];
         audioPlayer.src = audioSrc;
-        
+
         // Render Verses
         const container = document.getElementById('quran-detail-verses');
         container.innerHTML = '';
@@ -6258,7 +6258,7 @@ HOME_HTML = """
             data.ayat.forEach(verse => {
                 const el = document.createElement('div');
                 el.className = "border-b border-gray-100 pb-6 last:border-0";
-                
+
                 el.innerHTML = `
                     <div class="flex flex-col gap-4">
                         <div class="flex justify-between items-start">
@@ -6296,7 +6296,7 @@ HOME_HTML = """
 
                 const el = document.createElement('div');
                 el.className = "border-b border-gray-100 pb-6 last:border-0 relative";
-                
+
                 el.innerHTML = `
                     <div class="flex flex-col gap-4">
                         <div class="flex justify-between items-start">
@@ -6339,7 +6339,7 @@ HOME_HTML = """
         const loading = document.getElementById('yasin-loading');
         const error = document.getElementById('yasin-error');
         const content = document.getElementById('yasin-verses');
-        
+
         loading.classList.remove('hidden');
         error.classList.add('hidden');
         content.classList.add('hidden');
@@ -6347,7 +6347,7 @@ HOME_HTML = """
         try {
             const response = await fetch('/api/yasin');
             const result = await response.json();
-            
+
             if (result.data && result.data.ayat) {
                 renderYasin(result.data.ayat);
                 yasinDataLoaded = true;
@@ -6412,7 +6412,7 @@ def index():
 def login():
     username = request.form.get('username')
     password = request.form.get('password')
-    
+
     if username == 'admin':
         if password == 'takmirmasjid':
             session['is_admin'] = True
@@ -6420,7 +6420,7 @@ def login():
         elif password == 'kameramasjid':
             session['is_gallery_admin'] = True
             session.permanent = True
-            
+
     return redirect(request.referrer or url_for('index'))
 
 @app.route('/logout')
@@ -6464,10 +6464,10 @@ def finance():
             db.session.rollback()
             app.logger.error(f"DB Error: {e}")
         return redirect(url_for('finance'))
-    
+
     try:
         items = Finance.query.order_by(Finance.date.desc()).all()
-        
+
         total_in = db.session.query(func.sum(Finance.amount)).filter_by(type='Pemasukan').scalar() or 0
         total_out = db.session.query(func.sum(Finance.amount)).filter_by(type='Pengeluaran').scalar() or 0
         balance = total_in - total_out
@@ -6782,7 +6782,7 @@ def booking():
                 </div>
                 <p class="text-xs text-gray-500 mb-1"><i class="fas fa-tag mr-1 text-orange-400"></i> {{ item['type'] }} • {{ item['date'] }}</p>
                 <p class="text-xs text-gray-600 italic">"{{ item['purpose'] }}"</p>
-                
+
                 {% if item['status'] == 'Pending' and is_admin %}
                 <div class="flex gap-2 mt-3 pt-3 border-t border-gray-100">
                      <form method="POST" class="flex-1">
@@ -6829,14 +6829,14 @@ def zakat():
             db.session.rollback()
             app.logger.error(f"DB Error: {e}")
         return redirect(url_for('zakat'))
-    
+
     try:
         items = Zakat.query.order_by(Zakat.created_at.desc()).limit(50).all()
-        
+
         # Calculate totals (Python side for safety with String column)
         fitrah_items = Zakat.query.filter_by(type='Zakat Fitrah').all()
         total_zakat_fitrah = sum(int(float(i.amount)) for i in fitrah_items if i.amount.replace('.','').isdigit())
-        
+
         total_sapi = Zakat.query.filter_by(type='Qurban Sapi').count()
         total_kambing = Zakat.query.filter_by(type='Qurban Kambing').count()
     except Exception as e:
@@ -6863,7 +6863,7 @@ def zakat():
                 if (h >= 0 && h < 11) time = "Pagi";
                 else if (h >= 11 && h < 15) time = "Siang";
                 else if (h >= 15 && h < 18) time = "Sore";
-                
+
                 const msg = `Assalamualaikum Pak, selamat ${time}, saya ingin berqurban atau melakukan zakat Pak, terima kasih 🙏`;
                 window.location.href = "https://wa.me/6282330890500?text=" + encodeURIComponent(msg);
             }
@@ -6891,7 +6891,7 @@ def zakat():
                             <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ 'bg-yellow-100 text-yellow-600' if item['status'] == 'Pending' else ('bg-green-100 text-green-600' if item['status'] == 'Approved' else 'bg-red-100 text-red-600') }}">{{ item['status'] }}</span>
                         </div>
                         <p class="text-xs text-gray-500">{{ item['type'] }} • {{ item['notes'] }}</p>
-                        
+
                         {% if is_admin and item['status'] == 'Pending' %}
                         <div class="flex gap-2 mt-2">
                             <form action="/zakat/status" method="POST">
@@ -6964,7 +6964,7 @@ def zakat():
 def zakat_status():
     if not session.get('is_admin'):
         return redirect(url_for('zakat'))
-    
+
     try:
         item = Zakat.query.get(request.form.get('id', ''))
         if item:
@@ -7000,7 +7000,7 @@ def gallery_dakwah():
             db.session.rollback()
             app.logger.error(f"DB Error: {e}")
         return redirect(url_for('gallery_dakwah'))
-    
+
     try:
         items = GalleryDakwah.query.order_by(GalleryDakwah.created_at.desc()).all()
     except Exception as e:
@@ -7119,13 +7119,13 @@ def suggestion():
              print(f"Error saving suggestion: {e}")
              db.session.rollback()
          return redirect(url_for('suggestion', success=1))
-    
+
     items = Suggestion.query.order_by(Suggestion.created_at.desc()).limit(10).all()
 
     content = """
     <div class="pt-20 md:pt-32 pb-24 px-5 md:px-8">
         <h3 class="text-xl font-bold text-gray-800 mb-4">Kotak Saran Digital</h3>
-        
+
         {% if request.args.get('success') %}
         <div class="bg-green-100 text-green-700 p-3 rounded-xl mb-4 text-center font-bold text-sm border border-green-200 animate-pulse">
             Terima kasih, saran Anda telah terkirim!
@@ -7141,7 +7141,7 @@ def suggestion():
             </div>
             <button type="submit" class="w-full bg-pink-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-pink-600 transition">Kirim</button>
         </form>
-        
+
         {% if is_admin %}
         <h6 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Laporan Masuk (Admin)</h6>
         <div class="space-y-3">
@@ -7177,27 +7177,27 @@ def prayer_times_api():
 @app.route('/donate', methods=['GET', 'POST'])
 def donate():
     is_admin = session.get('is_admin', False)
-    
+
     if request.method == 'POST' and is_admin:
         try:
             key = request.form.get('key')
             val = request.form.get('value')
-            
+
             if 'qris_image' in request.files:
                 file = request.files['qris_image']
                 if file and allowed_file(file.filename):
                     saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
-                    
+
                     # Update setting
                     s = AppSettings.query.get('infaq_qris_image')
                     if s: s.value = saved_filename
                     else: db.session.add(AppSettings(key='infaq_qris_image', value=saved_filename))
-            
+
             if key and val:
                  s = AppSettings.query.get(key)
                  if s: s.value = val
                  else: db.session.add(AppSettings(key=key, value=val))
-                 
+
             db.session.commit()
         except Exception as e:
             db.session.rollback()
@@ -7209,9 +7209,9 @@ def donate():
     acc_no = settings.get('infaq_rekening', '7123456789 (BSI - Masjid Al Hijrah)')
     qris_img = settings.get('infaq_qris_image', '')
     qris_url = f"/uploads/{qris_img}" if qris_img else "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=MasjidAlHijrahInfaq"
-    
+
     source = request.args.get('source')
-    
+
     # Theme Logic
     theme = {}
     if source == 'ramadhan':
@@ -7265,7 +7265,7 @@ def donate():
              <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-current to-transparent opacity-50 {text_highlight}"></div>
              <h2 class="text-2xl font-bold mb-2 {text_highlight}">Infaq Digital</h2>
              <p class="text-sm opacity-70 mb-6">Scan QRIS menggunakan E-Wallet apa saja</p>
-             
+
              <div class="bg-white p-4 rounded-2xl shadow-inner border border-gray-100 inline-block mb-6 relative group">
                 <img src="{qris_url}" alt="QRIS" class="w-48 h-48 mx-auto object-contain">
                 <a href="{qris_url}" download="QRIS_Masjid.png" class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl text-white font-bold backdrop-blur-sm">
@@ -7277,7 +7277,7 @@ def donate():
                 <a href="{qris_url}" download="QRIS_Masjid.png" class="flex-1 bg-gray-100 text-gray-700 px-3 py-3 rounded-xl text-xs font-bold hover:bg-gray-200 text-center transition"><i class="fas fa-download mr-1"></i> Download QRIS</a>
                 <button onclick="triggerInfaqWA()" class="flex-1 bg-[#25D366] text-white px-3 py-3 rounded-xl text-xs font-bold hover:bg-green-600 transition shadow-lg shadow-green-200"><i class="fab fa-whatsapp mr-1"></i> Konfirmasi WA</button>
              </div>
-             
+
              <div class="mb-4 max-w-xs mx-auto">
                  <label class="block text-[10px] font-bold text-gray-400 mb-1 text-left">Keperluan (untuk Konfirmasi WA)</label>
                  <select id="infaq-type-select" class="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
@@ -7287,7 +7287,7 @@ def donate():
                      <option value="Infaq">Infaq</option>
                  </select>
              </div>
-             
+
              <div class="mb-6">
                 <p class="text-xs font-bold uppercase tracking-widest opacity-50 mb-1">Nomor Rekening</p>
                 <div class="bg-gray-50/50 p-3 rounded-xl border border-dashed border-gray-300 flex items-center justify-between gap-2">
@@ -7296,7 +7296,7 @@ def donate():
                 </div>
              </div>
              <script>window.addEventListener('load', function() {{ if(typeof formatBankDisplay === 'function') formatBankDisplay('donate-rek-text'); }});</script>
-             
+
              {{% if is_admin %}}
              <div class="border-t border-gray-200/50 pt-6 mt-6 text-left">
                 <h4 class="text-xs font-bold text-red-500 uppercase mb-3"><i class="fas fa-cog"></i> Admin Settings</h4>
@@ -7323,7 +7323,7 @@ def donate():
                 </form>
              </div>
              {{% endif %}}
-             
+
              <div class="flex justify-center gap-3 opacity-60 grayscale hover:grayscale-0 transition-all mt-4">
                 <i class="fas fa-wallet text-2xl"></i>
                 <i class="fas fa-university text-2xl"></i>
@@ -7335,7 +7335,7 @@ def donate():
         </div>
     </div>
     """
-    
+
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML + (RAMADHAN_STYLES if source=='ramadhan' else (IRMA_STYLES if source=='irma' else '')), active_page='donate', theme=theme, content=render_template_string(content, is_admin=is_admin, settings=get_settings()), is_admin=is_admin)
 
 @app.route('/emergency')
@@ -7355,14 +7355,14 @@ def api_calc_waris():
         harta = int(data['harta'])
         sons = int(data['sons'])
         daughters = int(data['daughters'])
-        
+
         res = calc_waris(harta, sons, daughters)
         if "error" in res:
              return jsonify(res)
-        
+
         # Bedah Logika
         logic = f"Bapak/Ibu memasukkan total harta Rp {harta:,}. Dalam matematika waris, anak laki-laki dihitung 2 bagian lalu anak perempuan dihitung 1 bagian, karena ada {sons} anak laki-laki dan {daughters} perempuan, maka total poin pembagi adalah {res['points']}. Artinya, harta tersebut dibagi menjadi {res['points']} keping. Satu keping bernilai Rp {res['part_value']:,.0f}. Maka bagian anak laki-laki adalah 2 x {res['part_value']:,.0f} = Rp {res['son_share']:,.0f}, dan anak perempuan 1 x {res['part_value']:,.0f} = Rp {res['daughter_share']:,.0f}."
-        
+
         return jsonify({
             "result": res,
             "explanation": {
@@ -7382,14 +7382,14 @@ def api_calc_zakat():
         gold_price = int(data['gold_price'])
         savings = int(data['savings'])
         gold_grams = int(data['gold_grams'])
-        
+
         res = calc_zakat(gold_price, savings, gold_grams)
-        
+
         status = "WAJIB" if res['wajib'] else "BELUM WAJIB"
         cond_text = "lebih besar" if res['wajib'] else "lebih kecil"
-        
+
         logic = f"Anda memiliki tabungan uang Rp {savings:,} dan emas {gold_grams} gram. Dengan harga emas Rp {gold_price:,}/gram, maka Nisab (batas minimal wajib zakat) adalah 85 gram x Rp {gold_price:,} = Rp {res['nisab']:,}. Total harta Anda dinilai sebesar Rp {res['total_wealth']:,}. Karena Rp {res['total_wealth']:,} {cond_text} dari Nisab, maka hukumnya {status} membayar Zakat Maal sebesar 2.5% (Rp {res['zakat']:,})."
-        
+
         return jsonify({
             "result": res,
             "explanation": {
@@ -7408,9 +7408,9 @@ def api_calc_tahajjud():
         data = request.json
         res = calc_tahajjud(data['maghrib'], data['subuh'])
         if "error" in res: return jsonify(res)
-        
+
         logic = f"Waktu malam dihitung dari Maghrib ({data['maghrib']}) hingga Subuh ({data['subuh']}). Durasi total malam ini adalah {res['total_hours']} jam {res['total_minutes']} menit. Sepertiga malam terakhir adalah waktu istimewa (Qiyamul Lail). Kita bagi durasi malam menjadi 3 bagian, lalu ambil 1 bagian terakhir sebelum Subuh. Hasilnya, sepertiga malam terakhir dimulai pukul {res['time']}."
-        
+
         return jsonify({
             "result": res,
             "explanation": {
@@ -7430,7 +7430,7 @@ def api_calc_khatam():
         target_times = int(data['target_times'])
         days = int(data['days'])
         freq = int(data['freq_per_day'])
-        
+
         res = calc_khatam(target_times, days, freq)
         if isinstance(res, dict) and "error" in res: return jsonify(res)
         if isinstance(res, int): # Fallback
@@ -7456,11 +7456,11 @@ def api_calc_fidyah():
         data = request.json
         days = int(data['days'])
         cat = data['category']
-        
+
         res = calc_fidyah(days, cat)
-        
+
         logic = f"Anda meninggalkan puasa sebanyak {days} hari karena alasan '{cat}'. Dalam fiqih, kategori ini mewajibkan membayar fidyah (memberi makan miskin). Hitungannya adalah {days} hari x 1 mud (0.6kg) = {res['fidyah_rice']:.1f} kg beras. Jika dikonversi ke uang makan (est. Rp 15.000/hari), maka totalnya Rp {res['fidyah_money']:,}."
-        
+
         return jsonify({
             "result": res,
             "explanation": {
@@ -7479,16 +7479,16 @@ def api_calc_hijri():
         data = request.json
         y, m, d = data['date'].split('-')
         formatted_date = f"{d}-{m}-{y}"
-        
+
         url = f"http://api.aladhan.com/v1/gToH?date={formatted_date}"
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req) as response:
             resp_data = json.loads(response.read().decode())
             h = resp_data['data']['hijri']
             res = f"{h['day']} {h['month']['en']} {h['year']} H"
-            
+
             logic = f"Data diambil real-time dari API Aladhan (Internasional). Tanggal {formatted_date} Masehi dikonversi menjadi {res}."
-            
+
             return jsonify({
                 "result": {"hijri": res},
                 "explanation": {
@@ -7560,10 +7560,10 @@ RAMADHAN_DASHBOARD_HTML = """
     <div class="h-24"></div>
 
     <div class="px-5 md:px-8 max-w-7xl mx-auto relative z-10">
-        
+
         <!-- SPLIT HEADER -->
         <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-10">
-             
+
              <!-- LEFT: WELCOME -->
              <div class="hidden md:block pl-2">
                 <p class="text-xl text-gray-400 font-medium mb-2">Assalamualaikum Warahmatullahi Wabarakatuh</p>
@@ -7589,7 +7589,7 @@ RAMADHAN_DASHBOARD_HTML = """
                             <h2 class="text-5xl font-bold font-mono tracking-tighter text-white drop-shadow-lg" id="ramadhan-clock">--:--</h2>
                             <p class="text-sm text-gray-400 mt-2 flex items-center justify-center md:justify-start gap-2"><i class="fas fa-map-marker-alt text-gold"></i> Samarinda, Kalimantan Timur</p>
                         </div>
-                        
+
                         <div class="grid grid-cols-5 gap-2 md:gap-4 w-full md:w-auto">
                              <div class="bg-[#0b1026] p-3 rounded-2xl text-center border border-white/5">
                                 <span class="block text-[10px] text-white uppercase font-bold mb-1">Subuh</span>
@@ -7619,9 +7619,9 @@ RAMADHAN_DASHBOARD_HTML = """
 
         <!-- MENU GRID -->
         <h2 class="text-xl font-bold text-white font-sans mb-6 border-l-4 border-gold pl-3">Menu Utama</h2>
-        
+
         <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-24">
-            
+
             <!-- 1. JADWAL TAKJIL -->
             <button onclick="openModal('modal-takjil')" class="bg-[#151e3f] p-6 rounded-3xl flex flex-col items-center justify-center h-40 group hover:bg-[#1a254d] transition-all border border-white/5 hover:border-gold/30 relative overflow-hidden">
                 <div class="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -7699,7 +7699,7 @@ RAMADHAN_DASHBOARD_HTML = """
     </nav>
 
     <!-- MODALS SECTION -->
-    
+
     <!-- 1. MODAL TAKJIL -->
     <div id="modal-takjil" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
@@ -7707,11 +7707,11 @@ RAMADHAN_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-gold font-sans">Jadwal Pembagian Takjil</h3>
                 <button onclick="closeModal('modal-takjil')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
-            
+
             <div class="p-4 bg-white/5 border-b border-white/10 rounded-xl mb-4">
                 <input type="text" id="search-takjil" onkeyup="filterTakjil()" placeholder="Cari Nama Warga..." class="w-full bg-[#0b1026] border border-gold/30 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-gold">
             </div>
-            
+
             <div class="overflow-hidden rounded-xl border border-white/10">
                 <table class="w-full text-left border-collapse">
                     <thead class="bg-gold/10 text-gold backdrop-blur-md">
@@ -7747,7 +7747,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 </div>
                 <button onclick="closeModal('modal-imsakiyah')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
-            
+
             <div class="overflow-hidden rounded-xl border border-white/10">
                 <table class="w-full text-center border-collapse">
                     <thead class="bg-blue-900/50 text-blue-200 backdrop-blur-md">
@@ -7786,7 +7786,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-gold font-sans">Laporan Kas Ramadhan</h3>
                 <button onclick="closeModal('modal-kas-ramadhan')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
-            
+
             <!-- Summary -->
             <div class="grid grid-cols-2 gap-4 border-b border-white/10 pb-6 mb-6">
                 <div class="bg-green-500/10 p-4 rounded-2xl border border-green-500/20 text-center">
@@ -7859,7 +7859,7 @@ RAMADHAN_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-gold font-sans">Jadwal Imam & Penceramah</h3>
                 <button onclick="closeModal('modal-tarawih')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
-            
+
             <!-- Editor (Hidden by default, toggleable) -->
             {% if is_admin %}
             <div id="tarawih-editor" class="hidden p-4 bg-white/5 border border-white/10 rounded-xl mb-6">
@@ -7917,7 +7917,7 @@ RAMADHAN_DASHBOARD_HTML = """
                     <label class="block text-xs font-bold text-gray-400 mb-2">Jumlah Jiwa (Orang)</label>
                     <input type="number" id="zakat-jiwa" value="1" min="1" class="w-full bg-[#0b1026] border border-gold/30 rounded-xl p-4 text-white text-center text-xl font-bold focus:border-gold">
                 </div>
-                
+
                 <div class="bg-white/5 p-6 rounded-2xl border border-white/10">
                     <p class="text-xs text-gray-400 mb-4 uppercase font-bold text-center tracking-widest">Estimasi Pembayaran</p>
                     <div class="flex justify-between items-center mb-4 border-b border-white/5 pb-4">
@@ -7937,7 +7937,7 @@ RAMADHAN_DASHBOARD_HTML = """
                         <span class="font-bold text-gold text-2xl" id="res-uang">Rp 45.000</span>
                     </div>
                 </div>
-                
+
                 <button onclick="calculateZakatFitrah()" class="w-full bg-gray-200 text-gray-800 font-bold py-4 rounded-xl hover:bg-white active:bg-white active:shadow-[0_0_15px_rgba(255,255,255,0.8)] transition shadow-lg">Hitung Ulang</button>
                 <p class="text-[10px] text-gray-500 text-center italic">*Harga uang menyesuaikan standar BAZNAS (Badan Amil Zakat Nasional) KOTA SAMARINDA</p>
             </div>
@@ -8018,7 +8018,7 @@ RAMADHAN_DASHBOARD_HTML = """
             </div>
         </div>
     </div>
-    
+
     <!-- 5C. MODAL TABEL ZAKAT -->
     <div id="modal-tabel-zakat" class="hidden fixed inset-0 z-[60] bg-[#0b1026] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-12 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out] max-w-4xl mx-auto">
@@ -8029,9 +8029,9 @@ RAMADHAN_DASHBOARD_HTML = """
                 <h2 class="text-2xl md:text-3xl font-bold text-white font-sans tracking-wide">MASJID AL-HIJRAH</h2>
                 <h3 class="text-lg md:text-xl font-bold text-[#FFD700] tracking-widest mt-1">BAZNAS (Badan Amil Zakat Nasional) KOTA SAMARINDA</h3>
             </div>
-            
+
             <hr class="border-white/20 mb-6">
-            
+
             <div class="text-center mb-8">
                 <h4 class="text-xl md:text-2xl font-bold text-white mb-2">TABEL KADAR ZAKAT FITRAH DAN FIDYAH</h4>
                 <p class="text-gray-300 text-sm md:text-base">Wilayah Kota Samarinda Tahun 1447 H / 2026 M</p>
@@ -8168,13 +8168,13 @@ RAMADHAN_DASHBOARD_HTML = """
     <div id="modal-amalan" class="hidden fixed inset-0 z-40 bg-[#0b1026] overflow-y-auto">
         <!-- Canvas for fireworks needs to be full screen -->
         <canvas id="fireworks" class="fixed inset-0 pointer-events-none z-50"></canvas>
-        
+
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
             <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4 relative z-10">
                 <h3 class="text-xl font-bold text-pink-400 font-sans">Checklist Amalan Harian</h3>
                 <button onclick="closeModal('modal-amalan')" class="text-gray-400 hover:text-white bg-white/10 w-8 h-8 rounded-full">&times;</button>
             </div>
-            
+
             <div class="relative z-10">
                 <div class="bg-gradient-to-r from-pink-400 to-purple-500 bg-clip-text text-transparent text-center font-bold text-lg animate-pulse mb-6">May Allah SWT always be with us...</div>
                 <div class="mb-8">
@@ -8225,7 +8225,7 @@ RAMADHAN_DASHBOARD_HTML = """
                         <span class="text-gray-300 font-medium group-hover:text-white transition-colors">Sedekah Subuh</span>
                     </label>
                 </div>
-                
+
                 <button onclick="resetAmalan()" class="mt-8 w-full text-xs text-gray-500 hover:text-white underline uppercase tracking-wider">Reset Checklist Hari Ini</button>
             </div>
         </div>
@@ -8239,7 +8239,7 @@ RAMADHAN_DASHBOARD_HTML = """
         const open = '{{ open_modal }}';
         if(open && open !== 'None') openModal(open);
     });
-    
+
     // CLOCK
     function updateRamadhanClock() {
         const now = new Date();
@@ -8250,7 +8250,7 @@ RAMADHAN_DASHBOARD_HTML = """
     }
     setInterval(updateRamadhanClock, 1000);
     updateRamadhanClock();
-    
+
     // HIJRI DATE RAMADHAN (REUSE fetchHijri but target different ID)
     async function fetchHijriRamadhan() {
         try {
@@ -8259,7 +8259,7 @@ RAMADHAN_DASHBOARD_HTML = """
             const mm = String(today.getMonth() + 1).padStart(2, '0');
             const yyyy = today.getFullYear();
             const dateStr = dd + '-' + mm + '-' + yyyy;
-            
+
             // Brute Force Adjustment -3 Days
             const response = await fetch('https://api.aladhan.com/v1/gToH?date=' + dateStr + '&adjustment=-3');
             const data = await response.json();
@@ -8278,7 +8278,7 @@ RAMADHAN_DASHBOARD_HTML = """
             const response = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
             const result = await response.json();
             const timings = result.data.timings;
-            
+
             if(document.getElementById('r-fajr')) {
                 document.getElementById('r-fajr').innerText = timings.Fajr;
                 document.getElementById('r-dhuhr').innerText = timings.Dhuhr;
@@ -8302,7 +8302,7 @@ RAMADHAN_DASHBOARD_HTML = """
             document.getElementById(id).classList.add('hidden');
         }
     }
-    
+
     // TAKJIL FILTER
     function filterTakjil() {
         const input = document.getElementById('search-takjil');
@@ -8329,7 +8329,7 @@ RAMADHAN_DASHBOARD_HTML = """
         const beras = jiwa * 2.75;
         const rate = document.getElementById('zakat-uang-rate') ? parseInt(document.getElementById('zakat-uang-rate').value) : 45000;
         const uang = jiwa * rate;
-        
+
         document.getElementById('res-beras').innerText = beras.toFixed(2) + " Kg";
         document.getElementById('res-uang').innerText = "Rp " + Number(uang).toLocaleString('id-ID');
     }
@@ -8343,16 +8343,16 @@ RAMADHAN_DASHBOARD_HTML = """
             // Save state
             localStorage.setItem('amalan_' + Array.from(checks).indexOf(c), c.checked);
         });
-        
+
         const pct = Math.round((checkedCount / checks.length) * 100);
         document.getElementById('progress-bar').style.width = pct + "%";
         document.getElementById('progress-text').innerText = pct + "%";
-        
+
         if(pct === 100) {
             triggerFireworks();
         }
     }
-    
+
     function loadAmalan() {
         const checks = document.querySelectorAll('#amalan-list input[type="checkbox"]');
         checks.forEach((c, index) => {
@@ -8361,7 +8361,7 @@ RAMADHAN_DASHBOARD_HTML = """
         });
         updateProgress();
     }
-    
+
     function resetAmalan() {
         const checks = document.querySelectorAll('#amalan-list input[type="checkbox"]');
         checks.forEach((c, index) => {
@@ -8381,7 +8381,7 @@ RAMADHAN_DASHBOARD_HTML = """
          const ctx = canvas.getContext('2d');
          canvas.width = canvas.parentElement.clientWidth;
          canvas.height = canvas.parentElement.clientHeight;
-         
+
          let particles = [];
          for(let i=0; i<50; i++) {
              particles.push({
@@ -8393,7 +8393,7 @@ RAMADHAN_DASHBOARD_HTML = """
                  life: 1.0
              });
          }
-         
+
          function animate() {
              ctx.clearRect(0,0,canvas.width,canvas.height);
              particles.forEach((p, index) => {
@@ -8401,16 +8401,16 @@ RAMADHAN_DASHBOARD_HTML = """
                  p.y += p.vy;
                  p.life -= 0.02;
                  p.vy += 0.1; // gravity
-                 
+
                  ctx.fillStyle = p.color;
                  ctx.globalAlpha = p.life;
                  ctx.beginPath();
                  ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
                  ctx.fill();
-                 
+
                  if(p.life <= 0) particles.splice(index, 1);
              });
-             
+
              if(particles.length > 0) requestAnimationFrame(animate);
              else ctx.clearRect(0,0,canvas.width,canvas.height);
          }
@@ -8439,20 +8439,20 @@ IRMA_STYLES = """
         .bg-sage { background-color: #A0B391; }
         .text-sage { color: #A0B391; }
         .border-sage { border-color: #A0B391; }
-        
+
         .bg-pastel-pink { background-color: #FFB6C1; }
         .text-pastel-pink { color: #FFB6C1; }
         .border-pastel-pink { border-color: #FFB6C1; }
-        
+
         .bg-off-white { background-color: #F4E7E1; }
-        
+
         .text-dark-grey { color: #4A4A4A; }
         .text-forest { color: #2F4F4F; } /* Dark Forest Green for contrast */
-        
+
         .irma-header {
             background: linear-gradient(135deg, #A0B391 0%, #8DA57B 100%);
         }
-        
+
         .irma-card {
             background-color: white;
             border-radius: 1.5rem;
@@ -8465,7 +8465,7 @@ IRMA_STYLES = """
             box-shadow: 0 20px 25px -5px rgba(160, 179, 145, 0.3);
             border-color: #FFB6C1;
         }
-        
+
         .btn-irma-primary {
             background-color: #A0B391;
             color: white;
@@ -8491,10 +8491,10 @@ IRMA_STYLES = """
 
 IRMA_DASHBOARD_HTML = """
 <div class="pt-24 pb-32 px-5 md:px-8 bg-[#F4E7E1] min-h-screen">
-    
+
     <!-- SPLIT HEADER -->
     <div class="md:grid md:grid-cols-2 md:gap-12 md:items-center mb-10">
-        
+
         <!-- LEFT: WELCOME -->
         <div class="hidden md:block pl-2">
             <p class="text-xl text-gray-500 font-medium mb-2">Assalamualaikum Warahmatullahi Wabarakatuh</p>
@@ -8520,7 +8520,7 @@ IRMA_DASHBOARD_HTML = """
                     <div class="bg-white/20 backdrop-blur-md rounded-xl px-4 py-2 inline-block mb-6 border border-white/10">
                         <span class="font-mono text-2xl font-bold tracking-wider" id="countdown-timer">--:--:--</span>
                     </div>
-                    
+
                     <div class="grid grid-cols-5 gap-1 text-center text-xs opacity-90 border-t border-white/20 pt-4">
                         <div><div class="font-semibold mb-1">Subuh</div><div id="fajr-time" class="font-mono">--:--</div></div>
                         <div><div class="font-semibold mb-1">Dzuhur</div><div id="dhuhr-time" class="font-mono">--:--</div></div>
@@ -8536,7 +8536,7 @@ IRMA_DASHBOARD_HTML = """
     <!-- MENU GRID -->
     <h3 class="text-[#2F4F4F] font-bold text-lg mb-4 pl-3 border-l-4 border-[#FFB6C1]">Menu Utama</h3>
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-24">
-        
+
         <!-- 1. JADWAL PIKET -->
         <button onclick="openModal('modal-duty')" class="bg-white p-6 rounded-3xl shadow-sm border border-[#A0B391]/20 flex flex-col items-center justify-center h-40 group hover:scale-105 transition-all">
              <div class="w-14 h-14 rounded-full bg-[#A0B391]/10 flex items-center justify-center text-[#A0B391] mb-3 group-hover:bg-[#FFB6C1] group-hover:text-white transition-colors">
@@ -8587,7 +8587,7 @@ IRMA_DASHBOARD_HTML = """
     </div>
 
     <!-- MODALS SECTION -->
-    
+
     <!-- 1. MODAL DUTY -->
     <div id="modal-duty" class="hidden fixed inset-0 z-40 bg-[#F4E7E1] overflow-y-auto">
         <div class="relative w-full min-h-screen pt-24 pb-32 px-5 md:px-8 animate-[slideUp_0.3s_ease-out]">
@@ -8595,7 +8595,7 @@ IRMA_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-[#2F4F4F]">Jadwal Piket</h3>
                 <button onclick="closeModal('modal-duty')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
-            
+
             {% if is_admin %}
             <form action="/irma/schedule" method="POST" class="mb-6 bg-white p-4 rounded-2xl shadow-sm border border-[#A0B391]/20">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -8646,7 +8646,7 @@ IRMA_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-[#2F4F4F]">Join IRMA</h3>
                 <button onclick="closeModal('modal-join')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
-            
+
             {% if is_admin %}
             <!-- ADMIN VIEW -->
             <div class="bg-white rounded-3xl shadow-sm border border-[#A0B391]/20 overflow-hidden">
@@ -8666,7 +8666,7 @@ IRMA_DASHBOARD_HTML = """
                             </span>
                         </div>
                         <p class="text-xs text-gray-600 italic mb-3">"{{ member['hobbies'] }}"</p>
-                        
+
                         {% if member['status'] == 'Pending' %}
                         <div class="flex gap-2">
                             <form action="/irma/join" method="POST" class="flex-1">
@@ -8693,7 +8693,7 @@ IRMA_DASHBOARD_HTML = """
             </div>
             {% else %}
             <!-- CITIZEN VIEW -->
-            
+
             <!-- Check Status Form -->
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-[#A0B391]/20 mb-6">
                 <h4 class="text-xs font-bold text-[#A0B391] uppercase mb-2">Cek Status Pendaftaran</h4>
@@ -8701,7 +8701,7 @@ IRMA_DASHBOARD_HTML = """
                     <input type="text" name="check_wa" placeholder="Masukkan No. WA" class="w-full bg-[#F4E7E1] border-none rounded-xl p-2 text-sm" required>
                     <button type="submit" class="bg-[#A0B391] text-white px-4 rounded-xl font-bold text-xs">Cek</button>
                 </form>
-                
+
                 {% if check_status %}
                 <div class="mt-3 p-3 rounded-xl {{ 'bg-green-50 border border-green-200' if check_status['status'] == 'Approved' else ('bg-red-50 border border-red-200' if check_status['status'] == 'Rejected' else 'bg-yellow-50 border border-yellow-200') }}">
                     <p class="font-bold text-sm {{ 'text-green-700' if check_status['status'] == 'Approved' else ('text-red-700' if check_status['status'] == 'Rejected' else 'text-yellow-700') }}">
@@ -8732,7 +8732,7 @@ IRMA_DASHBOARD_HTML = """
                         </div>
                         <p class="text-xs text-gray-500">Gabung Komunitas Remaja Positif</p>
                     </div>
-                    
+
                     <div class="space-y-3">
                         <input type="text" name="name" placeholder="Nama Lengkap" required class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm">
                         <div class="grid grid-cols-2 gap-3">
@@ -8742,7 +8742,7 @@ IRMA_DASHBOARD_HTML = """
                         <input type="text" name="instagram" placeholder="@Instagram" class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm">
                         <textarea name="hobbies" placeholder="Skill / Hobi (ex: Desain, Futsal)" class="w-full bg-[#F4E7E1] border-none rounded-xl p-3 text-sm h-20"></textarea>
                     </div>
-                    
+
                     <button type="submit" class="w-full bg-[#A0B391] text-white font-bold py-3 mt-4 rounded-xl hover:bg-[#FFB6C1] transition shadow-lg">Daftar Sekarang</button>
                 </div>
             </form>
@@ -8766,7 +8766,7 @@ IRMA_DASHBOARD_HTML = """
                     <span class="bg-white/20 px-2 py-1 rounded">- {{ "{:,.0f}".format(kas_summary.out) }}</span>
                 </div>
             </div>
-            
+
             {% if is_admin %}
             <form action="/irma/kas" method="POST" class="mb-6 bg-white p-4 rounded-2xl shadow-sm border border-[#A0B391]/20">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -8807,7 +8807,7 @@ IRMA_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-[#2F4F4F]">Mading Kreatif</h3>
                 <button onclick="closeModal('modal-wall')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
-            
+
             <div class="p-4 bg-white border border-[#A0B391]/20 rounded-2xl mb-4">
                  <form action="/irma/gallery" method="POST" enctype="multipart/form-data" class="flex flex-col gap-2">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -8853,11 +8853,11 @@ IRMA_DASHBOARD_HTML = """
     <div id="modal-mading-detail" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm max-h-[80vh] flex flex-col overflow-hidden animate-[popupFadeIn_0.3s_ease-out] relative">
             <button onclick="closeModal('modal-mading-detail')" class="absolute top-4 right-4 z-10 bg-white/20 hover:bg-white/40 text-white w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md shadow-sm transition">&times;</button>
-            
+
             <div id="mading-detail-img-container" class="bg-gray-100 flex-shrink-0 hidden">
                 <img id="mading-detail-img" src="" class="w-full h-auto object-contain max-h-[50vh]">
             </div>
-            
+
             <div class="p-6 overflow-y-auto">
                 <h3 id="mading-detail-title" class="text-xl font-bold text-[#2F4F4F] mb-1 leading-tight"></h3>
                 <p class="text-xs font-bold text-[#A0B391] mb-4">By <span id="mading-detail-creator"></span></p>
@@ -8875,14 +8875,14 @@ IRMA_DASHBOARD_HTML = """
             const type = el.getAttribute('data-type');
             const content = el.getAttribute('data-content');
             const caption = el.getAttribute('data-caption');
-            
+
             document.getElementById('mading-detail-title').innerText = title;
             document.getElementById('mading-detail-creator').innerText = creator;
-            
+
             const imgContainer = document.getElementById('mading-detail-img-container');
             const img = document.getElementById('mading-detail-img');
             const text = document.getElementById('mading-detail-text');
-            
+
             if (type === 'Image') {
                 imgContainer.classList.remove('hidden');
                 img.src = "/uploads/" + content;
@@ -8891,7 +8891,7 @@ IRMA_DASHBOARD_HTML = """
                 imgContainer.classList.add('hidden');
                 text.innerText = content;
             }
-            
+
             document.getElementById('modal-mading-detail').classList.remove('hidden');
         }
     </script>
@@ -8902,7 +8902,7 @@ IRMA_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-[#2F4F4F]">Proker & Event</h3>
                 <button onclick="closeModal('modal-events')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
-            
+
             {% if is_admin %}
             <form action="/irma/proker" method="POST" class="mb-6 bg-white p-4 rounded-2xl shadow-sm border border-[#A0B391]/20">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -8934,7 +8934,7 @@ IRMA_DASHBOARD_HTML = """
                             {{ item['status'] }}
                         </span>
                     </div>
-                    
+
                     <div class="w-full bg-gray-100 rounded-full h-1.5 mt-3">
                         <div class="h-1.5 rounded-full {{ 'bg-gray-400 w-1/3' if item['status'] == 'Rencana' else ('bg-yellow-400 w-2/3' if item['status'] == 'Proses' else 'bg-green-500 w-full') }}"></div>
                     </div>
@@ -8953,7 +8953,7 @@ IRMA_DASHBOARD_HTML = """
                 <h3 class="text-xl font-bold text-[#2F4F4F]">Curhat Islami (Anonim)</h3>
                 <button onclick="closeModal('modal-qa')" class="bg-white w-8 h-8 rounded-full text-gray-500 shadow-sm">&times;</button>
             </div>
-            
+
             <div class="p-4 bg-white border-b border-[#A0B391]/20">
                     <form action="/irma/curhat" method="POST" class="space-y-3">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -8972,7 +8972,7 @@ IRMA_DASHBOARD_HTML = """
                             {{ item['question'] }}
                         </div>
                     </div>
-                    
+
                     {% if item['answer'] %}
                     <div class="flex gap-3 flex-row-reverse">
                         <div class="w-8 h-8 rounded-full bg-[#A0B391] flex items-center justify-center text-white"><i class="fas fa-check"></i></div>
@@ -9019,10 +9019,10 @@ IRMA_DASHBOARD_HTML = """
 def ramadhan_dashboard():
     # 1. Takjil Data
     takjil_data = get_takjil_data()
-    
+
     # 2. Imsakiyah Data
     imsakiyah_data = get_imsakiyah_schedule()
-    
+
     # 3. Kas Ramadhan Data
     try:
         ramadhan_kas_items = RamadhanKas.query.order_by(RamadhanKas.date.desc()).all()
@@ -9032,7 +9032,7 @@ def ramadhan_dashboard():
         app.logger.error(f"DB Error: {e}")
         ramadhan_kas_items = []
         kas_in = kas_out = 0
-    
+
     # 4. Tarawih Schedule
     try:
         seed_ramadhan_schedule()
@@ -9040,7 +9040,7 @@ def ramadhan_dashboard():
     except Exception as e:
         app.logger.error(f"DB Error: {e}")
         tarawih_schedule = []
-        
+
     # Render CONTENT first
     rendered_content = render_template_string(RAMADHAN_DASHBOARD_HTML,
                                               takjil_data=takjil_data,
@@ -9052,9 +9052,9 @@ def ramadhan_dashboard():
                                               is_admin=session.get('is_admin', False),
                                               settings=get_settings())
 
-    return render_template_string(BASE_LAYOUT, 
-                                  styles=STYLES_HTML + RAMADHAN_STYLES, 
-                                  active_page='ramadhan', 
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML + RAMADHAN_STYLES,
+                                  active_page='ramadhan',
                                   content=rendered_content,
                                   hide_nav=True,
                                   full_width=True,
@@ -9114,7 +9114,7 @@ def irma_dashboard():
     members_list = []
     check_status = None
     settings_data = {}
-    
+
     try:
         is_admin = session.get('is_admin', False)
         settings_data = get_settings()
@@ -9124,7 +9124,7 @@ def irma_dashboard():
             schedule_list = IrmaSchedule.query.order_by(IrmaSchedule.date.desc(), IrmaSchedule.id.desc()).all()
         except Exception as e:
             print(f"Error fetching Schedule: {e}")
-        
+
         # 2. Kas (Finance)
         try:
             kas_list = IrmaKas.query.order_by(IrmaKas.date.desc()).all()
@@ -9133,30 +9133,30 @@ def irma_dashboard():
             kas_summary = {'income': fin_in, 'out': fin_out, 'balance': fin_in - fin_out}
         except Exception as e:
             print(f"Error fetching Kas: {e}")
-        
+
         # 3. Gallery (Mading)
         try:
             gallery_list = IrmaGallery.query.order_by(IrmaGallery.created_at.desc()).all()
         except Exception as e:
             print(f"Error fetching Gallery: {e}")
-        
+
         # 4. Proker (Events)
         try:
             proker_list = IrmaProker.query.order_by(IrmaProker.date.asc()).all()
         except Exception as e:
             print(f"Error fetching Proker: {e}")
-        
+
         # 5. Curhat (Q&A)
         try:
             curhat_list = IrmaCurhat.query.order_by(IrmaCurhat.created_at.desc()).all()
         except Exception as e:
             print(f"Error fetching Curhat: {e}")
-        
+
         # 6. Members
         try:
             if is_admin:
                 members_list = IrmaMember.query.order_by(IrmaMember.joined_at.desc()).all()
-            
+
             check_wa = request.args.get('check_wa')
             if check_wa:
                 check_status = IrmaMember.query.filter_by(wa_number=check_wa).first()
@@ -9165,7 +9165,7 @@ def irma_dashboard():
 
     except Exception as e:
         print(f"Critical Error in IRMA Dashboard: {e}")
-    
+
     # IRMA THEME
     irma_theme = {
         'nav_bg': 'bg-[#F4E7E1]/90 backdrop-blur-md border-b border-[#A0B391]/20',
@@ -9184,9 +9184,9 @@ def irma_dashboard():
 
     open_modal = request.args.get('open')
 
-    return render_template_string(BASE_LAYOUT, 
-                                  styles=STYLES_HTML + IRMA_STYLES, 
-                                  active_page='irma', 
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML + IRMA_STYLES,
+                                  active_page='irma',
                                   theme=irma_theme,
                                   content=render_template_string(IRMA_DASHBOARD_HTML,
                                                                  schedule_list=schedule_list,
@@ -9271,7 +9271,7 @@ def irma_gallery():
         content = request.form.get('content', '')
         caption = content
         post_type = 'Text'
-        
+
         if 'image' in request.files:
             file = request.files['image']
             if file and file.filename != '':
@@ -9279,17 +9279,17 @@ def irma_gallery():
                     saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
                     content = saved_filename
                     post_type = 'Image'
-        
+
         # Ensure fallback for caption
         if caption is None: caption = ""
-        
+
         item = IrmaGallery(title=title, creator=creator, content_type=post_type, content=content, caption=caption)
         db.session.add(item)
         db.session.commit()
     except Exception as e:
         print(f"Error uploading gallery: {e}")
         db.session.rollback()
-        
+
     return redirect(url_for('irma_dashboard', open='modal-wall'))
 
 @app.route('/irma/proker', methods=['POST'])
@@ -9413,7 +9413,7 @@ self.addEventListener('fetch', (event) => {
 def donate_update():
     if not session.get('is_admin'):
         return redirect(url_for('index'))
-    
+
     try:
         keys = ['infaq_rekening_masjid', 'infaq_rekening_qurban', 'infaq_rekening_zakat']
         for k in keys:
@@ -9422,7 +9422,7 @@ def donate_update():
                 s = AppSettings.query.get(k)
                 if s: s.value = val
                 else: db.session.add(AppSettings(key=k, value=val))
-                
+
         if 'qris_image' in request.files:
             file = request.files['qris_image']
             if file and allowed_file(file.filename):
@@ -9430,7 +9430,7 @@ def donate_update():
                 s = AppSettings.query.get('infaq_qris_image')
                 if s: s.value = saved_filename
                 else: db.session.add(AppSettings(key='infaq_qris_image', value=saved_filename))
-                
+
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -9443,21 +9443,21 @@ def donate_update():
 def idul_adha_dashboard():
     makassar_tz = pytz.timezone('Asia/Makassar')
     current_time = datetime.datetime.now(makassar_tz)
-    
+
     # Check if time is between 06:30 AM and 08:30 AM
     start_time = current_time.replace(hour=6, minute=30, second=0, microsecond=0)
     cutoff_time = current_time.replace(hour=8, minute=30, second=0, microsecond=0)
     is_valid_window = start_time <= current_time <= cutoff_time
-    
-    rendered_content = render_template_string(IDUL_ADHA_DASHBOARD_HTML, 
+
+    rendered_content = render_template_string(IDUL_ADHA_DASHBOARD_HTML,
                                               is_valid_window=is_valid_window,
                                               settings=get_settings())
-    
+
     # We will use the existing BASE_LAYOUT which already manages headers/footers/styles/js
     # instead of rendering a raw HTML string.
-    return render_template_string(BASE_LAYOUT, 
-                                  styles=STYLES_HTML, 
-                                  active_page='idul-adha', 
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML,
+                                  active_page='idul-adha',
                                   content=rendered_content,
                                   is_admin=session.get('is_admin', False),
                                   settings=get_settings())
@@ -9467,10 +9467,10 @@ def idul_adha_absen():
     settings = get_settings()
     makassar_tz = pytz.timezone('Asia/Makassar')
     current_time = datetime.datetime.now(makassar_tz)
-    
+
     absen_start_str = settings.get('absen_start', '06:30')
     absen_end_str = settings.get('absen_end', '08:30')
-    
+
     try:
         start_h, start_m = map(int, absen_start_str.split(':'))
         end_h, end_m = map(int, absen_end_str.split(':'))
@@ -9486,7 +9486,7 @@ def idul_adha_absen():
 
     if request.method == 'POST':
         action = request.form.get('action')
-        
+
         if action == 'update_settings' and is_admin:
             try:
                 start_val = request.form.get('absen_start')
@@ -9541,7 +9541,7 @@ def idul_adha_absen():
             return redirect(url_for('idul_adha_absen'))
 
     attendances = QurbanAttendance.query.order_by(QurbanAttendance.check_in_time.desc()).all()
-    
+
     rendered_content = render_template_string(IDUL_ADHA_ABSEN_HTML,
                                               is_admin=is_admin,
                                               is_open=is_open,
@@ -9571,7 +9571,7 @@ def idul_adha_distribution():
         # Segregate committee members based on attendance status
         hadir_pagi = QurbanAttendance.query.filter_by(status='Hadir Pagi').all()
         terlambat = QurbanAttendance.query.filter(QurbanAttendance.status.in_(['Terlambat', 'Siluman'])).all()
-        
+
         return jsonify({
             'hadir_pagi_count': len(hadir_pagi),
             'terlambat_count': len(terlambat),
@@ -9589,12 +9589,12 @@ def idul_adha_distribution():
 
 @app.route('/idul-adha/laporan')
 def idul_adha_laporan():
-    rendered_content = render_template_string(IDUL_ADHA_LAPORAN_HTML, 
+    rendered_content = render_template_string(IDUL_ADHA_LAPORAN_HTML,
                                               is_admin=session.get('is_admin', False),
                                               settings=get_settings())
-    return render_template_string(BASE_LAYOUT, 
-                                  styles=STYLES_HTML, 
-                                  active_page='idul-adha', 
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML,
+                                  active_page='idul-adha',
                                   content=rendered_content,
                                   is_admin=session.get('is_admin', False),
                                   settings=get_settings())
@@ -9612,7 +9612,7 @@ def api_qurban_stats():
                 'total_packages_prepared': 0,
                 'total_packages_distributed': 0
             })
-            
+
         return jsonify({
             'success': True,
             'total_cattle': stats.total_cattle,
@@ -9630,23 +9630,23 @@ def api_qurban_stats():
 def admin_qurban_stats():
     if not session.get('is_admin'):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-        
+
     try:
         data = request.get_json(silent=True)
         if not data:
             return jsonify({'success': False, 'error': 'Invalid JSON body'}), 400
-            
+
         stats = QurbanStats.query.first()
         if not stats:
             stats = QurbanStats()
             db.session.add(stats)
-            
+
         stats.total_cattle = int(data.get('total_cattle', 0))
         stats.total_goat = int(data.get('total_goat', 0))
         stats.total_meat_weight_kg = float(data.get('total_meat_weight_kg', 0.0))
         stats.total_packages_prepared = int(data.get('total_packages_prepared', 0))
         stats.total_packages_distributed = int(data.get('total_packages_distributed', 0))
-        
+
         db.session.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -9671,12 +9671,12 @@ def admin_qurban_hewan():
 def admin_qurban_hewan_tambah():
     if not session.get('is_admin'):
         return redirect(url_for('index'))
-        
+
     try:
         # Generate secure random alphanumeric PIN (6-8 chars)
         alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" # removed confusing chars like I,1,O,0
         pin = ''.join(secrets.choice(alphabet) for i in range(6))
-        
+
         animal = QurbanAnimal(
             animal_type=request.form.get('animal_type', ''),
             queue_number=int(request.form.get('queue_number', 0)),
@@ -9691,19 +9691,19 @@ def admin_qurban_hewan_tambah():
         db.session.rollback()
         app.logger.error(f"Error saving animal: {e}")
         return jsonify({'error': 'Database error'}), 500
-        
+
     return redirect(url_for('admin_qurban_hewan'))
 
 @app.route('/admin/qurban/hewan/update-status/<int:animal_id>', methods=['POST'])
 def admin_qurban_hewan_update_status(animal_id):
     if not session.get('is_admin'):
         return redirect(url_for('index'))
-        
+
     try:
         animal = QurbanAnimal.query.get(animal_id)
         if not animal:
             return jsonify({'error': 'Animal not found'}), 404
-            
+
         status = request.form.get('status', 'menunggu_giliran')
         valid_statuses = ['menunggu_giliran', 'sedang_disembelih', 'proses_pencacahan', 'siap_diambil']
         if status in valid_statuses:
@@ -9713,7 +9713,7 @@ def admin_qurban_hewan_update_status(animal_id):
         db.session.rollback()
         app.logger.error(f"Error updating animal status: {e}")
         return jsonify({'error': 'Database error'}), 500
-        
+
     return redirect(url_for('admin_qurban_hewan'))
 
 
@@ -9725,15 +9725,15 @@ def qurban_lacak():
             data = request.get_json(silent=True)
             if not data:
                 return jsonify({'success': False, 'error': 'Invalid request format'}), 400
-                
+
             pin = data.get('pin', '').strip().upper()
             if not pin:
                 return jsonify({'success': False, 'error': 'PIN wajib diisi'}), 400
-                
+
             animal = QurbanAnimal.query.filter_by(pin=pin).first()
             if not animal:
                 return jsonify({'success': False, 'error': 'PIN Tidak Ditemukan. Silakan periksa kembali PIN Anda.'})
-                
+
             return jsonify({
                 'success': True,
                 'data': {
@@ -9746,7 +9746,7 @@ def qurban_lacak():
         except Exception as e:
             app.logger.error(f"Error looking up PIN: {e}", exc_info=True)
             return jsonify({'success': False, 'error': 'Terjadi kesalahan sistem saat mencari data.'}), 500
-            
+
     # GET request just serves the page
     rendered_content = render_template_string(IDUL_ADHA_LACAK_HTML, is_admin=session.get('is_admin', False))
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=session.get('is_admin', False), settings=get_settings())
@@ -9756,31 +9756,31 @@ def qurban_lacak():
 def api_qurban_generate_pin():
     if not session.get('is_admin'):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-        
+
     try:
         data = request.get_json(silent=True)
         if not data:
             return jsonify({'success': False, 'error': 'Invalid JSON body'}), 400
-            
+
         name = data.get('name', '').strip()
         animal_type = data.get('type', 'Sapi').strip()
-        
+
         if not name:
             return jsonify({'success': False, 'error': 'Nama required'}), 400
-            
+
         pin = None
         for _ in range(10):
             candidate = secrets.token_hex(3).upper()
             if not QurbanAnimal.query.filter_by(pin=candidate).first():
                 pin = candidate
                 break
-                
+
         if not pin:
             return jsonify({'success': False, 'error': 'Gagal generate PIN unik, coba lagi'}), 500
-            
+
         # Get highest queue number
         highest_queue = db.session.query(db.func.max(QurbanAnimal.queue_number)).filter_by(animal_type=animal_type).scalar() or 0
-        
+
         animal = QurbanAnimal(
             animal_type=animal_type,
             queue_number=highest_queue + 1,
@@ -9791,7 +9791,7 @@ def api_qurban_generate_pin():
         )
         db.session.add(animal)
         db.session.commit()
-        
+
         return jsonify({'success': True, 'pin': pin})
     except Exception as e:
         db.session.rollback()
@@ -9802,7 +9802,7 @@ def api_qurban_generate_pin():
 def api_qurban_list_pins():
     if not session.get('is_admin'):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-        
+
     try:
         animals = QurbanAnimal.query.order_by(QurbanAnimal.id.desc()).all()
         pins_data = []
@@ -9829,21 +9829,21 @@ def qurban_pembagian_cek():
             data = request.get_json(silent=True)
             if not data:
                 return jsonify({'found': False, 'message': 'Format request tidak valid.'}), 400
-                
+
             nik = data.get('nik', '').strip()
             coupon_number = data.get('coupon_number', '').strip().upper()
-            
+
             if not nik:
                 return jsonify({'found': False, 'message': 'Nama Lengkap Kepala Keluarga tidak boleh kosong.'}), 400
-                
+
             kupon = DistribusiKupon.query.filter_by(nik=nik, coupon_number=coupon_number).first()
             if not kupon:
                 return jsonify({'found': False, 'message': 'Data tidak ditemukan. Silakan hubungi panitia.'})
-                
+
             slot = DistribusiSlot.query.get(kupon.slot_id)
             if not slot:
                 return jsonify({'found': False, 'message': 'Slot distribusi tidak ditemukan.'})
-                
+
             return jsonify({
                 'found': True,
                 'data': {
@@ -9859,7 +9859,7 @@ def qurban_pembagian_cek():
         except Exception as e:
             app.logger.error(f"Error checking kupon: {e}", exc_info=True)
             return jsonify({'found': False, 'message': 'Terjadi kesalahan sistem saat mencari data.'}), 500
-            
+
     # GET request just serves the page
     rendered_content = render_template_string(IDUL_ADHA_PEMBAGIAN_CEK_HTML, is_admin=session.get('is_admin', False))
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=session.get('is_admin', False), settings=get_settings())
@@ -9877,7 +9877,7 @@ def api_qurban_pembagian_slots():
             ]
             db.session.bulk_save_objects(default_slots)
             db.session.commit()
-            
+
         slots = DistribusiSlot.query.all()
         slots_data = [{'id': s.id, 'rt': s.rt_identifier, 'time': f"{s.time_start} - {s.time_end}"} for s in slots]
         return jsonify({'success': True, 'slots': slots_data})
@@ -9894,17 +9894,17 @@ def api_qurban_generate_kupon():
         data = request.get_json(silent=True)
         if not data:
             return jsonify({'success': False, 'error': 'Invalid JSON body'}), 400
-            
+
         nik = data.get('nik', '').strip()
         slot_id = data.get('slot_id')
-        
+
         if not nik:
             return jsonify({'success': False, 'error': 'Nama tidak valid'}), 400
-            
+
         slot = DistribusiSlot.query.get(slot_id)
         if not slot:
             return jsonify({'success': False, 'error': 'Slot tidak valid'}), 400
-            
+
         # check existing nik
         if DistribusiKupon.query.filter_by(nik=nik).first():
              return jsonify({'success': False, 'error': 'Nama sudah terdaftar'}), 400
@@ -9915,10 +9915,10 @@ def api_qurban_generate_kupon():
             if not DistribusiKupon.query.filter_by(coupon_number=candidate).first():
                 kupon_number = candidate
                 break
-                
+
         if not kupon_number:
             return jsonify({'success': False, 'error': 'Gagal generate kupon unik'}), 500
-            
+
         new_kupon = DistribusiKupon(
             slot_id=slot.id,
             nik=nik,
@@ -9959,7 +9959,7 @@ def api_qurban_list_kupons():
 def admin_qurban_distribusi():
     if not session.get('is_admin'):
         return redirect(url_for('index'))
-        
+
     try:
         if request.method == 'POST':
             action = request.form.get('action')
@@ -9995,7 +9995,7 @@ def admin_qurban_distribusi():
         app.logger.error(f"Error loading distribusi data: {e}")
         slots = []
         kupons = []
-        
+
     # Helper to get slot in template
     def get_slot_by_id(slot_id):
         for s in slots:
@@ -10011,36 +10011,36 @@ def admin_qurban_distribusi():
 def admin_qurban_distribusi_tandai_selesai(kupon_id):
     if not session.get('is_admin'):
         return redirect(url_for('index'))
-        
+
     try:
         kupon = DistribusiKupon.query.get(kupon_id)
         if not kupon:
             flash('Kupon tidak ditemukan.', 'error')
             return redirect(url_for('admin_qurban_distribusi'))
-            
+
         if kupon.is_claimed:
             flash('Kupon sudah diklaim.', 'error')
             return redirect(url_for('admin_qurban_distribusi'))
-            
+
         slot = DistribusiSlot.query.get(kupon.slot_id)
         if slot.is_locked:
              flash('Slot RT ini sudah dikunci (Locked). Hubungi Admin Utama untuk membuka kunci.', 'error')
              return redirect(url_for('admin_qurban_distribusi'))
-             
+
         kupon.is_claimed = True
         kupon.claimed_at = datetime.datetime.now()
-        
+
         # Increment slot distributed count
         slot.distributed_count += 1
-        
+
         db.session.commit()
         flash('Berhasil menandai kupon sebagai selesai diserahkan.', 'success')
-        
+
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error claiming kupon: {e}")
         flash('Terjadi kesalahan sistem saat memproses kupon.', 'error')
-        
+
     return redirect(url_for('admin_qurban_distribusi'))
 
 
@@ -10073,7 +10073,7 @@ def public_qurban_peta():
 def admin_qurban_peta():
     if not session.get('is_admin'):
         return redirect(url_for('index'))
-        
+
     try:
         slots = DistribusiSlot.query.all()
         # Add default slots if missing, to prevent UI crashes if slots is empty and total calculation behaves weirdly (though sum should be safe)
@@ -10090,14 +10090,14 @@ def admin_qurban_peta():
         total_quota = sum([s.total_quota for s in slots])
         total_distributed = sum([s.distributed_count for s in slots])
         pending_rts = [s.rt_identifier for s in slots if not s.is_locked]
-        
-        rendered_content = render_template_string(IDUL_ADHA_PETA_DISTRIBUSI_HTML, 
-                                                  slots=slots, 
+
+        rendered_content = render_template_string(IDUL_ADHA_PETA_DISTRIBUSI_HTML,
+                                                  slots=slots,
                                                   total_rt=total_rt,
                                                   total_quota=total_quota,
                                                   total_distributed=total_distributed,
                                                   pending_rts=pending_rts,
-                                                  is_admin=True, 
+                                                  is_admin=True,
                                                   settings=get_settings())
         return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=True, settings=get_settings())
     except Exception as e:
@@ -10108,64 +10108,64 @@ def admin_qurban_peta():
 def admin_qurban_distribusi_handover(slot_id):
     if not session.get('is_admin'):
         return redirect(url_for('index'))
-        
+
     try:
         slot = DistribusiSlot.query.get(slot_id)
         if not slot:
             flash('Slot tidak ditemukan.', 'error')
             return redirect(url_for('admin_qurban_peta'))
-            
+
         if slot.is_locked:
             flash('Gagal: Slot RT ini sudah dikunci sebelumnya (Double Claim Attempt).', 'error')
             return redirect(url_for('admin_qurban_peta'))
-            
+
         handler_name = request.form.get('handler_name', '').strip()
         if not handler_name:
             flash('Nama penerima harus diisi.', 'error')
             return redirect(url_for('admin_qurban_peta'))
-            
+
         slot.handler_name = handler_name
         slot.handover_time = datetime.datetime.now()
         slot.is_locked = True
-        
+
         db.session.commit()
         flash(f'Serah terima {slot.rt_identifier} berhasil dicatat dan dikunci.', 'success')
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error in handover: {e}")
         flash('Terjadi kesalahan sistem saat menyimpan serah terima.', 'error')
-        
+
     return redirect(url_for('admin_qurban_peta'))
 
 @app.route('/admin/qurban/distribusi/unlock/<int:slot_id>', methods=['POST'])
 def admin_qurban_distribusi_unlock(slot_id):
     if not session.get('is_admin'):
         return redirect(url_for('index'))
-        
+
     try:
         slot = DistribusiSlot.query.get(slot_id)
         if not slot:
             flash('Slot tidak ditemukan.', 'error')
             return redirect(url_for('admin_qurban_peta'))
-            
+
         if not slot.is_locked:
             flash('Slot sudah dalam keadaan terbuka.', 'error')
             return redirect(url_for('admin_qurban_peta'))
-            
+
         # Audit logging can be done here via app.logger
         app.logger.warning(f"ADMIN OVERRIDE: Unlock performed on slot {slot.id} (RT {slot.rt_identifier}) by session admin.")
-        
+
         slot.is_locked = False
         slot.handler_name = None
         slot.handover_time = None
-        
+
         db.session.commit()
         flash(f'Kunci {slot.rt_identifier} berhasil dibuka.', 'success')
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error in unlock override: {e}")
         flash('Terjadi kesalahan sistem saat membuka kunci.', 'error')
-        
+
     return redirect(url_for('admin_qurban_peta'))
 
 
