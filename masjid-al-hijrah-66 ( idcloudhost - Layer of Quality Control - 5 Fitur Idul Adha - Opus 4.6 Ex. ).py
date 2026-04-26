@@ -224,6 +224,7 @@ class AppSettings(db.Model):
 class QurbanAttendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
+    seksi_qurban = db.Column(db.String(255))
     check_in_time = db.Column(db.DateTime, server_default=func.now())
     status = db.Column(db.String(50), nullable=False) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
     verified_by_admin = db.Column(db.Boolean, default=False)
@@ -2590,6 +2591,12 @@ IDUL_ADHA_ABSEN_HTML = '''
                     <input type="time" name="end_time" value="{{ settings.absen_end | default('08:30') }}" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-[#D4A017] focus:border-transparent transition" required>
                 </div>
                 <div class="md:col-span-2">
+                    <label class="flex items-center space-x-3 cursor-pointer">
+                        <input type="checkbox" name="always_open" value="1" {% if settings.get('absen_always_open') == '1' %}checked{% endif %} class="w-5 h-5 text-[#D4A017] rounded border-gray-300 focus:ring-[#D4A017]">
+                        <span class="text-sm font-bold text-gray-700">Akses Tanpa Batas Waktu (Buka Terus)</span>
+                    </label>
+                </div>
+                <div class="md:col-span-2">
                     <button type="submit" class="w-full bg-[#1B4332] hover:bg-[#153426] text-white font-bold py-3 rounded-xl transition shadow-lg">
                         Simpan Pengaturan
                     </button>
@@ -2598,29 +2605,40 @@ IDUL_ADHA_ABSEN_HTML = '''
         </div>
         {% endif %}
 
-        {% if not is_admin %}
-            {% if is_valid_window %}
-            <form action="/idul-adha/absen" method="POST" class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 mb-8 text-center max-w-md mx-auto">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-fingerprint text-4xl"></i>
-                </div>
-                <h2 class="text-2xl font-bold text-[#1B4332] mb-2">Check In Kehadiran</h2>
-                <p class="text-gray-600 mb-6 text-sm">Absensi dibuka hingga pukul {{ settings.absen_end | default('08:30') }} WITA.</p>
-                <button type="submit" class="w-full bg-[#D4A017] hover:bg-[#B8860B] text-white font-bold py-4 rounded-xl transition shadow-lg text-lg flex items-center justify-center">
-                    <i class="fas fa-check-circle mr-2"></i> Hadir Sekarang
-                </button>
-            </form>
-            {% else %}
-            <div class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 mb-8 text-center max-w-md mx-auto relative overflow-hidden">
-                <div class="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 relative z-10">
-                    <i class="fas fa-times-circle text-4xl"></i>
-                </div>
-                <h2 class="text-2xl font-bold text-red-700 mb-2 relative z-10">Absensi Ditutup</h2>
-                <p class="text-gray-600 text-sm relative z-10">Waktu absensi saat ini tidak aktif.</p>
-                <div class="absolute inset-0 bg-red-50/50 pointer-events-none"></div>
+        {% if is_valid_window or is_admin %}
+        <form action="/idul-adha/absen" method="POST" class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 mb-8 text-center max-w-md mx-auto">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-fingerprint text-4xl"></i>
             </div>
-            {% endif %}
+            <h2 class="text-2xl font-bold text-[#1B4332] mb-2">Check In Kehadiran</h2>
+            <p class="text-gray-600 mb-4 text-sm">Absensi dibuka hingga pukul {{ settings.absen_end | default('08:30') }} WITA.</p>
+
+            <div class="text-left mb-6">
+                <label class="block text-sm font-bold text-gray-700 mb-1">Seksi Qurban</label>
+                <select name="seksi_qurban" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-[#D4A017] focus:border-transparent transition" required>
+                    <option value="" disabled selected>-- Pilih Seksi Anda --</option>
+                    <option value="Pemotongan Daging">Pemotongan Daging</option>
+                    <option value="Pengulitan Kulit">Pengulitan Kulit</option>
+                    <option value="Pembagian">Pembagian</option>
+                    <option value="Keamanan">Keamanan</option>
+                    <option value="Pengantaran Daging Qurban">Pengantaran Daging Qurban</option>
+                </select>
+            </div>
+
+            <button type="submit" class="w-full bg-[#D4A017] hover:bg-[#B8860B] text-white font-bold py-4 rounded-xl transition shadow-lg text-lg flex items-center justify-center">
+                <i class="fas fa-check-circle mr-2"></i> Hadir Sekarang
+            </button>
+        </form>
+        {% else %}
+        <div class="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 mb-8 text-center max-w-md mx-auto relative overflow-hidden">
+            <div class="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 relative z-10">
+                <i class="fas fa-times-circle text-4xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-red-700 mb-2 relative z-10">Absensi Ditutup</h2>
+            <p class="text-gray-600 text-sm relative z-10">Waktu absensi saat ini tidak aktif.</p>
+            <div class="absolute inset-0 bg-red-50/50 pointer-events-none"></div>
+        </div>
         {% endif %}
 
         <!-- ATTENDANCE LIST -->
@@ -2632,6 +2650,7 @@ IDUL_ADHA_ABSEN_HTML = '''
                     <thead class="bg-gray-50 text-gray-600 font-bold">
                         <tr>
                             <th class="p-4 rounded-tl-xl">Nama Panitia</th>
+                            <th class="p-4">Seksi Qurban</th>
                             <th class="p-4">Waktu Check In</th>
                             <th class="p-4">Status</th>
                             {% if is_admin %}<th class="p-4 rounded-tr-xl">Aksi</th>{% endif %}
@@ -2641,6 +2660,7 @@ IDUL_ADHA_ABSEN_HTML = '''
                         {% for record in attendances %}
                         <tr class="hover:bg-gray-50 transition">
                             <td class="p-4 font-bold text-gray-800">{{ record.name }}</td>
+                            <td class="p-4 text-gray-600">{{ record.seksi_qurban or '-' }}</td>
                             <td class="p-4 text-gray-600">{{ record.check_in_time.strftime('%H:%M:%S') }} WITA</td>
                             <td class="p-4">
                                 {% if record.verified_by_admin %}
@@ -3006,7 +3026,7 @@ IDUL_ADHA_LAPORAN_HTML = '''
         const payload = {
             total_cattle: document.getElementById('input-cattle').value || 0,
             total_goat: document.getElementById('input-goat').value || 0,
-            total_meat_kg: document.getElementById('input-meat').value || 0,
+            total_meat_weight_kg: document.getElementById('input-meat').value || 0,
             total_packages_prepared: document.getElementById('input-packages-prep').value || 0,
             total_packages_distributed: document.getElementById('input-packages-dist').value || 0
         };
@@ -3148,7 +3168,7 @@ IDUL_ADHA_HEWAN_ADMIN_HTML = '''
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">Nama Shohibul (Pewakif)</label>
-                        <input type="text" name="sohibul_name" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017]">
+                        <input type="text" id="shohibul_name" name="sohibul_name" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017]">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">Nomor WhatsApp</label>
@@ -3539,8 +3559,8 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                 
                 <form id="generate-kupon-form" class="space-y-4">
                     <div>
-                        <label class="block text-xs font-bold text-gray-600 mb-1">NIK Warga</label>
-                        <input type="text" id="warga_nik" required pattern="[0-9]{16}" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017]">
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Nama Lengkap</label>
+                        <input type="text" id="warga_nama" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017]">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">Slot RT / Waktu</label>
@@ -3556,7 +3576,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                 <div id="new-kupon-display" class="hidden mt-6 p-4 bg-yellow-50 rounded-xl border border-yellow-200 text-center">
                     <p class="text-xs text-[#D4A017] font-bold mb-1">Kupon Berhasil Dibuat!</p>
                     <div class="text-3xl font-mono font-bold text-[#1B4332] tracking-widest uppercase" id="generated-kupon-text"></div>
-                    <p class="text-sm mt-2 text-gray-600">NIK: <strong id="generated-nik-text"></strong></p>
+                    <p class="text-sm mt-2 text-gray-600">Nama Lengkap: <strong id="generated-nik-text"></strong></p>
                 </div>
             </div>
 
@@ -3574,7 +3594,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                                 <thead class="bg-gray-50 text-gray-600 font-bold">
                                     <tr>
                                         <th class="p-3 rounded-tl-lg">Kupon</th>
-                                        <th class="p-3">Nama KK</th>
+                                        <th class="p-3">Nama Lengkap</th>
                                         <th class="p-3">RT / Waktu</th>
                                         <th class="p-3">Status</th>
                                     </tr>
@@ -3627,9 +3647,9 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                         const data = await res.json();
                         if(data.success) {
                             document.getElementById('generated-kupon-text').innerText = data.kupon;
-                            document.getElementById('generated-nik-text').innerText = nik;
+                            document.getElementById('generated-nik-text').innerText = warga_nama;
                             document.getElementById('new-kupon-display').classList.remove('hidden');
-                            document.getElementById('warga_nik').value = '';
+                            document.getElementById('warga_nama').value = '';
                         } else {
                             throw new Error(data.error || "Gagal membuat Kupon");
                         }
@@ -3721,8 +3741,8 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                 </div>
                 <form id="pembagian-form" class="space-y-4">
                     <div>
-                        <label class="block text-xs font-bold text-gray-600 mb-1">NIK (Nomor Induk Kependudukan)</label>
-                        <input type="text" id="cek_nik" required pattern="[0-9]{16}" title="Masukkan 16 digit angka NIK" placeholder="Contoh: 6472010000000001" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-mono focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017] tracking-widest text-center">
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Nama Lengkap</label>
+                        <input type="text" id="cek_nik" required placeholder="Masukkan Nama Lengkap Anda" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-mono focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017] tracking-widest text-center">
                     </div>
                     
                     <div>
@@ -3753,7 +3773,7 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                 </div>
                 
                 <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center shadow-inner">
-                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Identitas (Sesuai NIK)</p>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Identitas (Sesuai Nama Lengkap)</p>
                     <p class="text-lg font-bold text-gray-800 mb-6" id="res-kupon-nik"></p>
                     
                     <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Waktu & Sesi Pengambilan (<span id="res-kupon-rt"></span>)</p>
@@ -3764,14 +3784,14 @@ IDUL_ADHA_PEMBAGIAN_CEK_HTML = '''
                 </div>
                 
                 <div class="mt-6 text-center">
-                    <button onclick="resetPembagian()" class="text-xs font-bold text-gray-500 hover:text-[#1B4332] transition">Cek NIK Lainnya</button>
+                    <button onclick="resetPembagian()" class="text-xs font-bold text-gray-500 hover:text-[#1B4332] transition">Cek Nama Lainnya</button>
                 </div>
             </div>
 
             <script>
                 document.getElementById('pembagian-form').addEventListener('submit', async function(e) {
                     e.preventDefault();
-                    const nik = document.getElementById('cek_nama').value;
+                    const nik = document.getElementById('cek_nik').value;
                     const kupon = document.getElementById('cek_kupon').value;
                     const btn = this.querySelector('button');
                     btn.disabled = true;
@@ -3922,8 +3942,8 @@ IDUL_ADHA_PEMBAGIAN_ADMIN_HTML = '''
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-600 mb-1">NIK Warga (16 digit)</label>
-                        <input type="text" name="nik" required pattern="[0-9]{16}" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017]">
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Nama Lengkap</label>
+                        <input type="text" name="nik" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:border-[#D4A017] focus:ring-1 focus:ring-[#D4A017]">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">Nomor Kupon</label>
@@ -3947,7 +3967,7 @@ IDUL_ADHA_PEMBAGIAN_ADMIN_HTML = '''
                     <div>
                         <div class="flex items-center gap-2 mb-1">
                             <span class="bg-[#1B4332] text-white text-[10px] px-2 py-1 rounded font-bold uppercase">Kupon: {{ kupon.coupon_number }}</span>
-                            <span class="bg-gray-100 text-gray-600 text-[10px] px-2 py-1 rounded font-mono font-bold">NIK: {{ kupon.nik }}</span>
+                            <span class="bg-gray-100 text-gray-600 text-[10px] px-2 py-1 rounded font-mono font-bold">Nama: {{ kupon.nik }}</span>
                         </div>
                         {% set s = get_slot_by_id(kupon.slot_id) %}
                         {% if s %}
@@ -4096,6 +4116,19 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
         </div>
         {% endif %}
 
+        <!-- 6 Key Points Info -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-[#1B4332]/20 mb-6">
+            <h3 class="text-lg font-bold text-[#1B4332] mb-3"><i class="fas fa-info-circle mr-2 text-[#D4A017]"></i> Informasi Penting Distribusi RT</h3>
+            <ul class="list-disc pl-5 text-sm text-gray-700 space-y-2 font-medium">
+                <li>Prioritas utama pendistribusian daging qurban mencakup RT. 49, 50, 51, 52, 53, 55, 56, dan 57 di lingkungan Masjid Al-Hijrah.</li>
+                <li>Pengambilan paket daging oleh setiap perwakilan RT dilakukan secara bertahap sesuai slot waktu untuk mencegah kerumunan.</li>
+                <li>Masing-masing RT wajib menyerahkan kupon fisik maupun digital yang valid sebagai syarat pengambilan.</li>
+                <li>Setelah serah terima selesai, slot RT akan dikunci (Locked) pada sistem untuk mencegah double-claim atau pengambilan ganda.</li>
+                <li>Estimasi kuota setiap RT ditentukan berdasarkan rapat panitia qurban dan ketersediaan daging hewan qurban.</li>
+                <li>Bila terdapat sisa paket, alokasi akan didistribusikan ke jamaah lain yang berhak atas pertimbangan panitia inti.</li>
+            </ul>
+        </div>
+
         <!-- RT List Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {% for slot in slots %}
@@ -4132,7 +4165,7 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
                 <!-- Locked State -->
                 <div class="bg-white border border-gray-200 rounded-xl p-3 text-sm text-gray-600 mb-3">
                     <p><i class="fas fa-user-check text-[#1B4332] mr-2"></i> Diserahkan ke: <strong>{{ slot.handler_name }}</strong></p>
-                    <p class="mt-1"><i class="fas fa-calendar-check text-[#1B4332] mr-2"></i> Pada: <strong>{{ slot.handover_time.strftime('%H:%M WIB, %d %b') if slot.handover_time else '-' }}</strong></p>
+                    <p class="mt-1"><i class="fas fa-calendar-check text-[#1B4332] mr-2"></i> Pada: <strong>{{ ((slot.handover_time|string)[:16] + ' WIB') if slot.handover_time else '-' }}</strong></p>
                 </div>
                 
                 <!-- Unlock Action (Requires Confirmation) -->
@@ -9503,7 +9536,7 @@ def idul_adha_absen():
     start_time = current_time.replace(hour=start_hour, minute=start_minute, second=0, microsecond=0)
     cutoff_time = current_time.replace(hour=end_hour, minute=end_minute, second=0, microsecond=0)
     
-    is_valid_window = start_time <= current_time <= cutoff_time
+    is_valid_window = (start_time <= current_time <= cutoff_time) or session.get('is_admin') or settings.get('absen_always_open') == '1'
 
     if request.method == 'POST':
         if not session.get('user'):
@@ -9511,6 +9544,7 @@ def idul_adha_absen():
             return redirect(url_for('login'))
             
         username = session['user'].get('username', 'Unknown')
+        seksi_qurban = request.form.get('seksi_qurban', 'Lainnya')
         
         # Check if already checked in today
         today_start = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -9528,6 +9562,7 @@ def idul_adha_absen():
         try:
             attendance = QurbanAttendance(
                 name=username,
+                seksi_qurban=seksi_qurban,
                 check_in_time=current_time,
                 status=status,
                 verified_by_admin=False
@@ -9587,6 +9622,7 @@ def admin_qurban_absen_settings():
     try:
         start_time = request.form.get('start_time')
         end_time = request.form.get('end_time')
+        always_open = '1' if request.form.get('always_open') else '0'
         
         if start_time and end_time:
             # save to AppSettings
@@ -9602,6 +9638,12 @@ def admin_qurban_absen_settings():
                 db.session.add(end_setting)
             end_setting.value = end_time
             
+            always_setting = AppSettings.query.get('absen_always_open')
+            if not always_setting:
+                always_setting = AppSettings(key='absen_always_open')
+                db.session.add(always_setting)
+            always_setting.value = always_open
+
             db.session.commit()
             flash('Pengaturan waktu absensi berhasil disimpan.', 'success')
         else:
@@ -9919,43 +9961,9 @@ def init_default_slots():
         if DistribusiSlot.query.count() == 0:
             if DistribusiSlot.query.with_for_update().count() == 0:
                 default_slots = [
-                    DistribusiSlot(rt_identifier='RT 01', time_start='08:00', time_end='10:00', total_quota=100),
-                    DistribusiSlot(rt_identifier='RT 02', time_start='10:00', time_end='12:00', total_quota=100)
-                ]
-                db.session.bulk_save_objects(default_slots)
-                db.session.commit()
-                return True
-    except Exception as e:
-        db.session.rollback()
-        app.logger.warning(f"Slot initialization race handled: {e}")
-    return False
-
-@app.route('/api/qurban/pembagian/slots', methods=['GET'])
-
-def init_default_slots():
-    try:
-        if DistribusiSlot.query.count() == 0:
-            if DistribusiSlot.query.with_for_update().count() == 0:
-                default_slots = [
-                    DistribusiSlot(rt_identifier='RT 01', time_start='08:00', time_end='10:00', total_quota=100),
-                    DistribusiSlot(rt_identifier='RT 02', time_start='10:00', time_end='12:00', total_quota=100)
-                ]
-                db.session.bulk_save_objects(default_slots)
-                db.session.commit()
-                return True
-    except Exception as e:
-        db.session.rollback()
-        app.logger.warning(f"Slot initialization race handled: {e}")
-    return False
-
-
-def init_default_slots():
-    try:
-        if DistribusiSlot.query.count() == 0:
-            if DistribusiSlot.query.with_for_update().count() == 0:
-                default_slots = [
-                    DistribusiSlot(rt_identifier='RT 01', time_start='08:00', time_end='10:00', total_quota=100),
-                    DistribusiSlot(rt_identifier='RT 02', time_start='10:00', time_end='12:00', total_quota=100)
+                    DistribusiSlot(rt_identifier='Sesi Pagi', time_start='08:00', time_end='11:00', total_quota=100),
+                    DistribusiSlot(rt_identifier='Sesi Siang', time_start='13:00', time_end='15:00', total_quota=100),
+                    DistribusiSlot(rt_identifier='Sesi Malam', time_start='16:00', time_end='19:00', total_quota=100)
                 ]
                 db.session.bulk_save_objects(default_slots)
                 db.session.commit()
@@ -10145,14 +10153,8 @@ def idul_adha_peta():
     try:
         slots = DistribusiSlot.query.all()
         if not slots:
-            default_slots = [
-                DistribusiSlot(rt_identifier='RT 01', time_start='08:00', time_end='10:00', total_quota=100),
-                DistribusiSlot(rt_identifier='RT 02', time_start='10:00', time_end='12:00', total_quota=100)
-            ]
-            for s in default_slots:
-                db.session.add(s)
-            db.session.commit()
-            slots = default_slots
+            init_default_slots()
+            slots = DistribusiSlot.query.all()
             
         total_rt = len(slots)
         total_quota = sum(s.total_quota for s in slots)
@@ -10275,6 +10277,11 @@ def idul_adha_panduan():
 
 if __name__ == '__main__':
     with app.app_context():
+        try:
+            db.session.execute(db.text("ALTER TABLE qurban_attendance ADD COLUMN seksi_qurban VARCHAR(255)"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         db.session.execute(db.text("DROP TABLE IF EXISTS qurban_attendance"))
         db.session.commit()
         db.create_all()
