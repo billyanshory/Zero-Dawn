@@ -244,8 +244,16 @@ class BrowserPool:
         self.queue = asyncio.Queue()
         self.playwright = None
         self.browsers = []
+        self._init_lock = asyncio.Lock()
+        self._initialized = False
 
-    async def initialize(self):
+    async def ensure_initialized(self):
+        async with self._init_lock:
+            if not self._initialized:
+                await self._do_initialize()
+                self._initialized = True
+
+    async def _do_initialize(self):
         self.playwright = await async_playwright().start()
         for _ in range(self.size):
             browser = await self.playwright.chromium.launch(
@@ -274,18 +282,38 @@ class BrowserPool:
 browser_pool = BrowserPool(Config.BROWSER_POOL_SIZE)
 
 scan_semaphore = asyncio.Semaphore(Config.MAX_CONCURRENT_SCANS)
+_active_scan_count = 0
 
 @app.before_server_start
 async def setup_app(app, loop):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables verified/created successfully")
-    await browser_pool.initialize()
-    logger.info("Browser pool initialized")
+
+    try:
+        async with get_db_session() as session:
+            cutoff = datetime.now(timezone.utc) - timedelta(seconds=Config.SCAN_BUDGET_SECONDS * 2)
+            result = await session.execute(
+                select(ScanLog).where(
+                    ScanLog.scan_status.in_([ScanStatus.PENDING, ScanStatus.SCANNING, ScanStatus.ANALYZING]),
+                    ScanLog.updated_at < cutoff
+                )
+            )
+            stuck_scans = result.scalars().all()
+            for scan in stuck_scans:
+                scan.scan_status = ScanStatus.ERROR
+                scan.internal_error_detail = "Process restarted mid-scan"
+                scan.user_facing_error = "Server terhenti saat memindai. Silakan coba lagi."
+            await session.commit()
+    except Exception as e:
+        logger.warning(f"Failed to recover stuck scans during startup: {e}")
+
+    app.add_task(cleanup_rate_limits_db())
 
 @app.after_server_stop
 async def teardown_app(app, loop):
-    await browser_pool.close_all()
+    if getattr(browser_pool, '_initialized', False):
+        await browser_pool.close_all()
     await engine.dispose()
     logger.info("Browser pool and DB connections closed")
 
@@ -294,13 +322,14 @@ async def teardown_app(app, loop):
 # CORE LOGIC
 # -----------------------------------------------------------------------------
 
+_AWS_METADATA_NETS = [ipaddress.ip_network('169.254.169.254/32'), ipaddress.ip_network('fd00:ec2::254/128')]
+
 def is_private_ip(ip_str: str) -> bool:
     try:
         ip = ipaddress.ip_address(ip_str)
         if (ip.is_private or ip.is_loopback or ip.is_link_local or 
             ip.is_multicast or ip.is_reserved or 
-            ip in ipaddress.ip_network('169.254.169.254/32') or
-            ip in ipaddress.ip_network('fd00:ec2::254/128')):
+            any(ip in net for net in _AWS_METADATA_NETS)):
             return True
         return False
     except ValueError:
@@ -324,7 +353,7 @@ async def validate_url(url: str) -> str:
         raise ValueError("URL cannot be empty.")
     
     if not url.startswith("http://") and not url.startswith("https://"):
-        if re.match(r'^[^/]+\.[^/]+$', url):
+        if re.match(r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)+$', url):
             url = "https://" + url
         else:
             raise ValueError("URL must start with http:// or https://")
@@ -348,11 +377,15 @@ async def validate_url(url: str) -> str:
 
     return url
 
-async def abort_private_routes(route, request):
+async def abort_private_routes(route, request, original_hostname):
     # Try parsing host from url to check private IPs again (post-redirect)
     parsed = urllib.parse.urlparse(request.url)
     hostname = parsed.hostname
     if hostname:
+        if hostname != original_hostname:
+            await route.abort()
+            return
+
         try:
             # We don't await resolve_and_check_ssrf here directly inside the route handler
             # due to synchronous playwright routing. Just check if it looks like an IP directly.
@@ -372,181 +405,226 @@ async def abort_private_routes(route, request):
 
 
 
+DEVICE_PROFILES = [
+    {
+        "viewport": {"width": 1366, "height": 768},
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "device_scale_factor": 1.0,
+        "is_mobile": False,
+        "has_touch": False,
+        "Sec-CH-UA-Platform": '"Windows"'
+    },
+    {
+        "viewport": {"width": 1920, "height": 1080},
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "device_scale_factor": 1.0,
+        "is_mobile": False,
+        "has_touch": False,
+        "Sec-CH-UA-Platform": '"Windows"'
+    },
+    {
+        "viewport": {"width": 412, "height": 915},
+        "user_agent": "Mozilla/5.0 (Linux; Android 13; SM-S901B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+        "device_scale_factor": 2.625,
+        "is_mobile": True,
+        "has_touch": True,
+        "Sec-CH-UA-Platform": '"Android"'
+    }
+]
+
 async def scrape_url_with_playwright(url: str) -> str:
+    global _active_scan_count
+    await browser_pool.ensure_initialized()
     async with scan_semaphore:
-        browser = await browser_pool.get()
-    try:
-        async def scrape_inner():
-            context_kwargs = {
-                "viewport": {"width": 1366, "height": 768},
-                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "java_script_enabled": True,
-                "ignore_https_errors": False,
-                "locale": "id-ID",
-                "timezone_id": "Asia/Makassar",
-                "geolocation": {"latitude": -0.502, "longitude": 117.153},
-                "permissions": ["geolocation"],
-                "color_scheme": "light",
-                "device_scale_factor": 1.0,
-                "is_mobile": False,
-                "has_touch": False,
-                "extra_http_headers": {
-                    "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-                    "Sec-CH-UA": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-                    "Sec-CH-UA-Mobile": "?0",
-                    "Sec-CH-UA-Platform": '"Windows"'
-                }
-            }
-            
-            if Config.PROXY_URL:
-                context_kwargs["proxy"] = {"server": Config.PROXY_URL}
-                if Config.PROXY_USERNAME:
-                    context_kwargs["proxy"]["username"] = Config.PROXY_USERNAME
-                    context_kwargs["proxy"]["password"] = Config.PROXY_PASSWORD
-
-            context = await browser.new_context(**context_kwargs)
-            
-            stealth_script = """
-            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-            window.chrome = { runtime: {} };
-            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]});
-            const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
-            WebGLRenderingContext.prototype.getParameter = function(parameter) {
-                if (parameter === 37445) return 'Google Inc. (Intel)';
-                if (parameter === 37446) return 'ANGLE (Intel, Intel(R) UHD Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)';
-                return originalGetParameter(parameter);
-            };
-            const originalDebug = console.debug;
-            console.debug = function() { if(arguments[0] !== 'debugger') originalDebug.apply(console, arguments); };
-            """
-            await context.add_init_script(stealth_script)
-            await context.route("**/*", abort_private_routes)
-            
-            page = await context.new_page()
+        _active_scan_count += 1
+        try:
+            browser = None
             try:
-                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                
-                # Stabilization phase
-                try:
-                    await page.wait_for_function("document.readyState === 'complete'", timeout=10000)
-                except Exception:
-                    pass
-                    
-                # Scroll sequence
-                for _ in range(5):
-                    await page.evaluate("window.scrollBy(0, document.body.scrollHeight / 5)")
-                    await asyncio.sleep(0.3)
-                await asyncio.sleep(2.0)
-                await page.evaluate("window.scrollTo(0, 0)")
-                await page.mouse.move(100, 100)
-                await page.mouse.move(200, 200, steps=10)
-                
-                extract_script = """
-                () => {
-                    function extractText(root) {
-                        let text = '';
-                        if (!root) return text;
-                        
-                        if (root.nodeType === Node.TEXT_NODE) {
-                            return root.textContent + ' ';
+                browser = await browser_pool.get()
+                async def scrape_inner():
+                    profile = secrets.choice(DEVICE_PROFILES)
+                    context_kwargs = {
+                        "viewport": profile["viewport"],
+                        "user_agent": profile["user_agent"],
+                        "java_script_enabled": True,
+                        "ignore_https_errors": False,
+                        "locale": "id-ID",
+                        "timezone_id": "Asia/Makassar",
+                        "geolocation": {"latitude": -0.502, "longitude": 117.153},
+                        "permissions": ["geolocation"],
+                        "color_scheme": "light",
+                        "device_scale_factor": profile["device_scale_factor"],
+                        "is_mobile": profile["is_mobile"],
+                        "has_touch": profile["has_touch"],
+                        "extra_http_headers": {
+                            "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+                            "Sec-CH-UA": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+                            "Sec-CH-UA-Mobile": "?1" if profile["is_mobile"] else "?0",
+                            "Sec-CH-UA-Platform": profile["Sec-CH-UA-Platform"]
                         }
-                        
-                        if (root.nodeType === Node.ELEMENT_NODE) {
-                            const style = window.getComputedStyle(root);
-                            if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0' || style.fontSize === '0px') {
-                                return text;
-                            }
-                            
-                            if (root.tagName === 'NOSCRIPT' || root.tagName === 'SCRIPT' || root.tagName === 'STYLE') {
-                                return text;
-                            }
-                            
-                            const before = window.getComputedStyle(root, '::before').getPropertyValue('content');
-                            if (before && before !== 'none' && before !== 'normal') text += before.replace(/['"]/g, '') + ' ';
-                            
-                            if (root.shadowRoot) {
-                                text += extractText(root.shadowRoot);
-                            }
-                            
-                            if (root.tagName === 'IFRAME') {
-                                try {
-                                    if (root.contentDocument) {
-                                        text += extractText(root.contentDocument.body);
-                                    }
-                                } catch(e) {}
-                            }
-                            
-                            if (root.hasAttribute('aria-label')) text += root.getAttribute('aria-label') + ' ';
-                            if (root.hasAttribute('aria-description')) text += root.getAttribute('aria-description') + ' ';
-                            if (root.hasAttribute('alt')) text += root.getAttribute('alt') + ' ';
-                            if (root.hasAttribute('title')) text += root.getAttribute('title') + ' ';
-                            if (root.tagName === 'META' && (root.name === 'description' || root.getAttribute('property')?.startsWith('og:'))) {
-                                text += root.content + ' ';
-                            }
-                            
-                            for (let child of root.childNodes) {
-                                text += extractText(child);
-                            }
-                            
-                            const after = window.getComputedStyle(root, '::after').getPropertyValue('content');
-                            if (after && after !== 'none' && after !== 'normal') text += after.replace(/['"]/g, '') + ' ';
-                        }
-                        return text;
                     }
-                    return extractText(document);
-                }
-                """
-                text_content = await page.evaluate(extract_script)
-                
-                ocr_text = ""
-                if Config.OCR_ENABLED:
+
+                    if Config.PROXY_URL:
+                        context_kwargs["proxy"] = {"server": Config.PROXY_URL}
+                        if Config.PROXY_USERNAME:
+                            context_kwargs["proxy"]["username"] = Config.PROXY_USERNAME
+                            context_kwargs["proxy"]["password"] = Config.PROXY_PASSWORD
+
+                    context = await browser.new_context(**context_kwargs)
+
+                    stealth_script = """
+                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                    window.chrome = { runtime: {} };
+                    Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]});
+                    const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
+                    WebGLRenderingContext.prototype.getParameter = function(parameter) {
+                        if (parameter === 37445) return 'Google Inc. (Intel)';
+                        if (parameter === 37446) return 'ANGLE (Intel, Intel(R) UHD Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)';
+                        return originalGetParameter(parameter);
+                    };
+                    const originalDebug = console.debug;
+                    console.debug = function() { if(arguments[0] !== 'debugger') originalDebug.apply(console, arguments); };
+                    """
+                    await context.add_init_script(stealth_script)
+                    original_hostname = urllib.parse.urlparse(url).hostname
+                    await context.route("**/*", lambda route, request: abort_private_routes(route, request, original_hostname))
+
+                    page = await context.new_page()
                     try:
-                        images = await page.locator("img, [style*='background-image']").all()
-                        for img in images:
+                        await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                        
+                        # Stabilization phase
+                        try:
+                            await page.wait_for_function("document.readyState === 'complete'", timeout=10000)
+                        except Exception:
+                            pass
+                            
+                        # Scroll sequence
+                        for _ in range(5):
+                            await page.evaluate("window.scrollBy(0, document.body.scrollHeight / 5)")
+                            await asyncio.sleep(0.3)
+                        await asyncio.sleep(2.0)
+                        await page.evaluate("window.scrollTo(0, 0)")
+                        await page.mouse.move(100, 100)
+                        await page.mouse.move(200, 200, steps=10)
+
+                        extract_script = """
+                        () => {
+                            function extractText(root) {
+                                let text = '';
+                                if (!root) return text;
+
+                                if (root.nodeType === Node.TEXT_NODE) {
+                                    return root.textContent + ' ';
+                                }
+
+                                if (root.nodeType === Node.ELEMENT_NODE) {
+                                    const style = window.getComputedStyle(root);
+                                    if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0 || style.fontSize === '0px') {
+                                        return text;
+                                    }
+
+                                    if (root.tagName === 'NOSCRIPT' || root.tagName === 'SCRIPT' || root.tagName === 'STYLE') {
+                                        return text;
+                                    }
+
+                                    const before = window.getComputedStyle(root, '::before').getPropertyValue('content');
+                                    if (before && before !== 'none' && before !== 'normal') text += before.replace(/['"]/g, '') + ' ';
+
+                                    if (root.shadowRoot) {
+                                        text += extractText(root.shadowRoot);
+                                    }
+
+                                    if (root.tagName === 'IFRAME') {
+                                        try {
+                                            if (root.contentDocument) {
+                                                text += extractText(root.contentDocument.body);
+                                            }
+                                        } catch(e) {}
+                                    }
+
+                                    if (root.hasAttribute('aria-label')) text += root.getAttribute('aria-label') + ' ';
+                                    if (root.hasAttribute('aria-description')) text += root.getAttribute('aria-description') + ' ';
+                                    if (root.hasAttribute('alt')) text += root.getAttribute('alt') + ' ';
+                                    if (root.hasAttribute('title')) text += root.getAttribute('title') + ' ';
+                                    if (root.tagName === 'META' && (root.name === 'description' || root.getAttribute('property')?.startsWith('og:'))) {
+                                        text += root.content + ' ';
+                                    }
+
+                                    for (let child of root.childNodes) {
+                                        text += extractText(child);
+                                    }
+
+                                    const after = window.getComputedStyle(root, '::after').getPropertyValue('content');
+                                    if (after && after !== 'none' && after !== 'normal') text += after.replace(/['"]/g, '') + ' ';
+                                }
+                                return text;
+                            }
+                            return extractText(document);
+                        }
+                        """
+                        text_content = await page.evaluate(extract_script)
+
+                        ocr_text = ""
+                        if Config.OCR_ENABLED:
                             try:
-                                box = await img.bounding_box()
-                                if box and box["width"] > 50 and box["height"] > 50 and box["width"] * box["height"] < 5000000:
-                                    screenshot_bytes = await img.screenshot(type="jpeg", quality=80)
-                                    image = Image.open(io.BytesIO(screenshot_bytes))
-                                    loop = asyncio.get_event_loop()
-                                    extracted = await loop.run_in_executor(None, partial(pytesseract.image_to_string, image, lang="ind+eng"))
-                                    ocr_text += " " + extracted.strip()
-                            except Exception:
-                                continue
-                    except Exception as e:
-                        logger.warning(f"OCR Pass failed: {e}")
+                                images = await page.locator("img, [style*='background-image']").all()
+                                for img in images[:30]:
+                                    try:
+                                        box = await img.bounding_box()
+                                        if box and box["width"] > 50 and box["height"] > 50 and box["width"] * box["height"] < 5000000:
+                                            screenshot_bytes = await img.screenshot(type="jpeg", quality=80)
+                                            image = Image.open(io.BytesIO(screenshot_bytes))
+                                            loop = asyncio.get_event_loop()
+                                            try:
+                                                extracted = await asyncio.wait_for(
+                                                    loop.run_in_executor(None, partial(pytesseract.image_to_string, image, lang="ind+eng")),
+                                                    timeout=10.0
+                                                )
+                                                ocr_text += " " + extracted.strip()
+                                            except asyncio.TimeoutError:
+                                                logger.warning("OCR timed out on an image")
+                                                continue
+                                    except Exception:
+                                        continue
+                            except Exception as e:
+                                logger.warning(f"OCR Pass failed: {e}")
 
-                page_title = await page.title()
+                        page_title = await page.title()
+
+                        full_text = f"Page Title: {page_title}\n\n{text_content}\n\nOCR Text:\n{ocr_text}"
+
+                        # Normalization
+                        full_text = unicodedata.normalize("NFKC", full_text)
+                        # Remove zero width characters
+                        full_text = re.sub(r'[\u200b\u200c\u200d\u2060\ufeff]', '', full_text)
+                        full_text = re.sub(r'\s+', ' ', full_text).strip()
+
+                        if len(full_text) > Config.LLM_MAX_INPUT_CHARS:
+                            logger.warning(f"Truncated scraped text from {len(full_text)} to {Config.LLM_MAX_INPUT_CHARS} chars.")
+
+                        return full_text[:Config.LLM_MAX_INPUT_CHARS]
+
+                    finally:
+                        await context.close()
                 
-                full_text = f"Page Title: {page_title}\n\n{text_content}\n\nOCR Text:\n{ocr_text}"
-                
-                # Normalization
-                full_text = unicodedata.normalize("NFKC", full_text)
-                # Remove zero width characters
-                full_text = re.sub(r'[​-‍﻿]', '', full_text)
-                full_text = re.sub(r'\s+', ' ', full_text).strip()
-                
-                if len(full_text) > Config.LLM_MAX_INPUT_CHARS:
-                    logger.warning(f"Truncated scraped text from {len(full_text)} to {Config.LLM_MAX_INPUT_CHARS} chars.")
-                
-                return full_text[:Config.LLM_MAX_INPUT_CHARS]
-                
+                return await asyncio.wait_for(scrape_inner(), timeout=Config.SCAN_BUDGET_SECONDS)
+
+            except asyncio.TimeoutError:
+                raise ValueError("The scan exceeded its overall budget.")
+            except PlaywrightTimeoutError:
+                raise ValueError("The target website did not respond within the timeframe. It may be offline or blocking automated access.")
+            except PlaywrightError as e:
+                raise ValueError("Failed to render the target website. The site may use advanced bot detection.")
+            except Exception as e:
+                logger.error(f"Unexpected error in scrape_url_with_playwright for URL={url}", exc_info=True)
+                raise Exception("An unexpected error occurred during website scanning.")
             finally:
-                await context.close()
-        
-        return await asyncio.wait_for(scrape_inner(), timeout=Config.SCAN_BUDGET_SECONDS)
+                if browser is not None:
+                    await browser_pool.put(browser)
+        finally:
+            _active_scan_count -= 1
 
-    except asyncio.TimeoutError:
-        raise ValueError("The scan exceeded its overall budget.")
-    except PlaywrightTimeoutError:
-        raise ValueError("The target website did not respond within the timeframe. It may be offline or blocking automated access.")
-    except PlaywrightError as e:
-        raise ValueError("Failed to render the target website. The site may use advanced bot detection.")
-    except Exception as e:
-        logger.error(f"Unexpected error in scrape_url_with_playwright for URL={url}", exc_info=True)
-        raise Exception("An unexpected error occurred during website scanning.")
-    finally:
-        await browser_pool.put(browser)
 def sanitize_for_llm(text: str) -> str:
     # Strip common prompt injection patterns
     patterns = [
@@ -696,6 +774,7 @@ def generate_forensic_pdf(scan_data: dict) -> bytes:
         elements.append(HRFlowable(width="100%", thickness=1, color="black"))
         elements.append(Spacer(1, 0.1 * inch))
         
+        elements.append(Paragraph(f"<font size=8>SHA-256: {report_hash}</font>", normal_style))
         footer_text = (f"<i>Disclaimer: This report was generated automatically by GambitHunter. "
                        f"Report ID: {html.escape(str(scan_data.get('scan_id')))}<br/>"
                        f"SHA-256 Integrity Hash: {report_hash}</i>")
@@ -1311,25 +1390,7 @@ async def cleanup_rate_limits_db():
         except Exception as e:
             logger.error(f"Rate limit cleanup failed: {e}")
 
-@app.before_server_start
-async def start_background_tasks(app, loop):
-    app.add_task(cleanup_rate_limits_db())
-    
-    # Recover pending scans
-    async with get_db_session() as session:
-        cutoff = datetime.now(timezone.utc) - timedelta(seconds=Config.SCAN_BUDGET_SECONDS * 2)
-        result = await session.execute(
-            select(ScanLog).where(
-                ScanLog.scan_status.in_([ScanStatus.PENDING, ScanStatus.SCANNING, ScanStatus.ANALYZING]),
-                ScanLog.updated_at < cutoff
-            )
-        )
-        stuck_scans = result.scalars().all()
-        for scan in stuck_scans:
-            scan.scan_status = ScanStatus.ERROR
-            scan.internal_error_detail = "Process restarted mid-scan"
-            scan.user_facing_error = "Server terhenti saat memindai. Silakan coba lagi."
-        await session.commit()
+
 
 # -----------------------------------------------------------------------------
 # ERROR HANDLERS
@@ -1361,14 +1422,20 @@ async def handle_not_found(request, exception):
 # -----------------------------------------------------------------------------
 # ROUTES
 # -----------------------------------------------------------------------------
+scan_events: dict[str, list[asyncio.Queue]] = {}
+_scan_events_lock = asyncio.Lock()
+
+def publish_scan_event(scan_id: str, status: str):
+    if scan_id in scan_events:
+        for q in scan_events[scan_id]:
+            try:
+                q.put_nowait(status)
+            except asyncio.QueueFull:
+                pass
+
 @app.get("/")
 async def index_page(request: Request):
     csrf_token = secrets.token_hex(32)
-    
-    response_obj = response.html("")
-    response_obj.cookies["csrf_token"] = csrf_token
-    response_obj.cookies["csrf_token"]["httponly"] = True
-    response_obj.cookies["csrf_token"]["samesite"] = "Strict"
     
     async with get_db_session() as session:
         try:
@@ -1382,7 +1449,17 @@ async def index_page(request: Request):
             
     template = jinja_env.from_string(MAIN_PAGE_TEMPLATE)
     html_content = template.render(history=history, csrf_token=csrf_token, nonce=request.ctx.csp_nonce)
-    response_obj.body = html_content.encode()
+
+    response_obj = response.html(html_content)
+    response_obj.add_cookie(
+        "csrf_token",
+        csrf_token,
+        httponly=True,
+        secure=True,
+        samesite="Strict",
+        max_age=3600
+    )
+
     return response_obj
 
 @app.post("/api/scan")
@@ -1420,11 +1497,9 @@ async def api_scan(request: Request):
         try:
             # We don't commit SCANNING/ANALYZING to save DB roundtrips, SSE can track logical progress client-side
             publish_scan_event(scan_id, ScanStatus.SCANNING.value)
-            publish_scan_event(scan_id, ScanStatus.SCANNING.value)
             scraped_text = await scrape_url_with_playwright(valid_url)
             log_entry.raw_page_text = scraped_text
             
-            publish_scan_event(scan_id, ScanStatus.ANALYZING.value)
             publish_scan_event(scan_id, ScanStatus.ANALYZING.value)
             analysis = await analyze_text_with_llm(scraped_text)
             
@@ -1474,26 +1549,38 @@ async def scan_stream(request: Request, scan_id: str):
     response_stream = await request.respond(content_type="text/event-stream")
     
     q = asyncio.Queue()
-    if scan_id not in scan_events:
-        scan_events[scan_id] = []
-    scan_events[scan_id].append(q)
+    async with _scan_events_lock:
+        if scan_id not in scan_events:
+            scan_events[scan_id] = []
+        scan_events[scan_id].append(q)
     
     try:
-        while True:
-            try:
-                status = await asyncio.wait_for(q.get(), timeout=15.0)
-                await response_stream.send(f"data: {json.dumps({'status': status})}\n\n")
-                if status in ["completed", "error"]:
-                    break
-            except asyncio.TimeoutError:
-                # Keep-alive heartbeat
-                await response_stream.send(": heartbeat\n\n")
+        async def stream_loop():
+            while True:
+                try:
+                    status = await asyncio.wait_for(q.get(), timeout=15.0)
+                    try:
+                        await response_stream.send(f"data: {json.dumps({'status': status})}\n\n")
+                    except (ConnectionResetError, BrokenPipeError):
+                        break
+                    if status in ["completed", "error"]:
+                        break
+                except asyncio.TimeoutError:
+                    try:
+                        await response_stream.send(": heartbeat\n\n")
+                    except (ConnectionResetError, BrokenPipeError):
+                        break
+
+        await asyncio.wait_for(stream_loop(), timeout=Config.SCAN_BUDGET_SECONDS + 60)
+    except asyncio.TimeoutError:
+        pass
     finally:
-        if scan_id in scan_events:
-            if q in scan_events[scan_id]:
-                scan_events[scan_id].remove(q)
-            if not scan_events[scan_id]:
-                del scan_events[scan_id]
+        async with _scan_events_lock:
+            if scan_id in scan_events:
+                if q in scan_events[scan_id]:
+                    scan_events[scan_id].remove(q)
+                if not scan_events[scan_id]:
+                    del scan_events[scan_id]
 
 
 def is_valid_uuid(val: str) -> bool:
@@ -1619,8 +1706,15 @@ async def health_check(request: Request):
     try:
         async with engine.connect() as conn:
             await conn.execute(select(1))
-        pool_size = browser_pool.queue.qsize() if hasattr(browser_pool, 'queue') else 0
-        return response.json({"status": "healthy", "database": "connected", "browser_pool_size": pool_size, "timestamp": datetime.now(timezone.utc).isoformat()})
+
+        if not getattr(browser_pool, '_initialized', False):
+            pool_status = "lazy_pending"
+        elif browser_pool.queue.qsize() > 0:
+            pool_status = "ready"
+        else:
+            pool_status = "exhausted"
+
+        return response.json({"status": "healthy", "database": "connected", "browser_pool": pool_status, "timestamp": datetime.now(timezone.utc).isoformat()})
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
         return response.json({"status": "unhealthy", "database": "disconnected", "error": str(e)}, status=503)
@@ -1630,9 +1724,13 @@ async def readiness_check(request: Request):
     try:
         async with engine.connect() as conn:
             await conn.execute(select(1))
-        if browser_pool.queue.qsize() == 0 and browser_pool.size > 0:
-             return response.json({"status": "not_ready", "reason": "browser_pool_empty"}, status=503)
-        return response.json({"status": "ready"})
+
+        if not getattr(browser_pool, '_initialized', False):
+            return response.json({"status": "ready", "browser_pool": "lazy_pending"})
+        elif browser_pool.queue.qsize() > 0:
+            return response.json({"status": "ready", "browser_pool": "ready"})
+        else:
+            return response.json({"status": "not_ready", "reason": "browser_pool_empty"}, status=503)
     except Exception as e:
         return response.json({"status": "not_ready", "reason": "database_error"}, status=503)
 
@@ -1649,8 +1747,8 @@ async def get_metrics(request: Request):
     require_admin(request)
     # Simple JSON representation for now
     return response.json({
-        "browser_pool_available": browser_pool.queue.qsize(),
-        "concurrent_scans": Config.MAX_CONCURRENT_SCANS - scan_semaphore._value if hasattr(scan_semaphore, '_value') else 0
+        "browser_pool_available": browser_pool.queue.qsize() if getattr(browser_pool, '_initialized', False) else 0,
+        "concurrent_scans": _active_scan_count
     })
 
 
