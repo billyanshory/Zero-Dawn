@@ -225,6 +225,38 @@ class QurbanAttendance(db.Model):
     check_in_time = db.Column(db.DateTime, server_default=func.now())
     status = db.Column(db.String(50), nullable=False) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
 
+class QurbanReport(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    total_sapi = db.Column(db.Integer, default=12)
+    total_kambing = db.Column(db.Integer, default=20)
+    estimasi_daging = db.Column(db.String(100), default='1.500')
+    paket_terdistribusi = db.Column(db.Integer, default=450)
+    total_paket = db.Column(db.Integer, default=1000)
+
+class QurbanShohibul(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    pin = db.Column(db.String(20), unique=True, nullable=False)
+    type = db.Column(db.String(20), nullable=False) # 'Sapi' or 'Kambing'
+    queue_number = db.Column(db.Integer, nullable=False)
+    name = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(50), default='Menunggu Giliran') # 'Menunggu Giliran', 'Sedang Disembelih', 'Proses Pencacahan', 'Jatah Sohibul Siap Diambil'
+
+class QurbanKupon(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    kupon = db.Column(db.String(20), unique=True, nullable=False)
+    nama_penerima = db.Column(db.String(255), nullable=False)
+    rt = db.Column(db.String(50), nullable=False)
+    waktu_pengambilan = db.Column(db.String(100), nullable=False)
+    lokasi = db.Column(db.String(255), nullable=False)
+
+class QurbanRT(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    card_number = db.Column(db.String(10), nullable=False)
+    rt_name = db.Column(db.String(50), nullable=False)
+    ketua_rt_name = db.Column(db.String(255), nullable=False)
+    allocation = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(50), default='Menunggu') # 'Menunggu' or 'Diserahkan'
+
 def get_settings():
     try:
         settings = {item.key: item.value for item in AppSettings.query.all()}
@@ -2515,6 +2547,42 @@ IDUL_ADHA_LAPORAN_HTML = """
                 <p class="text-gray-500 mt-1">Papan Skor Transparansi Publik Masjid Al Hijrah</p>
             </div>
         </div>
+
+        {% if is_admin %}
+        <div class="bg-white rounded-3xl shadow-xl border border-blue-200 p-6 mb-8 relative">
+            <div class="absolute -top-4 left-6 bg-blue-100 text-blue-800 px-4 py-1 rounded-full text-sm font-bold flex items-center gap-2 border border-blue-200 shadow-sm">
+                <i class="fas fa-lock"></i> Panel Admin
+            </div>
+            <h2 class="text-xl font-bold text-gray-800 mb-4 mt-2">Edit Data Laporan Qurban</h2>
+            <form action="/idul-adha/laporan/update" method="POST" class="space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Total Sapi</label>
+                        <input type="number" name="total_sapi" value="{{ report.total_sapi }}" class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8B2635] focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Total Kambing</label>
+                        <input type="number" name="total_kambing" value="{{ report.total_kambing }}" class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8B2635] focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Estimasi Daging (Kg)</label>
+                        <input type="text" name="estimasi_daging" value="{{ report.estimasi_daging }}" class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8B2635] focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Paket Terdistribusi</label>
+                        <input type="number" name="paket_terdistribusi" value="{{ report.paket_terdistribusi }}" class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8B2635] focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Total Paket</label>
+                        <input type="number" name="total_paket" value="{{ report.total_paket }}" class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8B2635] focus:outline-none">
+                    </div>
+                </div>
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-md w-full md:w-auto mt-4">Save</button>
+            </form>
+        </div>
+        {% endif %}
+
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 flex items-center gap-6">
                 <div class="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-[#8B2635] text-3xl">
@@ -2523,10 +2591,10 @@ IDUL_ADHA_LAPORAN_HTML = """
                 <div>
                     <p class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Total Hewan</p>
                     <div class="flex items-baseline gap-2 mt-1">
-                        <span class="text-3xl font-bold text-gray-800">12</span><span class="text-gray-500">Sapi</span>
+                        <span class="text-3xl font-bold text-gray-800">{{ report.total_sapi }}</span><span class="text-gray-500">Sapi</span>
                     </div>
                     <div class="flex items-baseline gap-2 mt-1">
-                        <span class="text-3xl font-bold text-gray-800">20</span><span class="text-gray-500">Kambing</span>
+                        <span class="text-3xl font-bold text-gray-800">{{ report.total_kambing }}</span><span class="text-gray-500">Kambing</span>
                     </div>
                 </div>
             </div>
@@ -2537,7 +2605,7 @@ IDUL_ADHA_LAPORAN_HTML = """
                 <div>
                     <p class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Estimasi Daging</p>
                     <div class="flex items-baseline gap-2 mt-1">
-                        <span class="text-4xl font-bold text-gray-800">1.500</span>
+                        <span class="text-4xl font-bold text-gray-800">{{ report.estimasi_daging }}</span>
                         <span class="text-xl text-gray-500 font-medium">Kg</span>
                     </div>
                 </div>
@@ -2549,8 +2617,8 @@ IDUL_ADHA_LAPORAN_HTML = """
                 <div>
                     <p class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Paket Terdistribusi</p>
                     <div class="flex items-baseline gap-2 mt-1">
-                        <span class="text-4xl font-bold text-gray-800">450</span>
-                        <span class="text-xl text-gray-500 font-medium">/ 1.000</span>
+                        <span class="text-4xl font-bold text-gray-800">{{ report.paket_terdistribusi }}</span>
+                        <span class="text-xl text-gray-500 font-medium">/ {{ report.total_paket }}</span>
                     </div>
                 </div>
             </div>
@@ -2580,63 +2648,119 @@ IDUL_ADHA_SHOHIBUL_HTML = """
                 <p class="text-gray-500 mt-1">Daftar Shohibul & Tracker Hewan</p>
             </div>
         </div>
+
+        {% if is_admin %}
+        <div class="bg-white rounded-3xl shadow-xl border border-blue-200 p-6 mb-8 relative">
+            <div class="absolute -top-4 left-6 bg-blue-100 text-blue-800 px-4 py-1 rounded-full text-sm font-bold flex items-center gap-2 border border-blue-200 shadow-sm">
+                <i class="fas fa-lock"></i> Panel Admin - Generate PIN
+            </div>
+            <form action="/idul-adha/shohibul/generate" method="POST" class="space-y-4 mt-2">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Jenis Hewan Qurban</label>
+                    <select name="type" class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8B2635] focus:outline-none">
+                        <option value="Sapi">Sapi (Kode: SQ)</option>
+                        <option value="Kambing">Kambing (Kode: KQ)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Nama Shohibul (Pisahkan dengan koma jika iuran)</label>
+                    <textarea name="name" rows="2" placeholder="Contoh: Bapak Abdullah, Ibu Siti..." class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8B2635] focus:outline-none" required></textarea>
+                </div>
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-md w-full">Generate PIN Baru</button>
+            </form>
+        </div>
+        {% endif %}
+
         <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 mb-8">
             <h2 class="text-xl font-bold text-gray-800 mb-4">Lacak Status Sapi / Kambing Anda</h2>
             <p class="text-gray-600 mb-6">Masukkan PIN unik yang telah dikirimkan melalui WhatsApp untuk melihat status penyembelihan secara real-time. Tidak perlu repot datang ke masjid untuk bertanya.</p>
-            <form class="flex gap-4">
-                <input type="text" placeholder="Masukkan PIN Anda (contoh: SQ-1234)" class="w-full px-5 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#8B2635] focus:border-transparent text-gray-700 font-medium">
-                <button type="button" onclick="alert('Ini adalah simulasi pelacakan. Status: Menunggu Giliran.')" class="bg-[#8B2635] text-white px-8 py-3 rounded-xl font-bold hover:bg-red-800 transition-colors shadow-md whitespace-nowrap">Lacak</button>
+            <form action="/idul-adha/shohibul" method="GET" class="flex gap-4">
+                <input type="text" name="pin" value="{{ request.args.get('pin', '') }}" placeholder="Masukkan PIN Anda (contoh: SQ-001)" class="w-full px-5 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#8B2635] focus:border-transparent text-gray-700 font-medium" required>
+                <button type="submit" class="bg-[#8B2635] text-white px-8 py-3 rounded-xl font-bold hover:bg-red-800 transition-colors shadow-md whitespace-nowrap">Lacak</button>
             </form>
         </div>
+
+        {% if shohibul %}
         <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
             <div class="flex items-center justify-between mb-8 pb-6 border-b border-gray-100">
                 <div>
-                    <h3 class="text-lg font-bold text-gray-800">Sapi No. 5 (Bapak Abdullah)</h3>
-                    <p class="text-sm text-gray-500">PIN: SQ-1234</p>
+                    <h3 class="text-lg font-bold text-gray-800">{{ shohibul.type }} No. {{ shohibul.queue_number }} ({{ shohibul.name }})</h3>
+                    <p class="text-sm text-gray-500">PIN: {{ shohibul.pin }}</p>
                 </div>
-                <span class="bg-amber-100 text-amber-700 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">Sedang Disembelih</span>
+                <span class="bg-amber-100 text-amber-700 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">{{ shohibul.status }}</span>
             </div>
+
+            {% if is_admin %}
+            <form action="/idul-adha/shohibul/update_status" method="POST" class="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="pin" value="{{ shohibul.pin }}">
+                <h4 class="font-bold text-gray-800 mb-2">Update Status (Admin Only)</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <button type="submit" name="status" value="Menunggu Giliran" class="px-4 py-2 text-sm font-bold rounded-lg border {{ 'bg-blue-600 text-white border-blue-600' if shohibul.status == 'Menunggu Giliran' else 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100' }}">Menunggu Giliran</button>
+                    <button type="submit" name="status" value="Sedang Disembelih" class="px-4 py-2 text-sm font-bold rounded-lg border {{ 'bg-blue-600 text-white border-blue-600' if shohibul.status == 'Sedang Disembelih' else 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100' }}">Sedang Disembelih</button>
+                    <button type="submit" name="status" value="Proses Pencacahan" class="px-4 py-2 text-sm font-bold rounded-lg border {{ 'bg-blue-600 text-white border-blue-600' if shohibul.status == 'Proses Pencacahan' else 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100' }}">Proses Pencacahan</button>
+                    <button type="submit" name="status" value="Jatah Sohibul Siap Diambil" class="px-4 py-2 text-sm font-bold rounded-lg border {{ 'bg-blue-600 text-white border-blue-600' if shohibul.status == 'Jatah Sohibul Siap Diambil' else 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100' }}">Jatah Sohibul Siap</button>
+                </div>
+            </form>
+            {% endif %}
+
             <div class="space-y-6">
-                <div class="flex items-start gap-4 opacity-50">
-                    <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 mt-1 shadow-inner">
+                <div class="flex items-start gap-4 {{ '' if shohibul.status == 'Menunggu Giliran' else 'opacity-50' }}">
+                    <div class="w-10 h-10 rounded-full {{ 'bg-amber-100 text-amber-600 ring-4 ring-amber-50' if shohibul.status == 'Menunggu Giliran' else 'bg-gray-200 text-gray-500 shadow-inner' }} flex items-center justify-center mt-1">
                         <i class="fas fa-hourglass-half"></i>
                     </div>
                     <div>
-                        <h4 class="font-bold text-gray-800">Menunggu Giliran</h4>
-                        <p class="text-sm text-gray-500">Hewan qurban telah tiba dan sedang diistirahatkan.</p>
-                        <span class="text-xs text-gray-400 mt-1 block">Selesai: 08:30 WITA</span>
+                        <h4 class="font-bold {{ 'text-[#8B2635]' if shohibul.status == 'Menunggu Giliran' else 'text-gray-800' }}">Menunggu Giliran</h4>
+                        <p class="text-sm {{ 'text-gray-600' if shohibul.status == 'Menunggu Giliran' else 'text-gray-500' }}">Hewan qurban telah tiba dan sedang diistirahatkan.</p>
+                        {% if shohibul.status == 'Menunggu Giliran' %}
+                        <span class="text-xs text-amber-600 mt-1 block font-medium">Sedang Berlangsung...</span>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="flex items-start gap-4">
-                    <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 mt-1 ring-4 ring-amber-50">
+                <div class="flex items-start gap-4 {{ '' if shohibul.status == 'Sedang Disembelih' else 'opacity-50' }}">
+                    <div class="w-10 h-10 rounded-full {{ 'bg-amber-100 text-amber-600 ring-4 ring-amber-50' if shohibul.status == 'Sedang Disembelih' else 'bg-gray-200 text-gray-500 shadow-inner' }} flex items-center justify-center mt-1">
                         <i class="fas fa-knife"></i>
                     </div>
                     <div>
-                        <h4 class="font-bold text-[#8B2635]">Sedang Disembelih</h4>
-                        <p class="text-sm text-gray-600">Alhamdulillah, proses penyembelihan sedang berlangsung sesuai syariat.</p>
+                        <h4 class="font-bold {{ 'text-[#8B2635]' if shohibul.status == 'Sedang Disembelih' else 'text-gray-800' }}">Sedang Disembelih</h4>
+                        <p class="text-sm {{ 'text-gray-600' if shohibul.status == 'Sedang Disembelih' else 'text-gray-500' }}">Alhamdulillah, proses penyembelihan sedang berlangsung sesuai syariat.</p>
+                        {% if shohibul.status == 'Sedang Disembelih' %}
                         <span class="text-xs text-amber-600 mt-1 block font-medium">Sedang Berlangsung...</span>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="flex items-start gap-4 opacity-50">
-                    <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 mt-1">
+                <div class="flex items-start gap-4 {{ '' if shohibul.status == 'Proses Pencacahan' else 'opacity-50' }}">
+                    <div class="w-10 h-10 rounded-full {{ 'bg-amber-100 text-amber-600 ring-4 ring-amber-50' if shohibul.status == 'Proses Pencacahan' else 'bg-gray-200 text-gray-500 shadow-inner' }} flex items-center justify-center mt-1">
                         <i class="fas fa-drumstick-bite"></i>
                     </div>
                     <div>
-                        <h4 class="font-bold text-gray-500">Proses Pencacahan</h4>
-                        <p class="text-sm text-gray-400">Daging sedang dicacah dan ditimbang oleh panitia.</p>
+                        <h4 class="font-bold {{ 'text-[#8B2635]' if shohibul.status == 'Proses Pencacahan' else 'text-gray-800' }}">Proses Pencacahan</h4>
+                        <p class="text-sm {{ 'text-gray-600' if shohibul.status == 'Proses Pencacahan' else 'text-gray-500' }}">Daging sedang dicacah dan ditimbang oleh panitia.</p>
+                        {% if shohibul.status == 'Proses Pencacahan' %}
+                        <span class="text-xs text-amber-600 mt-1 block font-medium">Sedang Berlangsung...</span>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="flex items-start gap-4 opacity-50">
-                    <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 mt-1">
+                <div class="flex items-start gap-4 {{ '' if shohibul.status == 'Jatah Sohibul Siap Diambil' else 'opacity-50' }}">
+                    <div class="w-10 h-10 rounded-full {{ 'bg-amber-100 text-amber-600 ring-4 ring-amber-50' if shohibul.status == 'Jatah Sohibul Siap Diambil' else 'bg-gray-200 text-gray-500 shadow-inner' }} flex items-center justify-center mt-1">
                         <i class="fas fa-box-open"></i>
                     </div>
                     <div>
-                        <h4 class="font-bold text-gray-500">Jatah Sohibul Siap Diambil</h4>
-                        <p class="text-sm text-gray-400">Sepertiga bagian Anda telah siap. Silakan ambil di pos panitia.</p>
+                        <h4 class="font-bold {{ 'text-[#8B2635]' if shohibul.status == 'Jatah Sohibul Siap Diambil' else 'text-gray-800' }}">Jatah Sohibul Siap Diambil</h4>
+                        <p class="text-sm {{ 'text-gray-600' if shohibul.status == 'Jatah Sohibul Siap Diambil' else 'text-gray-500' }}">Sepertiga bagian Anda telah siap. Silakan ambil di pos panitia.</p>
+                        {% if shohibul.status == 'Jatah Sohibul Siap Diambil' %}
+                        <span class="text-xs text-amber-600 mt-1 block font-medium">Sedang Berlangsung...</span>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
+        {% elif request.args.get('pin') %}
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+            PIN <strong>{{ request.args.get('pin') }}</strong> tidak ditemukan. Silakan periksa kembali.
+        </div>
+        {% endif %}
     </div>
 </div>
 """
@@ -2653,6 +2777,37 @@ IDUL_ADHA_PEMBAGIAN_HTML = """
                 <p class="text-gray-500 mt-1">Sistem Kupon Digital & Penjadwalan Warga</p>
             </div>
         </div>
+
+        {% if is_admin %}
+        <div class="bg-white rounded-3xl shadow-xl border border-blue-200 p-6 mb-8 relative">
+            <div class="absolute -top-4 left-6 bg-blue-100 text-blue-800 px-4 py-1 rounded-full text-sm font-bold flex items-center gap-2 border border-blue-200 shadow-sm">
+                <i class="fas fa-lock"></i> Panel Admin - Generate E-Kupon
+            </div>
+            <form action="/idul-adha/distribution/generate" method="POST" class="space-y-4 mt-2">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Nama Penerima</label>
+                        <input type="text" name="nama_penerima" placeholder="Contoh: Bapak Budi Santoso" class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#1B4332] focus:outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">RT</label>
+                        <input type="text" name="rt" placeholder="Contoh: RT 02" class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#1B4332] focus:outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Waktu Pengambilan</label>
+                        <input type="text" name="waktu_pengambilan" placeholder="Contoh: 13.30 - 14.00 WITA" class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#1B4332] focus:outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Lokasi Pengambilan</label>
+                        <input type="text" name="lokasi" placeholder="Contoh: di Rumah Pak RT sama Pak RT" class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#1B4332] focus:outline-none" required>
+                    </div>
+                </div>
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-md w-full">Generate Kupon Baru</button>
+            </form>
+        </div>
+        {% endif %}
+
         <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 mb-8">
             <div class="flex items-center justify-center w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full mb-6 mx-auto">
                 <i class="fas fa-ticket-alt text-3xl"></i>
@@ -2661,17 +2816,19 @@ IDUL_ADHA_PEMBAGIAN_HTML = """
             <p class="text-center text-gray-600 mb-8 max-w-md mx-auto">
                 Masukkan Nama Lengkap Anda atau Nomor Kupon yang diberikan oleh RT. Sistem akan menampilkan jadwal pengambilan untuk menghindari kerumunan.
             </p>
-            <form class="space-y-5">
+            <form action="/idul-adha/distribution" method="GET" class="space-y-5">
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Lengkap / No. Kupon</label>
-                    <input type="text" placeholder="Cth: Budi Santoso atau KPN-001" class="w-full px-5 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-700 font-medium">
+                    <input type="text" name="query" value="{{ request.args.get('query', '') }}" placeholder="Cth: Budi Santoso atau KPN-001" class="w-full px-5 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-700 font-medium" required>
                 </div>
-                <button type="button" onclick="document.getElementById('hasil-kupon').classList.remove('hidden')" class="w-full bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow-md">
+                <button type="submit" class="w-full bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow-md">
                     Cek Jadwal Saya
                 </button>
             </form>
         </div>
-        <div id="hasil-kupon" class="hidden bg-[#1B4332] rounded-3xl shadow-2xl p-8 text-white relative overflow-hidden">
+
+        {% if kupon %}
+        <div class="bg-[#1B4332] rounded-3xl shadow-2xl p-8 text-white relative overflow-hidden">
             <div class="absolute -right-10 -top-10 text-emerald-800 opacity-20">
                 <i class="fas fa-qrcode text-9xl"></i>
             </div>
@@ -2679,22 +2836,23 @@ IDUL_ADHA_PEMBAGIAN_HTML = """
                 <div class="flex justify-between items-start mb-6 border-b border-emerald-700 pb-6">
                     <div>
                         <p class="text-emerald-200 text-sm font-medium uppercase tracking-wider mb-1">E-Kupon Valid</p>
-                        <h3 class="text-2xl font-bold">KPN-084</h3>
+                        <h3 class="text-2xl font-bold">{{ kupon.kupon }}</h3>
                     </div>
                     <div class="bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase">
-                        RT 02
+                        {{ kupon.rt }}
                     </div>
                 </div>
                 <div class="mb-8">
                     <p class="text-emerald-200 text-sm mb-1">Nama Penerima</p>
-                    <p class="font-bold text-xl">Bapak Budi Santoso</p>
+                    <p class="font-bold text-xl">{{ kupon.nama_penerima }}</p>
+                    <p class="text-emerald-100 text-sm mt-2"><i class="fas fa-map-marker-alt mr-1"></i> Pengambilan: {{ kupon.lokasi }}</p>
                 </div>
                 <div class="bg-white/10 rounded-2xl p-5 backdrop-blur-sm border border-white/20">
                     <div class="flex items-center gap-4 text-amber-300 mb-2">
                         <i class="far fa-clock text-2xl"></i>
                         <span class="font-bold text-lg">Waktu Pengambilan:</span>
                     </div>
-                    <p class="text-3xl font-black text-white ml-10">13.30 - 14.00 WITA</p>
+                    <p class="text-3xl font-black text-white ml-10">{{ kupon.waktu_pengambilan }}</p>
                     <p class="text-sm text-emerald-100 mt-3 ml-10 flex items-start gap-2">
                         <i class="fas fa-exclamation-circle mt-0.5"></i>
                         Mohon datang tepat waktu sesuai jadwal agar tidak terjadi antrean panjang di lokasi.
@@ -2702,6 +2860,11 @@ IDUL_ADHA_PEMBAGIAN_HTML = """
                 </div>
             </div>
         </div>
+        {% elif request.args.get('query') %}
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-center">
+            Data Kupon untuk <strong>{{ request.args.get('query') }}</strong> tidak ditemukan.
+        </div>
+        {% endif %}
     </div>
 </div>
 """
@@ -2718,6 +2881,44 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = """
                 <p class="text-gray-500 mt-1">Log Penyaluran Daging Berbasis Wilayah RT</p>
             </div>
         </div>
+
+        {% if is_admin %}
+        <div class="bg-white rounded-3xl shadow-xl border border-blue-200 p-6 mb-8 relative">
+            <div class="absolute -top-4 left-6 bg-blue-100 text-blue-800 px-4 py-1 rounded-full text-sm font-bold flex items-center gap-2 border border-blue-200 shadow-sm">
+                <i class="fas fa-lock"></i> Panel Admin - Tambah RT
+            </div>
+            <form action="/idul-adha/peta-distribusi/add" method="POST" class="space-y-4 mt-2">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Nomor Card</label>
+                        <input type="text" name="card_number" placeholder="Contoh: 01" class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-600 focus:outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">RT</label>
+                        <input type="text" name="rt_name" placeholder="Contoh: RT 01" class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-600 focus:outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Nama Ketua RT</label>
+                        <input type="text" name="ketua_rt_name" placeholder="Contoh: Bpk. Haryanto" class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-600 focus:outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Alokasi (Kantong)</label>
+                        <input type="number" name="allocation" placeholder="Contoh: 50" class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-600 focus:outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Status</label>
+                        <select name="status" class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-600 focus:outline-none" required>
+                            <option value="Menunggu">Menunggu</option>
+                            <option value="Diserahkan">Diserahkan</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-md w-full">Tambah Card RT Baru</button>
+            </form>
+        </div>
+        {% endif %}
+
         <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 mb-8">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                 <div>
@@ -2739,100 +2940,94 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = """
                 <div class="bg-orange-50 rounded-2xl p-6 text-center border border-orange-100">
                     <p class="text-orange-800 font-bold mb-2">Total Progres Wilayah</p>
                     <div class="flex items-end justify-center gap-2">
-                        <span class="text-5xl font-black text-orange-600">12</span>
-                        <span class="text-xl text-orange-400 font-bold mb-1">/ 15 RT</span>
+                        <span class="text-5xl font-black text-orange-600">{{ total_diserahkan }}</span>
+                        <span class="text-xl text-orange-400 font-bold mb-1">/ {{ total_rt }} RT</span>
                     </div>
                     <div class="w-full bg-orange-200 rounded-full h-2 mt-4">
-                        <div class="bg-orange-500 h-2 rounded-full" style="width: 80%"></div>
+                        <div class="bg-orange-500 h-2 rounded-full" style="width: {{ progress_percentage }}%"></div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-            <div class="bg-white rounded-2xl border-2 border-emerald-100 p-5 shadow-sm relative overflow-hidden group">
+            {% for rt in rt_list %}
+            <div class="bg-white rounded-2xl border-2 {{ 'border-emerald-100' if rt.status == 'Diserahkan' else 'border-gray-200' }} p-5 shadow-sm relative overflow-hidden group">
+                {% if rt.status == 'Diserahkan' %}
                 <div class="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl">Terkunci</div>
-                <div class="flex items-center gap-4 mb-3">
-                    <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl font-bold">01</div>
-                    <div>
-                        <h3 class="font-bold text-gray-800">RT 01</h3>
-                        <p class="text-xs text-gray-500">Bpk. Haryanto</p>
-                    </div>
-                </div>
-                <div class="bg-gray-50 rounded-lg p-3 mt-4">
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-600">Alokasi:</span>
-                        <span class="font-bold text-gray-800">50 Kantong</span>
-                    </div>
-                    <div class="flex justify-between items-center text-sm mt-1">
-                        <span class="text-gray-600">Status:</span>
-                        <span class="font-bold text-emerald-600"><i class="fas fa-check-circle mr-1"></i> Diserahkan</span>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-white rounded-2xl border-2 border-emerald-100 p-5 shadow-sm relative overflow-hidden">
-                <div class="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl">Terkunci</div>
-                <div class="flex items-center gap-4 mb-3">
-                    <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl font-bold">02</div>
-                    <div>
-                        <h3 class="font-bold text-gray-800">RT 02</h3>
-                        <p class="text-xs text-gray-500">Bpk. Slamet</p>
-                    </div>
-                </div>
-                <div class="bg-gray-50 rounded-lg p-3 mt-4">
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-600">Alokasi:</span>
-                        <span class="font-bold text-gray-800">45 Kantong</span>
-                    </div>
-                    <div class="flex justify-between items-center text-sm mt-1">
-                        <span class="text-gray-600">Status:</span>
-                        <span class="font-bold text-emerald-600"><i class="fas fa-check-circle mr-1"></i> Diserahkan</span>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-white rounded-2xl border-2 border-gray-200 p-5 shadow-sm relative overflow-hidden">
-                <div class="flex items-center gap-4 mb-3">
-                    <div class="w-12 h-12 bg-gray-100 text-gray-500 rounded-xl flex items-center justify-center text-xl font-bold">03</div>
-                    <div>
-                        <h3 class="font-bold text-gray-800">RT 03</h3>
-                        <p class="text-xs text-gray-500">Bpk. Wahyu</p>
-                    </div>
-                </div>
-                <div class="bg-gray-50 rounded-lg p-3 mt-4">
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-600">Alokasi:</span>
-                        <span class="font-bold text-gray-800">60 Kantong</span>
-                    </div>
-                    <div class="flex justify-between items-center text-sm mt-1">
-                        <span class="text-gray-600">Status:</span>
-                        <span class="font-bold text-orange-500"><i class="fas fa-clock mr-1"></i> Menunggu</span>
-                    </div>
-                </div>
-                <button onclick="alert('Admin Panel: Konfirmasi Penyerahan 60 Kantong ke RT 03?')" class="w-full mt-3 bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white py-2 rounded-lg text-sm font-bold transition-colors">
-                    Serahkan Jatah
+                {% endif %}
+
+                {% if is_admin %}
+                <button onclick="document.getElementById('edit-rt-{{ rt.id }}').classList.toggle('hidden')" class="absolute top-2 right-2 text-gray-400 hover:text-blue-600 transition-colors {{ 'mr-16' if rt.status == 'Diserahkan' else '' }}">
+                    <i class="fas fa-pencil-alt"></i>
                 </button>
-            </div>
-            <div class="bg-white rounded-2xl border-2 border-gray-200 p-5 shadow-sm relative overflow-hidden">
+                {% endif %}
+
                 <div class="flex items-center gap-4 mb-3">
-                    <div class="w-12 h-12 bg-gray-100 text-gray-500 rounded-xl flex items-center justify-center text-xl font-bold">04</div>
+                    <div class="w-12 h-12 {{ 'bg-emerald-50 text-emerald-600' if rt.status == 'Diserahkan' else 'bg-gray-100 text-gray-500' }} rounded-xl flex items-center justify-center text-xl font-bold">{{ rt.card_number }}</div>
                     <div>
-                        <h3 class="font-bold text-gray-800">RT 04</h3>
-                        <p class="text-xs text-gray-500">Bpk. Ahmad</p>
+                        <h3 class="font-bold text-gray-800">{{ rt.rt_name }}</h3>
+                        <p class="text-xs text-gray-500">{{ rt.ketua_rt_name }}</p>
                     </div>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-3 mt-4">
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-gray-600">Alokasi:</span>
-                        <span class="font-bold text-gray-800">30 Kantong</span>
+                        <span class="font-bold text-gray-800">{{ rt.allocation }} Kantong</span>
                     </div>
                     <div class="flex justify-between items-center text-sm mt-1">
                         <span class="text-gray-600">Status:</span>
+                        {% if rt.status == 'Diserahkan' %}
+                        <span class="font-bold text-emerald-600"><i class="fas fa-check-circle mr-1"></i> Diserahkan</span>
+                        {% else %}
                         <span class="font-bold text-orange-500"><i class="fas fa-clock mr-1"></i> Menunggu</span>
+                        {% endif %}
                     </div>
                 </div>
-                <button onclick="alert('Admin Panel: Konfirmasi Penyerahan 30 Kantong ke RT 04?')" class="w-full mt-3 bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white py-2 rounded-lg text-sm font-bold transition-colors">
-                    Serahkan Jatah
-                </button>
+
+                {% if is_admin %}
+                <form action="/idul-adha/peta-distribusi/toggle_status" method="POST" class="mt-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="rt_id" value="{{ rt.id }}">
+                    {% if rt.status == 'Menunggu' %}
+                    <input type="hidden" name="status" value="Diserahkan">
+                    <button type="submit" class="w-full bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white py-2 rounded-lg text-sm font-bold transition-colors">
+                        Serahkan Jatah
+                    </button>
+                    {% else %}
+                    <input type="hidden" name="status" value="Menunggu">
+                    <button type="submit" class="w-full bg-gray-100 text-gray-600 hover:bg-gray-200 py-2 rounded-lg text-sm font-bold transition-colors">
+                        Batal Serahkan
+                    </button>
+                    {% endif %}
+                </form>
+
+                <div id="edit-rt-{{ rt.id }}" class="hidden mt-4 pt-4 border-t border-gray-100">
+                    <form action="/idul-adha/peta-distribusi/update" method="POST" class="space-y-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="rt_id" value="{{ rt.id }}">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Nomor Card</label>
+                            <input type="text" name="card_number" value="{{ rt.card_number }}" class="w-full px-2 py-1 text-sm rounded border border-gray-200 focus:ring-1 focus:ring-orange-600 focus:outline-none" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">RT</label>
+                            <input type="text" name="rt_name" value="{{ rt.rt_name }}" class="w-full px-2 py-1 text-sm rounded border border-gray-200 focus:ring-1 focus:ring-orange-600 focus:outline-none" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Nama Ketua RT</label>
+                            <input type="text" name="ketua_rt_name" value="{{ rt.ketua_rt_name }}" class="w-full px-2 py-1 text-sm rounded border border-gray-200 focus:ring-1 focus:ring-orange-600 focus:outline-none" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Alokasi (Kantong)</label>
+                            <input type="number" name="allocation" value="{{ rt.allocation }}" class="w-full px-2 py-1 text-sm rounded border border-gray-200 focus:ring-1 focus:ring-orange-600 focus:outline-none" required>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white py-1 rounded text-sm font-bold hover:bg-blue-700 transition-colors">Save</button>
+                    </form>
+                </div>
+                {% endif %}
             </div>
+            {% endfor %}
         </div>
     </div>
 </div>
@@ -8140,30 +8335,207 @@ def idul_adha_absen():
 
 @app.route('/idul-adha/laporan')
 def idul_adha_laporan():
+    report = QurbanReport.query.first()
+    if not report:
+        report = QurbanReport()
+        db.session.add(report)
+        db.session.commit()
+
+    content_rendered = render_template_string(IDUL_ADHA_LAPORAN_HTML,
+                                              is_admin=session.get('is_admin', False),
+                                              report=report)
+
     return render_template_string(BASE_LAYOUT, 
                                   styles=STYLES_HTML, 
                                   active_page='idul-adha', 
-                                  content=IDUL_ADHA_LAPORAN_HTML,
+                                  content=content_rendered,
                                   is_admin=session.get('is_admin', False),
                                   settings=get_settings())
+
+@app.route('/idul-adha/laporan/update', methods=['POST'])
+def idul_adha_laporan_update():
+    if not session.get('is_admin'):
+        return redirect('/idul-adha/laporan')
+
+    report = QurbanReport.query.first()
+    if not report:
+        report = QurbanReport()
+        db.session.add(report)
+
+    try:
+        report.total_sapi = int(request.form.get('total_sapi', 12))
+        report.total_kambing = int(request.form.get('total_kambing', 20))
+        report.estimasi_daging = request.form.get('estimasi_daging', '1.500')
+        report.paket_terdistribusi = int(request.form.get('paket_terdistribusi', 450))
+        report.total_paket = int(request.form.get('total_paket', 1000))
+        db.session.commit()
+        flash('Laporan Qurban berhasil diperbarui.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error updating report: {str(e)}", exc_info=True)
+        flash('Gagal memperbarui laporan.', 'error')
+
+    return redirect('/idul-adha/laporan')
 
 @app.route('/idul-adha/shohibul')
 def idul_adha_shohibul():
+    pin_query = request.args.get('pin', '').strip()
+    shohibul = None
+    if pin_query:
+        shohibul = QurbanShohibul.query.filter_by(pin=pin_query).first()
+
+    content_rendered = render_template_string(IDUL_ADHA_SHOHIBUL_HTML,
+                                              is_admin=session.get('is_admin', False),
+                                              shohibul=shohibul)
+
     return render_template_string(BASE_LAYOUT, 
                                   styles=STYLES_HTML, 
                                   active_page='idul-adha', 
-                                  content=IDUL_ADHA_SHOHIBUL_HTML,
+                                  content=content_rendered,
                                   is_admin=session.get('is_admin', False),
                                   settings=get_settings())
 
+@app.route('/idul-adha/shohibul/generate', methods=['POST'])
+def idul_adha_shohibul_generate():
+    if not session.get('is_admin'):
+        return redirect('/idul-adha/shohibul')
+
+    type_hewan = request.form.get('type')
+    name = request.form.get('name')
+
+    if not type_hewan or not name:
+        flash('Data tidak lengkap.', 'error')
+        return redirect('/idul-adha/shohibul')
+
+    try:
+        prefix = 'SQ' if type_hewan == 'Sapi' else 'KQ'
+        # Get latest queue number
+        latest = QurbanShohibul.query.filter_by(type=type_hewan).order_by(QurbanShohibul.queue_number.desc()).first()
+        queue_number = (latest.queue_number + 1) if latest else 1
+
+        pin = f"{prefix}-{queue_number:03d}"
+
+        new_shohibul = QurbanShohibul(pin=pin, type=type_hewan, queue_number=queue_number, name=name)
+        db.session.add(new_shohibul)
+        db.session.commit()
+        flash(f'PIN {pin} berhasil di-generate untuk {name}.', 'success')
+        return redirect(f'/idul-adha/shohibul?pin={pin}')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error generating PIN: {str(e)}", exc_info=True)
+        flash('Gagal men-generate PIN.', 'error')
+        return redirect('/idul-adha/shohibul')
+
+@app.route('/idul-adha/shohibul/update_status', methods=['POST'])
+def idul_adha_shohibul_update_status():
+    if not session.get('is_admin'):
+        return redirect('/idul-adha/shohibul')
+
+    pin = request.form.get('pin')
+    status = request.form.get('status')
+
+    if not pin or not status:
+        flash('Data tidak lengkap.', 'error')
+        return redirect('/idul-adha/shohibul')
+
+    try:
+        shohibul = QurbanShohibul.query.filter_by(pin=pin).first()
+        if shohibul:
+            shohibul.status = status
+            db.session.commit()
+            flash(f'Status {pin} diperbarui menjadi {status}.', 'success')
+        return redirect(f'/idul-adha/shohibul?pin={pin}')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error updating status: {str(e)}", exc_info=True)
+        flash('Gagal memperbarui status.', 'error')
+        return redirect('/idul-adha/shohibul')
+
 @app.route('/idul-adha/peta-distribusi')
 def idul_adha_peta_distribusi():
+    rt_list = QurbanRT.query.order_by(QurbanRT.card_number).all()
+    total_rt = len(rt_list)
+    total_diserahkan = sum(1 for rt in rt_list if rt.status == 'Diserahkan')
+    progress_percentage = (total_diserahkan / total_rt * 100) if total_rt > 0 else 0
+
+    content_rendered = render_template_string(IDUL_ADHA_PETA_DISTRIBUSI_HTML,
+                                              is_admin=session.get('is_admin', False),
+                                              rt_list=rt_list,
+                                              total_rt=total_rt,
+                                              total_diserahkan=total_diserahkan,
+                                              progress_percentage=progress_percentage)
+
     return render_template_string(BASE_LAYOUT, 
                                   styles=STYLES_HTML, 
                                   active_page='idul-adha', 
-                                  content=IDUL_ADHA_PETA_DISTRIBUSI_HTML,
+                                  content=content_rendered,
                                   is_admin=session.get('is_admin', False),
                                   settings=get_settings())
+
+@app.route('/idul-adha/peta-distribusi/add', methods=['POST'])
+def idul_adha_peta_distribusi_add():
+    if not session.get('is_admin'):
+        return redirect('/idul-adha/peta-distribusi')
+
+    try:
+        new_rt = QurbanRT(
+            card_number=request.form.get('card_number'),
+            rt_name=request.form.get('rt_name'),
+            ketua_rt_name=request.form.get('ketua_rt_name'),
+            allocation=int(request.form.get('allocation', 0)),
+            status=request.form.get('status', 'Menunggu')
+        )
+        db.session.add(new_rt)
+        db.session.commit()
+        flash('Data RT berhasil ditambahkan.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error adding RT: {str(e)}", exc_info=True)
+        flash('Gagal menambahkan data RT.', 'error')
+
+    return redirect('/idul-adha/peta-distribusi')
+
+@app.route('/idul-adha/peta-distribusi/update', methods=['POST'])
+def idul_adha_peta_distribusi_update():
+    if not session.get('is_admin'):
+        return redirect('/idul-adha/peta-distribusi')
+
+    try:
+        rt_id = request.form.get('rt_id')
+        rt = QurbanRT.query.get(rt_id)
+        if rt:
+            rt.card_number = request.form.get('card_number')
+            rt.rt_name = request.form.get('rt_name')
+            rt.ketua_rt_name = request.form.get('ketua_rt_name')
+            rt.allocation = int(request.form.get('allocation', 0))
+            db.session.commit()
+            flash('Data RT berhasil diperbarui.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error updating RT: {str(e)}", exc_info=True)
+        flash('Gagal memperbarui data RT.', 'error')
+
+    return redirect('/idul-adha/peta-distribusi')
+
+@app.route('/idul-adha/peta-distribusi/toggle_status', methods=['POST'])
+def idul_adha_peta_distribusi_toggle_status():
+    if not session.get('is_admin'):
+        return redirect('/idul-adha/peta-distribusi')
+
+    try:
+        rt_id = request.form.get('rt_id')
+        status = request.form.get('status')
+        rt = QurbanRT.query.get(rt_id)
+        if rt and status in ['Menunggu', 'Diserahkan']:
+            rt.status = status
+            db.session.commit()
+            flash(f'Status RT {rt.rt_name} diperbarui menjadi {status}.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error toggling RT status: {str(e)}", exc_info=True)
+        flash('Gagal memperbarui status RT.', 'error')
+
+    return redirect('/idul-adha/peta-distribusi')
 
 @app.route('/idul-adha/panduan')
 def idul_adha_panduan():
@@ -8180,15 +8552,114 @@ def idul_adha_distribution():
     hadir_pagi = QurbanAttendance.query.filter_by(status='Hadir Pagi').all()
     terlambat = QurbanAttendance.query.filter(QurbanAttendance.status.in_(['Terlambat', 'Siluman'])).all()
     
+    query = request.args.get('query', '').strip()
+    kupon = None
+    if query:
+        # Search by kupon exact match or nama like
+        kupon = QurbanKupon.query.filter(
+            db.or_(
+                QurbanKupon.kupon.ilike(f"%{query}%"),
+                QurbanKupon.nama_penerima.ilike(f"%{query}%")
+            )
+        ).first()
+
+    content_rendered = render_template_string(IDUL_ADHA_PEMBAGIAN_HTML,
+                                              is_admin=session.get('is_admin', False),
+                                              kupon=kupon)
+
     return render_template_string(BASE_LAYOUT, 
                                   styles=STYLES_HTML, 
                                   active_page='idul-adha', 
-                                  content=IDUL_ADHA_PEMBAGIAN_HTML,
+                                  content=content_rendered,
                                   is_admin=session.get('is_admin', False),
                                   settings=get_settings())
+
+@app.route('/idul-adha/distribution/generate', methods=['POST'])
+def idul_adha_distribution_generate():
+    if not session.get('is_admin'):
+        return redirect('/idul-adha/distribution')
+
+    nama_penerima = request.form.get('nama_penerima')
+    rt = request.form.get('rt')
+    waktu_pengambilan = request.form.get('waktu_pengambilan')
+    lokasi = request.form.get('lokasi')
+
+    if not all([nama_penerima, rt, waktu_pengambilan, lokasi]):
+        flash('Data tidak lengkap.', 'error')
+        return redirect('/idul-adha/distribution')
+
+    try:
+        # Get latest kupon
+        latest = QurbanKupon.query.order_by(QurbanKupon.id.desc()).first()
+        kupon_number = (int(latest.kupon.split('-')[1]) + 1) if latest else 1
+        kupon_code = f"KPN-{kupon_number:03d}"
+
+        new_kupon = QurbanKupon(
+            kupon=kupon_code,
+            nama_penerima=nama_penerima,
+            rt=rt,
+            waktu_pengambilan=waktu_pengambilan,
+            lokasi=lokasi
+        )
+        db.session.add(new_kupon)
+        db.session.commit()
+        flash(f'Kupon {kupon_code} berhasil di-generate untuk {nama_penerima}.', 'success')
+        return redirect(f'/idul-adha/distribution?query={kupon_code}')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error generating Kupon: {str(e)}", exc_info=True)
+        flash('Gagal men-generate Kupon.', 'error')
+        return redirect('/idul-adha/distribution')
 
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        try:
+            # Raw SQL checks for new tables, creating them if they don't exist
+            db.session.execute(db.text('''
+                CREATE TABLE IF NOT EXISTS qurban_report (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    total_sapi INTEGER DEFAULT 12,
+                    total_kambing INTEGER DEFAULT 20,
+                    estimasi_daging VARCHAR(100) DEFAULT '1.500',
+                    paket_terdistribusi INTEGER DEFAULT 450,
+                    total_paket INTEGER DEFAULT 1000
+                );
+            '''))
+            db.session.execute(db.text('''
+                CREATE TABLE IF NOT EXISTS qurban_shohibul (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    pin VARCHAR(20) UNIQUE NOT NULL,
+                    type VARCHAR(20) NOT NULL,
+                    queue_number INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    status VARCHAR(50) DEFAULT 'Menunggu Giliran'
+                );
+            '''))
+            db.session.execute(db.text('''
+                CREATE TABLE IF NOT EXISTS qurban_kupon (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    kupon VARCHAR(20) UNIQUE NOT NULL,
+                    nama_penerima VARCHAR(255) NOT NULL,
+                    rt VARCHAR(50) NOT NULL,
+                    waktu_pengambilan VARCHAR(100) NOT NULL,
+                    lokasi VARCHAR(255) NOT NULL
+                );
+            '''))
+            db.session.execute(db.text('''
+                CREATE TABLE IF NOT EXISTS qurban_r_t (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    card_number VARCHAR(10) NOT NULL,
+                    rt_name VARCHAR(50) NOT NULL,
+                    ketua_rt_name VARCHAR(255) NOT NULL,
+                    allocation INTEGER NOT NULL,
+                    status VARCHAR(50) DEFAULT 'Menunggu'
+                );
+            '''))
+            db.session.commit()
+        except Exception as e:
+            app.logger.warning(f"Failed raw SQL initialization (might be using non-sqlite): {e}")
+            db.session.rollback()
+
     app.run(debug=True, port=5000)
