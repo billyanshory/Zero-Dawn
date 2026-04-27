@@ -2502,6 +2502,454 @@ FITUR_MASJID_HTML = """
 </script>
 """
 
+
+IDUL_ADHA_LAPORAN_HTML = """
+<div class="pt-20 md:pt-32 pb-32 px-5 md:px-8 bg-gray-50 font-sans text-gray-800">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-center gap-4 mb-8">
+            <a href="/idul-adha" class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-600 shadow-md hover:bg-[#8B2635] hover:text-white transition-colors">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1 class="text-3xl font-bold text-[#8B2635]">Laporan Qurban</h1>
+                <p class="text-gray-500 mt-1">Papan Skor Transparansi Publik Masjid Al Hijrah</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 flex items-center gap-6">
+                <div class="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-[#8B2635] text-3xl">
+                    <i class="fas fa-cow"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Total Hewan</p>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span class="text-3xl font-bold text-gray-800">12</span><span class="text-gray-500">Sapi</span>
+                    </div>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span class="text-3xl font-bold text-gray-800">20</span><span class="text-gray-500">Kambing</span>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 flex items-center gap-6">
+                <div class="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center text-[#D4A017] text-3xl">
+                    <i class="fas fa-weight-hanging"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Estimasi Daging</p>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span class="text-4xl font-bold text-gray-800">1.500</span>
+                        <span class="text-xl text-gray-500 font-medium">Kg</span>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 flex items-center gap-6">
+                <div class="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-[#1B4332] text-3xl">
+                    <i class="fas fa-box-open"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Paket Terdistribusi</p>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span class="text-4xl font-bold text-gray-800">450</span>
+                        <span class="text-xl text-gray-500 font-medium">/ 1.000</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 text-center">
+            <div class="inline-flex items-center justify-center w-20 h-20 bg-green-50 rounded-full text-green-500 mb-4">
+                <i class="fas fa-check-circle text-4xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Transparansi Penyaluran</h2>
+            <p class="text-gray-600 leading-relaxed max-w-2xl mx-auto">
+                Alhamdulillah, proses penyembelihan dan penyaluran daging qurban Masjid Al Hijrah dilakukan secara profesional, jujur, dan amanah. Seluruh donasi dan daging dikelola dan disalurkan tepat sasaran kepada yang berhak.
+            </p>
+        </div>
+    </div>
+</div>
+"""
+
+IDUL_ADHA_SHOHIBUL_HTML = """
+<div class="pt-20 md:pt-32 pb-32 px-5 md:px-8 bg-gray-50 font-sans text-gray-800">
+    <div class="max-w-2xl mx-auto">
+        <div class="flex items-center gap-4 mb-8">
+            <a href="/idul-adha" class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-600 shadow-md hover:bg-[#8B2635] hover:text-white transition-colors">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1 class="text-3xl font-bold text-[#8B2635]">Pelacak Status Qurban</h1>
+                <p class="text-gray-500 mt-1">Daftar Shohibul & Tracker Hewan</p>
+            </div>
+        </div>
+        <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 mb-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Lacak Status Sapi / Kambing Anda</h2>
+            <p class="text-gray-600 mb-6">Masukkan PIN unik yang telah dikirimkan melalui WhatsApp untuk melihat status penyembelihan secara real-time. Tidak perlu repot datang ke masjid untuk bertanya.</p>
+            <form class="flex gap-4">
+                <input type="text" placeholder="Masukkan PIN Anda (contoh: SQ-1234)" class="w-full px-5 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#8B2635] focus:border-transparent text-gray-700 font-medium">
+                <button type="button" onclick="alert('Ini adalah simulasi pelacakan. Status: Menunggu Giliran.')" class="bg-[#8B2635] text-white px-8 py-3 rounded-xl font-bold hover:bg-red-800 transition-colors shadow-md whitespace-nowrap">Lacak</button>
+            </form>
+        </div>
+        <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
+            <div class="flex items-center justify-between mb-8 pb-6 border-b border-gray-100">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800">Sapi No. 5 (Bapak Abdullah)</h3>
+                    <p class="text-sm text-gray-500">PIN: SQ-1234</p>
+                </div>
+                <span class="bg-amber-100 text-amber-700 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">Sedang Disembelih</span>
+            </div>
+            <div class="space-y-6">
+                <div class="flex items-start gap-4 opacity-50">
+                    <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 mt-1 shadow-inner">
+                        <i class="fas fa-hourglass-half"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-gray-800">Menunggu Giliran</h4>
+                        <p class="text-sm text-gray-500">Hewan qurban telah tiba dan sedang diistirahatkan.</p>
+                        <span class="text-xs text-gray-400 mt-1 block">Selesai: 08:30 WITA</span>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 mt-1 ring-4 ring-amber-50">
+                        <i class="fas fa-knife"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-[#8B2635]">Sedang Disembelih</h4>
+                        <p class="text-sm text-gray-600">Alhamdulillah, proses penyembelihan sedang berlangsung sesuai syariat.</p>
+                        <span class="text-xs text-amber-600 mt-1 block font-medium">Sedang Berlangsung...</span>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4 opacity-50">
+                    <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 mt-1">
+                        <i class="fas fa-drumstick-bite"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-gray-500">Proses Pencacahan</h4>
+                        <p class="text-sm text-gray-400">Daging sedang dicacah dan ditimbang oleh panitia.</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4 opacity-50">
+                    <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 mt-1">
+                        <i class="fas fa-box-open"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-gray-500">Jatah Sohibul Siap Diambil</h4>
+                        <p class="text-sm text-gray-400">Sepertiga bagian Anda telah siap. Silakan ambil di pos panitia.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+
+IDUL_ADHA_PEMBAGIAN_HTML = """
+<div class="pt-20 md:pt-32 pb-32 px-5 md:px-8 bg-gray-50 font-sans text-gray-800">
+    <div class="max-w-2xl mx-auto">
+        <div class="flex items-center gap-4 mb-8">
+            <a href="/idul-adha" class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-600 shadow-md hover:bg-[#1B4332] hover:text-white transition-colors">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1 class="text-3xl font-bold text-[#1B4332]">Antrean Distribusi Daging</h1>
+                <p class="text-gray-500 mt-1">Sistem Kupon Digital & Penjadwalan Warga</p>
+            </div>
+        </div>
+        <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 mb-8">
+            <div class="flex items-center justify-center w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full mb-6 mx-auto">
+                <i class="fas fa-ticket-alt text-3xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-2">Cek Jam Pengambilan</h2>
+            <p class="text-center text-gray-600 mb-8 max-w-md mx-auto">
+                Masukkan Nama Lengkap Anda atau Nomor Kupon yang diberikan oleh RT. Sistem akan menampilkan jadwal pengambilan untuk menghindari kerumunan.
+            </p>
+            <form class="space-y-5">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Lengkap / No. Kupon</label>
+                    <input type="text" placeholder="Cth: Budi Santoso atau KPN-001" class="w-full px-5 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-700 font-medium">
+                </div>
+                <button type="button" onclick="document.getElementById('hasil-kupon').classList.remove('hidden')" class="w-full bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow-md">
+                    Cek Jadwal Saya
+                </button>
+            </form>
+        </div>
+        <div id="hasil-kupon" class="hidden bg-[#1B4332] rounded-3xl shadow-2xl p-8 text-white relative overflow-hidden">
+            <div class="absolute -right-10 -top-10 text-emerald-800 opacity-20">
+                <i class="fas fa-qrcode text-9xl"></i>
+            </div>
+            <div class="relative z-10">
+                <div class="flex justify-between items-start mb-6 border-b border-emerald-700 pb-6">
+                    <div>
+                        <p class="text-emerald-200 text-sm font-medium uppercase tracking-wider mb-1">E-Kupon Valid</p>
+                        <h3 class="text-2xl font-bold">KPN-084</h3>
+                    </div>
+                    <div class="bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase">
+                        RT 02
+                    </div>
+                </div>
+                <div class="mb-8">
+                    <p class="text-emerald-200 text-sm mb-1">Nama Penerima</p>
+                    <p class="font-bold text-xl">Bapak Budi Santoso</p>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-5 backdrop-blur-sm border border-white/20">
+                    <div class="flex items-center gap-4 text-amber-300 mb-2">
+                        <i class="far fa-clock text-2xl"></i>
+                        <span class="font-bold text-lg">Waktu Pengambilan:</span>
+                    </div>
+                    <p class="text-3xl font-black text-white ml-10">13.30 - 14.00 WITA</p>
+                    <p class="text-sm text-emerald-100 mt-3 ml-10 flex items-start gap-2">
+                        <i class="fas fa-exclamation-circle mt-0.5"></i>
+                        Mohon datang tepat waktu sesuai jadwal agar tidak terjadi antrean panjang di lokasi.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+
+IDUL_ADHA_PETA_DISTRIBUSI_HTML = """
+<div class="pt-20 md:pt-32 pb-32 px-5 md:px-8 bg-gray-50 font-sans text-gray-800">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-center gap-4 mb-8">
+            <a href="/idul-adha" class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-600 shadow-md hover:bg-orange-600 hover:text-white transition-colors">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1 class="text-3xl font-bold text-orange-600">Peta Distribusi</h1>
+                <p class="text-gray-500 mt-1">Log Penyaluran Daging Berbasis Wilayah RT</p>
+            </div>
+        </div>
+        <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Pemetaan Mustahik</h2>
+                    <p class="text-gray-600 mb-6">
+                        Sistem ini memastikan tidak ada tumpang tindih alokasi. Saat Ketua RT menerima jatah paket daging, sistem akan mengunci status RT tersebut untuk mencegah klaim ganda, menjamin distribusi merata dan adil.
+                    </p>
+                    <div class="flex gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                            <span class="text-sm font-medium text-gray-600">Sudah Menerima</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-gray-300"></span>
+                            <span class="text-sm font-medium text-gray-600">Belum Menerima</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-orange-50 rounded-2xl p-6 text-center border border-orange-100">
+                    <p class="text-orange-800 font-bold mb-2">Total Progres Wilayah</p>
+                    <div class="flex items-end justify-center gap-2">
+                        <span class="text-5xl font-black text-orange-600">12</span>
+                        <span class="text-xl text-orange-400 font-bold mb-1">/ 15 RT</span>
+                    </div>
+                    <div class="w-full bg-orange-200 rounded-full h-2 mt-4">
+                        <div class="bg-orange-500 h-2 rounded-full" style="width: 80%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+            <div class="bg-white rounded-2xl border-2 border-emerald-100 p-5 shadow-sm relative overflow-hidden group">
+                <div class="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl">Terkunci</div>
+                <div class="flex items-center gap-4 mb-3">
+                    <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl font-bold">01</div>
+                    <div>
+                        <h3 class="font-bold text-gray-800">RT 01</h3>
+                        <p class="text-xs text-gray-500">Bpk. Haryanto</p>
+                    </div>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3 mt-4">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Alokasi:</span>
+                        <span class="font-bold text-gray-800">50 Kantong</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm mt-1">
+                        <span class="text-gray-600">Status:</span>
+                        <span class="font-bold text-emerald-600"><i class="fas fa-check-circle mr-1"></i> Diserahkan</span>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl border-2 border-emerald-100 p-5 shadow-sm relative overflow-hidden">
+                <div class="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl">Terkunci</div>
+                <div class="flex items-center gap-4 mb-3">
+                    <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl font-bold">02</div>
+                    <div>
+                        <h3 class="font-bold text-gray-800">RT 02</h3>
+                        <p class="text-xs text-gray-500">Bpk. Slamet</p>
+                    </div>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3 mt-4">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Alokasi:</span>
+                        <span class="font-bold text-gray-800">45 Kantong</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm mt-1">
+                        <span class="text-gray-600">Status:</span>
+                        <span class="font-bold text-emerald-600"><i class="fas fa-check-circle mr-1"></i> Diserahkan</span>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl border-2 border-gray-200 p-5 shadow-sm relative overflow-hidden">
+                <div class="flex items-center gap-4 mb-3">
+                    <div class="w-12 h-12 bg-gray-100 text-gray-500 rounded-xl flex items-center justify-center text-xl font-bold">03</div>
+                    <div>
+                        <h3 class="font-bold text-gray-800">RT 03</h3>
+                        <p class="text-xs text-gray-500">Bpk. Wahyu</p>
+                    </div>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3 mt-4">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Alokasi:</span>
+                        <span class="font-bold text-gray-800">60 Kantong</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm mt-1">
+                        <span class="text-gray-600">Status:</span>
+                        <span class="font-bold text-orange-500"><i class="fas fa-clock mr-1"></i> Menunggu</span>
+                    </div>
+                </div>
+                <button onclick="alert('Admin Panel: Konfirmasi Penyerahan 60 Kantong ke RT 03?')" class="w-full mt-3 bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white py-2 rounded-lg text-sm font-bold transition-colors">
+                    Serahkan Jatah
+                </button>
+            </div>
+            <div class="bg-white rounded-2xl border-2 border-gray-200 p-5 shadow-sm relative overflow-hidden">
+                <div class="flex items-center gap-4 mb-3">
+                    <div class="w-12 h-12 bg-gray-100 text-gray-500 rounded-xl flex items-center justify-center text-xl font-bold">04</div>
+                    <div>
+                        <h3 class="font-bold text-gray-800">RT 04</h3>
+                        <p class="text-xs text-gray-500">Bpk. Ahmad</p>
+                    </div>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3 mt-4">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Alokasi:</span>
+                        <span class="font-bold text-gray-800">30 Kantong</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm mt-1">
+                        <span class="text-gray-600">Status:</span>
+                        <span class="font-bold text-orange-500"><i class="fas fa-clock mr-1"></i> Menunggu</span>
+                    </div>
+                </div>
+                <button onclick="alert('Admin Panel: Konfirmasi Penyerahan 30 Kantong ke RT 04?')" class="w-full mt-3 bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white py-2 rounded-lg text-sm font-bold transition-colors">
+                    Serahkan Jatah
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+
+IDUL_ADHA_PANDUAN_HTML = """
+<div class="pt-20 md:pt-32 pb-32 px-5 md:px-8 bg-[#F5F0E8] font-sans text-gray-800 selection:bg-[#D4A017] selection:text-white">
+    <div class="max-w-3xl mx-auto">
+        <div class="flex items-center gap-4 mb-10">
+            <a href="/idul-adha" class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-[#1B4332] shadow-md hover:bg-[#1B4332] hover:text-white transition-colors">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1 class="text-3xl md:text-4xl font-bold text-[#1B4332] font-serif">Ensiklopedia Fikih Qurban</h1>
+            </div>
+        </div>
+        <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 mb-8 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-[#D4A017] opacity-10 rounded-full blur-3xl"></div>
+            <div class="absolute bottom-0 left-0 w-32 h-32 bg-[#8B2635] opacity-10 rounded-full blur-3xl"></div>
+            <div class="relative z-10 text-center">
+                <h2 class="text-xl font-medium text-[#8B2635] mb-4 italic">Menjaga Kesempurnaan Ibadah Melalui Syariat yang Berkah</h2>
+                <p class="text-gray-600 leading-relaxed">
+                    Assalamu’alaikum Warahmatullahi Wabarakatuh.<br><br>
+                    Bapak/Ibu Panitia Qurban yang dirahmati Allah, selain niat yang tulus, kesempurnaan ibadah qurban juga sangat bergantung pada kepatuhan kita terhadap syariat. Halaman ini hadir sebagai pengingat penuh kasih dan panduan ringkas agar setiap tetes keringat panitia bernilai pahala yang sempurna di sisi-Nya.
+                </p>
+            </div>
+        </div>
+        <div class="bg-white rounded-3xl shadow-xl border border-gray-100 mb-6 overflow-hidden group">
+            <input type="checkbox" id="accordion-1" class="peer hidden" checked>
+            <label for="accordion-1" class="flex items-center justify-between p-6 cursor-pointer bg-white hover:bg-gray-50 transition-colors">
+                <h3 class="text-xl font-bold text-[#1B4332] flex items-center gap-3">
+                    <span class="w-8 h-8 rounded-full bg-[#1B4332]/10 flex items-center justify-center text-[#1B4332] text-sm"><i class="fas fa-hand-holding-heart"></i></span>
+                    TATA CARA PENYEMBELIHAN YANG IHSAN
+                </h3>
+                <i class="fas fa-chevron-down text-gray-400 peer-checked:rotate-180 transition-transform"></i>
+            </label>
+            <div class="px-6 pb-6 pt-0 peer-checked:block hidden text-gray-600 leading-relaxed border-t border-gray-50 mt-2 pt-4">
+                <p class="mb-4">Agama Islam mengajarkan kelembutan (Ihsan), bahkan kepada hewan sembelihan. Berikut adalah adab dan tata cara penyembelihan sesuai sunnah:</p>
+                <ol class="space-y-4 list-decimal list-outside ml-5">
+                    <li class="pl-2"><strong>Menggunakan Pisau yang Sangat Tajam:</strong> Hendaknya pisau diasah hingga maksimal, namun tidak mengasahnya di hadapan hewan yang akan disembelih agar hewan tidak merasa takut.</li>
+                    <li class="pl-2"><strong>Menghadapkan Hewan ke Arah Kiblat:</strong> Baringkan hewan pada sisi tubuh kirinya dengan lembut, lalu hadapkan lehernya ke arah kiblat.</li>
+                    <li class="pl-2"><strong>Memutuskan Tiga Saluran Utama:</strong> Pastikan sayatan memutuskan tiga saluran di leher: saluran napas (<em>hulqum</em>), saluran makanan (<em>mari'</em>), dan dua urat nadi/pembuluh darah di samping leher (<em>wadajain</em>). Proses ini harus dilakukan dengan cepat untuk meminimalkan rasa sakit.</li>
+                    <li class="pl-2"><strong>Menunggu Hingga Benar-benar Mati:</strong> Sangat dilarang untuk memotong leher hingga putus, menguliti, atau memotong bagian tubuh hewan sebelum hewan tersebut dipastikan benar-benar telah mati hilangnya nyawa.</li>
+                </ol>
+            </div>
+        </div>
+        <div class="bg-white rounded-3xl shadow-xl border border-gray-100 mb-6 overflow-hidden">
+            <input type="checkbox" id="accordion-2" class="peer hidden" checked>
+            <label for="accordion-2" class="flex items-center justify-between p-6 cursor-pointer bg-white hover:bg-gray-50 transition-colors">
+                <h3 class="text-xl font-bold text-[#1B4332] flex items-center gap-3">
+                    <span class="w-8 h-8 rounded-full bg-[#D4A017]/20 flex items-center justify-center text-[#D4A017] text-sm"><i class="fas fa-praying-hands"></i></span>
+                    DOA MENYEMBELIH QURBAN
+                </h3>
+                <i class="fas fa-chevron-down text-gray-400 peer-checked:rotate-180 transition-transform"></i>
+            </label>
+            <div class="px-6 pb-6 pt-0 peer-checked:block hidden border-t border-gray-50 mt-2 pt-4">
+                <p class="text-gray-600 mb-6">Saat mata pisau siap menyentuh leher hewan, penyembelih disunnahkan untuk membaca doa berikut:</p>
+                <div class="bg-[#F9F6F0] rounded-2xl p-6 text-center border border-[#E8DFD0]">
+                    <p class="text-3xl md:text-4xl text-[#1B4332] leading-loose mb-6 font-arabic" style="font-family: 'Amiri', 'Traditional Arabic', serif;" dir="rtl">
+                        بِسْمِ اللَّهِ وَاللَّهُ أَكْبَرُ، اَللَّهُمَّ مِنْكَ وَإِلَيْكَ، فَتَقَبَّلْ مِنِّيْ (أَوْ مِنْ... سَبِّتِ اسْمَ صَاحِبِ الْأُضْحِيَّةِ)
+                    </p>
+                    <div class="space-y-4 text-left">
+                        <div>
+                            <span class="text-xs font-bold text-[#D4A017] uppercase tracking-widest">Latin</span>
+                            <p class="text-gray-700 italic mt-1 font-medium">Bismillahi wallahu akbar, Allahumma minka wa ilaika, fataqabbal minni (atau sebutkan nama pequrban: fataqabbal min [Nama Shahibul Qurban]).</p>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-[#D4A017] uppercase tracking-widest">Terjemahan</span>
+                            <p class="text-gray-600 mt-1">"Dengan menyebut nama Allah, dan Allah Maha Besar. Ya Allah, qurban ini berasal dari pelimpahan rahmat-Mu dan aku persembahkan kembali kepada-Mu. Maka terimalah qurban dariku (atau dari... sebutkan nama pequrban)."</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-3xl shadow-xl border border-gray-100 mb-12 overflow-hidden">
+            <input type="checkbox" id="accordion-3" class="peer hidden" checked>
+            <label for="accordion-3" class="flex items-center justify-between p-6 cursor-pointer bg-white hover:bg-gray-50 transition-colors">
+                <h3 class="text-xl font-bold text-[#8B2635] flex items-center gap-3">
+                    <span class="w-8 h-8 rounded-full bg-[#8B2635]/10 flex items-center justify-center text-[#8B2635] text-sm"><i class="fas fa-exclamation-triangle"></i></span>
+                    FIKIH & ETIKA KEPANITIAAN QURBAN
+                </h3>
+                <i class="fas fa-chevron-down text-gray-400 peer-checked:rotate-180 transition-transform"></i>
+            </label>
+            <div class="px-6 pb-6 pt-0 peer-checked:block hidden border-t border-gray-50 mt-2 pt-4">
+                <p class="text-gray-600 mb-6">Dalam pelaksanaan teknis di lapangan, terdapat beberapa kebiasaan yang terkadang luput dari perhatian syariat. Mari kita perhatikan bersama hal-hal berikut agar qurban tetap sah:</p>
+                <div class="space-y-6">
+                    <div class="bg-red-50/50 rounded-2xl p-5 border border-red-100 hover:shadow-md transition-shadow">
+                        <h4 class="font-bold text-[#8B2635] mb-2 flex items-start gap-2">
+                            <span class="mt-0.5">1.</span>
+                            Larangan Memperjualbelikan Bagian Hewan Qurban (Termasuk Kulit)
+                        </h4>
+                        <div class="text-gray-600 text-sm ml-5 space-y-2">
+                            <p>Keseluruhan bagian dari hewan qurban—baik itu daging, tulang, kepala, bulu, hingga kulitnya—adalah persembahan untuk Allah SWT. Oleh karena itu, diharamkan bagi pequrban maupun panitia untuk menjual bagian mana pun dari hewan tersebut.</p>
+                            <div class="bg-white p-3 rounded-xl border border-red-100 mt-2">
+                                <strong class="text-gray-800">Catatan Fikih:</strong> Jika panitia mendapati tumpukan kulit sapi/kambing yang sulit diolah, kulit tersebut tetap harus disedekahkan atau dihibahkan. Jika penerima sedekah (masyarakat miskin) ingin menjual kulit yang telah menjadi haknya, barulah hal tersebut diperbolehkan. Namun, panitia dilarang menjualnya untuk dimasukkan ke uang kas kepanitiaan. (Merujuk pada hadis sahih riwayat Al-Hakim dan Al-Baihaqi).
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-orange-50/50 rounded-2xl p-5 border border-orange-100 hover:shadow-md transition-shadow">
+                        <h4 class="font-bold text-[#8B2635] mb-2 flex items-start gap-2">
+                            <span class="mt-0.5">2.</span>
+                            Daging Qurban Tidak Boleh Dijadikan "Upah" Jasa Sembelih/Panitia
+                        </h4>
+                        <div class="text-gray-600 text-sm ml-5 space-y-2">
+                            <p>Panitia dan tukang jagal (pemotong hewan) tentu telah bekerja keras, namun syariat melarang keras memberikan daging, kulit, atau kepala hewan qurban kepada mereka dengan niat sebagai "Upah" atau "Gaji" atas tenaga mereka.</p>
+                            <div class="bg-white p-3 rounded-xl border border-orange-100 mt-2">
+                                <strong class="text-[#D4A017]">Solusi Syariat:</strong> Berikanlah upah tukang jagal menggunakan uang tunai dari kas operasional qurban (iuran operasional), bukan dari bagian tubuh hewan. Adapun jika panitia atau tukang jagal menerima daging qurban, itu harus diniatkan murni sebagai <strong>sedekah</strong> atau <strong>hadiah</strong> karena mereka adalah warga yang berhak menerima, bukan sebagai bayaran atas pekerjaan mereka. (Merujuk pada hadis sahih riwayat Bukhari dan Muslim dari Ali bin Abi Thalib ra).
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+
 IDUL_ADHA_DASHBOARD_HTML = """
 <div class="pt-20 md:pt-32 pb-32 px-5 md:px-8 bg-gray-50 font-sans text-gray-800 selection:bg-amber-200 selection:text-amber-900">
     <!-- DESKTOP SPLIT HEADER -->
@@ -2586,7 +3034,7 @@ IDUL_ADHA_DASHBOARD_HTML = """
                     {% endif %}
 
                     <!-- PLACEHOLDER 1 -->
-                    <a href="#" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+                    <a href="/idul-adha/laporan" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
                         <div class="bg-stone-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-stone-600 group-hover:bg-stone-500 group-hover:text-white transition-colors">
                             <i class="fas fa-file-invoice text-2xl md:text-3xl"></i>
                         </div>
@@ -2594,7 +3042,7 @@ IDUL_ADHA_DASHBOARD_HTML = """
                     </a>
                     
                     <!-- PLACEHOLDER 2 -->
-                    <a href="#" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+                    <a href="/idul-adha/shohibul" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
                         <div class="bg-red-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-red-600 group-hover:bg-red-500 group-hover:text-white transition-colors">
                             <i class="fas fa-cow text-2xl md:text-3xl"></i>
                         </div>
@@ -2610,15 +3058,15 @@ IDUL_ADHA_DASHBOARD_HTML = """
                     </a>
                     
                      <!-- PLACEHOLDER 4 -->
-                    <a href="#" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+                    <a href="/idul-adha/peta-distribusi" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
                         <div class="bg-orange-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-colors">
                             <i class="fas fa-images text-2xl md:text-3xl"></i>
                         </div>
-                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-orange-600">Galeri Qurban</span>
+                        <span class="text-sm md:text-base font-semibold text-gray-700 group-hover:text-orange-600">Peta Distribusi</span>
                     </a>
                     
                     <!-- PLACEHOLDER 5 -->
-                    <a href="#" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
+                    <a href="/idul-adha/panduan" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
                         <div class="bg-blue-50 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
                             <i class="fas fa-info-circle text-2xl md:text-3xl"></i>
                         </div>
@@ -7689,24 +8137,56 @@ def idul_adha_absen():
         
     return redirect(url_for('idul_adha_dashboard'))
 
+
+@app.route('/idul-adha/laporan')
+def idul_adha_laporan():
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML,
+                                  active_page='idul-adha',
+                                  content=IDUL_ADHA_LAPORAN_HTML,
+                                  is_admin=session.get('is_admin', False),
+                                  settings=get_settings())
+
+@app.route('/idul-adha/shohibul')
+def idul_adha_shohibul():
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML,
+                                  active_page='idul-adha',
+                                  content=IDUL_ADHA_SHOHIBUL_HTML,
+                                  is_admin=session.get('is_admin', False),
+                                  settings=get_settings())
+
+@app.route('/idul-adha/peta-distribusi')
+def idul_adha_peta_distribusi():
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML,
+                                  active_page='idul-adha',
+                                  content=IDUL_ADHA_PETA_DISTRIBUSI_HTML,
+                                  is_admin=session.get('is_admin', False),
+                                  settings=get_settings())
+
+@app.route('/idul-adha/panduan')
+def idul_adha_panduan():
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML,
+                                  active_page='idul-adha',
+                                  content=IDUL_ADHA_PANDUAN_HTML,
+                                  is_admin=session.get('is_admin', False),
+                                  settings=get_settings())
+
 @app.route('/idul-adha/distribution')
 def idul_adha_distribution():
     # Segregate committee members based on attendance status
     hadir_pagi = QurbanAttendance.query.filter_by(status='Hadir Pagi').all()
     terlambat = QurbanAttendance.query.filter(QurbanAttendance.status.in_(['Terlambat', 'Siluman'])).all()
     
-    # In a real scenario, this would render a specific distribution dashboard template.
-    # For now, we return JSON to fulfill the logic requirement.
-    return jsonify({
-        'hadir_pagi_count': len(hadir_pagi),
-        'terlambat_count': len(terlambat),
-        'hadir_pagi_members': [a.name for a in hadir_pagi],
-        'terlambat_members': [a.name for a in terlambat],
-        'allocation_policy': {
-            'Hadir Pagi': 'Full Meat Allocation',
-            'Terlambat / Siluman': 'Leftover / Denied'
-        }
-    })
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML,
+                                  active_page='idul-adha',
+                                  content=IDUL_ADHA_PEMBAGIAN_HTML,
+                                  is_admin=session.get('is_admin', False),
+                                  settings=get_settings())
+
 
 if __name__ == '__main__':
     with app.app_context():
