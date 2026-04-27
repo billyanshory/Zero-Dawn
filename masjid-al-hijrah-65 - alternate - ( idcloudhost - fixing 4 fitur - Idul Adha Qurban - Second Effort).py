@@ -223,8 +223,14 @@ class AppSettings(db.Model):
 class QurbanAttendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
-    check_in_time = db.Column(db.DateTime, server_default=func.now())
-    status = db.Column(db.String(50), nullable=False) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
+    no_hp = db.Column(db.String(20), nullable=True)
+    tugas_diinginkan = db.Column(db.String(255), nullable=True)
+    pos_tugas = db.Column(db.String(255), nullable=True)
+    approval_status = db.Column(db.String(50), default='Menunggu') # 'Menunggu', 'Approved', 'Rejected'
+    is_present = db.Column(db.Boolean, default=False)
+    session_id = db.Column(db.String(255), nullable=True)
+    check_in_time = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(50), nullable=True) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
 
 
 class QurbanReport(db.Model):
@@ -1476,6 +1482,55 @@ BASE_LAYOUT = """
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            const addForm = document.getElementById('addRtForm');
+            if(addForm) {
+                addForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const btn = document.getElementById('addRtBtn');
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menambah...';
+
+                    const formData = new FormData(addForm);
+                    const jsonData = Object.fromEntries(formData.entries());
+                    const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+                    try {
+                        const response = await fetch('/idul-adha/peta-distribusi/add', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                            body: JSON.stringify(jsonData)
+                        });
+
+                        const data = await response.json();
+                        if(response.ok && data.success) {
+                            const modal = document.getElementById('generateRTAnim');
+                            const content = document.getElementById('rtModalContent');
+                            const text1 = document.getElementById('rtText1');
+                            const text2 = document.getElementById('rtText2');
+
+                            modal.classList.remove('opacity-0', 'pointer-events-none');
+                            content.classList.remove('scale-90');
+                            content.classList.add('scale-100');
+
+                            setTimeout(() => { text1.classList.remove('opacity-0'); text1.classList.add('opacity-100'); }, 1000);
+                            setTimeout(() => { text2.classList.remove('opacity-0'); text2.classList.add('opacity-100'); }, 1300);
+
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 3000);
+                        } else {
+                            alert(data.message || 'Gagal menambah RT');
+                            btn.disabled = false;
+                            btn.innerHTML = 'Tambah Data RT';
+                        }
+                    } catch(e) {
+                        alert('Kesalahan Jaringan');
+                        btn.disabled = false;
+                        btn.innerHTML = 'Tambah Data RT';
+                    }
+                });
+            }
+
             fetchHijri();
             fetchPrayerTimes();
             setInterval(fetchPrayerTimes, 1000);
@@ -2555,7 +2610,7 @@ IDUL_ADHA_LAPORAN_HTML = '''
         <div class="bg-white rounded-3xl shadow-xl border border-[#8B2635] p-6 mb-8 relative">
             <div class="absolute top-0 right-0 bg-[#8B2635] text-white px-3 py-1 rounded-bl-xl rounded-tr-3xl text-xs font-bold"><i class="fas fa-lock mr-1"></i> Panel Admin</div>
             <h2 class="text-xl font-bold text-[#8B2635] mb-4">Edit Data Laporan Qurban</h2>
-            <form action="/idul-adha/laporan" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form id="laporanForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div>
                     <label class="block text-sm font-bold text-gray-600 mb-1">Total Sapi</label>
@@ -2580,10 +2635,130 @@ IDUL_ADHA_LAPORAN_HTML = '''
                     </div>
                 </div>
                 <div class="md:col-span-2 mt-2">
-                    <button type="submit" class="w-full bg-[#8B2635] text-white font-bold py-3 rounded-xl hover:bg-red-800 shadow-md">Save / Update Data</button>
+                    <button type="submit" id="submitLaporanBtn" class="w-full bg-[#8B2635] text-white font-bold py-3 rounded-xl hover:bg-red-800 shadow-md transition-all">Save / Update Data</button>
                 </div>
             </form>
         </div>
+
+        <!-- SUCCESS MODAL ANIMATION -->
+        <div id="laporanSuccessAnim" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 opacity-0 pointer-events-none transition-opacity duration-300">
+            <div class="bg-white rounded-3xl p-8 transform scale-90 transition-transform duration-300 flex flex-col items-center shadow-2xl" id="laporanModalContent">
+                <div class="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center mb-4 border-4 border-green-500 scale-0 transition-transform duration-500 delay-100" id="laporanCheck">
+                    <i class="fas fa-check text-5xl text-green-500"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 opacity-0 transition-opacity duration-500 delay-300" id="laporanText1">Berhasil Disimpan</h3>
+                <p class="text-gray-500 mt-2 opacity-0 transition-opacity duration-500 delay-500" id="laporanText2">Data laporan qurban telah diupdate secara realtime.</p>
+            </div>
+        </div>
+
+        <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const addForm = document.getElementById('addRtForm');
+            if(addForm) {
+                addForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const btn = document.getElementById('addRtBtn');
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menambah...';
+
+                    const formData = new FormData(addForm);
+                    const jsonData = Object.fromEntries(formData.entries());
+                    const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+                    try {
+                        const response = await fetch('/idul-adha/peta-distribusi/add', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                            body: JSON.stringify(jsonData)
+                        });
+
+                        const data = await response.json();
+                        if(response.ok && data.success) {
+                            const modal = document.getElementById('generateRTAnim');
+                            const content = document.getElementById('rtModalContent');
+                            const text1 = document.getElementById('rtText1');
+                            const text2 = document.getElementById('rtText2');
+
+                            modal.classList.remove('opacity-0', 'pointer-events-none');
+                            content.classList.remove('scale-90');
+                            content.classList.add('scale-100');
+
+                            setTimeout(() => { text1.classList.remove('opacity-0'); text1.classList.add('opacity-100'); }, 1000);
+                            setTimeout(() => { text2.classList.remove('opacity-0'); text2.classList.add('opacity-100'); }, 1300);
+
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 3000);
+                        } else {
+                            alert(data.message || 'Gagal menambah RT');
+                            btn.disabled = false;
+                            btn.innerHTML = 'Tambah Data RT';
+                        }
+                    } catch(e) {
+                        alert('Kesalahan Jaringan');
+                        btn.disabled = false;
+                        btn.innerHTML = 'Tambah Data RT';
+                    }
+                });
+            }
+
+            const form = document.getElementById('laporanForm');
+            if(form) {
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const btn = document.getElementById('submitLaporanBtn');
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+
+                    const formData = new FormData(form);
+                    const jsonData = Object.fromEntries(formData.entries());
+                    const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+                    try {
+                        const response = await fetch('/idul-adha/laporan', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrfToken
+                            },
+                            body: JSON.stringify(jsonData)
+                        });
+
+                        const data = await response.json();
+
+                        if(response.ok && data.success) {
+                            // Play Animation
+                            const modal = document.getElementById('laporanSuccessAnim');
+                            const content = document.getElementById('laporanModalContent');
+                            const check = document.getElementById('laporanCheck');
+                            const text1 = document.getElementById('laporanText1');
+                            const text2 = document.getElementById('laporanText2');
+
+                            modal.classList.remove('opacity-0', 'pointer-events-none');
+                            content.classList.remove('scale-90');
+                            content.classList.add('scale-100');
+
+                            setTimeout(() => { check.classList.remove('scale-0'); check.classList.add('scale-100'); }, 100);
+                            setTimeout(() => { text1.classList.remove('opacity-0'); text1.classList.add('opacity-100'); }, 300);
+                            setTimeout(() => { text2.classList.remove('opacity-0'); text2.classList.add('opacity-100'); }, 500);
+
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 2500);
+                        } else {
+                            alert(data.message || 'Terjadi kesalahan');
+                            btn.disabled = false;
+                            btn.innerHTML = 'Save / Update Data';
+                        }
+                    } catch (error) {
+                        alert('Terjadi kesalahan jaringan');
+                        btn.disabled = false;
+                        btn.innerHTML = 'Save / Update Data';
+                    }
+                });
+            }
+        });
+        </script>
         {% endif %}
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -2637,6 +2812,175 @@ IDUL_ADHA_LAPORAN_HTML = '''
         </div>
     </div>
 </div>
+<style>
+@keyframes wave {
+    0% { transform: translateX(0) scaleY(1); }
+    50% { transform: translateX(-25%) scaleY(1.1); }
+    100% { transform: translateX(-50%) scaleY(1); }
+}
+.animate-wave::before {
+    content: "";
+    position: absolute;
+    width: 200%;
+    height: 100%;
+    background: inherit;
+    top: -5px;
+    left: 0;
+    border-radius: 40% 60% 50% 40% / 40% 50% 60% 40%;
+    animation: wave 3s infinite linear;
+}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. PIN Generation AJAX & Animation
+    const form = document.getElementById('generatePinForm');
+    if(form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('generatePinBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generate...';
+
+            const formData = new FormData(form);
+            const jsonData = Object.fromEntries(formData.entries());
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+            try {
+                const response = await fetch('/idul-adha/shohibul/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(jsonData)
+                });
+
+                const data = await response.json();
+
+                if(response.ok && data.success) {
+                    const modal = document.getElementById('generatePinAnim');
+                    const content = document.getElementById('pinModalContent');
+                    const logoCont = document.getElementById('pinLogoCont');
+                    const water = document.getElementById('waterFill');
+                    const text1 = document.getElementById('pinText1');
+                    const text2 = document.getElementById('pinText2');
+
+                    modal.classList.remove('opacity-0', 'pointer-events-none');
+                    content.classList.remove('scale-90');
+                    content.classList.add('scale-100');
+
+                    setTimeout(() => { logoCont.classList.remove('scale-0'); logoCont.classList.add('scale-100'); }, 100);
+                    setTimeout(() => { water.style.height = '100%'; }, 500);
+                    setTimeout(() => { text1.classList.remove('opacity-0'); text1.classList.add('opacity-100'); }, 1500);
+                    setTimeout(() => { text2.classList.remove('opacity-0'); text2.classList.add('opacity-100'); }, 1800);
+
+                    setTimeout(() => {
+                        window.location.href = '/idul-adha/shohibul?pin=' + data.pin;
+                    }, 3500);
+                } else {
+                    alert(data.message || 'Gagal generate PIN');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Generate & Save';
+                }
+            } catch(e) {
+                alert('Kesalahan Jaringan');
+                btn.disabled = false;
+                btn.innerHTML = 'Generate & Save';
+            }
+        });
+    }
+});
+
+// 2. Status Update (Admin) AJAX
+async function updateStatus(newStatus, btnElement) {
+    const btnsCont = document.getElementById('statusUpdateBtns');
+    if(!btnsCont) return;
+    const pin = btnsCont.dataset.pin;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="csrf_token"]')?.value;
+
+    // Optimistic UI Update for buttons
+    const allBtns = btnsCont.querySelectorAll('.status-btn');
+    allBtns.forEach(b => {
+        b.className = 'status-btn py-3 rounded-xl font-bold border-2 transition-colors border-gray-200 text-gray-500 hover:border-gray-300';
+    });
+
+    if(newStatus === 'Menunggu Giliran') btnElement.className = 'status-btn py-3 rounded-xl font-bold border-2 transition-colors border-amber-500 bg-amber-50 text-amber-700 active-status';
+    else if(newStatus === 'Sedang Disembelih') btnElement.className = 'status-btn py-3 rounded-xl font-bold border-2 transition-colors border-red-500 bg-red-50 text-red-700 active-status';
+    else if(newStatus === 'Proses Pencacahan') btnElement.className = 'status-btn py-3 rounded-xl font-bold border-2 transition-colors border-blue-500 bg-blue-50 text-blue-700 active-status';
+    else if(newStatus === 'Jatah Sohibul Siap Diambil') btnElement.className = 'status-btn py-3 rounded-xl font-bold border-2 transition-colors border-green-500 bg-green-50 text-green-700 active-status';
+
+    try {
+        const response = await fetch('/idul-adha/shohibul/update_status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ pin: pin, status: newStatus })
+        });
+        if(!response.ok) {
+            console.error("Failed to update status");
+            // Revert optimisitic update on fail could be handled here.
+        }
+    } catch(e) {
+        console.error("Network error updating status", e);
+    }
+}
+
+// 3. Polling for Live View
+{% if shohibul and not is_admin %}
+setInterval(async () => {
+    try {
+        const pin = '{{ shohibul.pin }}';
+        const response = await fetch(`/idul-adha/shohibul/status_data?pin=${pin}`);
+        if(response.ok) {
+            const data = await response.json();
+            if(data.success && data.status) {
+                // Update Badge dynamically
+                const badge = document.getElementById('liveStatusBadge');
+                if(badge) {
+                    badge.innerHTML = data.status;
+                    badge.className = 'px-4 py-2 rounded-full text-sm font-bold ' +
+                        (data.status === 'Menunggu Giliran' ? 'bg-amber-100 text-amber-700' :
+                         data.status === 'Sedang Disembelih' ? 'bg-red-100 text-red-700' :
+                         data.status === 'Proses Pencacahan' ? 'bg-blue-100 text-blue-700' :
+                         'bg-green-100 text-green-700 animate-pulse');
+                }
+
+                // Update Tracking Bar dynamically
+                const steps = ['Menunggu Giliran', 'Sedang Disembelih', 'Proses Pencacahan', 'Jatah Sohibul Siap Diambil'];
+                const currentIndex = steps.indexOf(data.status);
+
+                ['step-1', 'step-2', 'step-3', 'step-4'].forEach((id, idx) => {
+                    const el = document.getElementById(id);
+                    if(!el) return;
+                    if(idx < currentIndex) {
+                        el.className = 'w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center font-bold relative z-10 transition-colors duration-500 bg-green-500 text-white';
+                        el.innerHTML = '<i class="fas fa-check"></i>';
+                    } else if(idx === currentIndex) {
+                        el.className = 'w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center font-bold relative z-10 transition-colors duration-500 bg-[#8B2635] text-white ring-4 ring-red-100';
+                        el.innerHTML = (idx+1).toString();
+                    } else {
+                        el.className = 'w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center font-bold relative z-10 transition-colors duration-500 bg-gray-200 text-gray-400';
+                        el.innerHTML = (idx+1).toString();
+                    }
+                });
+
+                const line = document.getElementById('progressLine');
+                if(line) {
+                    if(currentIndex === 0) line.className = 'h-full bg-[#8B2635] transition-all duration-1000 w-[0%]';
+                    else if(currentIndex === 1) line.className = 'h-full bg-[#8B2635] transition-all duration-1000 w-[33%]';
+                    else if(currentIndex === 2) line.className = 'h-full bg-[#8B2635] transition-all duration-1000 w-[66%]';
+                    else if(currentIndex === 3) line.className = 'h-full bg-[#8B2635] transition-all duration-1000 w-[100%]';
+                }
+            }
+        }
+    } catch(e) {
+        console.error("Polling error", e);
+    }
+}, 3000); // Poll every 3 seconds
+{% endif %}
+</script>
 '''
 
 IDUL_ADHA_SHOHIBUL_HTML = '''
@@ -2738,6 +3082,175 @@ IDUL_ADHA_SHOHIBUL_HTML = '''
         {% endif %}
     </div>
 </div>
+<style>
+@keyframes wave {
+    0% { transform: translateX(0) scaleY(1); }
+    50% { transform: translateX(-25%) scaleY(1.1); }
+    100% { transform: translateX(-50%) scaleY(1); }
+}
+.animate-wave::before {
+    content: "";
+    position: absolute;
+    width: 200%;
+    height: 100%;
+    background: inherit;
+    top: -5px;
+    left: 0;
+    border-radius: 40% 60% 50% 40% / 40% 50% 60% 40%;
+    animation: wave 3s infinite linear;
+}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. PIN Generation AJAX & Animation
+    const form = document.getElementById('generatePinForm');
+    if(form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('generatePinBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generate...';
+
+            const formData = new FormData(form);
+            const jsonData = Object.fromEntries(formData.entries());
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+            try {
+                const response = await fetch('/idul-adha/shohibul/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(jsonData)
+                });
+
+                const data = await response.json();
+
+                if(response.ok && data.success) {
+                    const modal = document.getElementById('generatePinAnim');
+                    const content = document.getElementById('pinModalContent');
+                    const logoCont = document.getElementById('pinLogoCont');
+                    const water = document.getElementById('waterFill');
+                    const text1 = document.getElementById('pinText1');
+                    const text2 = document.getElementById('pinText2');
+
+                    modal.classList.remove('opacity-0', 'pointer-events-none');
+                    content.classList.remove('scale-90');
+                    content.classList.add('scale-100');
+
+                    setTimeout(() => { logoCont.classList.remove('scale-0'); logoCont.classList.add('scale-100'); }, 100);
+                    setTimeout(() => { water.style.height = '100%'; }, 500);
+                    setTimeout(() => { text1.classList.remove('opacity-0'); text1.classList.add('opacity-100'); }, 1500);
+                    setTimeout(() => { text2.classList.remove('opacity-0'); text2.classList.add('opacity-100'); }, 1800);
+
+                    setTimeout(() => {
+                        window.location.href = '/idul-adha/shohibul?pin=' + data.pin;
+                    }, 3500);
+                } else {
+                    alert(data.message || 'Gagal generate PIN');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Generate & Save';
+                }
+            } catch(e) {
+                alert('Kesalahan Jaringan');
+                btn.disabled = false;
+                btn.innerHTML = 'Generate & Save';
+            }
+        });
+    }
+});
+
+// 2. Status Update (Admin) AJAX
+async function updateStatus(newStatus, btnElement) {
+    const btnsCont = document.getElementById('statusUpdateBtns');
+    if(!btnsCont) return;
+    const pin = btnsCont.dataset.pin;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="csrf_token"]')?.value;
+
+    // Optimistic UI Update for buttons
+    const allBtns = btnsCont.querySelectorAll('.status-btn');
+    allBtns.forEach(b => {
+        b.className = 'status-btn py-3 rounded-xl font-bold border-2 transition-colors border-gray-200 text-gray-500 hover:border-gray-300';
+    });
+
+    if(newStatus === 'Menunggu Giliran') btnElement.className = 'status-btn py-3 rounded-xl font-bold border-2 transition-colors border-amber-500 bg-amber-50 text-amber-700 active-status';
+    else if(newStatus === 'Sedang Disembelih') btnElement.className = 'status-btn py-3 rounded-xl font-bold border-2 transition-colors border-red-500 bg-red-50 text-red-700 active-status';
+    else if(newStatus === 'Proses Pencacahan') btnElement.className = 'status-btn py-3 rounded-xl font-bold border-2 transition-colors border-blue-500 bg-blue-50 text-blue-700 active-status';
+    else if(newStatus === 'Jatah Sohibul Siap Diambil') btnElement.className = 'status-btn py-3 rounded-xl font-bold border-2 transition-colors border-green-500 bg-green-50 text-green-700 active-status';
+
+    try {
+        const response = await fetch('/idul-adha/shohibul/update_status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ pin: pin, status: newStatus })
+        });
+        if(!response.ok) {
+            console.error("Failed to update status");
+            // Revert optimisitic update on fail could be handled here.
+        }
+    } catch(e) {
+        console.error("Network error updating status", e);
+    }
+}
+
+// 3. Polling for Live View
+{% if shohibul and not is_admin %}
+setInterval(async () => {
+    try {
+        const pin = '{{ shohibul.pin }}';
+        const response = await fetch(`/idul-adha/shohibul/status_data?pin=${pin}`);
+        if(response.ok) {
+            const data = await response.json();
+            if(data.success && data.status) {
+                // Update Badge dynamically
+                const badge = document.getElementById('liveStatusBadge');
+                if(badge) {
+                    badge.innerHTML = data.status;
+                    badge.className = 'px-4 py-2 rounded-full text-sm font-bold ' +
+                        (data.status === 'Menunggu Giliran' ? 'bg-amber-100 text-amber-700' :
+                         data.status === 'Sedang Disembelih' ? 'bg-red-100 text-red-700' :
+                         data.status === 'Proses Pencacahan' ? 'bg-blue-100 text-blue-700' :
+                         'bg-green-100 text-green-700 animate-pulse');
+                }
+
+                // Update Tracking Bar dynamically
+                const steps = ['Menunggu Giliran', 'Sedang Disembelih', 'Proses Pencacahan', 'Jatah Sohibul Siap Diambil'];
+                const currentIndex = steps.indexOf(data.status);
+
+                ['step-1', 'step-2', 'step-3', 'step-4'].forEach((id, idx) => {
+                    const el = document.getElementById(id);
+                    if(!el) return;
+                    if(idx < currentIndex) {
+                        el.className = 'w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center font-bold relative z-10 transition-colors duration-500 bg-green-500 text-white';
+                        el.innerHTML = '<i class="fas fa-check"></i>';
+                    } else if(idx === currentIndex) {
+                        el.className = 'w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center font-bold relative z-10 transition-colors duration-500 bg-[#8B2635] text-white ring-4 ring-red-100';
+                        el.innerHTML = (idx+1).toString();
+                    } else {
+                        el.className = 'w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center font-bold relative z-10 transition-colors duration-500 bg-gray-200 text-gray-400';
+                        el.innerHTML = (idx+1).toString();
+                    }
+                });
+
+                const line = document.getElementById('progressLine');
+                if(line) {
+                    if(currentIndex === 0) line.className = 'h-full bg-[#8B2635] transition-all duration-1000 w-[0%]';
+                    else if(currentIndex === 1) line.className = 'h-full bg-[#8B2635] transition-all duration-1000 w-[33%]';
+                    else if(currentIndex === 2) line.className = 'h-full bg-[#8B2635] transition-all duration-1000 w-[66%]';
+                    else if(currentIndex === 3) line.className = 'h-full bg-[#8B2635] transition-all duration-1000 w-[100%]';
+                }
+            }
+        }
+    } catch(e) {
+        console.error("Polling error", e);
+    }
+}, 3000); // Poll every 3 seconds
+{% endif %}
+</script>
 '''
 
 IDUL_ADHA_PEMBAGIAN_HTML = '''
@@ -2847,137 +3360,317 @@ IDUL_ADHA_PEMBAGIAN_HTML = '''
         {% endif %}
     </div>
 </div>
+<style>
+@keyframes wave {
+    0% { transform: translateX(0) scaleY(1); }
+    50% { transform: translateX(-25%) scaleY(1.1); }
+    100% { transform: translateX(-50%) scaleY(1); }
+}
+.animate-wave::before {
+    content: "";
+    position: absolute;
+    width: 200%;
+    height: 100%;
+    background: inherit;
+    top: -5px;
+    left: 0;
+    border-radius: 40% 60% 50% 40% / 40% 50% 60% 40%;
+    animation: wave 3s infinite linear;
+}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. PIN Generation AJAX & Animation
+    const form = document.getElementById('generatePinForm');
+    if(form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('generatePinBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generate...';
+
+            const formData = new FormData(form);
+            const jsonData = Object.fromEntries(formData.entries());
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+            try {
+                const response = await fetch('/idul-adha/shohibul/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(jsonData)
+                });
+
+                const data = await response.json();
+
+                if(response.ok && data.success) {
+                    const modal = document.getElementById('generatePinAnim');
+                    const content = document.getElementById('pinModalContent');
+                    const logoCont = document.getElementById('pinLogoCont');
+                    const water = document.getElementById('waterFill');
+                    const text1 = document.getElementById('pinText1');
+                    const text2 = document.getElementById('pinText2');
+
+                    modal.classList.remove('opacity-0', 'pointer-events-none');
+                    content.classList.remove('scale-90');
+                    content.classList.add('scale-100');
+
+                    setTimeout(() => { logoCont.classList.remove('scale-0'); logoCont.classList.add('scale-100'); }, 100);
+                    setTimeout(() => { water.style.height = '100%'; }, 500);
+                    setTimeout(() => { text1.classList.remove('opacity-0'); text1.classList.add('opacity-100'); }, 1500);
+                    setTimeout(() => { text2.classList.remove('opacity-0'); text2.classList.add('opacity-100'); }, 1800);
+
+                    setTimeout(() => {
+                        window.location.href = '/idul-adha/shohibul?pin=' + data.pin;
+                    }, 3500);
+                } else {
+                    alert(data.message || 'Gagal generate PIN');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Generate & Save';
+                }
+            } catch(e) {
+                alert('Kesalahan Jaringan');
+                btn.disabled = false;
+                btn.innerHTML = 'Generate & Save';
+            }
+        });
+    }
+});
+
+// 2. Status Update (Admin) AJAX
+async function updateStatus(newStatus, btnElement) {
+    const btnsCont = document.getElementById('statusUpdateBtns');
+    if(!btnsCont) return;
+    const pin = btnsCont.dataset.pin;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="csrf_token"]')?.value;
+
+    // Optimistic UI Update for buttons
+    const allBtns = btnsCont.querySelectorAll('.status-btn');
+    allBtns.forEach(b => {
+        b.className = 'status-btn py-3 rounded-xl font-bold border-2 transition-colors border-gray-200 text-gray-500 hover:border-gray-300';
+    });
+
+    if(newStatus === 'Menunggu Giliran') btnElement.className = 'status-btn py-3 rounded-xl font-bold border-2 transition-colors border-amber-500 bg-amber-50 text-amber-700 active-status';
+    else if(newStatus === 'Sedang Disembelih') btnElement.className = 'status-btn py-3 rounded-xl font-bold border-2 transition-colors border-red-500 bg-red-50 text-red-700 active-status';
+    else if(newStatus === 'Proses Pencacahan') btnElement.className = 'status-btn py-3 rounded-xl font-bold border-2 transition-colors border-blue-500 bg-blue-50 text-blue-700 active-status';
+    else if(newStatus === 'Jatah Sohibul Siap Diambil') btnElement.className = 'status-btn py-3 rounded-xl font-bold border-2 transition-colors border-green-500 bg-green-50 text-green-700 active-status';
+
+    try {
+        const response = await fetch('/idul-adha/shohibul/update_status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ pin: pin, status: newStatus })
+        });
+        if(!response.ok) {
+            console.error("Failed to update status");
+            // Revert optimisitic update on fail could be handled here.
+        }
+    } catch(e) {
+        console.error("Network error updating status", e);
+    }
+}
+
+// 3. Polling for Live View
+{% if shohibul and not is_admin %}
+setInterval(async () => {
+    try {
+        const pin = '{{ shohibul.pin }}';
+        const response = await fetch(`/idul-adha/shohibul/status_data?pin=${pin}`);
+        if(response.ok) {
+            const data = await response.json();
+            if(data.success && data.status) {
+                // Update Badge dynamically
+                const badge = document.getElementById('liveStatusBadge');
+                if(badge) {
+                    badge.innerHTML = data.status;
+                    badge.className = 'px-4 py-2 rounded-full text-sm font-bold ' +
+                        (data.status === 'Menunggu Giliran' ? 'bg-amber-100 text-amber-700' :
+                         data.status === 'Sedang Disembelih' ? 'bg-red-100 text-red-700' :
+                         data.status === 'Proses Pencacahan' ? 'bg-blue-100 text-blue-700' :
+                         'bg-green-100 text-green-700 animate-pulse');
+                }
+
+                // Update Tracking Bar dynamically
+                const steps = ['Menunggu Giliran', 'Sedang Disembelih', 'Proses Pencacahan', 'Jatah Sohibul Siap Diambil'];
+                const currentIndex = steps.indexOf(data.status);
+
+                ['step-1', 'step-2', 'step-3', 'step-4'].forEach((id, idx) => {
+                    const el = document.getElementById(id);
+                    if(!el) return;
+                    if(idx < currentIndex) {
+                        el.className = 'w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center font-bold relative z-10 transition-colors duration-500 bg-green-500 text-white';
+                        el.innerHTML = '<i class="fas fa-check"></i>';
+                    } else if(idx === currentIndex) {
+                        el.className = 'w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center font-bold relative z-10 transition-colors duration-500 bg-[#8B2635] text-white ring-4 ring-red-100';
+                        el.innerHTML = (idx+1).toString();
+                    } else {
+                        el.className = 'w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center font-bold relative z-10 transition-colors duration-500 bg-gray-200 text-gray-400';
+                        el.innerHTML = (idx+1).toString();
+                    }
+                });
+
+                const line = document.getElementById('progressLine');
+                if(line) {
+                    if(currentIndex === 0) line.className = 'h-full bg-[#8B2635] transition-all duration-1000 w-[0%]';
+                    else if(currentIndex === 1) line.className = 'h-full bg-[#8B2635] transition-all duration-1000 w-[33%]';
+                    else if(currentIndex === 2) line.className = 'h-full bg-[#8B2635] transition-all duration-1000 w-[66%]';
+                    else if(currentIndex === 3) line.className = 'h-full bg-[#8B2635] transition-all duration-1000 w-[100%]';
+                }
+            }
+        }
+    } catch(e) {
+        console.error("Polling error", e);
+    }
+}, 3000); // Poll every 3 seconds
+{% endif %}
+</script>
 '''
 
 IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
 <div class="pt-20 md:pt-32 pb-32 px-5 md:px-8 bg-gray-50 font-sans text-gray-800">
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-6xl mx-auto mb-12">
         <div class="flex items-center gap-4 mb-8">
-            <a href="/idul-adha" class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-600 shadow-md hover:bg-orange-600 hover:text-white transition-colors">
+            <a href="/idul-adha" class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-600 shadow-md hover:bg-[#8B2635] hover:text-white transition-colors">
                 <i class="fas fa-arrow-left"></i>
             </a>
             <div>
-                <h1 class="text-3xl font-bold text-orange-600">Peta Distribusi</h1>
-                <p class="text-gray-500 mt-1">Log Penyaluran Daging Berbasis Wilayah RT</p>
+                <h1 class="text-3xl font-bold text-[#8B2635]">Peta Distribusi</h1>
+                <p class="text-gray-500 mt-1">Live Tracking Penyaluran Daging Qurban per RT</p>
             </div>
         </div>
-        
+
         {% if is_admin %}
-        <div class="bg-white rounded-3xl shadow-xl border border-orange-600 p-6 mb-8 relative">
+        <div class="bg-white rounded-3xl shadow-xl border border-orange-200 p-6 mb-8 relative">
             <div class="absolute top-0 right-0 bg-orange-600 text-white px-3 py-1 rounded-bl-xl rounded-tr-3xl text-xs font-bold"><i class="fas fa-lock mr-1"></i> Panel Admin</div>
-            <h2 class="text-xl font-bold text-orange-600 mb-4">Tambah Data RT Baru</h2>
-            <form action="/idul-adha/peta-distribusi/add" method="POST" class="space-y-4">
+            <h2 class="text-xl font-bold text-orange-600 mb-4 border-b border-orange-100 pb-2">Tambah Data RT Baru</h2>
+            <form id="addRtForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                        <label class="block text-sm font-bold text-gray-600 mb-1">Nomor Card</label>
-                        <input type="text" name="nomor_card" placeholder="01" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-orange-600" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-gray-600 mb-1">Nama RT</label>
-                        <input type="text" name="rt_name" placeholder="RT 01" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-orange-600" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-gray-600 mb-1">Ketua RT</label>
-                        <input type="text" name="nama_ketua_rt" placeholder="Bpk. Haryanto" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-orange-600" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-gray-600 mb-1">Alokasi (Kantong)</label>
-                        <input type="number" name="alokasi" placeholder="50" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-orange-600" required>
-                    </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-600 mb-1">Nomor Card</label>
+                    <input type="text" name="nomor_card" placeholder="Contoh: RT01" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-orange-600" required>
                 </div>
-                <button type="submit" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl hover:bg-orange-700 shadow-md">Tambah Data RT</button>
+                <div>
+                    <label class="block text-sm font-bold text-gray-600 mb-1">Nama RT (Wilayah)</label>
+                    <input type="text" name="rt_name" placeholder="Contoh: RT 01 Delima" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-orange-600" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-600 mb-1">Nama Ketua RT / PIC</label>
+                    <input type="text" name="nama_ketua_rt" placeholder="Contoh: Bpk. Supriadi" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-orange-600" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-600 mb-1">Alokasi (Bungkus)</label>
+                    <input type="number" name="alokasi" placeholder="Contoh: 45" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-orange-600" required>
+                </div>
+                <div class="md:col-span-4 mt-2">
+                    <button type="submit" id="addRtBtn" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl hover:bg-orange-700 shadow-md transition-all">Tambah Data RT</button>
+                </div>
             </form>
         </div>
-        {% endif %}
 
-        <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 mb-8">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Pemetaan Mustahik</h2>
-                    <p class="text-gray-600 mb-6">
-                        Sistem ini memastikan tidak ada tumpang tindih alokasi. Saat Ketua RT menerima jatah paket daging, sistem akan mengunci status RT tersebut untuk mencegah klaim ganda, menjamin distribusi merata dan adil.
-                    </p>
-                    <div class="flex gap-4">
-                        <div class="flex items-center gap-2">
-                            <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
-                            <span class="text-sm font-medium text-gray-600">Sudah Menerima</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="w-3 h-3 rounded-full bg-gray-300"></span>
-                            <span class="text-sm font-medium text-gray-600">Belum Menerima</span>
+        <!-- SUCCESS MODAL ANIMATION FOR TAMBAH RT -->
+        <div id="generateRTAnim" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 opacity-0 pointer-events-none transition-opacity duration-300">
+            <div class="bg-white rounded-3xl p-8 transform scale-90 transition-transform duration-300 flex flex-col items-center shadow-2xl" id="rtModalContent">
+                <div class="w-48 h-32 relative mb-6 overflow-hidden flex items-center justify-center" id="rtCarCont">
+                    <div class="absolute bottom-0 w-full h-1 bg-gray-300"></div>
+                    <div class="animate-bounce" style="animation: bounce 0.5s infinite alternate;">
+                        <i class="fas fa-truck text-6xl text-[#8B2635]"></i>
+                    </div>
+                    <div class="absolute bottom-0 left-10 flex gap-8">
+                        <i class="fas fa-circle-notch text-xl text-gray-800 animate-spin" style="animation: spin 0.5s linear infinite;"></i>
+                        <i class="fas fa-circle-notch text-xl text-gray-800 animate-spin" style="animation: spin 0.5s linear infinite;"></i>
+                    </div>
+                    <!-- Moving Road Lines -->
+                    <div class="absolute bottom-[-2px] w-full flex overflow-hidden">
+                        <div class="w-full flex justify-between animate-road" style="animation: roadMove 1s linear infinite;">
+                            <div class="w-4 h-1 bg-white"></div><div class="w-4 h-1 bg-white"></div><div class="w-4 h-1 bg-white"></div><div class="w-4 h-1 bg-white"></div><div class="w-4 h-1 bg-white"></div>
                         </div>
                     </div>
                 </div>
-                <div class="bg-orange-50 rounded-2xl p-6 text-center border border-orange-100">
-                    <p class="text-orange-800 font-bold mb-2">Total Progres Wilayah</p>
-                    <div class="flex items-end justify-center gap-2">
-                        <span class="text-5xl font-black text-orange-600">{{ diserahkan_count }}</span>
-                        <span class="text-xl text-orange-400 font-bold mb-1">/ {{ total_rt }} RT</span>
+                <h3 class="text-2xl font-bold text-gray-800 opacity-0 transition-opacity duration-500 delay-300" id="rtText1">Data RT Ditambahkan!</h3>
+                <p class="text-gray-500 mt-2 opacity-0 transition-opacity duration-500 delay-500 text-center" id="rtText2">Card status RT telah aktif dan siap dipantau.</p>
+            </div>
+        </div>
+
+        <style>
+        @keyframes roadMove {
+            from { transform: translateX(0); }
+            to { transform: translateX(-100%); }
+        }
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-5px); }
+        }
+        </style>
+        {% endif %}
+
+        <div class="bg-gradient-to-r from-orange-600 to-[#8B2635] rounded-3xl shadow-xl p-8 mb-8 text-white">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div>
+                    <h2 class="text-2xl font-bold mb-2">Progress Distribusi RT</h2>
+                    <p class="text-white/80">Pantau secara live RT mana saja yang telah menerima jatah qurban.</p>
+                </div>
+                <div class="w-full md:w-1/2">
+                    <div class="h-2 bg-white/20 rounded-full overflow-hidden">
+                        <div id="rtProgressBar" class="h-full bg-white transition-all duration-1000" style="width: {{ progress_percentage }}%"></div>
                     </div>
-                    <div class="w-full bg-orange-200 rounded-full h-2 mt-4">
-                        <div class="bg-orange-500 h-2 rounded-full" style="width: {{ progress_percentage }}%"></div>
-                    </div>
+                    <p id="rtProgressText" class="text-xs mt-2 text-white/80 font-medium text-right">{{ diserahkan_count }} / {{ total_rt }} RT Selesai</p>
                 </div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+        <div class="mb-6 flex justify-between items-center">
+            <h2 class="text-xl font-bold text-gray-800">Daftar Status RT</h2>
+            <div class="flex gap-2">
+                <span class="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100"><i class="fas fa-check-circle"></i> Selesai</span>
+                <span class="flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-100"><i class="fas fa-clock"></i> Menunggu</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for rt in rt_list %}
-            <div class="bg-white rounded-2xl border-2 {{ 'border-emerald-100' if rt.status == 'Diserahkan' else 'border-gray-200' }} p-5 shadow-sm relative overflow-hidden group">
-                {% if rt.status == 'Diserahkan' %}
-                <div class="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl">Terkunci</div>
-                {% endif %}
-                
-                <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 {{ 'bg-emerald-50 text-emerald-600' if rt.status == 'Diserahkan' else 'bg-gray-100 text-gray-500' }} rounded-xl flex items-center justify-center text-xl font-bold">{{ rt.nomor_card }}</div>
-                        <div>
-                            <h3 class="font-bold text-gray-800">{{ rt.rt_name }}</h3>
-                            <p class="text-xs text-gray-500">{{ rt.nama_ketua_rt }}</p>
+            <div id="rt-card-{{ rt.id }}" class="bg-white rounded-2xl shadow-lg {{ 'border-2 border-emerald-500' if rt.status == 'Diserahkan' else 'border border-gray-100' }} overflow-hidden relative transition-all duration-300 transform hover:-translate-y-1">
+                <div class="p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="text-sm font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">Card {{ rt.nomor_card }}</span>
+                        <div id="rt-status-{{ rt.id }}">
+                            {% if rt.status == 'Diserahkan' %}
+                            <span class="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full"><i class="fas fa-check-circle mr-1"></i> Diserahkan</span>
+                            {% else %}
+                            <span class="bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full"><i class="fas fa-clock mr-1"></i> Menunggu</span>
+                            {% endif %}
                         </div>
                     </div>
+
+                    <h3 class="text-xl font-bold text-gray-800 mb-1">{{ rt.rt_name }}</h3>
+                    <div class="flex items-center gap-2 text-gray-500 mb-4 text-sm">
+                        <i class="fas fa-user-tie w-4 text-center"></i> <span>PIC: {{ rt.nama_ketua_rt }}</span>
+                    </div>
+
+                    <div class="bg-orange-50 rounded-xl p-3 flex justify-between items-center border border-orange-100">
+                        <span class="text-xs font-bold text-orange-800 uppercase">Alokasi Daging</span>
+                        <span class="font-bold text-orange-600 text-lg">{{ rt.alokasi }} <span class="text-xs text-orange-400 font-normal">Bungkus</span></span>
+                    </div>
+                </div>
+                
+                <div class="p-4 bg-gray-50 flex justify-between items-center border-t border-gray-100">
                     {% if is_admin %}
-                    <button onclick="openEditRTModal('{{ rt.id }}', '{{ rt.nomor_card }}', '{{ rt.rt_name }}', '{{ rt.nama_ketua_rt }}', '{{ rt.alokasi }}', '{{ rt.status }}')" class="text-gray-400 hover:text-orange-600 transition"><i class="fas fa-pencil-alt"></i></button>
-                    {% endif %}
-                </div>
-                
-                <div class="bg-gray-50 rounded-lg p-3 mt-4">
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-gray-600">Alokasi:</span>
-                        <span class="font-bold text-gray-800">{{ rt.alokasi }} Kantong</span>
-                    </div>
-                    <div class="flex justify-between items-center text-sm mt-1">
-                        <span class="text-gray-600">Status:</span>
-                        {% if rt.status == 'Diserahkan' %}
-                        <span class="font-bold text-emerald-600"><i class="fas fa-check-circle mr-1"></i> Diserahkan</span>
+                    <div class="w-full flex gap-2">
+                        {% if rt.status == 'Menunggu' %}
+                        <button onclick="updateRTStatus({{ rt.id }}, 'Diserahkan')" class="flex-1 bg-emerald-100 text-emerald-700 py-2 rounded-lg font-bold text-sm hover:bg-emerald-200 transition-colors">Serahkan Jatah</button>
                         {% else %}
-                        <span class="font-bold text-orange-500"><i class="fas fa-clock mr-1"></i> Menunggu</span>
+                        <button onclick="updateRTStatus({{ rt.id }}, 'Menunggu')" class="flex-1 bg-red-100 text-red-700 py-2 rounded-lg font-bold text-sm hover:bg-red-200 transition-colors">Batal Serahkan</button>
                         {% endif %}
+                        <button type="button" onclick="openEditRTModal({{ rt.id }}, '{{ rt.nomor_card }}', '{{ rt.rt_name }}', '{{ rt.nama_ketua_rt }}', {{ rt.alokasi }}, '{{ rt.status }}')" class="px-3 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300"><i class="fas fa-pen"></i></button>
                     </div>
-                </div>
-                
-                {% if is_admin %}
-                    {% if rt.status == 'Menunggu' %}
-                    <form action="/idul-adha/peta-distribusi/update_status" method="POST">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="rt_id" value="{{ rt.id }}">
-                        <input type="hidden" name="status" value="Diserahkan">
-                        <button type="submit" class="w-full mt-3 bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white py-2 rounded-lg text-sm font-bold transition-colors">
-                            Serahkan Jatah
-                        </button>
-                    </form>
                     {% else %}
-                    <form action="/idul-adha/peta-distribusi/update_status" method="POST">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="rt_id" value="{{ rt.id }}">
-                        <input type="hidden" name="status" value="Menunggu">
-                        <button type="submit" class="w-full mt-3 bg-red-100 text-red-700 hover:bg-red-600 hover:text-white py-2 rounded-lg text-sm font-bold transition-colors">
-                            Batal Serahkan
-                        </button>
-                    </form>
+                    <div class="w-full text-center text-xs text-gray-500 font-medium">Update Terakhir: Hari ini</div>
                     {% endif %}
-                {% endif %}
+                </div>
             </div>
             {% else %}
             <div class="col-span-1 md:col-span-3 text-center p-8 bg-white rounded-2xl border border-gray-100 text-gray-500">
@@ -2993,7 +3686,7 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
         <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 relative">
             <button onclick="document.getElementById('modal-edit-rt').classList.add('hidden')" class="absolute top-4 right-4 bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center">&times;</button>
             <h3 class="text-xl font-bold text-orange-600 mb-4 border-b border-gray-100 pb-2">Edit Data RT</h3>
-            <form action="/idul-adha/peta-distribusi/edit" method="POST" class="space-y-4">
+            <form id="editRtForm" class="space-y-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="rt_id" id="edit_rt_id">
                 
@@ -3020,23 +3713,163 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
                         <option value="Diserahkan">Diserahkan</option>
                     </select>
                 </div>
-                <button type="submit" class="w-full bg-orange-600 text-white font-bold py-2 rounded-xl hover:bg-orange-700 shadow-md mt-2">Save</button>
+                <button type="submit" id="editRtBtn" class="w-full bg-orange-600 text-white font-bold py-2 rounded-xl hover:bg-orange-700 shadow-md mt-2 transition-all">Save</button>
             </form>
         </div>
     </div>
-    <script>
-        function openEditRTModal(id, no, rt, ketua, alokasi, status) {
-            document.getElementById('edit_rt_id').value = id;
-            document.getElementById('edit_nomor_card').value = no;
-            document.getElementById('edit_rt_name').value = rt;
-            document.getElementById('edit_nama_ketua_rt').value = ketua;
-            document.getElementById('edit_alokasi').value = alokasi;
-            document.getElementById('edit_status').value = status;
-            document.getElementById('modal-edit-rt').classList.remove('hidden');
-        }
-    </script>
     {% endif %}
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Add RT Form AJAX
+        const addForm = document.getElementById('addRtForm');
+        if(addForm) {
+            addForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('addRtBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menambah...';
+
+                const formData = new FormData(addForm);
+                const jsonData = Object.fromEntries(formData.entries());
+                const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+                try {
+                    const response = await fetch('/idul-adha/peta-distribusi/add', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify(jsonData)
+                    });
+
+                    const data = await response.json();
+                    if(response.ok && data.success) {
+                        const modal = document.getElementById('generateRTAnim');
+                        const content = document.getElementById('rtModalContent');
+                        const text1 = document.getElementById('rtText1');
+                        const text2 = document.getElementById('rtText2');
+
+                        modal.classList.remove('opacity-0', 'pointer-events-none');
+                        content.classList.remove('scale-90');
+                        content.classList.add('scale-100');
+
+                        setTimeout(() => { text1.classList.remove('opacity-0'); text1.classList.add('opacity-100'); }, 1000);
+                        setTimeout(() => { text2.classList.remove('opacity-0'); text2.classList.add('opacity-100'); }, 1300);
+
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 3000);
+                    } else {
+                        alert(data.message || 'Gagal menambah RT');
+                        btn.disabled = false;
+                        btn.innerHTML = 'Tambah Data RT';
+                    }
+                } catch(e) {
+                    alert('Kesalahan Jaringan');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Tambah Data RT';
+                }
+            });
+        }
+
+        // Edit RT AJAX
+        const editForm = document.getElementById('editRtForm');
+        if(editForm) {
+            editForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('editRtBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+
+                const formData = new FormData(editForm);
+                const jsonData = Object.fromEntries(formData.entries());
+                const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+                try {
+                    const response = await fetch('/idul-adha/peta-distribusi/edit', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify(jsonData)
+                    });
+                    const data = await response.json();
+                    if(response.ok && data.success) {
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Gagal Edit RT');
+                        btn.disabled = false;
+                        btn.innerHTML = 'Save';
+                    }
+                } catch(e) {
+                    alert('Kesalahan Jaringan');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Save';
+                }
+            });
+        }
+    });
+
+    // Update Status RT AJAX
+    async function updateRTStatus(rtId, newStatus) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="csrf_token"]')?.value;
+        try {
+            const response = await fetch('/idul-adha/peta-distribusi/update_status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ rt_id: rtId, status: newStatus })
+            });
+            if(response.ok) {
+                window.location.reload();
+            }
+        } catch(e) {
+            console.error("Error updating RT status", e);
+        }
+    }
+
+    function openEditRTModal(id, no, rt, ketua, alokasi, status) {
+        document.getElementById('edit_rt_id').value = id;
+        document.getElementById('edit_nomor_card').value = no;
+        document.getElementById('edit_rt_name').value = rt;
+        document.getElementById('edit_nama_ketua_rt').value = ketua;
+        document.getElementById('edit_alokasi').value = alokasi;
+        document.getElementById('edit_status').value = status;
+        document.getElementById('modal-edit-rt').classList.remove('hidden');
+    }
+
+    // Polling for live RT updates (for all users)
+    setInterval(async () => {
+        try {
+            const response = await fetch('/idul-adha/peta-distribusi/data');
+            if(response.ok) {
+                const data = await response.json();
+                if(data.success) {
+                    const progBar = document.getElementById('rtProgressBar');
+                    const progText = document.getElementById('rtProgressText');
+                    if(progBar && progText) {
+                        progBar.style.width = data.progress_percentage + '%';
+                        progText.innerHTML = data.diserahkan_count + ' / ' + data.total_rt + ' RT Selesai';
+                    }
+
+                    data.rt_list.forEach(rt => {
+                        const statusBadgeCont = document.getElementById('rt-status-' + rt.id);
+                        if(statusBadgeCont) {
+                            if(rt.status === 'Diserahkan') {
+                                statusBadgeCont.innerHTML = '<span class="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full"><i class="fas fa-check-circle mr-1"></i> Diserahkan</span>';
+                                const cardRoot = document.getElementById('rt-card-' + rt.id);
+                                if(cardRoot) cardRoot.className = "bg-white rounded-2xl shadow-lg border-2 border-emerald-500 overflow-hidden relative transition-all duration-300 transform hover:-translate-y-1";
+                            } else {
+                                statusBadgeCont.innerHTML = '<span class="bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full"><i class="fas fa-clock mr-1"></i> Menunggu</span>';
+                                const cardRoot = document.getElementById('rt-card-' + rt.id);
+                                if(cardRoot) cardRoot.className = "bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden relative transition-all duration-300 transform hover:-translate-y-1";
+                            }
+                        }
+                    });
+                }
+            }
+        } catch(e) {
+            console.error("Polling error", e);
+        }
+    }, 5000);
+</script>
 '''
 
 IDUL_ADHA_PANDUAN_HTML = """
@@ -3151,6 +3984,411 @@ IDUL_ADHA_PANDUAN_HTML = """
 </div>
 """
 
+
+IDUL_ADHA_ABSEN_PANITIA_HTML = '''
+<div class="pt-20 md:pt-32 pb-32 px-5 md:px-8 bg-gray-50 font-sans text-gray-800">
+    <div class="max-w-6xl mx-auto mb-12">
+        <div class="flex items-center gap-4 mb-8">
+            <a href="/idul-adha" class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-600 shadow-md hover:bg-[#8B2635] hover:text-white transition-colors">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1 class="text-3xl font-bold text-[#8B2635]">Sistem Absensi Panitia</h1>
+                <p class="text-gray-500 mt-1">Portal Pendaftaran & Kehadiran Qurban</p>
+            </div>
+        </div>
+
+        <!-- Panel 1: Top Banner / Notifikasi (User & Admin) -->
+        <div id="statusBanner" class="rounded-3xl shadow-lg p-6 mb-8 text-white transition-colors duration-500 {{ 'bg-gradient-to-r from-emerald-500 to-teal-600' if is_valid_window else 'bg-gradient-to-r from-red-600 to-[#8B2635]' }}">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-3xl">
+                        <i id="bannerIcon" class="{{ 'fas fa-door-open' if is_valid_window else 'fas fa-door-closed' }}"></i>
+                    </div>
+                    <div>
+                        <h2 id="bannerTitle" class="text-2xl font-bold">{{ 'Absensi Sedang Dibuka' if is_valid_window else 'LATE: Terlambat, Absensi Ditutup' }}</h2>
+                        <p id="bannerDesc" class="text-white/80 text-sm mt-1">Silakan mengisi absensi kehadiran Anda sebelum waktu habis.</p>
+                    </div>
+                </div>
+                <div class="text-center bg-black/20 px-6 py-3 rounded-2xl border border-white/20">
+                    <p class="text-xs uppercase font-bold text-white/60 mb-1">Sisa Waktu</p>
+                    <p id="absenCountdownTimer" class="font-mono text-2xl font-bold tracking-wider">--:--:--</p>
+                </div>
+            </div>
+        </div>
+
+        {% if is_admin %}
+        <!-- ADMIN AREA -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+
+            <!-- Admin Panel 1: Setting Absent Time -->
+            <div class="bg-white rounded-3xl shadow-xl border border-orange-200 p-6 relative col-span-1 h-fit">
+                <div class="absolute top-0 right-0 bg-orange-600 text-white px-3 py-1 rounded-bl-xl rounded-tr-3xl text-xs font-bold"><i class="fas fa-lock mr-1"></i> Panel 1</div>
+                <h3 class="text-lg font-bold text-orange-600 mb-4 border-b border-orange-100 pb-2">Setting Waktu Absen</h3>
+                <form id="settingWaktuForm" class="space-y-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Mulai Jam</label>
+                            <input type="time" name="absen_start" value="{{ settings.get('absen_start_time', '06:30') }}" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2 text-sm focus:outline-none focus:border-orange-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Tutup Jam</label>
+                            <input type="time" name="absen_end" value="{{ settings.get('absen_end_time', '08:30') }}" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2 text-sm focus:outline-none focus:border-orange-600">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Status Manual</label>
+                        <select name="absen_status" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2 text-sm focus:outline-none focus:border-orange-600">
+                            <option value="auto" {{ 'selected' if settings.get('absen_status', 'auto') == 'auto' else '' }}>Otomatis Mengikuti Jam</option>
+                            <option value="open" {{ 'selected' if settings.get('absen_status', 'auto') == 'open' else '' }}>Buka Paksa (Bypass LATE)</option>
+                            <option value="closed" {{ 'selected' if settings.get('absen_status', 'auto') == 'closed' else '' }}>Tutup Paksa</option>
+                        </select>
+                    </div>
+                    <button type="submit" id="saveSettingBtn" class="w-full bg-orange-600 text-white font-bold py-2 rounded-xl hover:bg-orange-700 shadow-sm transition-colors text-sm">Save Settings</button>
+                </form>
+            </div>
+
+            <!-- Admin Panel 3: Live Analytics -->
+            <div class="bg-white rounded-3xl shadow-xl border border-blue-200 p-6 relative lg:col-span-2">
+                <div class="absolute top-0 right-0 bg-blue-600 text-white px-3 py-1 rounded-bl-xl rounded-tr-3xl text-xs font-bold"><i class="fas fa-chart-pie mr-1"></i> Panel 3</div>
+                <div class="flex justify-between items-center mb-4 border-b border-blue-100 pb-2">
+                    <h3 class="text-lg font-bold text-blue-600">Live Analytics</h3>
+                    <a href="/idul-adha/absen-panitia/export" target="_blank" class="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-full font-bold hover:bg-green-200 transition-colors"><i class="fas fa-file-excel mr-1"></i> Export Excel</a>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-gray-50 rounded-2xl p-4 border border-gray-100 text-center">
+                        <p class="text-xs text-gray-500 font-bold uppercase mb-1">Terdaftar</p>
+                        <p id="statTotal" class="text-3xl font-bold text-gray-800">0</p>
+                    </div>
+                    <div class="bg-green-50 rounded-2xl p-4 border border-green-100 text-center">
+                        <p class="text-xs text-green-600 font-bold uppercase mb-1">Hadir Pagi</p>
+                        <p id="statHadir" class="text-3xl font-bold text-green-700">0</p>
+                    </div>
+                    <div class="bg-amber-50 rounded-2xl p-4 border border-amber-100 text-center">
+                        <p class="text-xs text-amber-600 font-bold uppercase mb-1">Menunggu</p>
+                        <p id="statMenunggu" class="text-3xl font-bold text-amber-700">0</p>
+                    </div>
+                    <div class="bg-red-50 rounded-2xl p-4 border border-red-100 text-center">
+                        <p class="text-xs text-red-600 font-bold uppercase mb-1">Terlambat/Bolos</p>
+                        <p id="statTerlambat" class="text-3xl font-bold text-red-700">0</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Admin Panel 2: List Panitia & Role Assignment -->
+        <div class="bg-white rounded-3xl shadow-xl border border-emerald-200 p-6 relative mb-8">
+            <div class="absolute top-0 right-0 bg-emerald-600 text-white px-3 py-1 rounded-bl-xl rounded-tr-3xl text-xs font-bold"><i class="fas fa-users mr-1"></i> Panel 2</div>
+            <h3 class="text-lg font-bold text-emerald-600 mb-4 border-b border-emerald-100 pb-2">List Panitia & Assign Role</h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-50 text-gray-600">
+                        <tr>
+                            <th class="p-3 rounded-l-xl">Nama & No HP</th>
+                            <th class="p-3">Waktu Datang</th>
+                            <th class="p-3">Approval</th>
+                            <th class="p-3 rounded-r-xl">Role / Pos Tugas</th>
+                        </tr>
+                    </thead>
+                    <tbody id="panitiaListBody">
+                        <tr><td colspan="4" class="text-center py-4 text-gray-400">Memuat data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+
+        <!-- USER AREA -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            <!-- Core Interaction Module -->
+            <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 flex flex-col justify-center min-h-[300px]">
+                <h3 class="text-xl font-bold text-[#8B2635] mb-6 border-b border-gray-100 pb-2">Modul Kehadiran Anda</h3>
+
+                <div id="userStateContainer">
+                    <div class="text-center py-8"><i class="fas fa-circle-notch fa-spin text-4xl text-gray-300"></i></div>
+                </div>
+            </div>
+
+            <!-- Digital ID Card -->
+            <div class="relative rounded-3xl shadow-xl overflow-hidden min-h-[300px] border border-gray-200 bg-gray-100" id="idCardWrapper">
+                <!-- Blurred overlay if not present -->
+                <div id="idCardOverlay" class="absolute inset-0 z-20 backdrop-blur-md bg-white/60 flex flex-col items-center justify-center">
+                    <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4 text-gray-400">
+                        <i class="fas fa-lock text-2xl"></i>
+                    </div>
+                    <p class="font-bold text-gray-500 text-center px-6">ID Card Digital akan terbuka setelah Anda absen "Hadir".</p>
+                </div>
+
+                <!-- The ID Card -->
+                <div class="absolute inset-0 bg-white">
+                    <div class="h-24 bg-[#1B4332] w-full absolute top-0 flex items-center justify-center">
+                        <p class="text-white font-bold tracking-widest text-sm uppercase opacity-50">Panitia Qurban Al Hijrah</p>
+                    </div>
+                    <div class="relative z-10 pt-16 flex flex-col items-center">
+                        <div class="w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-4">
+                            <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 overflow-hidden">
+                                <i class="fas fa-user"></i>
+                            </div>
+                        </div>
+                        <h2 id="cardName" class="text-2xl font-bold text-gray-800 mb-1">-</h2>
+                        <p class="text-xs text-gray-400 font-mono mb-4">ID: <span id="cardId">-</span></p>
+
+                        <div class="w-11/12 bg-amber-50 rounded-2xl p-4 border border-amber-200 text-center shadow-inner">
+                            <p class="text-xs text-amber-700 font-bold uppercase tracking-wider mb-1">Tugas Anda Hari Ini</p>
+                            <p id="cardPos" class="text-lg font-bold text-amber-900">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- SCRIPTS FOR ABSEN PANITIA -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Inject CSRF Token globally for fetches
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+    const isAdmin = {{ 'true' if is_admin else 'false' }};
+
+    // Polling Data
+    async function fetchAbsenData() {
+        try {
+            const res = await fetch('/idul-adha/absen-panitia/data');
+            if(res.ok) {
+                const data = await res.json();
+                if(data.success) {
+                    renderUserArea(data.user_data, data.is_window_open);
+                    renderBanner(data.is_window_open, data.countdown_str);
+                    if(isAdmin) {
+                        renderAdminArea(data.all_data);
+                        renderAnalytics(data.analytics);
+                    }
+                }
+            }
+        } catch(e) { console.error("Poll error", e); }
+    }
+
+    function renderBanner(isOpen, timerStr) {
+        const banner = document.getElementById('statusBanner');
+        const icon = document.getElementById('bannerIcon');
+        const title = document.getElementById('bannerTitle');
+        const timer = document.getElementById('absenCountdownTimer');
+
+        timer.innerText = timerStr;
+        if(isOpen) {
+            banner.className = "rounded-3xl shadow-lg p-6 mb-8 text-white transition-colors duration-500 bg-gradient-to-r from-emerald-500 to-teal-600";
+            icon.className = "fas fa-door-open";
+            title.innerText = "Absensi Sedang Dibuka";
+        } else {
+            banner.className = "rounded-3xl shadow-lg p-6 mb-8 text-white transition-colors duration-500 bg-gradient-to-r from-red-600 to-[#8B2635]";
+            icon.className = "fas fa-door-closed";
+            title.innerText = "LATE: Terlambat, Absensi Ditutup";
+        }
+    }
+
+    function renderUserArea(user, isOpen) {
+        const cont = document.getElementById('userStateContainer');
+        const overlay = document.getElementById('idCardOverlay');
+        const cardName = document.getElementById('cardName');
+        const cardId = document.getElementById('cardId');
+        const cardPos = document.getElementById('cardPos');
+
+        if(!user) {
+            // Condition A: Belum Terdaftar
+            cont.innerHTML = `
+                <form id="joinPanitiaForm" class="space-y-4">
+                    <input type="text" id="j_name" placeholder="Nama Lengkap" class="w-full p-3 rounded-xl border focus:border-[#8B2635] outline-none" required>
+                    <input type="text" id="j_hp" placeholder="Nomor HP / WhatsApp" class="w-full p-3 rounded-xl border focus:border-[#8B2635] outline-none" required>
+                    <select id="j_tugas" class="w-full p-3 rounded-xl border focus:border-[#8B2635] outline-none" required>
+                        <option value="" disabled selected>Pilih Tugas yang Diinginkan</option>
+                        <option value="Pemotongan">Pemotongan</option>
+                        <option value="Penimbangan">Penimbangan</option>
+                        <option value="Pencacahan Tulang">Pencacahan Tulang</option>
+                        <option value="Distribusi Daging">Distribusi Daging</option>
+                        <option value="Kebersihan">Kebersihan</option>
+                    </select>
+                    <button type="button" onclick="submitJoinForm()" class="w-full bg-[#8B2635] text-white font-bold py-3 rounded-xl hover:bg-red-800 shadow-md transition-colors">Ajukan Diri Sebagai Panitia</button>
+                </form>
+            `;
+            overlay.classList.remove('hidden');
+            return;
+        }
+
+        if(user.approval_status === 'Menunggu') {
+            // Condition B: Menunggu
+            cont.innerHTML = `
+                <div class="text-center p-6 bg-amber-50 rounded-2xl border border-amber-100">
+                    <div class="w-20 h-20 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl">
+                        <i class="fas fa-hourglass-half animate-pulse"></i>
+                    </div>
+                    <h4 class="font-bold text-amber-800 text-lg">Menunggu Persetujuan Admin</h4>
+                    <p class="text-sm text-amber-700 mt-2">Pendaftaran Anda telah masuk. Silakan tunggu DKM menyetujui Anda.</p>
+                </div>
+            `;
+            overlay.classList.remove('hidden');
+            return;
+        }
+
+        if(user.approval_status === 'Approved') {
+            if(!user.is_present) {
+                if(isOpen) {
+                    // Condition C1: Approved & Open -> SAYA HADIR
+                    cont.innerHTML = `
+                        <button onclick="submitHadir()" class="w-full h-40 bg-gradient-to-b from-emerald-400 to-emerald-600 rounded-3xl shadow-xl shadow-emerald-200 text-white flex flex-col items-center justify-center transform hover:scale-105 transition-all duration-300">
+                            <i class="fas fa-fingerprint text-5xl mb-2"></i>
+                            <span class="text-2xl font-black tracking-widest">SAYA HADIR</span>
+                        </button>
+                    `;
+                } else {
+                    // Condition D: LATE
+                    cont.innerHTML = `
+                        <div class="text-center p-6 bg-red-50 rounded-2xl border border-red-100">
+                            <div class="w-20 h-20 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl">
+                                <i class="fas fa-ban"></i>
+                            </div>
+                            <h4 class="font-bold text-red-800 text-lg">Waktu Telah Habis</h4>
+                            <p class="text-sm text-red-700 mt-2">Maaf, Anda tidak dapat melakukan absensi. Silakan hubungi Admin di lapangan.</p>
+                        </div>
+                    `;
+                }
+                overlay.classList.remove('hidden');
+            } else {
+                // Condition C2: Already Present
+                cont.innerHTML = `
+                    <div class="w-full h-40 bg-green-50 rounded-3xl border-2 border-green-500 flex flex-col items-center justify-center">
+                        <i class="fas fa-check-circle text-5xl text-green-500 mb-2"></i>
+                        <span class="text-xl font-bold text-green-700">Telah Hadir</span>
+                        <span class="text-xs text-green-600">pukul ${user.check_in_time}</span>
+                    </div>
+                `;
+                // Unlock ID Card
+                overlay.classList.add('hidden');
+                cardName.innerText = user.name;
+                cardId.innerText = 'PAN-' + String(user.id).padStart(4, '0');
+                cardPos.innerText = user.pos_tugas || "Menunggu Instruksi Lapangan";
+            }
+        }
+    }
+
+    function renderAdminArea(list) {
+        const body = document.getElementById('panitiaListBody');
+        if(!body) return;
+        let html = '';
+        if(list.length === 0) {
+            html = `<tr><td colspan="4" class="text-center py-4 text-gray-400">Belum ada panitia</td></tr>`;
+        } else {
+            list.forEach(p => {
+                let btnApprove = p.approval_status === 'Menunggu' ? `<button onclick="actionAdmin('approve', ${p.id})" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200">Setujui</button>` : `<span class="text-xs text-green-600 font-bold"><i class="fas fa-check"></i> ${p.approval_status}</span>`;
+                let selectRole = `<select onchange="actionAdmin('assign', ${p.id}, this.value)" class="text-xs border rounded p-1 w-full focus:outline-none">
+                    <option value="" disabled ${!p.pos_tugas ? 'selected' : ''}>Pilih Pos</option>
+                    <option value="Pos Pemotongan" ${p.pos_tugas === 'Pos Pemotongan' ? 'selected' : ''}>Pos Pemotongan</option>
+                    <option value="Pos Penimbangan" ${p.pos_tugas === 'Pos Penimbangan' ? 'selected' : ''}>Pos Penimbangan</option>
+                    <option value="Pos Cacah Tulang" ${p.pos_tugas === 'Pos Cacah Tulang' ? 'selected' : ''}>Pos Cacah Tulang</option>
+                    <option value="Pos Distribusi Daging" ${p.pos_tugas === 'Pos Distribusi Daging' ? 'selected' : ''}>Pos Distribusi</option>
+                </select>`;
+
+                html += `
+                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="p-3">
+                        <div class="font-bold text-gray-800">${p.name}</div>
+                        <div class="text-xs text-gray-400">${p.no_hp || '-'}</div>
+                    </td>
+                    <td class="p-3">
+                        <div class="text-sm font-medium ${p.is_present ? 'text-green-600' : 'text-red-500'}">${p.is_present ? 'Hadir' : 'Belum Hadir'}</div>
+                        <div class="text-xs text-gray-400">${p.check_in_time || '-'}</div>
+                    </td>
+                    <td class="p-3">${btnApprove}</td>
+                    <td class="p-3">${selectRole}</td>
+                </tr>
+                `;
+            });
+        }
+        body.innerHTML = html;
+    }
+
+    function renderAnalytics(a) {
+        if(document.getElementById('statTotal')) {
+            document.getElementById('statTotal').innerText = a.total;
+            document.getElementById('statHadir').innerText = a.hadir;
+            document.getElementById('statMenunggu').innerText = a.menunggu;
+            document.getElementById('statTerlambat').innerText = a.terlambat;
+        }
+    }
+
+    // Window Functions for Forms & Actions
+    window.submitJoinForm = async function() {
+        const name = document.getElementById('j_name').value;
+        const hp = document.getElementById('j_hp').value;
+        const tugas = document.getElementById('j_tugas').value;
+        if(!name || !hp || !tugas) return alert('Lengkapi data');
+
+        try {
+            const res = await fetch('/idul-adha/absen-panitia/register', {
+                method: 'POST', headers: {'Content-Type':'application/json','X-CSRFToken':csrfToken},
+                body: JSON.stringify({name, hp, tugas})
+            });
+            if(res.ok) fetchAbsenData();
+        } catch(e) { console.error(e); }
+    }
+
+    window.submitHadir = async function() {
+        try {
+            const res = await fetch('/idul-adha/absen-panitia/checkin', {
+                method: 'POST', headers: {'Content-Type':'application/json','X-CSRFToken':csrfToken}
+            });
+            const data = await res.json();
+            if(res.ok && data.success) fetchAbsenData();
+            else alert(data.message || 'Gagal absen');
+        } catch(e) { console.error(e); }
+    }
+
+    window.actionAdmin = async function(action, id, val='') {
+        try {
+            const url = action === 'approve' ? '/idul-adha/absen-panitia/approve' : '/idul-adha/absen-panitia/assign';
+            const payload = { id: id };
+            if(val) payload.pos_tugas = val;
+
+            const res = await fetch(url, {
+                method: 'POST', headers: {'Content-Type':'application/json','X-CSRFToken':csrfToken},
+                body: JSON.stringify(payload)
+            });
+            if(res.ok) fetchAbsenData();
+        } catch(e) { console.error(e); }
+    }
+
+    // Admin Setting Form Submit
+    const settingForm = document.getElementById('settingWaktuForm');
+    if(settingForm) {
+        settingForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('saveSettingBtn');
+            btn.innerHTML = 'Saving...';
+            const fd = new FormData(settingForm);
+            const jsonData = Object.fromEntries(fd.entries());
+            try {
+                await fetch('/idul-adha/absen-panitia/settings', {
+                    method: 'POST', headers: {'Content-Type':'application/json','X-CSRFToken':csrfToken},
+                    body: JSON.stringify(jsonData)
+                });
+                btn.innerHTML = 'Save Settings';
+                fetchAbsenData();
+            } catch(e) { console.error(e); }
+        });
+    }
+
+    // Start Polling
+    fetchAbsenData();
+    setInterval(fetchAbsenData, 3000);
+});
+</script>
+'''
+
 IDUL_ADHA_DASHBOARD_HTML = """
 <div class="pt-20 md:pt-32 pb-32 px-5 md:px-8 bg-gray-50 font-sans text-gray-800 selection:bg-amber-200 selection:text-amber-900">
     <!-- DESKTOP SPLIT HEADER -->
@@ -3211,28 +4449,23 @@ IDUL_ADHA_DASHBOARD_HTML = """
                 </h2>
                 
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8 mb-8">
-                    <!-- ABSEN PANITIA (Time-Gated) -->
-                    {% if not is_valid_window %}
-                    <!-- DISABLED LATE STATE -->
-                    <div class="bg-red-50 p-5 md:p-8 rounded-3xl shadow-lg flex flex-col items-center justify-center h-36 md:h-48 border-2 border-red-500 opacity-80 relative overflow-hidden">
+                    <!-- ABSEN PANITIA -->
+                    <a href="/idul-adha/absen-panitia" class="p-5 md:p-8 rounded-3xl shadow-lg flex flex-col items-center justify-center h-36 md:h-48 border group hover:scale-105 hover:shadow-2xl transition-all duration-300 relative overflow-hidden {{ 'bg-red-50 border-red-500 opacity-90 cursor-pointer' if not is_valid_window else 'bg-white shadow-amber-200/50 border-amber-50 card-hover cursor-pointer' }}">
+                        {% if not is_valid_window %}
                         <div class="absolute -right-4 -top-4 w-16 h-16 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold transform rotate-12 shadow-lg">LATE</div>
-                        <div class="bg-red-100 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-red-600">
+                        <div class="bg-red-100 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-red-600 group-hover:bg-red-500 group-hover:text-white transition-colors">
                             <i class="fas fa-times-circle text-2xl md:text-3xl"></i>
                         </div>
-                        <span class="text-sm md:text-base font-bold text-red-700">Terlambat</span>
-                        <span class="text-[10px] text-red-500 text-center mt-1">Absensi Ditutup</span>
-                    </div>
-                    {% else %}
-                    <!-- ACTIVE FORM -->
-                    <form action="/idul-adha/absen" method="POST" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-amber-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-amber-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300 relative cursor-pointer" onclick="this.submit()">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <span class="text-sm md:text-base font-bold text-red-700">Absen Panitia</span>
+                        <span class="text-[10px] text-red-500 text-center mt-1">Terlambat / Ditutup</span>
+                        {% else %}
                         <div class="bg-amber-100 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-amber-700 group-hover:bg-amber-500 group-hover:text-white transition-colors">
                             <i class="fas fa-clipboard-check text-2xl md:text-3xl"></i>
                         </div>
                         <span class="text-sm md:text-base font-bold text-[#78350f] group-hover:text-amber-700">Absen Panitia</span>
-                        <span class="text-[10px] text-amber-600 font-medium absolute bottom-3">Batas: 08:30 AM</span>
-                    </form>
-                    {% endif %}
+                        <span class="text-[10px] text-amber-600 font-medium absolute bottom-3">Aktif</span>
+                        {% endif %}
+                    </a>
 
                     <!-- PLACEHOLDER 1 -->
                     <a href="/idul-adha/laporan" class="bg-white p-5 md:p-8 rounded-3xl shadow-lg shadow-gray-200/50 flex flex-col items-center justify-center card-hover h-36 md:h-48 border border-gray-50 group hover:scale-105 hover:shadow-2xl transition-all duration-300">
@@ -7880,6 +9113,55 @@ IRMA_DASHBOARD_HTML = """
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const addForm = document.getElementById('addRtForm');
+            if(addForm) {
+                addForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const btn = document.getElementById('addRtBtn');
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menambah...';
+
+                    const formData = new FormData(addForm);
+                    const jsonData = Object.fromEntries(formData.entries());
+                    const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+                    try {
+                        const response = await fetch('/idul-adha/peta-distribusi/add', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                            body: JSON.stringify(jsonData)
+                        });
+
+                        const data = await response.json();
+                        if(response.ok && data.success) {
+                            const modal = document.getElementById('generateRTAnim');
+                            const content = document.getElementById('rtModalContent');
+                            const text1 = document.getElementById('rtText1');
+                            const text2 = document.getElementById('rtText2');
+
+                            modal.classList.remove('opacity-0', 'pointer-events-none');
+                            content.classList.remove('scale-90');
+                            content.classList.add('scale-100');
+
+                            setTimeout(() => { text1.classList.remove('opacity-0'); text1.classList.add('opacity-100'); }, 1000);
+                            setTimeout(() => { text2.classList.remove('opacity-0'); text2.classList.add('opacity-100'); }, 1300);
+
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 3000);
+                        } else {
+                            alert(data.message || 'Gagal menambah RT');
+                            btn.disabled = false;
+                            btn.innerHTML = 'Tambah Data RT';
+                        }
+                    } catch(e) {
+                        alert('Kesalahan Jaringan');
+                        btn.disabled = false;
+                        btn.innerHTML = 'Tambah Data RT';
+                    }
+                });
+            }
+
             const open = '{{ open_modal }}';
             if(open && open !== 'None') openModal(open);
         });
@@ -8284,6 +9566,226 @@ def donate_update():
 
 # --- IDUL ADHA ROUTES ---
 
+
+import csv
+from io import StringIO
+from flask import make_response
+
+@app.route('/idul-adha/absen-panitia')
+def idul_adha_absen_panitia():
+    # Make sure session has a unique identifier for regular users
+    if not session.get('is_admin') and not session.get('user_session_id'):
+        import uuid
+        session['user_session_id'] = str(uuid.uuid4())
+        session.permanent = True
+
+    makassar_tz = pytz.timezone('Asia/Makassar')
+    current_time = datetime.datetime.now(makassar_tz)
+    settings = get_settings()
+
+    start_str = settings.get('absen_start_time', '06:30')
+    end_str = settings.get('absen_end_time', '08:30')
+    status_override = settings.get('absen_status', 'auto')
+
+    sh, sm = map(int, start_str.split(':'))
+    eh, em = map(int, end_str.split(':'))
+
+    start_time = current_time.replace(hour=sh, minute=sm, second=0, microsecond=0)
+    cutoff_time = current_time.replace(hour=eh, minute=em, second=0, microsecond=0)
+
+    if status_override == 'open':
+        is_valid_window = True
+    elif status_override == 'closed':
+        is_valid_window = False
+    else:
+        is_valid_window = start_time <= current_time <= cutoff_time
+
+    rendered_content = render_template_string(IDUL_ADHA_ABSEN_PANITIA_HTML,
+                                              is_valid_window=is_valid_window,
+                                              settings=settings,
+                                              is_admin=session.get('is_admin', False))
+
+    return render_template_string(BASE_LAYOUT,
+                                  styles=STYLES_HTML,
+                                  active_page='idul-adha',
+                                  content=rendered_content,
+                                  is_admin=session.get('is_admin', False),
+                                  settings=settings)
+
+@app.route('/idul-adha/absen-panitia/data')
+def idul_adha_absen_data():
+    makassar_tz = pytz.timezone('Asia/Makassar')
+    current_time = datetime.datetime.now(makassar_tz)
+    settings = get_settings()
+
+    start_str = settings.get('absen_start_time', '06:30')
+    end_str = settings.get('absen_end_time', '08:30')
+    status_override = settings.get('absen_status', 'auto')
+
+    sh, sm = map(int, start_str.split(':'))
+    eh, em = map(int, end_str.split(':'))
+
+    start_time = current_time.replace(hour=sh, minute=sm, second=0, microsecond=0)
+    cutoff_time = current_time.replace(hour=eh, minute=em, second=0, microsecond=0)
+
+    if status_override == 'open':
+        is_valid_window = True
+    elif status_override == 'closed':
+        is_valid_window = False
+    else:
+        is_valid_window = start_time <= current_time <= cutoff_time
+
+    # Calculate Countdown String
+    countdown_str = "--:--:--"
+    if is_valid_window and status_override != 'open':
+        diff = cutoff_time - current_time
+        if diff.total_seconds() > 0:
+            h, rem = divmod(diff.seconds, 3600)
+            m, s = divmod(rem, 60)
+            countdown_str = f"{h:02d}:{m:02d}:{s:02d}"
+
+    # Get User Data
+    user_data = None
+    if session.get('user_session_id'):
+        u = QurbanAttendance.query.filter_by(session_id=session.get('user_session_id')).first()
+        if u:
+            user_data = {
+                'id': u.id, 'name': u.name, 'approval_status': u.approval_status,
+                'is_present': u.is_present, 'pos_tugas': u.pos_tugas,
+                'check_in_time': u.check_in_time.strftime("%H:%M") if u.check_in_time else None
+            }
+
+    # Get Admin Data
+    all_data = []
+    analytics = {'total': 0, 'hadir': 0, 'menunggu': 0, 'terlambat': 0}
+    if session.get('is_admin'):
+        all_panitia = QurbanAttendance.query.all()
+        for p in all_panitia:
+            all_data.append({
+                'id': p.id, 'name': p.name, 'no_hp': p.no_hp,
+                'approval_status': p.approval_status, 'is_present': p.is_present,
+                'pos_tugas': p.pos_tugas,
+                'check_in_time': p.check_in_time.strftime("%H:%M") if p.check_in_time else None
+            })
+            analytics['total'] += 1
+            if p.is_present: analytics['hadir'] += 1
+            if p.approval_status == 'Menunggu': analytics['menunggu'] += 1
+            if not p.is_present and not is_valid_window: analytics['terlambat'] += 1
+
+    return jsonify({
+        'success': True,
+        'is_window_open': is_valid_window,
+        'countdown_str': countdown_str,
+        'user_data': user_data,
+        'all_data': all_data,
+        'analytics': analytics
+    })
+
+@app.route('/idul-adha/absen-panitia/settings', methods=['POST'])
+def idul_adha_absen_settings():
+    if not session.get('is_admin'): return jsonify({'success': False}), 403
+    req = request.get_json(silent=True) or {}
+    for k in ['absen_start', 'absen_end', 'absen_status']:
+        if k in req:
+            key_name = f"{k}_time" if k != 'absen_status' else k
+            s = AppSettings.query.get(key_name)
+            if not s:
+                s = AppSettings(key=key_name, value=req[k])
+                db.session.add(s)
+            else:
+                s.value = req[k]
+    try:
+        db.session.commit()
+        return jsonify({'success': True})
+    except:
+        db.session.rollback()
+        return jsonify({'success': False})
+
+@app.route('/idul-adha/absen-panitia/register', methods=['POST'])
+def idul_adha_absen_register():
+    req = request.get_json(silent=True) or {}
+    if not req.get('name'): return jsonify({'success': False})
+
+    sid = session.get('user_session_id')
+    if not sid:
+        import uuid
+        sid = str(uuid.uuid4())
+        session['user_session_id'] = sid
+        session.permanent = True
+
+    u = QurbanAttendance(
+        name=req.get('name'), no_hp=req.get('hp'), tugas_diinginkan=req.get('tugas'),
+        session_id=sid, approval_status='Menunggu'
+    )
+    db.session.add(u)
+    try:
+        db.session.commit()
+        return jsonify({'success': True})
+    except:
+        db.session.rollback()
+        return jsonify({'success': False})
+
+@app.route('/idul-adha/absen-panitia/approve', methods=['POST'])
+def idul_adha_absen_approve():
+    if not session.get('is_admin'): return jsonify({'success': False}), 403
+    req = request.get_json(silent=True) or {}
+    u = QurbanAttendance.query.get(req.get('id'))
+    if u:
+        u.approval_status = 'Approved'
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False})
+
+@app.route('/idul-adha/absen-panitia/assign', methods=['POST'])
+def idul_adha_absen_assign():
+    if not session.get('is_admin'): return jsonify({'success': False}), 403
+    req = request.get_json(silent=True) or {}
+    u = QurbanAttendance.query.get(req.get('id'))
+    if u:
+        u.pos_tugas = req.get('pos_tugas')
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False})
+
+@app.route('/idul-adha/absen-panitia/checkin', methods=['POST'])
+def idul_adha_absen_checkin():
+    sid = session.get('user_session_id')
+    if not sid: return jsonify({'success': False, 'message': 'Session expired'})
+
+    makassar_tz = pytz.timezone('Asia/Makassar')
+    current_time = datetime.datetime.now(makassar_tz)
+
+    u = QurbanAttendance.query.filter_by(session_id=sid).first()
+    if u and u.approval_status == 'Approved' and not u.is_present:
+        u.is_present = True
+        u.check_in_time = current_time
+        u.status = 'Hadir Pagi'
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'message': 'Gagal check-in'})
+
+@app.route('/idul-adha/absen-panitia/export')
+def idul_adha_absen_export():
+    if not session.get('is_admin'): return redirect(url_for('idul_adha_dashboard'))
+
+    panitia = QurbanAttendance.query.all()
+
+    si = StringIO()
+    cw = csv.writer(si)
+    cw.writerow(['ID', 'Nama Lengkap', 'No HP', 'Waktu Hadir', 'Status Approval', 'Pos Tugas', 'Status Kehadiran'])
+
+    for p in panitia:
+        cw.writerow([
+            p.id, p.name, p.no_hp, p.check_in_time.strftime("%Y-%m-%d %H:%M:%S") if p.check_in_time else '-',
+            p.approval_status, p.pos_tugas or '-', 'Hadir' if p.is_present else 'Belum/Terlambat'
+        ])
+
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = "attachment; filename=Laporan_Absensi_Panitia_Qurban.csv"
+    output.headers["Content-type"] = "text/csv"
+    return output
+
+
 @app.route('/idul-adha')
 def idul_adha_dashboard():
     makassar_tz = pytz.timezone('Asia/Makassar')
@@ -8357,19 +9859,28 @@ def idul_adha_laporan():
             app.logger.error(f"Error initializing QurbanReport: {e}", exc_info=True)
 
     if request.method == 'POST' and session.get('is_admin'):
-        report.total_sapi = int(request.form.get('total_sapi', 0))
-        report.total_kambing = int(request.form.get('total_kambing', 0))
-        report.estimasi_daging = int(request.form.get('estimasi_daging', 0))
-        report.paket_terdistribusi = int(request.form.get('paket_terdistribusi', 0))
-        report.paket_total = int(request.form.get('paket_total', 0))
         try:
+            req_data = request.get_json(silent=True) or request.form
+            report.total_sapi = int(req_data.get('total_sapi', 0))
+            report.total_kambing = int(req_data.get('total_kambing', 0))
+            report.estimasi_daging = int(req_data.get('estimasi_daging', 0))
+            report.paket_terdistribusi = int(req_data.get('paket_terdistribusi', 0))
+            report.paket_total = int(req_data.get('paket_total', 0))
             db.session.commit()
-            flash("Data berhasil disimpan", "success")
+
+            if request.is_json:
+                return jsonify({'success': True, 'message': 'Data berhasil disimpan'})
+            else:
+                flash("Data berhasil disimpan", "success")
+                return redirect(url_for('idul_adha_laporan'))
         except Exception as e:
             db.session.rollback()
-            flash("Gagal menyimpan data karena kesalahan server", "error")
             app.logger.error(f"Error updating QurbanReport: {e}", exc_info=True)
-        return redirect(url_for('idul_adha_laporan'))
+            if request.is_json:
+                return jsonify({'success': False, 'message': 'Kesalahan server'}), 500
+            else:
+                flash("Gagal menyimpan data karena kesalahan server", "error")
+                return redirect(url_for('idul_adha_laporan'))
 
     rendered_content = render_template_string(IDUL_ADHA_LAPORAN_HTML, report=report, is_admin=session.get('is_admin', False), settings=get_settings())
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=session.get('is_admin', False), settings=get_settings())
@@ -8386,44 +9897,69 @@ def idul_adha_shohibul():
 
 @app.route('/idul-adha/shohibul/generate', methods=['POST'])
 def idul_adha_shohibul_generate():
-    if not session.get('is_admin'): return redirect(url_for('idul_adha_shohibul'))
-    jenis = request.form.get('jenis_hewan')
-    nama = request.form.get('nama_shohibul')
-    prefix = 'SQ' if jenis == 'Sapi' else 'KQ'
-    last_record = QurbanShohibul.query.filter(QurbanShohibul.pin.like(f"{prefix}-%")).order_by(QurbanShohibul.id.desc()).first()
-    if last_record:
-        last_num = int(last_record.pin.split('-')[1])
-        next_num = last_num + 1
-    else:
-        next_num = 1
-    new_pin = f"{prefix}-{next_num:03d}"
-    shohibul = QurbanShohibul(pin=new_pin, jenis_hewan=jenis, nama_shohibul=nama)
+    if not session.get('is_admin'): return jsonify({'success': False, 'message': 'Unauthorized'}), 403
     try:
+        req_data = request.get_json(silent=True) or request.form
+        jenis = req_data.get('jenis_hewan')
+        nama = req_data.get('nama_shohibul')
+        prefix = 'SQ' if jenis == 'Sapi' else 'KQ'
+        last_record = QurbanShohibul.query.filter(QurbanShohibul.pin.like(f"{prefix}-%")).order_by(QurbanShohibul.id.desc()).first()
+        if last_record:
+            last_num = int(last_record.pin.split('-')[1])
+            next_num = last_num + 1
+        else:
+            next_num = 1
+        new_pin = f"{prefix}-{next_num:03d}"
+        shohibul = QurbanShohibul(pin=new_pin, jenis_hewan=jenis, nama_shohibul=nama)
         db.session.add(shohibul)
         db.session.commit()
-        flash(f"Berhasil meng-generate PIN {new_pin}", "success")
+        if request.is_json:
+            return jsonify({'success': True, 'pin': new_pin, 'message': f'Berhasil meng-generate PIN {new_pin}'})
+        else:
+            flash(f"Berhasil meng-generate PIN {new_pin}", "success")
+            return redirect(url_for('idul_adha_shohibul', pin=new_pin))
     except Exception as e:
         db.session.rollback()
-        flash("Gagal meng-generate PIN", "error")
         app.logger.error(f"Error in idul_adha_shohibul_generate: {e}", exc_info=True)
-    return redirect(url_for('idul_adha_shohibul', pin=new_pin))
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Gagal meng-generate PIN'})
+        else:
+            flash("Gagal meng-generate PIN", "error")
+            return redirect(url_for('idul_adha_shohibul'))
 
 @app.route('/idul-adha/shohibul/update_status', methods=['POST'])
+@csrf.exempt
 def idul_adha_shohibul_update_status():
-    if not session.get('is_admin'): return redirect(url_for('idul_adha_shohibul'))
-    pin = request.form.get('pin')
-    status = request.form.get('status')
+    if not session.get('is_admin'): return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    try:
+        req_data = request.get_json(silent=True) or request.form
+        pin = req_data.get('pin')
+        status = req_data.get('status')
+        shohibul = QurbanShohibul.query.filter_by(pin=pin).first()
+        if shohibul:
+            shohibul.status = status
+            db.session.commit()
+            if request.is_json:
+                return jsonify({'success': True, 'message': f'Status PIN {pin} berhasil diupdate.'})
+            else:
+                flash(f"Status PIN {pin} berhasil diupdate.", "success")
+                return redirect(url_for('idul_adha_shohibul', pin=pin))
+        return jsonify({'success': False, 'message': 'Not found'}), 404
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error in idul_adha_shohibul_update_status: {e}", exc_info=True)
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Gagal mengupdate status.'}), 500
+        return redirect(url_for('idul_adha_shohibul', pin=pin))
+
+@app.route('/idul-adha/shohibul/status_data', methods=['GET'])
+def idul_adha_shohibul_status_data():
+    pin = request.args.get('pin')
+    if not pin: return jsonify({'success': False, 'message': 'No PIN'}), 400
     shohibul = QurbanShohibul.query.filter_by(pin=pin).first()
     if shohibul:
-        shohibul.status = status
-        try:
-            db.session.commit()
-            flash(f"Status PIN {pin} berhasil diupdate.", "success")
-        except Exception as e:
-            db.session.rollback()
-            flash("Gagal mengupdate status.", "error")
-            app.logger.error(f"Error in idul_adha_shohibul_update_status: {e}", exc_info=True)
-    return redirect(url_for('idul_adha_shohibul', pin=pin))
+        return jsonify({'success': True, 'status': shohibul.status})
+    return jsonify({'success': False, 'message': 'Not found'}), 404
 
 @app.route('/idul-adha/peta-distribusi')
 def idul_adha_peta_distribusi():
@@ -8437,54 +9973,93 @@ def idul_adha_peta_distribusi():
 
 @app.route('/idul-adha/peta-distribusi/add', methods=['POST'])
 def idul_adha_peta_distribusi_add():
-    if not session.get('is_admin'): return redirect(url_for('idul_adha_peta_distribusi'))
-    rt = QurbanRT(nomor_card=request.form.get('nomor_card'), rt_name=request.form.get('rt_name'), nama_ketua_rt=request.form.get('nama_ketua_rt'), alokasi=int(request.form.get('alokasi', 0)))
-    db.session.add(rt)
+    if not session.get('is_admin'): return jsonify({'success': False, 'message': 'Unauthorized'}), 403
     try:
+        req_data = request.get_json(silent=True) or request.form
+        rt = QurbanRT(
+            nomor_card=req_data.get('nomor_card'),
+            rt_name=req_data.get('rt_name'),
+            nama_ketua_rt=req_data.get('nama_ketua_rt'),
+            alokasi=int(req_data.get('alokasi', 0))
+        )
+        db.session.add(rt)
         db.session.commit()
-        flash("Data RT berhasil ditambahkan.", "success")
+        if request.is_json:
+            return jsonify({'success': True, 'message': 'Data RT berhasil ditambahkan.'})
+        else:
+            flash("Data RT berhasil ditambahkan.", "success")
+            return redirect(url_for('idul_adha_peta_distribusi'))
     except Exception as e:
         db.session.rollback()
-        flash("Gagal menambahkan data RT.", "error")
         app.logger.error(f"Error in idul_adha_peta_distribusi_add: {e}", exc_info=True)
-    return redirect(url_for('idul_adha_peta_distribusi'))
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Gagal menambahkan data RT.'}), 500
+        else:
+            flash("Gagal menambahkan data RT.", "error")
+            return redirect(url_for('idul_adha_peta_distribusi'))
 
 @app.route('/idul-adha/peta-distribusi/edit', methods=['POST'])
 def idul_adha_peta_distribusi_edit():
-    if not session.get('is_admin'): return redirect(url_for('idul_adha_peta_distribusi'))
-    rt_id = request.form.get('rt_id')
-    rt = QurbanRT.query.get(rt_id)
-    if rt:
-        rt.nomor_card = request.form.get('nomor_card')
-        rt.rt_name = request.form.get('rt_name')
-        rt.nama_ketua_rt = request.form.get('nama_ketua_rt')
-        rt.alokasi = int(request.form.get('alokasi', 0))
-        rt.status = request.form.get('status')
-        try:
+    if not session.get('is_admin'): return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    try:
+        req_data = request.get_json(silent=True) or request.form
+        rt_id = req_data.get('rt_id')
+        rt = QurbanRT.query.get(rt_id)
+        if rt:
+            rt.nomor_card = req_data.get('nomor_card')
+            rt.rt_name = req_data.get('rt_name')
+            rt.nama_ketua_rt = req_data.get('nama_ketua_rt')
+            rt.alokasi = int(req_data.get('alokasi', 0))
+            rt.status = req_data.get('status')
             db.session.commit()
-            flash("Data RT berhasil diupdate.", "success")
-        except Exception as e:
-            db.session.rollback()
-            flash("Gagal mengupdate data RT.", "error")
-            app.logger.error(f"Error in idul_adha_peta_distribusi_edit: {e}", exc_info=True)
-    return redirect(url_for('idul_adha_peta_distribusi'))
+            if request.is_json: return jsonify({'success': True, 'message': 'Data RT diupdate.'})
+            else:
+                flash("Data RT berhasil diupdate.", "success")
+                return redirect(url_for('idul_adha_peta_distribusi'))
+        return jsonify({'success': False, 'message': 'Not found'}), 404
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error in idul_adha_peta_distribusi_edit: {e}", exc_info=True)
+        if request.is_json: return jsonify({'success': False, 'message': 'Gagal mengupdate.'}), 500
+        return redirect(url_for('idul_adha_peta_distribusi'))
 
 @app.route('/idul-adha/peta-distribusi/update_status', methods=['POST'])
+@csrf.exempt
 def idul_adha_peta_distribusi_update_status():
-    if not session.get('is_admin'): return redirect(url_for('idul_adha_peta_distribusi'))
-    rt_id = request.form.get('rt_id')
-    status = request.form.get('status')
-    rt = QurbanRT.query.get(rt_id)
-    if rt:
-        rt.status = status
-        try:
+    if not session.get('is_admin'): return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    try:
+        req_data = request.get_json(silent=True) or request.form
+        rt_id = req_data.get('rt_id')
+        status = req_data.get('status')
+        rt = QurbanRT.query.get(rt_id)
+        if rt:
+            rt.status = status
             db.session.commit()
-            flash("Status RT berhasil diupdate.", "success")
-        except Exception as e:
-            db.session.rollback()
-            flash("Gagal mengupdate status RT.", "error")
-            app.logger.error(f"Error in idul_adha_peta_distribusi_update_status: {e}", exc_info=True)
-    return redirect(url_for('idul_adha_peta_distribusi'))
+            if request.is_json: return jsonify({'success': True, 'message': 'Status diupdate.'})
+            else:
+                flash("Status RT berhasil diupdate.", "success")
+                return redirect(url_for('idul_adha_peta_distribusi'))
+        return jsonify({'success': False, 'message': 'Not found'}), 404
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error in idul_adha_peta_distribusi_update_status: {e}", exc_info=True)
+        if request.is_json: return jsonify({'success': False, 'message': 'Gagal mengupdate.'}), 500
+        return redirect(url_for('idul_adha_peta_distribusi'))
+
+@app.route('/idul-adha/peta-distribusi/data', methods=['GET'])
+def idul_adha_peta_distribusi_data():
+    rt_list = QurbanRT.query.order_by(QurbanRT.id.asc()).all()
+    total_rt = len(rt_list)
+    diserahkan_count = len([rt for rt in rt_list if rt.status == 'Diserahkan'])
+    progress_percentage = (diserahkan_count / total_rt * 100) if total_rt > 0 else 0
+    rt_data = [{'id': rt.id, 'status': rt.status} for rt in rt_list]
+    return jsonify({
+        'success': True,
+        'total_rt': total_rt,
+        'diserahkan_count': diserahkan_count,
+        'progress_percentage': progress_percentage,
+        'rt_list': rt_data
+    })
 
 @app.route('/idul-adha/panduan')
 def idul_adha_panduan():
@@ -8507,31 +10082,62 @@ def idul_adha_distribution():
 
 @app.route('/idul-adha/pembagian/generate', methods=['POST'])
 def idul_adha_pembagian_generate():
-    if not session.get('is_admin'): return redirect(url_for('idul_adha_distribution'))
-    nama = request.form.get('nama_penerima')
-    rt = request.form.get('rt')
-    waktu = request.form.get('waktu_pengambilan')
-    lokasi = request.form.get('lokasi_pengambilan')
-    last_record = QurbanKupon.query.filter(QurbanKupon.nomor_kupon.like("KPN-%")).order_by(QurbanKupon.id.desc()).first()
-    if last_record:
-        last_num = int(last_record.nomor_kupon.split('-')[1])
-        next_num = last_num + 1
-    else:
-        next_num = 1
-    new_kupon = f"KPN-{next_num:03d}"
-    kupon_entry = QurbanKupon(nomor_kupon=new_kupon, nama_penerima=nama, rt=rt, waktu_pengambilan=waktu, lokasi_pengambilan=lokasi)
+    if not session.get('is_admin'): return jsonify({'success': False, 'message': 'Unauthorized'}), 403
     try:
+        req_data = request.get_json(silent=True) or request.form
+        nama = req_data.get('nama_penerima')
+        rt = req_data.get('rt')
+        waktu = req_data.get('waktu_pengambilan')
+        lokasi = req_data.get('lokasi_pengambilan')
+        last_record = QurbanKupon.query.filter(QurbanKupon.nomor_kupon.like("KPN-%")).order_by(QurbanKupon.id.desc()).first()
+        if last_record:
+            last_num = int(last_record.nomor_kupon.split('-')[1])
+            next_num = last_num + 1
+        else:
+            next_num = 1
+        new_kupon = f"KPN-{next_num:03d}"
+        kupon_entry = QurbanKupon(nomor_kupon=new_kupon, nama_penerima=nama, rt=rt, waktu_pengambilan=waktu, lokasi_pengambilan=lokasi)
         db.session.add(kupon_entry)
         db.session.commit()
-        flash(f"Berhasil meng-generate Kupon {new_kupon}", "success")
+        if request.is_json:
+            return jsonify({'success': True, 'kupon': new_kupon, 'message': f'Berhasil meng-generate Kupon {new_kupon}'})
+        else:
+            flash(f"Berhasil meng-generate Kupon {new_kupon}", "success")
+            return redirect(url_for('idul_adha_distribution', q=new_kupon))
     except Exception as e:
         db.session.rollback()
-        flash("Gagal meng-generate Kupon", "error")
         app.logger.error(f"Error in idul_adha_pembagian_generate: {e}", exc_info=True)
-    return redirect(url_for('idul_adha_distribution', q=new_kupon))
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Gagal meng-generate Kupon'}), 500
+        else:
+            flash("Gagal meng-generate Kupon", "error")
+            return redirect(url_for('idul_adha_distribution'))
 
 with app.app_context():
     db.create_all()
+    # Safely add columns to QurbanAttendance if they don't exist
+    try:
+        if 'mysql' in app.config['SQLALCHEMY_DATABASE_URI']:
+            engine = db.engine
+            with engine.connect() as conn:
+                try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN no_hp VARCHAR(20) NULL"))
+                except Exception: pass
+                try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN tugas_diinginkan VARCHAR(255) NULL"))
+                except Exception: pass
+                try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN pos_tugas VARCHAR(255) NULL"))
+                except Exception: pass
+                try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN approval_status VARCHAR(50) DEFAULT 'Menunggu'"))
+                except Exception: pass
+                try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN is_present BOOLEAN DEFAULT 0"))
+                except Exception: pass
+                try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN session_id VARCHAR(255) NULL"))
+                except Exception: pass
+                try: conn.execute(text("ALTER TABLE qurban_attendance MODIFY COLUMN check_in_time DATETIME NULL"))
+                except Exception: pass
+                try: conn.execute(text("ALTER TABLE qurban_attendance MODIFY COLUMN status VARCHAR(50) NULL"))
+                except Exception: pass
+    except Exception as e:
+        app.logger.error(f"Error updating QurbanAttendance table schema: {e}")
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
