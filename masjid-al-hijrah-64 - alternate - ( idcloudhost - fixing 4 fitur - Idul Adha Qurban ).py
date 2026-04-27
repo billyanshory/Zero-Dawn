@@ -823,7 +823,7 @@ def model_getitem(self, key):
 
 for model in [Finance, Agenda, Booking, Zakat, GalleryDakwah, Suggestion, RamadhanKas, 
               TarawihSchedule, IrmaSchedule, IrmaMember, IrmaKas, IrmaGallery, 
-              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings, QurbanAttendance]:
+              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings, QurbanAttendance, QurbanReport, QurbanShohibul, QurbanKupon, QurbanRT]:
     model.__getitem__ = model_getitem
 
 STYLES_HTML = """
@@ -8328,13 +8328,18 @@ def idul_adha_absen():
         check_in_time=current_time,
         status=status
     )
-    db.session.add(attendance)
-    db.session.commit()
     
-    if status == 'Hadir Pagi':
-        flash('Berhasil absen. Anda tercatat Hadir Pagi.', 'success')
-    else:
-        flash('Absen gagal atau terlambat. Anda tercatat Terlambat.', 'error')
+    try:
+        db.session.add(attendance)
+        db.session.commit()
+        if status == 'Hadir Pagi':
+            flash('Berhasil absen. Anda tercatat Hadir Pagi.', 'success')
+        else:
+            flash('Absen gagal atau terlambat. Anda tercatat Terlambat.', 'error')
+    except Exception as e:
+        db.session.rollback()
+        flash('Terjadi kesalahan pada server saat menyimpan absen.', 'error')
+        app.logger.error(f"Error in idul_adha_absen: {e}", exc_info=True)
         
     return redirect(url_for('idul_adha_dashboard'))
 
@@ -8344,8 +8349,12 @@ def idul_adha_laporan():
     report = QurbanReport.query.first()
     if not report:
         report = QurbanReport(total_sapi=12, total_kambing=20, estimasi_daging=1500, paket_terdistribusi=450, paket_total=1000)
-        db.session.add(report)
-        db.session.commit()
+        try:
+            db.session.add(report)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error initializing QurbanReport: {e}", exc_info=True)
 
     if request.method == 'POST' and session.get('is_admin'):
         report.total_sapi = int(request.form.get('total_sapi', 0))
@@ -8356,8 +8365,10 @@ def idul_adha_laporan():
         try:
             db.session.commit()
             flash("Data berhasil disimpan", "success")
-        except:
+        except Exception as e:
             db.session.rollback()
+            flash("Gagal menyimpan data karena kesalahan server", "error")
+            app.logger.error(f"Error updating QurbanReport: {e}", exc_info=True)
         return redirect(url_for('idul_adha_laporan'))
 
     rendered_content = render_template_string(IDUL_ADHA_LAPORAN_HTML, report=report, is_admin=session.get('is_admin', False), settings=get_settings())
@@ -8390,8 +8401,11 @@ def idul_adha_shohibul_generate():
     try:
         db.session.add(shohibul)
         db.session.commit()
+        flash(f"Berhasil meng-generate PIN {new_pin}", "success")
     except Exception as e:
         db.session.rollback()
+        flash("Gagal meng-generate PIN", "error")
+        app.logger.error(f"Error in idul_adha_shohibul_generate: {e}", exc_info=True)
     return redirect(url_for('idul_adha_shohibul', pin=new_pin))
 
 @app.route('/idul-adha/shohibul/update_status', methods=['POST'])
@@ -8404,8 +8418,11 @@ def idul_adha_shohibul_update_status():
         shohibul.status = status
         try:
             db.session.commit()
-        except:
+            flash(f"Status PIN {pin} berhasil diupdate.", "success")
+        except Exception as e:
             db.session.rollback()
+            flash("Gagal mengupdate status.", "error")
+            app.logger.error(f"Error in idul_adha_shohibul_update_status: {e}", exc_info=True)
     return redirect(url_for('idul_adha_shohibul', pin=pin))
 
 @app.route('/idul-adha/peta-distribusi')
@@ -8425,8 +8442,11 @@ def idul_adha_peta_distribusi_add():
     db.session.add(rt)
     try:
         db.session.commit()
-    except:
+        flash("Data RT berhasil ditambahkan.", "success")
+    except Exception as e:
         db.session.rollback()
+        flash("Gagal menambahkan data RT.", "error")
+        app.logger.error(f"Error in idul_adha_peta_distribusi_add: {e}", exc_info=True)
     return redirect(url_for('idul_adha_peta_distribusi'))
 
 @app.route('/idul-adha/peta-distribusi/edit', methods=['POST'])
@@ -8442,8 +8462,11 @@ def idul_adha_peta_distribusi_edit():
         rt.status = request.form.get('status')
         try:
             db.session.commit()
-        except:
+            flash("Data RT berhasil diupdate.", "success")
+        except Exception as e:
             db.session.rollback()
+            flash("Gagal mengupdate data RT.", "error")
+            app.logger.error(f"Error in idul_adha_peta_distribusi_edit: {e}", exc_info=True)
     return redirect(url_for('idul_adha_peta_distribusi'))
 
 @app.route('/idul-adha/peta-distribusi/update_status', methods=['POST'])
@@ -8456,8 +8479,11 @@ def idul_adha_peta_distribusi_update_status():
         rt.status = status
         try:
             db.session.commit()
-        except:
+            flash("Status RT berhasil diupdate.", "success")
+        except Exception as e:
             db.session.rollback()
+            flash("Gagal mengupdate status RT.", "error")
+            app.logger.error(f"Error in idul_adha_peta_distribusi_update_status: {e}", exc_info=True)
     return redirect(url_for('idul_adha_peta_distribusi'))
 
 @app.route('/idul-adha/panduan')
@@ -8497,12 +8523,15 @@ def idul_adha_pembagian_generate():
     try:
         db.session.add(kupon_entry)
         db.session.commit()
+        flash(f"Berhasil meng-generate Kupon {new_kupon}", "success")
     except Exception as e:
         db.session.rollback()
+        flash("Gagal meng-generate Kupon", "error")
+        app.logger.error(f"Error in idul_adha_pembagian_generate: {e}", exc_info=True)
     return redirect(url_for('idul_adha_distribution', q=new_kupon))
 
+with app.app_context():
+    db.create_all()
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(debug=True, port=5000)
