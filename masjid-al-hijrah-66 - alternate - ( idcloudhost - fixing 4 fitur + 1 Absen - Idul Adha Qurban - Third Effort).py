@@ -29,7 +29,7 @@ csrf = CSRFProtect(app)
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["200 per day", "50 per hour"],
+    default_limits=["2000 per day", "500 per hour"],
     storage_uri="memory://",
 )
 
@@ -2999,8 +2999,15 @@ IDUL_ADHA_SHOHIBUL_HTML = '''
         {% if is_admin %}
         <div class="bg-white rounded-3xl shadow-xl border border-[#8B2635] p-6 mb-8 relative">
             <div class="absolute top-0 right-0 bg-[#8B2635] text-white px-3 py-1 rounded-bl-xl rounded-tr-3xl text-xs font-bold"><i class="fas fa-lock mr-1"></i> Panel Admin</div>
-            <h2 class="text-xl font-bold text-[#8B2635] mb-4">Generate PIN Shohibul</h2>
-            <form action="/idul-adha/shohibul/generate" method="POST" class="space-y-4">
+
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-[#8B2635]">Generate PIN Shohibul</h2>
+                <button type="button" onclick="document.getElementById('modal-list-shohibul').classList.remove('hidden')" class="bg-gray-100 text-gray-600 hover:text-[#8B2635] hover:bg-red-50 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 transition-colors shadow-sm">
+                    <i class="fas fa-list"></i> List Shohibul
+                </button>
+            </div>
+
+            <form action="/idul-adha/shohibul/generate" method="POST" class="space-y-4" id="generatePinForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div>
                     <label class="block text-sm font-bold text-gray-600 mb-1">Jenis Hewan</label>
@@ -3013,8 +3020,54 @@ IDUL_ADHA_SHOHIBUL_HTML = '''
                     <label class="block text-sm font-bold text-gray-600 mb-1">Nama Shohibul (1 atau lebih)</label>
                     <textarea name="nama_shohibul" rows="2" placeholder="Bapak Abdullah, Ibu Siti, dsb" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#8B2635]" required></textarea>
                 </div>
-                <button type="submit" class="w-full bg-[#8B2635] text-white font-bold py-3 rounded-xl hover:bg-red-800 shadow-md">Generate & Save</button>
+                <button type="submit" id="generatePinBtn" class="w-full bg-[#8B2635] text-white font-bold py-3 rounded-xl hover:bg-red-800 shadow-md">Generate & Save</button>
             </form>
+        </div>
+
+        <!-- Modal List Shohibul -->
+        <div id="modal-list-shohibul" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 relative max-h-[80vh] flex flex-col">
+                <button type="button" onclick="document.getElementById('modal-list-shohibul').classList.add('hidden')" class="absolute top-4 right-4 bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center">&times;</button>
+                <h3 class="text-xl font-bold text-[#8B2635] mb-4 border-b border-gray-100 pb-2">List Shohibul</h3>
+
+                <div class="overflow-y-auto custom-scrollbar flex-1 space-y-3">
+                    {% for item in all_shohibul %}
+                    <a href="/idul-adha/shohibul?pin={{ item.pin }}" class="block bg-gray-50 hover:bg-red-50 border border-gray-200 hover:border-red-200 rounded-xl p-4 transition-colors">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="font-bold text-gray-800 text-sm">{{ item.jenis_hewan }} ({{ item.nama_shohibul }})</span>
+                        </div>
+                        <div class="flex justify-between items-center mt-2">
+                            <span class="text-xs text-gray-500 font-mono">PIN: {{ item.pin }}</span>
+                            <span class="text-[10px] font-bold px-2 py-1 rounded-md
+                                {{ 'bg-amber-100 text-amber-700' if item.status == 'Menunggu Giliran' else
+                                   'bg-red-100 text-red-700' if item.status == 'Sedang Disembelih' else
+                                   'bg-blue-100 text-blue-700' if item.status == 'Proses Pencacahan' else
+                                   'bg-green-100 text-green-700' }}">
+                                {{ item.status }}
+                            </span>
+                        </div>
+                    </a>
+                    {% else %}
+                    <p class="text-center text-gray-500 py-4 text-sm">Belum ada data Shohibul.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- SUCCESS MODAL ANIMATION FOR GENERATE PIN -->
+        <div id="generatePinAnim" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 opacity-0 pointer-events-none transition-opacity duration-300">
+            <div class="bg-white rounded-3xl p-8 transform scale-90 transition-transform duration-300 flex flex-col items-center shadow-2xl" id="pinModalContent">
+                <div class="w-32 h-32 relative mb-6 transform scale-0 transition-transform duration-500 flex items-center justify-center" id="pinLogoCont">
+                    <div class="absolute inset-0 flex items-center justify-center text-gray-200">
+                        <i class="fas fa-star-and-crescent text-[80px]"></i>
+                    </div>
+                    <div class="absolute inset-0 flex items-center justify-center text-[#8B2635] overflow-hidden" style="clip-path: inset(100% 0 0 0); transition: clip-path 2s ease-in-out;" id="waterFill">
+                        <i class="fas fa-star-and-crescent text-[80px]"></i>
+                    </div>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 opacity-0 transition-opacity duration-500" id="pinText1">PIN Berhasil Digenerate!</h3>
+                <p class="text-gray-500 mt-2 opacity-0 transition-opacity duration-500 text-center" id="pinText2">Sistem sedang menyiapkan tracker hewan Anda...</p>
+            </div>
         </div>
         {% endif %}
 
@@ -3028,6 +3081,30 @@ IDUL_ADHA_SHOHIBUL_HTML = '''
         </div>
 
         {% if shohibul %}
+        <div id="tracker-panel"></div>
+        <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 text-center" id="liveStatusContainer">
+            <h3 class="text-lg font-bold text-gray-800 mb-2">Kondisi Status Hewan Qurban Terbaru:</h3>
+            <div id="liveStatusBadge" class="px-4 py-2 rounded-full text-sm font-bold bg-amber-100 text-amber-700 inline-block mb-6">{{ shohibul.status }}</div>
+
+            {% if is_admin %}
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="statusUpdateBtns" data-pin="{{ shohibul.pin }}">
+                <button onclick="updateStatus('Menunggu Giliran', this)" class="status-btn py-3 rounded-xl font-bold border-2 transition-colors {{ 'border-amber-500 bg-amber-50 text-amber-700 active-status' if shohibul.status == 'Menunggu Giliran' else 'border-gray-200 text-gray-500 hover:border-gray-300' }}">Menunggu Giliran</button>
+                <button onclick="updateStatus('Sedang Disembelih', this)" class="status-btn py-3 rounded-xl font-bold border-2 transition-colors {{ 'border-red-500 bg-red-50 text-red-700 active-status' if shohibul.status == 'Sedang Disembelih' else 'border-gray-200 text-gray-500 hover:border-gray-300' }}">Sedang Disembelih</button>
+                <button onclick="updateStatus('Proses Pencacahan', this)" class="status-btn py-3 rounded-xl font-bold border-2 transition-colors {{ 'border-blue-500 bg-blue-50 text-blue-700 active-status' if shohibul.status == 'Proses Pencacahan' else 'border-gray-200 text-gray-500 hover:border-gray-300' }}">Proses Pencacahan</button>
+                <button onclick="updateStatus('Jatah Sohibul Siap Diambil', this)" class="status-btn py-3 rounded-xl font-bold border-2 transition-colors {{ 'border-green-500 bg-green-50 text-green-700 active-status' if shohibul.status == 'Jatah Sohibul Siap Diambil' else 'border-gray-200 text-gray-500 hover:border-gray-300' }}">Siap Diambil</button>
+            </div>
+            {% endif %}
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const panel = document.getElementById('tracker-panel');
+                if (panel) {
+                    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        </script>
+
         <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
             <div class="flex items-center justify-between mb-8 pb-6 border-b border-gray-100">
                 <div>
@@ -3038,6 +3115,24 @@ IDUL_ADHA_SHOHIBUL_HTML = '''
             </div>
             
             <div class="space-y-6 relative">
+                <!-- Tracking Bar (Added for completeness matching the JS) -->
+                <div class="flex justify-between items-center mb-8 relative px-2">
+                    <div class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-2 bg-gray-200 rounded-full z-0 overflow-hidden">
+                        <div id="progressLine" class="h-full bg-[#8B2635] transition-all duration-1000" style="width: {% if shohibul.status == 'Menunggu Giliran' %}0%{% elif shohibul.status == 'Sedang Disembelih' %}33%{% elif shohibul.status == 'Proses Pencacahan' %}66%{% else %}100%{% endif %}"></div>
+                    </div>
+
+                    <div class="w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center font-bold relative z-10 transition-colors duration-500 {% if shohibul.status in ['Sedang Disembelih', 'Proses Pencacahan', 'Jatah Sohibul Siap Diambil'] %}bg-green-500 text-white{% else %}bg-[#8B2635] text-white ring-4 ring-red-100{% endif %}" id="step-1">
+                        {% if shohibul.status in ['Sedang Disembelih', 'Proses Pencacahan', 'Jatah Sohibul Siap Diambil'] %}<i class="fas fa-check"></i>{% else %}1{% endif %}
+                    </div>
+                    <div class="w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center font-bold relative z-10 transition-colors duration-500 {% if shohibul.status in ['Proses Pencacahan', 'Jatah Sohibul Siap Diambil'] %}bg-green-500 text-white{% elif shohibul.status == 'Sedang Disembelih' %}bg-[#8B2635] text-white ring-4 ring-red-100{% else %}bg-gray-200 text-gray-400{% endif %}" id="step-2">
+                        {% if shohibul.status in ['Proses Pencacahan', 'Jatah Sohibul Siap Diambil'] %}<i class="fas fa-check"></i>{% else %}2{% endif %}
+                    </div>
+                    <div class="w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center font-bold relative z-10 transition-colors duration-500 {% if shohibul.status == 'Jatah Sohibul Siap Diambil' %}bg-green-500 text-white{% elif shohibul.status == 'Proses Pencacahan' %}bg-[#8B2635] text-white ring-4 ring-red-100{% else %}bg-gray-200 text-gray-400{% endif %}" id="step-3">
+                        {% if shohibul.status == 'Jatah Sohibul Siap Diambil' %}<i class="fas fa-check"></i>{% else %}3{% endif %}
+                    </div>
+                    <div class="w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center font-bold relative z-10 transition-colors duration-500 {% if shohibul.status == 'Jatah Sohibul Siap Diambil' %}bg-[#8B2635] text-white ring-4 ring-red-100{% else %}bg-gray-200 text-gray-400{% endif %}" id="step-4">4</div>
+                </div>
+
                 {% set states = [
                     ('Menunggu Giliran', 'Hewan qurban telah tiba dan sedang diistirahatkan.', 'fas fa-hourglass-half'),
                     ('Sedang Disembelih', 'Alhamdulillah, proses penyembelihan sedang berlangsung sesuai syariat.', 'fas fa-knife'),
@@ -3140,7 +3235,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     content.classList.add('scale-100');
                     
                     setTimeout(() => { logoCont.classList.remove('scale-0'); logoCont.classList.add('scale-100'); }, 100);
-                    setTimeout(() => { water.style.height = '100%'; }, 500);
+                    setTimeout(() => { water.style.clipPath = 'inset(0 0 0 0)'; }, 500);
                     setTimeout(() => { text1.classList.remove('opacity-0'); text1.classList.add('opacity-100'); }, 1500);
                     setTimeout(() => { text2.classList.remove('opacity-0'); text2.classList.add('opacity-100'); }, 1800);
                     
@@ -3269,8 +3364,15 @@ IDUL_ADHA_PEMBAGIAN_HTML = '''
         {% if is_admin %}
         <div class="bg-white rounded-3xl shadow-xl border border-[#1B4332] p-6 mb-8 relative">
             <div class="absolute top-0 right-0 bg-[#1B4332] text-white px-3 py-1 rounded-bl-xl rounded-tr-3xl text-xs font-bold"><i class="fas fa-lock mr-1"></i> Panel Admin</div>
-            <h2 class="text-xl font-bold text-[#1B4332] mb-4">Generate E-Kupon Qurban</h2>
-            <form action="/idul-adha/pembagian/generate" method="POST" class="space-y-4">
+
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-[#1B4332]">Generate E-Kupon Qurban</h2>
+                <button type="button" onclick="document.getElementById('modal-list-kupon').classList.remove('hidden')" class="bg-gray-100 text-gray-600 hover:text-[#1B4332] hover:bg-green-50 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 transition-colors shadow-sm">
+                    <i class="fas fa-ticket-alt"></i> Lihat E-Kupon
+                </button>
+            </div>
+
+            <form action="/idul-adha/pembagian/generate" method="POST" class="space-y-4" id="generateKuponForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div>
                     <label class="block text-sm font-bold text-gray-600 mb-1">Nama Penerima</label>
@@ -3290,8 +3392,50 @@ IDUL_ADHA_PEMBAGIAN_HTML = '''
                     <label class="block text-sm font-bold text-gray-600 mb-1">Lokasi Pengambilan (Teks)</label>
                     <textarea name="lokasi_pengambilan" rows="2" placeholder="di Rumah Pak RT sama Pak RT" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#1B4332]" required></textarea>
                 </div>
-                <button type="submit" class="w-full bg-[#1B4332] text-white font-bold py-3 rounded-xl hover:bg-green-900 shadow-md">Generate & Save Kupon</button>
+                <button type="submit" id="generateKuponBtn" class="w-full bg-[#1B4332] text-white font-bold py-3 rounded-xl hover:bg-green-900 shadow-md">Generate & Save Kupon</button>
             </form>
+        </div>
+
+        <!-- Modal List Kupon -->
+        <div id="modal-list-kupon" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 relative max-h-[80vh] flex flex-col">
+                <button type="button" onclick="document.getElementById('modal-list-kupon').classList.add('hidden')" class="absolute top-4 right-4 bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center">&times;</button>
+                <h3 class="text-xl font-bold text-[#1B4332] mb-4 border-b border-gray-100 pb-2">List E-Kupon Warga</h3>
+
+                <div class="overflow-y-auto custom-scrollbar flex-1 space-y-3">
+                    {% for item in all_kupon %}
+                    <a href="/idul-adha/distribution?q={{ item.nomor_kupon }}" class="block bg-gray-50 hover:bg-green-50 border border-gray-200 hover:border-green-200 rounded-xl p-4 transition-colors">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="font-bold text-gray-800 text-sm">{{ item.nama_penerima }}</span>
+                        </div>
+                        <div class="flex justify-between items-center mt-2">
+                            <span class="text-xs text-gray-500 font-mono">E-KUPON: {{ item.nomor_kupon }}</span>
+                            <span class="text-[10px] font-bold px-2 py-1 rounded-md bg-emerald-100 text-emerald-700">
+                                {{ item.rt }}
+                            </span>
+                        </div>
+                    </a>
+                    {% else %}
+                    <p class="text-center text-gray-500 py-4 text-sm">Belum ada data E-Kupon.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- SUCCESS MODAL ANIMATION FOR GENERATE KUPON -->
+        <div id="generateKuponAnim" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 opacity-0 pointer-events-none transition-opacity duration-300">
+            <div class="bg-white rounded-3xl p-8 transform scale-90 transition-transform duration-300 flex flex-col items-center shadow-2xl" id="kuponModalContent">
+                <div class="w-32 h-32 relative mb-6 transform scale-0 transition-transform duration-500 flex items-center justify-center" id="kuponLogoCont">
+                    <div class="absolute inset-0 flex items-center justify-center text-gray-200">
+                        <i class="fas fa-cow text-[80px]"></i>
+                    </div>
+                    <div class="absolute inset-0 flex items-center justify-center text-[#1B4332] overflow-hidden" style="clip-path: inset(100% 0 0 0); transition: clip-path 2s ease-in-out;" id="sketchFill">
+                        <i class="fas fa-cow text-[80px]"></i>
+                    </div>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 opacity-0 transition-opacity duration-500" id="kuponText1">E-Kupon Berhasil Digenerate!</h3>
+                <p class="text-gray-500 mt-2 opacity-0 transition-opacity duration-500 text-center" id="kuponText2">Sistem sedang menyiapkan data kupon warga...</p>
+            </div>
         </div>
         {% endif %}
 
@@ -3315,6 +3459,8 @@ IDUL_ADHA_PEMBAGIAN_HTML = '''
         </div>
 
         {% if kupon %}
+        <div id="tracker-panel-kupon"></div>
+        <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">Isi Data E-Kupon Warga Tertentu:</h3>
         <div id="hasil-kupon" class="bg-[#1B4332] rounded-3xl shadow-2xl p-8 text-white relative overflow-hidden">
             <div class="absolute -right-10 -top-10 text-emerald-800 opacity-20">
                 <i class="fas fa-qrcode text-9xl"></i>
@@ -3353,6 +3499,14 @@ IDUL_ADHA_PEMBAGIAN_HTML = '''
                 </div>
             </div>
         </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const panel = document.getElementById('tracker-panel-kupon');
+                if (panel) {
+                    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        </script>
         {% elif request.args.get('q') %}
         <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 text-center">
              <p class="text-red-500 font-bold">Data kupon tidak ditemukan.</p>
@@ -3380,6 +3534,64 @@ IDUL_ADHA_PEMBAGIAN_HTML = '''
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // 1. Kupon Generation AJAX & Animation
+    const kuponForm = document.getElementById('generateKuponForm');
+    if(kuponForm) {
+        kuponForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('generateKuponBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generate...';
+
+            const formData = new FormData(kuponForm);
+            const jsonData = Object.fromEntries(formData.entries());
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+            try {
+                const response = await fetch('/idul-adha/pembagian/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(jsonData)
+                });
+
+                const data = await response.json();
+
+                if(response.ok && data.success) {
+                    const modal = document.getElementById('generateKuponAnim');
+                    const content = document.getElementById('kuponModalContent');
+                    const logoCont = document.getElementById('kuponLogoCont');
+                    const water = document.getElementById('sketchFill');
+                    const text1 = document.getElementById('kuponText1');
+                    const text2 = document.getElementById('kuponText2');
+
+                    modal.classList.remove('opacity-0', 'pointer-events-none');
+                    content.classList.remove('scale-90');
+                    content.classList.add('scale-100');
+
+                    setTimeout(() => { logoCont.classList.remove('scale-0'); logoCont.classList.add('scale-100'); }, 100);
+                    setTimeout(() => { water.style.clipPath = 'inset(0 0 0 0)'; }, 500);
+                    setTimeout(() => { text1.classList.remove('opacity-0'); text1.classList.add('opacity-100'); }, 1500);
+                    setTimeout(() => { text2.classList.remove('opacity-0'); text2.classList.add('opacity-100'); }, 1800);
+
+                    setTimeout(() => {
+                        window.location.href = '/idul-adha/distribution?q=' + data.kupon;
+                    }, 3500);
+                } else {
+                    alert(data.message || 'Gagal generate Kupon');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Generate & Save Kupon';
+                }
+            } catch(e) {
+                alert('Kesalahan Jaringan');
+                btn.disabled = false;
+                btn.innerHTML = 'Generate & Save Kupon';
+            }
+        });
+    }
+
     // 1. PIN Generation AJAX & Animation
     const form = document.getElementById('generatePinForm');
     if(form) {
@@ -3575,19 +3787,15 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
         <!-- SUCCESS MODAL ANIMATION FOR TAMBAH RT -->
         <div id="generateRTAnim" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 opacity-0 pointer-events-none transition-opacity duration-300">
             <div class="bg-white rounded-3xl p-8 transform scale-90 transition-transform duration-300 flex flex-col items-center shadow-2xl" id="rtModalContent">
-                <div class="w-48 h-32 relative mb-6 overflow-hidden flex items-center justify-center" id="rtCarCont">
-                    <div class="absolute bottom-0 w-full h-1 bg-gray-300"></div>
-                    <div class="animate-bounce" style="animation: bounce 0.5s infinite alternate;">
-                        <i class="fas fa-truck text-6xl text-[#8B2635]"></i>
-                    </div>
-                    <div class="absolute bottom-0 left-10 flex gap-8">
-                        <i class="fas fa-circle-notch text-xl text-gray-800 animate-spin" style="animation: spin 0.5s linear infinite;"></i>
-                        <i class="fas fa-circle-notch text-xl text-gray-800 animate-spin" style="animation: spin 0.5s linear infinite;"></i>
+                <div class="w-48 h-32 relative mb-6 overflow-hidden flex items-center justify-end flex-col pb-2" id="rtCarCont">
+                    <div class="absolute bottom-0 w-full h-1.5 bg-gray-400 z-0"></div>
+                    <div class="z-10" style="animation: bounce 0.3s infinite alternate;">
+                        <i class="fas fa-truck text-6xl text-[#8B2635] transform -translate-y-1"></i>
                     </div>
                     <!-- Moving Road Lines -->
-                    <div class="absolute bottom-[-2px] w-full flex overflow-hidden">
-                        <div class="w-full flex justify-between animate-road" style="animation: roadMove 1s linear infinite;">
-                            <div class="w-4 h-1 bg-white"></div><div class="w-4 h-1 bg-white"></div><div class="w-4 h-1 bg-white"></div><div class="w-4 h-1 bg-white"></div><div class="w-4 h-1 bg-white"></div>
+                    <div class="absolute bottom-[2px] w-full flex overflow-hidden z-20">
+                        <div class="w-[200%] flex justify-around" style="animation: roadMove 1s linear infinite;">
+                            <div class="w-6 h-0.5 bg-white"></div><div class="w-6 h-0.5 bg-white"></div><div class="w-6 h-0.5 bg-white"></div><div class="w-6 h-0.5 bg-white"></div><div class="w-6 h-0.5 bg-white"></div><div class="w-6 h-0.5 bg-white"></div>
                         </div>
                     </div>
                 </div>
@@ -3599,11 +3807,11 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
         <style>
         @keyframes roadMove {
             from { transform: translateX(0); }
-            to { transform: translateX(-100%); }
+            to { transform: translateX(-50%); }
         }
         @keyframes bounce {
             from { transform: translateY(0); }
-            to { transform: translateY(-5px); }
+            to { transform: translateY(-2px); }
         }
         </style>
         {% endif %}
@@ -3666,6 +3874,11 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
                         <button onclick="updateRTStatus({{ rt.id }}, 'Menunggu')" class="flex-1 bg-red-100 text-red-700 py-2 rounded-lg font-bold text-sm hover:bg-red-200 transition-colors">Batal Serahkan</button>
                         {% endif %}
                         <button type="button" onclick="openEditRTModal({{ rt.id }}, '{{ rt.nomor_card }}', '{{ rt.rt_name }}', '{{ rt.nama_ketua_rt }}', {{ rt.alokasi }}, '{{ rt.status }}')" class="px-3 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300"><i class="fas fa-pen"></i></button>
+                        <form action="/idul-adha/peta-distribusi/delete" method="POST" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="rt_id" value="{{ rt.id }}">
+                            <button type="submit" class="px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors h-full"><i class="fas fa-trash-alt"></i></button>
+                        </form>
                     </div>
                     {% else %}
                     <div class="w-full text-center text-xs text-gray-500 font-medium">Update Terakhir: Hari ini</div>
@@ -3722,55 +3935,7 @@ IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // Add RT Form AJAX
-        const addForm = document.getElementById('addRtForm');
-        if(addForm) {
-            addForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const btn = document.getElementById('addRtBtn');
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menambah...';
-                
-                const formData = new FormData(addForm);
-                const jsonData = Object.fromEntries(formData.entries());
-                const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-                
-                try {
-                    const response = await fetch('/idul-adha/peta-distribusi/add', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                        body: JSON.stringify(jsonData)
-                    });
-                    
-                    const data = await response.json();
-                    if(response.ok && data.success) {
-                        const modal = document.getElementById('generateRTAnim');
-                        const content = document.getElementById('rtModalContent');
-                        const text1 = document.getElementById('rtText1');
-                        const text2 = document.getElementById('rtText2');
-                        
-                        modal.classList.remove('opacity-0', 'pointer-events-none');
-                        content.classList.remove('scale-90');
-                        content.classList.add('scale-100');
-                        
-                        setTimeout(() => { text1.classList.remove('opacity-0'); text1.classList.add('opacity-100'); }, 1000);
-                        setTimeout(() => { text2.classList.remove('opacity-0'); text2.classList.add('opacity-100'); }, 1300);
-                        
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 3000);
-                    } else {
-                        alert(data.message || 'Gagal menambah RT');
-                        btn.disabled = false;
-                        btn.innerHTML = 'Tambah Data RT';
-                    }
-                } catch(e) {
-                    alert('Kesalahan Jaringan');
-                    btn.disabled = false;
-                    btn.innerHTML = 'Tambah Data RT';
-                }
-            });
-        }
+        // (addRtForm logic moved to layout base listener to prevent duplicate binding)
 
         // Edit RT AJAX
         const editForm = document.getElementById('editRtForm');
@@ -9889,10 +10054,15 @@ def idul_adha_laporan():
 def idul_adha_shohibul():
     pin = request.args.get('pin', '')
     shohibul = None
+    all_shohibul = []
+
+    if session.get('is_admin'):
+        all_shohibul = QurbanShohibul.query.order_by(QurbanShohibul.id.desc()).all()
+
     if pin:
         shohibul = QurbanShohibul.query.filter_by(pin=pin).first()
         
-    rendered_content = render_template_string(IDUL_ADHA_SHOHIBUL_HTML, shohibul=shohibul, is_admin=session.get('is_admin', False), settings=get_settings())
+    rendered_content = render_template_string(IDUL_ADHA_SHOHIBUL_HTML, shohibul=shohibul, all_shohibul=all_shohibul, is_admin=session.get('is_admin', False), settings=get_settings())
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=session.get('is_admin', False), settings=get_settings())
 
 @app.route('/idul-adha/shohibul/generate', methods=['POST'])
@@ -10046,6 +10216,27 @@ def idul_adha_peta_distribusi_update_status():
         if request.is_json: return jsonify({'success': False, 'message': 'Gagal mengupdate.'}), 500
         return redirect(url_for('idul_adha_peta_distribusi'))
 
+@app.route('/idul-adha/peta-distribusi/delete', methods=['POST'])
+def idul_adha_peta_distribusi_delete():
+    if not session.get('is_admin'): return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    try:
+        req_data = request.get_json(silent=True) or request.form
+        rt_id = req_data.get('rt_id')
+        rt = QurbanRT.query.get(rt_id)
+        if rt:
+            db.session.delete(rt)
+            db.session.commit()
+            if request.is_json: return jsonify({'success': True, 'message': 'Data RT dihapus.'})
+            else:
+                flash("Data RT berhasil dihapus.", "success")
+                return redirect(url_for('idul_adha_peta_distribusi'))
+        return jsonify({'success': False, 'message': 'Not found'}), 404
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error in idul_adha_peta_distribusi_delete: {e}", exc_info=True)
+        if request.is_json: return jsonify({'success': False, 'message': 'Gagal menghapus.'}), 500
+        return redirect(url_for('idul_adha_peta_distribusi'))
+
 @app.route('/idul-adha/peta-distribusi/data', methods=['GET'])
 def idul_adha_peta_distribusi_data():
     rt_list = QurbanRT.query.order_by(QurbanRT.id.asc()).all()
@@ -10074,10 +10265,15 @@ def idul_adha_panduan():
 def idul_adha_distribution():
     q = request.args.get('q', '')
     kupon = None
+    all_kupon = []
+
+    if session.get('is_admin'):
+        all_kupon = QurbanKupon.query.order_by(QurbanKupon.id.desc()).all()
+
     if q:
         kupon = QurbanKupon.query.filter((QurbanKupon.nomor_kupon == q) | (QurbanKupon.nama_penerima.like(f"%{q}%"))).first()
         
-    rendered_content = render_template_string(IDUL_ADHA_PEMBAGIAN_HTML, kupon=kupon, is_admin=session.get('is_admin', False), settings=get_settings())
+    rendered_content = render_template_string(IDUL_ADHA_PEMBAGIAN_HTML, kupon=kupon, all_kupon=all_kupon, is_admin=session.get('is_admin', False), settings=get_settings())
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=session.get('is_admin', False), settings=get_settings())
 
 @app.route('/idul-adha/pembagian/generate', methods=['POST'])
