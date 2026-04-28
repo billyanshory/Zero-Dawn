@@ -4339,6 +4339,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(e) { console.error("Poll error", e); }
     }
 
+    let lastBannerOpen = null;
     function renderBanner(isOpen, timerStr) {
         const banner = document.getElementById('statusBanner');
         const icon = document.getElementById('bannerIcon');
@@ -4346,6 +4347,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const timer = document.getElementById('absenCountdownTimer');
         
         timer.innerText = timerStr;
+        if (lastBannerOpen === isOpen) return;
+        lastBannerOpen = isOpen;
         if(isOpen) {
             banner.className = "rounded-3xl shadow-lg p-6 mb-8 text-white transition-colors duration-500 bg-gradient-to-r from-emerald-500 to-teal-600";
             icon.className = "fas fa-door-open";
@@ -4357,6 +4360,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    let lastUserStr = null;
+    let lastIsOpen = null;
     function renderUserArea(user, isOpen) {
         const cont = document.getElementById('userStateContainer');
         const overlay = document.getElementById('idCardOverlay');
@@ -4364,6 +4369,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const cardId = document.getElementById('cardId');
         const cardPos = document.getElementById('cardPos');
         
+        // Prevent form wipeout bug by diffing state
+        const currentUserStr = user ? JSON.stringify(user) : 'null';
+        if (currentUserStr === lastUserStr && isOpen === lastIsOpen) return;
+        lastUserStr = currentUserStr;
+        lastIsOpen = isOpen;
+
         if(!user) {
             // Condition A: Belum Terdaftar
             cont.innerHTML = `
@@ -4441,9 +4452,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    let lastAdminStr = null;
     function renderAdminArea(list) {
         const body = document.getElementById('panitiaListBody');
         if(!body) return;
+
+        // Prevent DOM thrashing
+        const currentAdminStr = JSON.stringify(list);
+        if (currentAdminStr === lastAdminStr) return;
+        lastAdminStr = currentAdminStr;
+
         let html = '';
         if(list.length === 0) {
             html = `<tr><td colspan="4" class="text-center py-4 text-gray-400">Belum ada panitia</td></tr>`;
@@ -4477,7 +4495,11 @@ document.addEventListener('DOMContentLoaded', () => {
         body.innerHTML = html;
     }
 
+    let lastAnalyticsStr = null;
     function renderAnalytics(a) {
+        const aStr = JSON.stringify(a);
+        if (lastAnalyticsStr === aStr) return;
+        lastAnalyticsStr = aStr;
         if(document.getElementById('statTotal')) {
             document.getElementById('statTotal').innerText = a.total;
             document.getElementById('statHadir').innerText = a.hadir;
@@ -9955,11 +9977,30 @@ def idul_adha_absen_export():
 def idul_adha_dashboard():
     makassar_tz = pytz.timezone('Asia/Makassar')
     current_time = datetime.datetime.now(makassar_tz)
+    settings = get_settings()
     
-    # Check if time is between 06:30 AM and 08:30 AM
-    start_time = current_time.replace(hour=6, minute=30, second=0, microsecond=0)
-    cutoff_time = current_time.replace(hour=8, minute=30, second=0, microsecond=0)
-    is_valid_window = start_time <= current_time <= cutoff_time
+    start_str = settings.get('absen_start_time', '06:30')
+    end_str = settings.get('absen_end_time', '08:30')
+    status_override = settings.get('absen_status', 'auto')
+
+    try:
+        sh, sm = map(int, start_str.split(':'))
+    except:
+        sh, sm = 6, 30
+    try:
+        eh, em = map(int, end_str.split(':'))
+    except:
+        eh, em = 8, 30
+
+    start_time = current_time.replace(hour=sh, minute=sm, second=0, microsecond=0)
+    cutoff_time = current_time.replace(hour=eh, minute=em, second=0, microsecond=0)
+
+    if status_override == 'open':
+        is_valid_window = True
+    elif status_override == 'closed':
+        is_valid_window = False
+    else:
+        is_valid_window = start_time <= current_time <= cutoff_time
     
     rendered_content = render_template_string(IDUL_ADHA_DASHBOARD_HTML, 
                                               is_valid_window=is_valid_window,
@@ -9978,12 +10019,32 @@ def idul_adha_dashboard():
 def idul_adha_absen():
     makassar_tz = pytz.timezone('Asia/Makassar')
     current_time = datetime.datetime.now(makassar_tz)
+    settings = get_settings()
+
+    start_str = settings.get('absen_start_time', '06:30')
+    end_str = settings.get('absen_end_time', '08:30')
+    status_override = settings.get('absen_status', 'auto')
     
-    # 06:30 AM to 08:30 AM
-    start_time = current_time.replace(hour=6, minute=30, second=0, microsecond=0)
-    cutoff_time = current_time.replace(hour=8, minute=30, second=0, microsecond=0)
+    try:
+        sh, sm = map(int, start_str.split(':'))
+    except:
+        sh, sm = 6, 30
+    try:
+        eh, em = map(int, end_str.split(':'))
+    except:
+        eh, em = 8, 30
+
+    start_time = current_time.replace(hour=sh, minute=sm, second=0, microsecond=0)
+    cutoff_time = current_time.replace(hour=eh, minute=em, second=0, microsecond=0)
     
-    if start_time <= current_time <= cutoff_time:
+    if status_override == 'open':
+        is_valid_window = True
+    elif status_override == 'closed':
+        is_valid_window = False
+    else:
+        is_valid_window = start_time <= current_time <= cutoff_time
+
+    if is_valid_window:
         status = 'Hadir Pagi'
     else:
         status = 'Terlambat'
