@@ -4289,22 +4289,22 @@ IDUL_ADHA_ABSEN_PANITIA_HTML = '''
                 </div>
                 
                 <!-- The ID Card -->
-                <div class="absolute inset-0 bg-white">
+                <div class="w-full h-full bg-white relative pb-6 flex flex-col">
                     <div class="h-24 bg-[#1B4332] w-full absolute top-0 flex items-center justify-center">
                         <p class="text-white font-bold tracking-widest text-sm uppercase opacity-50">Panitia Qurban Al Hijrah</p>
                     </div>
-                    <div class="relative z-10 pt-16 flex flex-col items-center">
-                        <div class="w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-4">
+                    <div class="relative z-10 pt-16 flex flex-col items-center flex-grow">
+                        <div class="w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-4 shrink-0">
                             <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 overflow-hidden">
                                 <i class="fas fa-user"></i>
                             </div>
                         </div>
-                        <h2 id="cardName" class="text-2xl font-bold text-gray-800 mb-1">-</h2>
+                        <h2 id="cardName" class="text-2xl font-bold text-gray-800 mb-1 text-center px-4">-</h2>
                         <p class="text-xs text-gray-400 font-mono mb-4">ID: <span id="cardId">-</span></p>
                         
-                        <div class="w-11/12 bg-amber-50 rounded-2xl p-4 border border-amber-200 text-center shadow-inner">
+                        <div class="w-11/12 bg-amber-50 rounded-2xl p-4 border border-amber-200 text-center shadow-inner flex-grow flex flex-col justify-center">
                             <p class="text-xs text-amber-700 font-bold uppercase tracking-wider mb-1">Tugas Anda Hari Ini</p>
-                            <p id="cardPos" class="text-lg font-bold text-amber-900">-</p>
+                            <p id="cardPos" class="text-lg font-bold text-amber-900 break-words leading-tight">-</p>
                         </div>
                     </div>
                 </div>
@@ -9839,7 +9839,7 @@ def idul_adha_absen_data():
             user_data = {
                 'id': u.id, 'name': u.name, 'approval_status': u.approval_status, 
                 'is_present': u.is_present, 'pos_tugas': u.pos_tugas,
-                'check_in_time': u.check_in_time.strftime("%H:%M") if u.check_in_time else None
+                'check_in_time': pytz.utc.localize(u.check_in_time).astimezone(pytz.timezone('Asia/Makassar')).strftime("%H:%M") if u.check_in_time else None
             }
             
     # Get Admin Data
@@ -9852,7 +9852,7 @@ def idul_adha_absen_data():
                 'id': p.id, 'name': p.name, 'no_hp': p.no_hp,
                 'approval_status': p.approval_status, 'is_present': p.is_present,
                 'pos_tugas': p.pos_tugas,
-                'check_in_time': p.check_in_time.strftime("%H:%M") if p.check_in_time else None
+                'check_in_time': pytz.utc.localize(p.check_in_time).astimezone(pytz.timezone('Asia/Makassar')).strftime("%H:%M") if p.check_in_time else None
             })
             analytics['total'] += 1
             if p.is_present: analytics['hadir'] += 1
@@ -9963,7 +9963,7 @@ def idul_adha_absen_export():
     
     for p in panitia:
         cw.writerow([
-            p.id, p.name, p.no_hp, p.check_in_time.strftime("%Y-%m-%d %H:%M:%S") if p.check_in_time else '-',
+            p.id, p.name, p.no_hp, pytz.utc.localize(p.check_in_time).astimezone(pytz.timezone('Asia/Makassar')).strftime("%Y-%m-%d %H:%M:%S") if p.check_in_time else '-',
             p.approval_status, p.pos_tugas or '-', 'Hadir' if p.is_present else 'Belum/Terlambat'
         ])
         
