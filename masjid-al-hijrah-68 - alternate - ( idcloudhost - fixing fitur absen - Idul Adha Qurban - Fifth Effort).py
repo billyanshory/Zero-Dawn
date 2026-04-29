@@ -231,6 +231,7 @@ class QurbanAttendance(db.Model):
     session_id = db.Column(db.String(255), nullable=True)
     check_in_time = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(50), nullable=True) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
+    profile_pic = db.Column(db.String(255), nullable=True)
 
 
 class QurbanReport(db.Model):
@@ -4279,7 +4280,7 @@ IDUL_ADHA_ABSEN_PANITIA_HTML = '''
             </div>
             
             <!-- Digital ID Card -->
-            <div class="relative rounded-3xl shadow-xl overflow-hidden min-h-[300px] border border-gray-200 bg-gray-100" id="idCardWrapper">
+            <div class="relative rounded-3xl shadow-xl overflow-hidden min-h-[400px] border border-gray-200 bg-gray-100" id="idCardWrapper">
                 <!-- Blurred overlay if not present -->
                 <div id="idCardOverlay" class="absolute inset-0 z-20 backdrop-blur-md bg-white/60 flex flex-col items-center justify-center">
                     <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4 text-gray-400">
@@ -4293,8 +4294,8 @@ IDUL_ADHA_ABSEN_PANITIA_HTML = '''
                     <div class="h-24 bg-[#1B4332] w-full absolute top-0 flex items-center justify-center">
                         <p class="text-white font-bold tracking-widest text-sm uppercase opacity-50">Panitia Qurban Al Hijrah</p>
                     </div>
-                    <div class="relative z-10 pt-16 flex flex-col items-center">
-                        <div class="w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-4">
+                    <div class="relative z-10 pt-16 flex flex-col items-center pb-6">
+                        <div class="w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-4 relative">
                             <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 overflow-hidden">
                                 <i class="fas fa-user"></i>
                             </div>
@@ -4308,7 +4309,39 @@ IDUL_ADHA_ABSEN_PANITIA_HTML = '''
                         </div>
                     </div>
                 </div>
+
+
+        <!-- Profile Pic Upload Modal -->
+        <div id="profilePicModal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden animate-[popupFadeIn_0.3s_ease-out] relative p-6">
+                <button onclick="closeProfileModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition">&times;</button>
+                <h3 class="text-xl font-bold text-gray-800 mb-4 text-center">Atur Foto Profil</h3>
+
+                <div class="w-48 h-48 mx-auto rounded-full bg-gray-200 border-4 border-emerald-100 shadow-inner flex items-center justify-center overflow-hidden mb-6 relative">
+                    <img id="profilePicPreview" src="" class="w-full h-full object-cover hidden">
+                    <div id="profilePicPlaceholder" class="text-5xl text-gray-400"><i class="fas fa-user"></i></div>
+
+                    <!-- Water Loading Animation -->
+                    <div id="waterLoadingAnim" class="absolute bottom-0 left-0 w-full bg-emerald-500/80 transition-all duration-300 flex flex-col justify-end" style="height: 0%;">
+                        <div class="text-white text-center w-full mb-4 animate-pulse"><i id="loadingIcon" class="fas fa-spinner fa-spin text-3xl"></i></div>
+                    </div>
+                </div>
+
+                <form id="profilePicForm" enctype="multipart/form-data">
+                    <input type="file" id="profilePicInput" name="profile_pic" accept="image/*" class="hidden" onchange="previewProfilePic(event)">
+
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <button type="button" onclick="document.getElementById('profilePicInput').click()" class="bg-gray-100 text-gray-700 font-bold py-2 rounded-xl hover:bg-gray-200 transition text-sm">Ganti/Pilih Foto</button>
+                        <button type="button" onclick="deleteProfilePic()" class="bg-red-50 text-red-600 font-bold py-2 rounded-xl hover:bg-red-100 transition text-sm">Hapus Foto</button>
+                    </div>
+                    <div class="flex gap-3">
+                        <button type="button" onclick="closeProfileModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200 transition">Batal</button>
+                        <button type="button" onclick="uploadProfilePic()" class="flex-1 bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 shadow-md transition">Save</button>
+                    </div>
+                </form>
             </div>
+        </div>
+</div>
         </div>
 
     </div>
@@ -4320,7 +4353,119 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inject CSRF Token globally for fetches
     const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
     const isAdmin = {{ 'true' if is_admin else 'false' }};
+    // Profile Pic Logic
+    window.openProfileModal = function(currentPic) {
+        document.getElementById('profilePicModal').classList.remove('hidden');
+        document.getElementById('waterLoadingAnim').style.height = '0%';
+        const preview = document.getElementById('profilePicPreview');
+        const placeholder = document.getElementById('profilePicPlaceholder');
+        document.getElementById('profilePicInput').value = ''; // Reset input
+
+        if (currentPic) {
+            preview.src = "/uploads/" + currentPic;
+            preview.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+        } else {
+            preview.src = "";
+            preview.classList.add('hidden');
+            placeholder.classList.remove('hidden');
+        }
+    };
+
+    window.closeProfileModal = function() {
+        document.getElementById('profilePicModal').classList.add('hidden');
+    };
+
+    window.previewProfilePic = function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('profilePicPreview');
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                document.getElementById('profilePicPlaceholder').classList.add('hidden');
+            }
+            reader.readAsDataURL(file);
+        }
+    };
+
+    window.uploadProfilePic = async function() {
+        const fileInput = document.getElementById('profilePicInput');
+        if (!fileInput.files.length) {
+             closeProfileModal();
+             return;
+        }
+
+        const formData = new FormData();
+        formData.append('profile_pic', fileInput.files[0]);
+
+        // Water Animation
+        const anim = document.getElementById('waterLoadingAnim');
+        const icon = document.getElementById('loadingIcon');
+        anim.style.height = '100%';
+        icon.className = "fas fa-spinner fa-spin text-3xl";
+
+        try {
+            const res = await fetch('/idul-adha/absen-panitia/upload-foto', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+                body: formData
+            });
+            const data = await res.json();
+            if(data.success) {
+                icon.className = "fas fa-check-circle text-4xl";
+                setTimeout(() => {
+                    closeProfileModal();
+                    fetchAbsenData(); // Refresh UI
+                }, 800);
+            } else {
+                icon.className = "fas fa-times-circle text-4xl text-red-500";
+                alert("Upload gagal: " + data.message);
+                anim.style.height = '0%';
+            }
+        } catch(e) {
+            icon.className = "fas fa-times-circle text-4xl text-red-500";
+            alert("Kesalahan jaringan");
+            anim.style.height = '0%';
+        }
+    };
     
+    window.deleteProfilePic = async function() {
+        if(!confirm("Hapus foto profil?")) return;
+
+        const formData = new FormData();
+        formData.append('action', 'delete');
+
+        const anim = document.getElementById('waterLoadingAnim');
+        const icon = document.getElementById('loadingIcon');
+        anim.style.height = '100%';
+        icon.className = "fas fa-spinner fa-spin text-3xl";
+
+        try {
+            const res = await fetch('/idul-adha/absen-panitia/upload-foto', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+                body: formData
+            });
+            const data = await res.json();
+            if(data.success) {
+                icon.className = "fas fa-trash-alt text-4xl";
+                setTimeout(() => {
+                    closeProfileModal();
+                    fetchAbsenData(); // Refresh UI
+                }, 800);
+            } else {
+                icon.className = "fas fa-times-circle text-4xl text-red-500";
+                alert("Hapus gagal: " + data.message);
+                anim.style.height = '0%';
+            }
+        } catch(e) {
+            alert("Kesalahan jaringan");
+            anim.style.height = '0%';
+        }
+    };
+
     // Polling Data
     async function fetchAbsenData() {
         try {
@@ -4448,6 +4593,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 cardName.innerText = user.name;
                 cardId.innerText = 'PAN-' + String(user.id).padStart(4, '0');
                 cardPos.innerText = user.pos_tugas || "Menunggu Instruksi Lapangan";
+
+                // Update profile picture
+                const iconContainer = document.querySelector('.w-24.h-24.bg-white.rounded-full.relative') || document.querySelector('.w-24.h-24.bg-white.rounded-full');
+                let imgHtml = '';
+                if (user.profile_pic) {
+                    imgHtml = `<img src="/uploads/${user.profile_pic}" class="w-full h-full object-cover rounded-full">`;
+                } else {
+                    imgHtml = `<div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 overflow-hidden"><i class="fas fa-user"></i></div>`;
+                }
+
+                iconContainer.innerHTML = imgHtml + `
+                    <button onclick="openProfileModal('${user.profile_pic || ''}')" class="absolute bottom-0 right-0 bg-emerald-500 text-white w-8 h-8 rounded-full border-2 border-white shadow-md flex items-center justify-center hover:bg-emerald-600 transition z-20">
+                        <i class="fas fa-pencil-alt text-xs"></i>
+                    </button>
+                `;
             }
         }
     }
@@ -9830,29 +9990,41 @@ def idul_adha_absen_data():
             h, rem = divmod(diff.seconds, 3600)
             m, s = divmod(rem, 60)
             countdown_str = f"{h:02d}:{m:02d}:{s:02d}"
-
     # Get User Data
     user_data = None
     if session.get('user_session_id'):
         u = QurbanAttendance.query.filter_by(session_id=session.get('user_session_id')).first()
         if u:
+            dt = u.check_in_time
+            if dt and dt.tzinfo is None:
+                dt = pytz.utc.localize(dt).astimezone(makassar_tz)
+            elif dt:
+                dt = dt.astimezone(makassar_tz)
+
             user_data = {
                 'id': u.id, 'name': u.name, 'approval_status': u.approval_status, 
                 'is_present': u.is_present, 'pos_tugas': u.pos_tugas,
-                'check_in_time': u.check_in_time.strftime("%H:%M") if u.check_in_time else None
+                'check_in_time': dt.strftime("%H:%M") if dt else None,
+                'profile_pic': u.profile_pic
             }
-            
     # Get Admin Data
     all_data = []
     analytics = {'total': 0, 'hadir': 0, 'menunggu': 0, 'terlambat': 0}
     if session.get('is_admin'):
         all_panitia = QurbanAttendance.query.all()
         for p in all_panitia:
+            dt = p.check_in_time
+            if dt and dt.tzinfo is None:
+                dt = pytz.utc.localize(dt).astimezone(makassar_tz)
+            elif dt:
+                dt = dt.astimezone(makassar_tz)
+
             all_data.append({
                 'id': p.id, 'name': p.name, 'no_hp': p.no_hp,
                 'approval_status': p.approval_status, 'is_present': p.is_present,
                 'pos_tugas': p.pos_tugas,
-                'check_in_time': p.check_in_time.strftime("%H:%M") if p.check_in_time else None
+                'check_in_time': dt.strftime("%H:%M") if dt else None,
+                'profile_pic': p.profile_pic
             })
             analytics['total'] += 1
             if p.is_present: analytics['hadir'] += 1
@@ -9950,6 +10122,33 @@ def idul_adha_absen_checkin():
         db.session.commit()
         return jsonify({'success': True})
     return jsonify({'success': False, 'message': 'Gagal check-in'})
+
+@app.route('/idul-adha/absen-panitia/upload-foto', methods=['POST'])
+def idul_adha_absen_upload_foto():
+    sid = session.get('user_session_id')
+    if not sid: return jsonify({'success': False, 'message': 'Session expired'})
+
+    u = QurbanAttendance.query.filter_by(session_id=sid).first()
+    if not u: return jsonify({'success': False, 'message': 'User tidak ditemukan'})
+
+    try:
+        if 'profile_pic' in request.files:
+            file = request.files['profile_pic']
+            if file and allowed_file(file.filename):
+                saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
+                u.profile_pic = saved_filename
+                db.session.commit()
+                return jsonify({'success': True, 'filename': saved_filename})
+        elif 'action' in request.form and request.form['action'] == 'delete':
+            u.profile_pic = None
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Foto dihapus'})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error uploading foto: {e}")
+        return jsonify({'success': False, 'message': 'Terjadi kesalahan'})
+
+    return jsonify({'success': False, 'message': 'File tidak valid'})
 
 @app.route('/idul-adha/absen-panitia/export')
 def idul_adha_absen_export():
@@ -10402,6 +10601,8 @@ with app.app_context():
                 try: conn.execute(text("ALTER TABLE qurban_attendance ALTER COLUMN check_in_time TYPE TIMESTAMP NULL"))
                 except Exception: pass
                 try: conn.execute(text("ALTER TABLE qurban_attendance ALTER COLUMN status TYPE VARCHAR(50) NULL"))
+                except Exception: pass
+                try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN profile_pic VARCHAR(255) NULL"))
                 except Exception: pass
     except Exception as e:
         app.logger.error(f"Error updating QurbanAttendance table schema: {e}")
