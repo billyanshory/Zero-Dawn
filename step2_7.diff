@@ -1,0 +1,30 @@
+<<<<<<< SEARCH
+@app.route('/idul-adha/absen-panitia/export')
+def idul_adha_absen_export():
+=======
+@app.route('/idul-adha/absen-panitia/upload-foto', methods=['POST'])
+@csrf.exempt
+def idul_adha_upload_foto():
+    sid = session.get('user_session_id')
+    if not sid:
+        return jsonify({'success': False, 'message': 'Session expired'}), 403
+
+    req = request.get_json(silent=True) or {}
+    foto_base64 = req.get('foto')
+
+    u = QurbanAttendance.query.filter_by(session_id=sid).first()
+    if not u:
+        return jsonify({'success': False, 'message': 'User tidak ditemukan'}), 404
+
+    u.foto_profil = foto_base64
+    try:
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error saving photo: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': 'Terjadi kesalahan database'}), 500
+
+@app.route('/idul-adha/absen-panitia/export')
+def idul_adha_absen_export():
+>>>>>>> REPLACE

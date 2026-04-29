@@ -1,0 +1,103 @@
+<<<<<<< SEARCH
+    // Initial fetch
+    fetchAbsenData();
+    setInterval(fetchAbsenData, 5000); // Poll every 5s
+});
+</script>
+=======
+    // Initial fetch
+    fetchAbsenData();
+    setInterval(fetchAbsenData, 5000); // Poll every 5s
+});
+
+let currentBase64 = null;
+
+window.openProfilePhotoModal = function() {
+    document.getElementById('profilePhotoModal').classList.remove('hidden');
+    document.getElementById('photoErrorMsg').classList.add('hidden');
+
+    const previewPhoto = document.getElementById('previewPhoto');
+    const previewIcon = document.getElementById('previewIcon');
+
+    if (window.currentUserFoto) {
+        previewPhoto.src = window.currentUserFoto;
+        previewPhoto.classList.remove('hidden');
+        previewIcon.classList.add('hidden');
+        currentBase64 = window.currentUserFoto;
+    } else {
+        previewPhoto.classList.add('hidden');
+        previewIcon.classList.remove('hidden');
+        currentBase64 = null;
+    }
+};
+
+window.closeProfilePhotoModal = function() {
+    document.getElementById('profilePhotoModal').classList.add('hidden');
+    document.getElementById('photoInput').value = '';
+};
+
+window.handlePhotoSelect = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        const msg = document.getElementById('photoErrorMsg');
+        msg.innerText = "Ukuran foto terlalu besar (Max 2MB)";
+        msg.classList.remove('hidden');
+        return;
+    }
+    document.getElementById('photoErrorMsg').classList.add('hidden');
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        currentBase64 = e.target.result;
+        const previewPhoto = document.getElementById('previewPhoto');
+        const previewIcon = document.getElementById('previewIcon');
+
+        previewPhoto.src = currentBase64;
+        previewPhoto.classList.remove('hidden');
+        previewIcon.classList.add('hidden');
+    };
+    reader.readAsDataURL(file);
+};
+
+window.removePhoto = function() {
+    currentBase64 = '';
+    const previewPhoto = document.getElementById('previewPhoto');
+    const previewIcon = document.getElementById('previewIcon');
+
+    previewPhoto.classList.add('hidden');
+    previewIcon.classList.remove('hidden');
+    document.getElementById('photoInput').value = '';
+};
+
+window.savePhoto = async function() {
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+    try {
+        const res = await fetch('/idul-adha/absen-panitia/upload-foto', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ foto: currentBase64 })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            closeProfilePhotoModal();
+            // Optional: trigger re-fetch early to update immediately
+            // fetchAbsenData();
+        } else {
+            const msg = document.getElementById('photoErrorMsg');
+            msg.innerText = data.message || "Gagal menyimpan foto";
+            msg.classList.remove('hidden');
+        }
+    } catch(err) {
+        const msg = document.getElementById('photoErrorMsg');
+        msg.innerText = "Terjadi kesalahan koneksi";
+        msg.classList.remove('hidden');
+    }
+};
+</script>
+>>>>>>> REPLACE

@@ -1,0 +1,39 @@
+<<<<<<< SEARCH
+class QurbanAttendance(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    no_hp = db.Column(db.String(20), nullable=True)
+    tugas_diinginkan = db.Column(db.String(255), nullable=True)
+    pos_tugas = db.Column(db.String(255), nullable=True)
+    approval_status = db.Column(db.String(50), default='Menunggu') # 'Menunggu', 'Approved', 'Rejected'
+    is_present = db.Column(db.Boolean, default=False)
+    session_id = db.Column(db.String(255), nullable=True)
+    check_in_time = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(50), nullable=True) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
+=======
+class QurbanAttendance(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    no_hp = db.Column(db.String(20), nullable=True)
+    tugas_diinginkan = db.Column(db.String(255), nullable=True)
+    pos_tugas = db.Column(db.String(255), nullable=True)
+    approval_status = db.Column(db.String(50), default='Menunggu') # 'Menunggu', 'Approved', 'Rejected'
+    is_present = db.Column(db.Boolean, default=False)
+    session_id = db.Column(db.String(255), nullable=True)
+    check_in_time = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(50), nullable=True) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
+    foto_profil = db.Column(db.Text, nullable=True)
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+                try: conn.execute(text("ALTER TABLE qurban_attendance ALTER COLUMN check_in_time TYPE TIMESTAMP NULL"))
+                except Exception: pass
+                try: conn.execute(text("ALTER TABLE qurban_attendance ALTER COLUMN status TYPE VARCHAR(50) NULL"))
+                except Exception: pass
+=======
+                try: conn.execute(text("ALTER TABLE qurban_attendance ALTER COLUMN check_in_time TYPE TIMESTAMP NULL"))
+                except Exception: pass
+                try: conn.execute(text("ALTER TABLE qurban_attendance ALTER COLUMN status TYPE VARCHAR(50) NULL"))
+                except Exception: pass
+                try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN foto_profil TEXT NULL"))
+                except Exception: pass
+>>>>>>> REPLACE

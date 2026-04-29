@@ -1,0 +1,9 @@
+<<<<<<< SEARCH
+    check_in_time = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(50), nullable=True) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
+    foto_profil = db.Column(db.Text, nullable=True)
+=======
+    check_in_time = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(50), nullable=True) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
+    foto_profil = db.deferred(db.Column(db.Text, nullable=True))
+>>>>>>> REPLACE

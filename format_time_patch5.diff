@@ -1,0 +1,5 @@
+<<<<<<< SEARCH
+        u.check_in_time = datetime.datetime.utcnow()
+=======
+        u.check_in_time = utc_time
+>>>>>>> REPLACE

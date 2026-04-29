@@ -1,0 +1,20 @@
+<<<<<<< SEARCH
+                    <div class="relative z-10 pt-16 flex flex-col items-center">
+                        <div class="w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-4">
+                            <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 overflow-hidden">
+                                <i class="fas fa-user"></i>
+                            </div>
+                        </div>
+                        <h2 id="cardName" class="text-2xl font-bold text-gray-800 mb-1">-</h2>
+=======
+                    <div class="relative z-10 pt-16 flex flex-col items-center">
+                        <div class="relative w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-4 cursor-pointer" onclick="openProfilePhotoModal()">
+                            <div id="cardPhoto" class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 overflow-hidden">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="absolute bottom-0 right-0 bg-[#1B4332] text-white p-1.5 rounded-full shadow border border-white text-xs hover:bg-[#2D6A4F] transition-colors">
+                                <i class="fas fa-pencil-alt"></i>
+                            </div>
+                        </div>
+                        <h2 id="cardName" class="text-2xl font-bold text-gray-800 mb-1 text-center px-4 break-words w-full">-</h2>
+>>>>>>> REPLACE

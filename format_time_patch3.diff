@@ -1,0 +1,27 @@
+<<<<<<< SEARCH
+@app.route('/idul-adha/absen', methods=['POST'])
+def idul_adha_absen():
+    makassar_tz = pytz.timezone('Asia/Makassar')
+    current_time = datetime.datetime.now(makassar_tz)
+    settings = get_settings()
+=======
+@app.route('/idul-adha/absen', methods=['POST'])
+def idul_adha_absen():
+    makassar_tz = pytz.timezone('Asia/Makassar')
+    current_time = datetime.datetime.now(makassar_tz)
+    utc_time = datetime.datetime.utcnow()
+    settings = get_settings()
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    attendance = QurbanAttendance(
+        name=username,
+        check_in_time=current_time,
+        status=status
+    )
+=======
+    attendance = QurbanAttendance(
+        name=username,
+        check_in_time=utc_time,
+        status=status
+    )
+>>>>>>> REPLACE

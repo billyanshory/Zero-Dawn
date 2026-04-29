@@ -1,0 +1,55 @@
+<<<<<<< SEARCH
+    user_data = None
+    if session.get('user_session_id'):
+        u = QurbanAttendance.query.filter_by(session_id=session.get('user_session_id')).first()
+        if u:
+            user_data = {
+                'id': u.id, 'name': u.name, 'approval_status': u.approval_status,
+                'is_present': u.is_present, 'pos_tugas': u.pos_tugas,
+                'check_in_time': u.check_in_time.strftime("%H:%M") if u.check_in_time else None
+            }
+
+    # Get Admin Data
+    all_data = []
+    analytics = {'total': 0, 'hadir': 0, 'menunggu': 0, 'terlambat': 0}
+    if session.get('is_admin'):
+        all_panitia = QurbanAttendance.query.all()
+        for p in all_panitia:
+            all_data.append({
+                'id': p.id, 'name': p.name, 'no_hp': p.no_hp,
+                'approval_status': p.approval_status, 'is_present': p.is_present,
+                'pos_tugas': p.pos_tugas,
+                'check_in_time': p.check_in_time.strftime("%H:%M") if p.check_in_time else None
+            })
+=======
+    user_data = None
+    if session.get('user_session_id'):
+        u = QurbanAttendance.query.filter_by(session_id=session.get('user_session_id')).first()
+        if u:
+            user_check_in_str = None
+            if u.check_in_time:
+                check_in_dt_wita = pytz.utc.localize(u.check_in_time).astimezone(makassar_tz)
+                user_check_in_str = check_in_dt_wita.strftime("%H:%M")
+            user_data = {
+                'id': u.id, 'name': u.name, 'approval_status': u.approval_status,
+                'is_present': u.is_present, 'pos_tugas': u.pos_tugas,
+                'check_in_time': user_check_in_str
+            }
+
+    # Get Admin Data
+    all_data = []
+    analytics = {'total': 0, 'hadir': 0, 'menunggu': 0, 'terlambat': 0}
+    if session.get('is_admin'):
+        all_panitia = QurbanAttendance.query.all()
+        for p in all_panitia:
+            p_check_in_str = None
+            if p.check_in_time:
+                p_check_in_dt_wita = pytz.utc.localize(p.check_in_time).astimezone(makassar_tz)
+                p_check_in_str = p_check_in_dt_wita.strftime("%H:%M")
+            all_data.append({
+                'id': p.id, 'name': p.name, 'no_hp': p.no_hp,
+                'approval_status': p.approval_status, 'is_present': p.is_present,
+                'pos_tugas': p.pos_tugas,
+                'check_in_time': p_check_in_str
+            })
+>>>>>>> REPLACE

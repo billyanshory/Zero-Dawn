@@ -1,0 +1,42 @@
+<<<<<<< SEARCH
+<!-- SCRIPTS FOR ABSEN PANITIA -->
+=======
+<!-- Modal Ganti Foto Profil -->
+<div id="profilePhotoModal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform transition-all">
+        <div class="bg-[#1B4332] p-4 text-center">
+            <h3 class="text-white font-bold text-lg">Foto Profil</h3>
+            <p class="text-green-100 text-xs">Atur foto profil ID Card Anda</p>
+        </div>
+        <div class="p-6 flex flex-col items-center">
+            <div class="w-32 h-32 bg-gray-100 rounded-full mb-4 border-4 border-gray-200 overflow-hidden flex items-center justify-center relative">
+                <img id="previewPhoto" class="w-full h-full object-cover hidden" alt="Preview Foto">
+                <i id="previewIcon" class="fas fa-user text-5xl text-gray-300"></i>
+            </div>
+
+            <input type="file" id="photoInput" accept="image/*" class="hidden" onchange="handlePhotoSelect(event)">
+
+            <div class="flex gap-2 w-full mt-4">
+                <button onclick="document.getElementById('photoInput').click()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-4 rounded-xl text-sm transition-colors shadow-md">
+                    <i class="fas fa-image mr-2"></i> Pilih Foto
+                </button>
+                <button onclick="removePhoto()" class="bg-red-100 hover:bg-red-200 text-red-600 font-bold py-3 px-4 rounded-xl text-sm transition-colors shadow-sm">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+
+            <div class="flex gap-2 w-full mt-3">
+                <button onclick="savePhoto()" class="flex-1 bg-[#1B4332] hover:bg-[#2D6A4F] text-white font-bold py-3 px-4 rounded-xl text-sm transition-colors shadow-md">
+                    <i class="fas fa-save mr-2"></i> Simpan
+                </button>
+                <button onclick="closeProfilePhotoModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-xl text-sm transition-colors">
+                    Batal
+                </button>
+            </div>
+            <p id="photoErrorMsg" class="text-red-500 text-xs text-center mt-3 hidden"></p>
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPTS FOR ABSEN PANITIA -->
+>>>>>>> REPLACE

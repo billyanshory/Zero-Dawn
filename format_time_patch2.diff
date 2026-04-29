@@ -1,0 +1,28 @@
+<<<<<<< SEARCH
+    si = StringIO()
+    cw = csv.writer(si)
+    cw.writerow(['ID', 'Nama Lengkap', 'No HP', 'Waktu Hadir', 'Status Approval', 'Pos Tugas', 'Status Kehadiran'])
+
+    for p in panitia:
+        cw.writerow([
+            p.id, p.name, p.no_hp, p.check_in_time.strftime("%Y-%m-%d %H:%M:%S") if p.check_in_time else '-',
+            p.approval_status, p.pos_tugas or '-', 'Hadir' if p.is_present else 'Belum/Terlambat'
+        ])
+=======
+    si = StringIO()
+    cw = csv.writer(si)
+    cw.writerow(['ID', 'Nama Lengkap', 'No HP', 'Waktu Hadir', 'Status Approval', 'Pos Tugas', 'Status Kehadiran'])
+
+    makassar_tz = pytz.timezone('Asia/Makassar')
+
+    for p in panitia:
+        p_check_in_str = '-'
+        if p.check_in_time:
+            p_check_in_dt_wita = pytz.utc.localize(p.check_in_time).astimezone(makassar_tz)
+            p_check_in_str = p_check_in_dt_wita.strftime("%Y-%m-%d %H:%M:%S")
+
+        cw.writerow([
+            p.id, p.name, p.no_hp, p_check_in_str,
+            p.approval_status, p.pos_tugas or '-', 'Hadir' if p.is_present else 'Belum/Terlambat'
+        ])
+>>>>>>> REPLACE

@@ -1,0 +1,24 @@
+<<<<<<< SEARCH
+            <!-- Digital ID Card -->
+            <div class="relative rounded-3xl shadow-xl overflow-hidden min-h-[300px] border border-gray-200 bg-gray-100" id="idCardWrapper">
+=======
+            <!-- Digital ID Card -->
+            <div class="relative rounded-3xl shadow-xl overflow-hidden min-h-fit border border-gray-200 bg-gray-100 pb-8" id="idCardWrapper">
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+                        <div class="w-11/12 bg-amber-50 rounded-2xl p-4 border border-amber-200 text-center shadow-inner">
+                            <p class="text-xs text-amber-700 font-bold uppercase tracking-wider mb-1">Tugas Anda Hari Ini</p>
+                            <p id="cardPos" class="text-lg font-bold text-amber-900">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+=======
+                        <div class="w-11/12 bg-amber-50 rounded-2xl p-4 border border-amber-200 text-center shadow-inner">
+                            <p class="text-xs text-amber-700 font-bold uppercase tracking-wider mb-1">Tugas Anda Hari Ini</p>
+                            <p id="cardPos" class="text-lg font-bold text-amber-900 break-words">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+>>>>>>> REPLACE

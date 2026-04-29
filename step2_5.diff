@@ -1,0 +1,38 @@
+<<<<<<< SEARCH
+    // Polling Data
+    async function fetchAbsenData() {
+        try {
+            const res = await fetch('/idul-adha/absen-panitia/data');
+=======
+    window.currentUserFoto = null;
+
+    // Polling Data
+    async function fetchAbsenData() {
+        try {
+            const res = await fetch('/idul-adha/absen-panitia/data');
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+                // Unlock ID Card
+                overlay.classList.add('hidden');
+                cardName.innerText = user.name;
+                cardId.innerText = 'PAN-' + String(user.id).padStart(4, '0');
+                cardPos.innerText = user.pos_tugas || "Menunggu Instruksi Lapangan";
+            }
+=======
+                // Unlock ID Card
+                overlay.classList.add('hidden');
+                cardName.innerText = user.name;
+                cardId.innerText = 'PAN-' + String(user.id).padStart(4, '0');
+                cardPos.innerText = user.pos_tugas || "Menunggu Instruksi Lapangan";
+
+                if(user.foto_profil) {
+                    window.currentUserFoto = user.foto_profil;
+                    const cardPhoto = document.getElementById('cardPhoto');
+                    cardPhoto.innerHTML = `<img src="${user.foto_profil}" class="w-full h-full object-cover">`;
+                } else {
+                    window.currentUserFoto = null;
+                    const cardPhoto = document.getElementById('cardPhoto');
+                    cardPhoto.innerHTML = `<i class="fas fa-user"></i>`;
+                }
+            }
+>>>>>>> REPLACE

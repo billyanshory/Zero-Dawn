@@ -1,0 +1,26 @@
+<<<<<<< SEARCH
+    makassar_tz = pytz.timezone('Asia/Makassar')
+    current_time = datetime.datetime.now(makassar_tz)
+
+    u = QurbanAttendance.query.filter_by(session_id=sid).first()
+    if u and u.approval_status == 'Approved' and not u.is_present:
+        u.is_present = True
+        u.check_in_time = current_time
+        u.status = 'Hadir Pagi'
+        db.session.commit()
+=======
+    makassar_tz = pytz.timezone('Asia/Makassar')
+    current_time = datetime.datetime.now(makassar_tz)
+
+    u = QurbanAttendance.query.filter_by(session_id=sid).first()
+    if u and u.approval_status == 'Approved' and not u.is_present:
+        u.is_present = True
+        u.check_in_time = datetime.datetime.utcnow()
+        u.status = 'Hadir Pagi'
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error checkin: {e}", exc_info=True)
+            return jsonify({'success': False, 'message': 'Gagal check-in error db'})
+>>>>>>> REPLACE

@@ -231,6 +231,7 @@ class QurbanAttendance(db.Model):
     session_id = db.Column(db.String(255), nullable=True)
     check_in_time = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(50), nullable=True) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
+    foto_profil = db.deferred(db.Column(db.Text, nullable=True))
 
 
 class QurbanReport(db.Model):
@@ -4279,7 +4280,7 @@ IDUL_ADHA_ABSEN_PANITIA_HTML = '''
             </div>
             
             <!-- Digital ID Card -->
-            <div class="relative rounded-3xl shadow-xl overflow-hidden min-h-[300px] border border-gray-200 bg-gray-100" id="idCardWrapper">
+            <div class="relative rounded-3xl shadow-xl overflow-hidden min-h-fit border border-gray-200 bg-gray-100 pb-8" id="idCardWrapper">
                 <!-- Blurred overlay if not present -->
                 <div id="idCardOverlay" class="absolute inset-0 z-20 backdrop-blur-md bg-white/60 flex flex-col items-center justify-center">
                     <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4 text-gray-400">
@@ -4289,28 +4290,68 @@ IDUL_ADHA_ABSEN_PANITIA_HTML = '''
                 </div>
                 
                 <!-- The ID Card -->
-                <div class="absolute inset-0 bg-white">
+                <div class="absolute inset-0 bg-white bottom-auto min-h-full pb-6">
                     <div class="h-24 bg-[#1B4332] w-full absolute top-0 flex items-center justify-center">
                         <p class="text-white font-bold tracking-widest text-sm uppercase opacity-50">Panitia Qurban Al Hijrah</p>
                     </div>
                     <div class="relative z-10 pt-16 flex flex-col items-center">
-                        <div class="w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-4">
-                            <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 overflow-hidden">
+                        <div class="relative w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-4 cursor-pointer" onclick="openProfilePhotoModal()">
+                            <div id="cardPhoto" class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 overflow-hidden">
                                 <i class="fas fa-user"></i>
                             </div>
+                            <div class="absolute bottom-0 right-0 bg-[#1B4332] text-white p-1.5 rounded-full shadow border border-white text-xs hover:bg-[#2D6A4F] transition-colors">
+                                <i class="fas fa-pencil-alt"></i>
+                            </div>
                         </div>
-                        <h2 id="cardName" class="text-2xl font-bold text-gray-800 mb-1">-</h2>
+                        <h2 id="cardName" class="text-2xl font-bold text-gray-800 mb-1 text-center px-4 break-words w-full">-</h2>
                         <p class="text-xs text-gray-400 font-mono mb-4">ID: <span id="cardId">-</span></p>
                         
                         <div class="w-11/12 bg-amber-50 rounded-2xl p-4 border border-amber-200 text-center shadow-inner">
                             <p class="text-xs text-amber-700 font-bold uppercase tracking-wider mb-1">Tugas Anda Hari Ini</p>
-                            <p id="cardPos" class="text-lg font-bold text-amber-900">-</p>
+                            <p id="cardPos" class="text-lg font-bold text-amber-900 break-words">-</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
+    </div>
+</div>
+
+<!-- Modal Ganti Foto Profil -->
+<div id="profilePhotoModal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform transition-all">
+        <div class="bg-[#1B4332] p-4 text-center">
+            <h3 class="text-white font-bold text-lg">Foto Profil</h3>
+            <p class="text-green-100 text-xs">Atur foto profil ID Card Anda</p>
+        </div>
+        <div class="p-6 flex flex-col items-center">
+            <div class="w-32 h-32 bg-gray-100 rounded-full mb-4 border-4 border-gray-200 overflow-hidden flex items-center justify-center relative">
+                <img id="previewPhoto" class="w-full h-full object-cover hidden" alt="Preview Foto">
+                <i id="previewIcon" class="fas fa-user text-5xl text-gray-300"></i>
+            </div>
+
+            <input type="file" id="photoInput" accept="image/*" class="hidden" onchange="handlePhotoSelect(event)">
+
+            <div class="flex gap-2 w-full mt-4">
+                <button onclick="document.getElementById('photoInput').click()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-4 rounded-xl text-sm transition-colors shadow-md">
+                    <i class="fas fa-image mr-2"></i> Pilih Foto
+                </button>
+                <button onclick="removePhoto()" class="bg-red-100 hover:bg-red-200 text-red-600 font-bold py-3 px-4 rounded-xl text-sm transition-colors shadow-sm">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+
+            <div class="flex gap-2 w-full mt-3">
+                <button onclick="savePhoto()" class="flex-1 bg-[#1B4332] hover:bg-[#2D6A4F] text-white font-bold py-3 px-4 rounded-xl text-sm transition-colors shadow-md">
+                    <i class="fas fa-save mr-2"></i> Simpan
+                </button>
+                <button onclick="closeProfilePhotoModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-xl text-sm transition-colors">
+                    Batal
+                </button>
+            </div>
+            <p id="photoErrorMsg" class="text-red-500 text-xs text-center mt-3 hidden"></p>
+        </div>
     </div>
 </div>
 
@@ -4321,6 +4362,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
     const isAdmin = {{ 'true' if is_admin else 'false' }};
     
+    window.currentUserFoto = null;
+
     // Polling Data
     async function fetchAbsenData() {
         try {
@@ -4448,6 +4491,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 cardName.innerText = user.name;
                 cardId.innerText = 'PAN-' + String(user.id).padStart(4, '0');
                 cardPos.innerText = user.pos_tugas || "Menunggu Instruksi Lapangan";
+
+                if(user.foto_profil) {
+                    window.currentUserFoto = user.foto_profil;
+                    const cardPhoto = document.getElementById('cardPhoto');
+                    cardPhoto.innerHTML = `<img src="${user.foto_profil}" class="w-full h-full object-cover">`;
+                } else {
+                    window.currentUserFoto = null;
+                    const cardPhoto = document.getElementById('cardPhoto');
+                    cardPhoto.innerHTML = `<i class="fas fa-user"></i>`;
+                }
             }
         }
     }
@@ -4573,6 +4626,96 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchAbsenData();
     setInterval(fetchAbsenData, 3000);
 });
+
+let currentBase64 = null;
+
+window.openProfilePhotoModal = function() {
+    document.getElementById('profilePhotoModal').classList.remove('hidden');
+    document.getElementById('photoErrorMsg').classList.add('hidden');
+
+    const previewPhoto = document.getElementById('previewPhoto');
+    const previewIcon = document.getElementById('previewIcon');
+
+    if (window.currentUserFoto) {
+        previewPhoto.src = window.currentUserFoto;
+        previewPhoto.classList.remove('hidden');
+        previewIcon.classList.add('hidden');
+        currentBase64 = window.currentUserFoto;
+    } else {
+        previewPhoto.classList.add('hidden');
+        previewIcon.classList.remove('hidden');
+        currentBase64 = null;
+    }
+};
+
+window.closeProfilePhotoModal = function() {
+    document.getElementById('profilePhotoModal').classList.add('hidden');
+    document.getElementById('photoInput').value = '';
+};
+
+window.handlePhotoSelect = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        const msg = document.getElementById('photoErrorMsg');
+        msg.innerText = "Ukuran foto terlalu besar (Max 2MB)";
+        msg.classList.remove('hidden');
+        return;
+    }
+    document.getElementById('photoErrorMsg').classList.add('hidden');
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        currentBase64 = e.target.result;
+        const previewPhoto = document.getElementById('previewPhoto');
+        const previewIcon = document.getElementById('previewIcon');
+
+        previewPhoto.src = currentBase64;
+        previewPhoto.classList.remove('hidden');
+        previewIcon.classList.add('hidden');
+    };
+    reader.readAsDataURL(file);
+};
+
+window.removePhoto = function() {
+    currentBase64 = '';
+    const previewPhoto = document.getElementById('previewPhoto');
+    const previewIcon = document.getElementById('previewIcon');
+
+    previewPhoto.classList.add('hidden');
+    previewIcon.classList.remove('hidden');
+    document.getElementById('photoInput').value = '';
+};
+
+window.savePhoto = async function() {
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+    try {
+        const res = await fetch('/idul-adha/absen-panitia/upload-foto', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ foto: currentBase64 })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            closeProfilePhotoModal();
+            // Optional: trigger re-fetch early to update immediately
+            // fetchAbsenData();
+        } else {
+            const msg = document.getElementById('photoErrorMsg');
+            msg.innerText = data.message || "Gagal menyimpan foto";
+            msg.classList.remove('hidden');
+        }
+    } catch(err) {
+        const msg = document.getElementById('photoErrorMsg');
+        msg.innerText = "Terjadi kesalahan koneksi";
+        msg.classList.remove('hidden');
+    }
+};
 </script>
 '''
 
@@ -9836,23 +9979,36 @@ def idul_adha_absen_data():
     if session.get('user_session_id'):
         u = QurbanAttendance.query.filter_by(session_id=session.get('user_session_id')).first()
         if u:
+            user_check_in_str = None
+            if u.check_in_time:
+                check_in_dt_wita = pytz.utc.localize(u.check_in_time).astimezone(makassar_tz)
+                user_check_in_str = check_in_dt_wita.strftime("%H:%M")
             user_data = {
                 'id': u.id, 'name': u.name, 'approval_status': u.approval_status, 
                 'is_present': u.is_present, 'pos_tugas': u.pos_tugas,
-                'check_in_time': u.check_in_time.strftime("%H:%M") if u.check_in_time else None
+                'check_in_time': user_check_in_str,
+                'foto_profil': u.foto_profil
             }
             
     # Get Admin Data
     all_data = []
     analytics = {'total': 0, 'hadir': 0, 'menunggu': 0, 'terlambat': 0}
     if session.get('is_admin'):
-        all_panitia = QurbanAttendance.query.all()
+        all_panitia = QurbanAttendance.query.with_entities(
+            QurbanAttendance.id, QurbanAttendance.name, QurbanAttendance.no_hp,
+            QurbanAttendance.approval_status, QurbanAttendance.is_present,
+            QurbanAttendance.pos_tugas, QurbanAttendance.check_in_time
+        ).all()
         for p in all_panitia:
+            p_check_in_str = None
+            if p.check_in_time:
+                p_check_in_dt_wita = pytz.utc.localize(p.check_in_time).astimezone(makassar_tz)
+                p_check_in_str = p_check_in_dt_wita.strftime("%H:%M")
             all_data.append({
                 'id': p.id, 'name': p.name, 'no_hp': p.no_hp,
                 'approval_status': p.approval_status, 'is_present': p.is_present,
                 'pos_tugas': p.pos_tugas,
-                'check_in_time': p.check_in_time.strftime("%H:%M") if p.check_in_time else None
+                'check_in_time': p_check_in_str
             })
             analytics['total'] += 1
             if p.is_present: analytics['hadir'] += 1
@@ -9941,15 +10097,44 @@ def idul_adha_absen_checkin():
     
     makassar_tz = pytz.timezone('Asia/Makassar')
     current_time = datetime.datetime.now(makassar_tz)
+    utc_time = datetime.datetime.utcnow()
     
     u = QurbanAttendance.query.filter_by(session_id=sid).first()
     if u and u.approval_status == 'Approved' and not u.is_present:
         u.is_present = True
-        u.check_in_time = current_time
+        u.check_in_time = utc_time
         u.status = 'Hadir Pagi'
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error checkin: {e}", exc_info=True)
+            return jsonify({'success': False, 'message': 'Gagal check-in error db'})
         return jsonify({'success': True})
     return jsonify({'success': False, 'message': 'Gagal check-in'})
+
+@app.route('/idul-adha/absen-panitia/upload-foto', methods=['POST'])
+@csrf.exempt
+def idul_adha_upload_foto():
+    sid = session.get('user_session_id')
+    if not sid:
+        return jsonify({'success': False, 'message': 'Session expired'}), 403
+
+    req = request.get_json(silent=True) or {}
+    foto_base64 = req.get('foto')
+
+    u = QurbanAttendance.query.filter_by(session_id=sid).first()
+    if not u:
+        return jsonify({'success': False, 'message': 'User tidak ditemukan'}), 404
+
+    u.foto_profil = foto_base64
+    try:
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error saving photo: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': 'Terjadi kesalahan database'}), 500
 
 @app.route('/idul-adha/absen-panitia/export')
 def idul_adha_absen_export():
@@ -9961,9 +10146,16 @@ def idul_adha_absen_export():
     cw = csv.writer(si)
     cw.writerow(['ID', 'Nama Lengkap', 'No HP', 'Waktu Hadir', 'Status Approval', 'Pos Tugas', 'Status Kehadiran'])
     
+    makassar_tz = pytz.timezone('Asia/Makassar')
+
     for p in panitia:
+        p_check_in_str = '-'
+        if p.check_in_time:
+            p_check_in_dt_wita = pytz.utc.localize(p.check_in_time).astimezone(makassar_tz)
+            p_check_in_str = p_check_in_dt_wita.strftime("%Y-%m-%d %H:%M:%S")
+
         cw.writerow([
-            p.id, p.name, p.no_hp, p.check_in_time.strftime("%Y-%m-%d %H:%M:%S") if p.check_in_time else '-',
+            p.id, p.name, p.no_hp, p_check_in_str,
             p.approval_status, p.pos_tugas or '-', 'Hadir' if p.is_present else 'Belum/Terlambat'
         ])
         
@@ -10019,6 +10211,7 @@ def idul_adha_dashboard():
 def idul_adha_absen():
     makassar_tz = pytz.timezone('Asia/Makassar')
     current_time = datetime.datetime.now(makassar_tz)
+    utc_time = datetime.datetime.utcnow()
     settings = get_settings()
     
     start_str = settings.get('absen_start_time', '06:30')
@@ -10053,7 +10246,7 @@ def idul_adha_absen():
     
     attendance = QurbanAttendance(
         name=username,
-        check_in_time=current_time,
+        check_in_time=utc_time,
         status=status
     )
     
@@ -10402,6 +10595,8 @@ with app.app_context():
                 try: conn.execute(text("ALTER TABLE qurban_attendance ALTER COLUMN check_in_time TYPE TIMESTAMP NULL"))
                 except Exception: pass
                 try: conn.execute(text("ALTER TABLE qurban_attendance ALTER COLUMN status TYPE VARCHAR(50) NULL"))
+                except Exception: pass
+                try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN foto_profil TEXT NULL"))
                 except Exception: pass
     except Exception as e:
         app.logger.error(f"Error updating QurbanAttendance table schema: {e}")

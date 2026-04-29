@@ -1,0 +1,20 @@
+<<<<<<< SEARCH
+    # Get Admin Data
+    all_data = []
+    analytics = {'total': 0, 'hadir': 0, 'menunggu': 0, 'terlambat': 0}
+    if session.get('is_admin'):
+        all_panitia = QurbanAttendance.query.all()
+        for p in all_panitia:
+=======
+    # Get Admin Data
+    all_data = []
+    analytics = {'total': 0, 'hadir': 0, 'menunggu': 0, 'terlambat': 0}
+    if session.get('is_admin'):
+        from sqlalchemy.orm import undefer
+        all_panitia = QurbanAttendance.query.with_entities(
+            QurbanAttendance.id, QurbanAttendance.name, QurbanAttendance.no_hp,
+            QurbanAttendance.approval_status, QurbanAttendance.is_present,
+            QurbanAttendance.pos_tugas, QurbanAttendance.check_in_time
+        ).all()
+        for p in all_panitia:
+>>>>>>> REPLACE

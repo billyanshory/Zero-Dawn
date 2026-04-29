@@ -1,0 +1,24 @@
+<<<<<<< SEARCH
+        if u:
+            user_check_in_str = None
+            if u.check_in_time:
+                check_in_dt_wita = pytz.utc.localize(u.check_in_time).astimezone(makassar_tz)
+                user_check_in_str = check_in_dt_wita.strftime("%H:%M")
+            user_data = {
+                'id': u.id, 'name': u.name, 'approval_status': u.approval_status,
+                'is_present': u.is_present, 'pos_tugas': u.pos_tugas,
+                'check_in_time': user_check_in_str
+            }
+=======
+        if u:
+            user_check_in_str = None
+            if u.check_in_time:
+                check_in_dt_wita = pytz.utc.localize(u.check_in_time).astimezone(makassar_tz)
+                user_check_in_str = check_in_dt_wita.strftime("%H:%M")
+            user_data = {
+                'id': u.id, 'name': u.name, 'approval_status': u.approval_status,
+                'is_present': u.is_present, 'pos_tugas': u.pos_tugas,
+                'check_in_time': user_check_in_str,
+                'foto_profil': u.foto_profil
+            }
+>>>>>>> REPLACE
