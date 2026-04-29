@@ -26,6 +26,20 @@ load_dotenv()
 # --- KONFIGURASI FLASK ---
 app = Flask(__name__)
 csrf = CSRFProtect(app)
+
+def format_db_time_to_makassar(db_time, format_str="%H:%M"):
+    if not db_time:
+        return None
+    import pytz
+    makassar_tz = pytz.timezone('Asia/Makassar')
+    if db_time.tzinfo is None:
+        # PostgreSQL with SQLAlchemy naive DateTime columns saves the time as UTC.
+        # So when retrieved, it's a naive datetime representing UTC.
+        db_time = pytz.utc.localize(db_time)
+
+    makassar_time = db_time.astimezone(makassar_tz)
+    return makassar_time.strftime(format_str)
+
 limiter = Limiter(
     get_remote_address,
     app=app,
@@ -231,6 +245,7 @@ class QurbanAttendance(db.Model):
     session_id = db.Column(db.String(255), nullable=True)
     check_in_time = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(50), nullable=True) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
+    profile_photo = db.deferred(db.Column(db.Text, nullable=True))
 
 
 class QurbanReport(db.Model):
@@ -964,6 +979,8 @@ BASE_LAYOUT = """
     <title>Masjid Al Hijrah</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     {{ styles|safe }}
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 </head>
 <body class="text-gray-800 antialiased {{ 'ramadhan-mode' if hide_nav else '' }}">
     {% set t_nav_bg = theme.nav_bg if theme and theme.nav_bg else 'glass-nav' %}
@@ -1493,6 +1510,153 @@ BASE_LAYOUT = """
                     const formData = new FormData(addForm);
                     const jsonData = Object.fromEntries(formData.entries());
                     const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+    // --- CROPPER & AVATAR LOGIC ---
+    let cropper = null;
+    const avatarInput = document.getElementById('avatarInput');
+    const editAvatarBtn = document.getElementById('editAvatarBtn');
+    const cropperModal = document.getElementById('cropperModal');
+    const cropperModalContent = document.getElementById('cropperModalContent');
+    const cropperImage = document.getElementById('cropperImage');
+
+    // UI Elements
+    const avatarIcon = document.getElementById('avatarIcon');
+    const avatarImage = document.getElementById('avatarImage');
+
+    if(editAvatarBtn) {
+        editAvatarBtn.addEventListener('click', () => {
+            avatarInput.click();
+        });
+    }
+
+    if(avatarInput) {
+        avatarInput.addEventListener('change', (e) => {
+            if(e.target.files && e.target.files.length > 0) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    cropperImage.src = event.target.result;
+                    openCropperModal();
+                };
+                reader.readAsDataURL(e.target.files[0]);
+                // Reset input
+                avatarInput.value = '';
+            }
+        });
+    }
+
+    function openCropperModal() {
+        cropperModal.classList.remove('hidden');
+        cropperModal.classList.add('flex');
+        setTimeout(() => {
+            cropperModalContent.classList.remove('scale-95');
+            cropperModalContent.classList.add('scale-100');
+        }, 10);
+
+        if(cropper) { cropper.destroy(); }
+        cropper = new Cropper(cropperImage, {
+            aspectRatio: 1,
+            viewMode: 1,
+            dragMode: 'move',
+            autoCropArea: 1,
+            restore: false,
+            guides: false,
+            center: false,
+            highlight: false,
+            cropBoxMovable: false,
+            cropBoxResizable: false,
+            toggleDragModeOnDblclick: false,
+        });
+    }
+
+    function closeCropperModal() {
+        cropperModalContent.classList.remove('scale-100');
+        cropperModalContent.classList.add('scale-95');
+        setTimeout(() => {
+            cropperModal.classList.add('hidden');
+            cropperModal.classList.remove('flex');
+            if(cropper) { cropper.destroy(); cropper = null; }
+        }, 300);
+    }
+
+    document.getElementById('closeCropBtn')?.addEventListener('click', closeCropperModal);
+    document.getElementById('cancelCropBtn')?.addEventListener('click', closeCropperModal);
+
+    document.getElementById('zoomInBtn')?.addEventListener('click', () => {
+        if(cropper) cropper.zoom(0.1);
+    });
+    document.getElementById('zoomOutBtn')?.addEventListener('click', () => {
+        if(cropper) cropper.zoom(-0.1);
+    });
+
+    // Helper for animated loading button
+    function setButtonLoading(btnId, isLoading) {
+        const btn = document.getElementById(btnId);
+        if(!btn) return;
+        if(isLoading) {
+            btn.classList.add('loading');
+            btn.disabled = true;
+        } else {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+        }
+    }
+
+    async function sendPhotoAction(action, base64Data = null) {
+        const btnId = action === 'delete' ? 'deleteAvatarBtn' : 'saveCropBtn';
+        setButtonLoading(btnId, true);
+        try {
+            const res = await fetch('/idul-adha/absen-panitia/photo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ action: action, photo: base64Data })
+            });
+            const data = await res.json();
+            if(data.success) {
+                closeCropperModal();
+                updateAvatarUI(data.photo);
+            } else {
+                alert(data.message || 'Gagal menyimpan foto.');
+            }
+        } catch (e) {
+            alert('Terjadi kesalahan koneksi.');
+        } finally {
+            setButtonLoading(btnId, false);
+        }
+    }
+
+    document.getElementById('saveCropBtn')?.addEventListener('click', () => {
+        if(!cropper) return;
+        // get cropped canvas
+        const canvas = cropper.getCroppedCanvas({
+            width: 300,
+            height: 300
+        });
+        const base64Str = canvas.toDataURL('image/jpeg', 0.8);
+        sendPhotoAction('save', base64Str);
+    });
+
+    document.getElementById('deleteAvatarBtn')?.addEventListener('click', () => {
+        if(confirm('Yakin ingin menghapus foto profil?')) {
+            sendPhotoAction('delete');
+        }
+    });
+
+    function updateAvatarUI(photoStr) {
+        if(!avatarIcon || !avatarImage) return;
+        if(photoStr) {
+            avatarImage.src = photoStr;
+            avatarImage.classList.remove('hidden');
+            avatarIcon.classList.add('hidden');
+        } else {
+            avatarImage.src = '';
+            avatarImage.classList.add('hidden');
+            avatarIcon.classList.remove('hidden');
+        }
+    }
+
                     
                     try {
                         const response = await fetch('/idul-adha/peta-distribusi/add', {
@@ -4294,23 +4458,65 @@ IDUL_ADHA_ABSEN_PANITIA_HTML = '''
                         <p class="text-white font-bold tracking-widest text-sm uppercase opacity-50">Panitia Qurban Al Hijrah</p>
                     </div>
                     <div class="relative z-10 pt-16 flex flex-col items-center">
-                        <div class="w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-4">
-                            <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 overflow-hidden">
-                                <i class="fas fa-user"></i>
+                        <div class="relative w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-4 group mx-auto">
+                            <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 overflow-hidden relative" id="avatarContainer">
+                                <i class="fas fa-user" id="avatarIcon"></i>
+                                <img id="avatarImage" src="" class="w-full h-full object-cover hidden" alt="Profile" />
                             </div>
+                            <button id="editAvatarBtn" class="absolute bottom-0 right-0 bg-[#D4A017] hover:bg-[#8B2635] text-white w-8 h-8 rounded-full shadow border-2 border-white flex items-center justify-center transition-colors z-20">
+                                <i class="fas fa-pencil-alt text-xs"></i>
+                            </button>
+                            <input type="file" id="avatarInput" accept="image/*" class="hidden" />
                         </div>
                         <h2 id="cardName" class="text-2xl font-bold text-gray-800 mb-1">-</h2>
                         <p class="text-xs text-gray-400 font-mono mb-4">ID: <span id="cardId">-</span></p>
                         
-                        <div class="w-11/12 bg-amber-50 rounded-2xl p-4 border border-amber-200 text-center shadow-inner">
-                            <p class="text-xs text-amber-700 font-bold uppercase tracking-wider mb-1">Tugas Anda Hari Ini</p>
-                            <p id="cardPos" class="text-lg font-bold text-amber-900">-</p>
+                        <div class="w-11/12 bg-amber-50 rounded-2xl p-3 border border-amber-200 text-center shadow-inner overflow-hidden flex flex-col justify-center items-center">
+                            <p class="text-[10px] sm:text-xs text-amber-700 font-bold uppercase tracking-wider mb-1 break-words w-full">Tugas Anda Hari Ini</p>
+                            <p id="cardPos" class="text-sm sm:text-base font-bold text-amber-900 break-words w-full px-1 line-clamp-2">-</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
+    </div>
+</div>
+
+
+<!-- CROPPER MODAL -->
+<div id="cropperModal" class="fixed inset-0 bg-black/80 z-[100] hidden items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl transform scale-95 transition-transform duration-300" id="cropperModalContent">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h3 class="font-bold text-gray-800"><i class="fas fa-crop-alt text-[#D4A017] mr-2"></i>Atur Foto Profil</h3>
+            <button id="closeCropBtn" class="text-gray-400 hover:text-red-500 transition-colors"><i class="fas fa-times text-xl"></i></button>
+        </div>
+
+        <div class="p-4">
+            <div class="w-full h-64 bg-gray-100 rounded-xl overflow-hidden mb-4 border border-gray-200">
+                <img id="cropperImage" src="" class="max-w-full block" />
+            </div>
+
+            <div class="flex justify-center space-x-4 mb-4">
+                <button id="zoomInBtn" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center transition-colors"><i class="fas fa-search-plus"></i></button>
+                <button id="zoomOutBtn" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center transition-colors"><i class="fas fa-search-minus"></i></button>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
+                <button id="deleteAvatarBtn" class="relative overflow-hidden group py-3 bg-red-50 text-red-600 rounded-xl font-bold border border-red-100 hover:border-red-300 transition-all flex justify-center items-center">
+                    <span class="relative z-10 flex items-center"><i class="fas fa-trash-alt mr-2"></i> Hapus</span>
+                    <div class="absolute bottom-0 left-0 w-full h-0 bg-red-100 group-[.loading]:h-full transition-all duration-[2000ms] ease-in-out z-0"></div>
+                </button>
+                <button id="cancelCropBtn" class="relative overflow-hidden group py-3 bg-gray-50 text-gray-600 rounded-xl font-bold border border-gray-200 hover:border-gray-300 transition-all flex justify-center items-center">
+                    <span class="relative z-10 flex items-center"><i class="fas fa-ban mr-2"></i> Batal</span>
+                    <div class="absolute bottom-0 left-0 w-full h-0 bg-gray-200 group-[.loading]:h-full transition-all duration-[2000ms] ease-in-out z-0"></div>
+                </button>
+                <button id="saveCropBtn" class="relative overflow-hidden group py-3 bg-[#1B4332] text-white rounded-xl font-bold border border-[#1B4332] hover:bg-[#0f2e21] transition-all flex justify-center items-center">
+                    <span class="relative z-10 flex items-center"><i class="fas fa-save mr-2"></i> Simpan</span>
+                    <div class="absolute bottom-0 left-0 w-full h-0 bg-[#D4A017] group-[.loading]:h-full transition-all duration-[2000ms] ease-in-out z-0"></div>
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -4444,6 +4650,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
                 // Unlock ID Card
+                if(typeof updateAvatarUI === 'function') updateAvatarUI(user.profile_photo);
                 overlay.classList.add('hidden');
                 cardName.innerText = user.name;
                 cardId.innerText = 'PAN-' + String(user.id).padStart(4, '0');
@@ -9839,7 +10046,8 @@ def idul_adha_absen_data():
             user_data = {
                 'id': u.id, 'name': u.name, 'approval_status': u.approval_status, 
                 'is_present': u.is_present, 'pos_tugas': u.pos_tugas,
-                'check_in_time': u.check_in_time.strftime("%H:%M") if u.check_in_time else None
+                'check_in_time': format_db_time_to_makassar(u.check_in_time) if u.check_in_time else None,
+                'profile_photo': u.profile_photo
             }
             
     # Get Admin Data
@@ -9852,7 +10060,7 @@ def idul_adha_absen_data():
                 'id': p.id, 'name': p.name, 'no_hp': p.no_hp,
                 'approval_status': p.approval_status, 'is_present': p.is_present,
                 'pos_tugas': p.pos_tugas,
-                'check_in_time': p.check_in_time.strftime("%H:%M") if p.check_in_time else None
+                'check_in_time': format_db_time_to_makassar(p.check_in_time) if p.check_in_time else None
             })
             analytics['total'] += 1
             if p.is_present: analytics['hadir'] += 1
@@ -9934,6 +10142,34 @@ def idul_adha_absen_assign():
         return jsonify({'success': True})
     return jsonify({'success': False})
 
+
+@app.route('/idul-adha/absen-panitia/photo', methods=['POST'])
+@csrf.exempt
+def idul_adha_absen_photo():
+    sid = session.get('user_session_id')
+    if not sid: return jsonify({'success': False, 'message': 'Session expired'})
+
+    req = request.get_json(silent=True) or {}
+    action = req.get('action')
+
+    u = QurbanAttendance.query.filter_by(session_id=sid).first()
+    if not u: return jsonify({'success': False, 'message': 'User not found'})
+
+    try:
+        if action == 'delete':
+            u.profile_photo = None
+        elif action == 'save':
+            photo_data = req.get('photo')
+            if photo_data:
+                u.profile_photo = photo_data
+
+        db.session.commit()
+        return jsonify({'success': True, 'photo': u.profile_photo})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error saving photo: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': 'Gagal memproses foto'})
+
 @app.route('/idul-adha/absen-panitia/checkin', methods=['POST'])
 def idul_adha_absen_checkin():
     sid = session.get('user_session_id')
@@ -9963,7 +10199,7 @@ def idul_adha_absen_export():
     
     for p in panitia:
         cw.writerow([
-            p.id, p.name, p.no_hp, p.check_in_time.strftime("%Y-%m-%d %H:%M:%S") if p.check_in_time else '-',
+            p.id, p.name, p.no_hp, format_db_time_to_makassar(p.check_in_time, "%Y-%m-%d %H:%M:%S") if p.check_in_time else '-',
             p.approval_status, p.pos_tugas or '-', 'Hadir' if p.is_present else 'Belum/Terlambat'
         ])
         
@@ -10398,6 +10634,8 @@ with app.app_context():
                 try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN is_present BOOLEAN DEFAULT FALSE"))
                 except Exception: pass
                 try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN session_id VARCHAR(255) NULL"))
+                except Exception: pass
+                try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN profile_photo TEXT NULL"))
                 except Exception: pass
                 try: conn.execute(text("ALTER TABLE qurban_attendance ALTER COLUMN check_in_time TYPE TIMESTAMP NULL"))
                 except Exception: pass
