@@ -231,6 +231,7 @@ class QurbanAttendance(db.Model):
     session_id = db.Column(db.String(255), nullable=True)
     check_in_time = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(50), nullable=True) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
+    profile_photo = db.Column(db.String(255), nullable=True)
 
 
 class QurbanReport(db.Model):
@@ -834,6 +835,8 @@ for model in [Finance, Agenda, Booking, Zakat, GalleryDakwah, Suggestion, Ramadh
 
 STYLES_HTML = """
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script>
         tailwind.config = {
           theme: {
@@ -4294,9 +4297,13 @@ IDUL_ADHA_ABSEN_PANITIA_HTML = '''
                         <p class="text-white font-bold tracking-widest text-sm uppercase opacity-50">Panitia Qurban Al Hijrah</p>
                     </div>
                     <div class="relative z-10 pt-16 flex flex-col items-center">
-                        <div class="w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-4">
-                            <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 overflow-hidden">
-                                <i class="fas fa-user"></i>
+                        <div class="relative w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-4 cursor-pointer" onclick="openProfilePhotoModal()">
+                            <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 overflow-hidden" id="cardPhotoContainer">
+                                <i class="fas fa-user" id="cardPhotoIcon"></i>
+                                <img id="cardPhotoImg" src="" class="w-full h-full object-cover hidden">
+                            </div>
+                            <div class="absolute bottom-0 right-0 bg-[#8B2635] text-white w-8 h-8 rounded-full flex items-center justify-center shadow-md border-2 border-white transition transform hover:scale-110">
+                                <i class="fas fa-pencil-alt text-xs"></i>
                             </div>
                         </div>
                         <h2 id="cardName" class="text-2xl font-bold text-gray-800 mb-1">-</h2>
@@ -4304,10 +4311,51 @@ IDUL_ADHA_ABSEN_PANITIA_HTML = '''
                         
                         <div class="w-11/12 bg-amber-50 rounded-2xl p-4 border border-amber-200 text-center shadow-inner">
                             <p class="text-xs text-amber-700 font-bold uppercase tracking-wider mb-1">Tugas Anda Hari Ini</p>
-                            <p id="cardPos" class="text-lg font-bold text-amber-900">-</p>
+                            <p id="cardPos" class="text-sm md:text-base font-bold text-amber-900 break-words">-</p>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+
+        <!-- Modal Upload Foto Profil -->
+        <div id="modalProfilePhoto" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div class="bg-white rounded-3xl w-full max-w-sm mx-4 p-6 shadow-2xl animate-[slideUp_0.3s_ease-out] relative">
+                <button onclick="closeProfilePhotoModal()" class="absolute top-4 right-4 z-50 bg-gray-100 w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center transition">&times;</button>
+                <h3 class="text-xl font-bold text-[#8B2635] mb-4">Foto Profil ID Card</h3>
+
+                <!-- This container is just for showing the current avatar/placeholder before picking a file -->
+                <div id="photoPlaceholderContainer" class="w-32 h-32 mx-auto mb-4 bg-gray-100 rounded-full border-4 border-gray-200 flex items-center justify-center overflow-hidden relative">
+                    <i class="fas fa-user text-5xl text-gray-400" id="previewPhotoIcon"></i>
+                    <img id="previewPhotoImg" src="" class="w-full h-full object-cover hidden">
+                </div>
+
+                <!-- This container holds the image to be cropped, hidden until file selected -->
+                <div id="cropperContainer" class="hidden w-full h-48 bg-gray-100 rounded-xl mb-4 relative">
+                     <img id="cropperImg" src="" class="max-w-full block">
+                </div>
+
+                <div id="zoomControls" class="hidden flex justify-center gap-4 mb-4">
+                     <button onclick="zoomCropper(-0.1)" class="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 flex items-center justify-center"><i class="fas fa-search-minus"></i></button>
+                     <button onclick="zoomCropper(0.1)" class="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 flex items-center justify-center"><i class="fas fa-search-plus"></i></button>
+                </div>
+
+                <form id="profilePhotoForm" class="space-y-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="flex gap-2">
+                        <button type="button" onclick="document.getElementById('photoInput').click()" class="w-full bg-[#8B2635]/10 text-[#8B2635] font-bold py-2 rounded-xl border border-[#8B2635]/20 hover:bg-[#8B2635]/20 transition text-sm">
+                            <i class="fas fa-image mr-1"></i> Ganti Foto / Pilih Galeri
+                        </button>
+                        <input type="file" id="photoInput" accept="image/*" class="hidden">
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button type="button" onclick="deleteProfilePhoto()" class="w-1/3 bg-red-100 text-red-600 font-bold py-2 rounded-xl hover:bg-red-200 transition text-sm"><i class="fas fa-trash"></i> Hapus</button>
+                        <button type="button" onclick="submitProfilePhoto()" class="w-2/3 bg-[#8B2635] text-white font-bold py-2 rounded-xl hover:bg-red-800 transition shadow-md text-sm"><i class="fas fa-save mr-1"></i> Simpan</button>
+                    </div>
+                    <button type="button" onclick="closeProfilePhotoModal()" class="w-full bg-gray-100 text-gray-600 font-bold py-2 rounded-xl hover:bg-gray-200 transition text-sm">Batal</button>
+                </form>
             </div>
         </div>
 
@@ -4448,6 +4496,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 cardName.innerText = user.name;
                 cardId.innerText = 'PAN-' + String(user.id).padStart(4, '0');
                 cardPos.innerText = user.pos_tugas || "Menunggu Instruksi Lapangan";
+
+                // Photo
+                const photoIcon = document.getElementById('cardPhotoIcon');
+                const photoImg = document.getElementById('cardPhotoImg');
+                if(user.profile_photo) {
+                    photoIcon.classList.add('hidden');
+                    photoImg.src = '/uploads/' + user.profile_photo;
+                    photoImg.classList.remove('hidden');
+                } else {
+                    photoIcon.classList.remove('hidden');
+                    photoImg.classList.add('hidden');
+                    photoImg.src = '';
+                }
             }
         }
     }
@@ -4508,7 +4569,135 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+
+
+    // --- Profile Photo JS ---
+    let cropper = null;
+
+    window.openProfilePhotoModal = function() {
+        document.getElementById('modalProfilePhoto').classList.remove('hidden');
+        document.getElementById('photoInput').value = '';
+
+        document.getElementById('cropperContainer').classList.add('hidden');
+        document.getElementById('zoomControls').classList.add('hidden');
+        document.getElementById('photoPlaceholderContainer').classList.remove('hidden');
+
+        if(cropper) {
+            cropper.destroy();
+            cropper = null;
+        }
+
+        const userPhoto = document.getElementById('cardPhotoImg').src;
+        const isHidden = document.getElementById('cardPhotoImg').classList.contains('hidden');
+        if(!isHidden && userPhoto) {
+             document.getElementById('previewPhotoImg').src = userPhoto;
+             document.getElementById('previewPhotoImg').classList.remove('hidden');
+             document.getElementById('previewPhotoIcon').classList.add('hidden');
+        } else {
+             document.getElementById('previewPhotoImg').src = '';
+             document.getElementById('previewPhotoImg').classList.add('hidden');
+             document.getElementById('previewPhotoIcon').classList.remove('hidden');
+        }
+    }
+
+    window.closeProfilePhotoModal = function() {
+        document.getElementById('modalProfilePhoto').classList.add('hidden');
+        if(cropper) {
+            cropper.destroy();
+            cropper = null;
+        }
+    }
+
+    document.getElementById('photoInput')?.addEventListener('change', function(e) {
+        if(e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                document.getElementById('photoPlaceholderContainer').classList.add('hidden');
+                document.getElementById('cropperContainer').classList.remove('hidden');
+                document.getElementById('zoomControls').classList.remove('hidden');
+
+                const image = document.getElementById('cropperImg');
+                image.src = event.target.result;
+
+                if(cropper) {
+                    cropper.destroy();
+                }
+                cropper = new Cropper(image, {
+                    aspectRatio: 1,
+                    viewMode: 1,
+                    dragMode: 'move',
+                    autoCropArea: 1,
+                    restore: false,
+                    guides: false,
+                    center: false,
+                    highlight: false,
+                    cropBoxMovable: false,
+                    cropBoxResizable: false,
+                    toggleDragModeOnDblclick: false,
+                });
+            }
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    });
+
+    window.zoomCropper = function(ratio) {
+        if(cropper) cropper.zoom(ratio);
+    }
+
+    window.submitProfilePhoto = async function() {
+        if(!cropper) {
+            alert('Pilih foto galeri terlebih dahulu untuk disimpan, atau jika tidak ingin mengubah, klik Batal.');
+            return;
+        }
+
+        cropper.getCroppedCanvas({
+            width: 500,
+            height: 500,
+            imageSmoothingEnabled: true,
+            imageSmoothingQuality: 'high',
+        }).toBlob(async (blob) => {
+            const formData = new FormData();
+            formData.append('photo', blob, 'profile.jpg');
+
+            try {
+                const res = await fetch('/idul-adha/absen-panitia/photo', {
+                    method: 'POST',
+                    headers: {'X-CSRFToken': csrfToken},
+                    body: formData
+                });
+                if(res.ok) {
+                    closeProfilePhotoModal();
+                    fetchAbsenData();
+                } else {
+                    alert('Gagal mengupload foto.');
+                }
+            } catch(e) {
+                console.error(e);
+                alert('Kesalahan jaringan.');
+            }
+        }, 'image/jpeg', 0.9);
+    }
+
+    window.deleteProfilePhoto = async function() {
+        try {
+            const res = await fetch('/idul-adha/absen-panitia/photo/delete', {
+                method: 'POST',
+                headers: {'X-CSRFToken': csrfToken}
+            });
+            if(res.ok) {
+                closeProfilePhotoModal();
+                fetchAbsenData();
+            } else {
+                alert('Gagal menghapus foto.');
+            }
+        } catch(e) {
+            console.error(e);
+            alert('Kesalahan jaringan.');
+        }
+    }
+
     // Window Functions for Forms & Actions
+
     window.submitJoinForm = async function() {
         const name = document.getElementById('j_name').value;
         const hp = document.getElementById('j_hp').value;
@@ -9839,7 +10028,8 @@ def idul_adha_absen_data():
             user_data = {
                 'id': u.id, 'name': u.name, 'approval_status': u.approval_status, 
                 'is_present': u.is_present, 'pos_tugas': u.pos_tugas,
-                'check_in_time': u.check_in_time.strftime("%H:%M") if u.check_in_time else None
+                'check_in_time': pytz.utc.localize(u.check_in_time).astimezone(pytz.timezone('Asia/Makassar')).strftime("%H:%M") if u.check_in_time else None,
+                'profile_photo': u.profile_photo
             }
             
     # Get Admin Data
@@ -9852,7 +10042,7 @@ def idul_adha_absen_data():
                 'id': p.id, 'name': p.name, 'no_hp': p.no_hp,
                 'approval_status': p.approval_status, 'is_present': p.is_present,
                 'pos_tugas': p.pos_tugas,
-                'check_in_time': p.check_in_time.strftime("%H:%M") if p.check_in_time else None
+                'check_in_time': pytz.utc.localize(p.check_in_time).astimezone(pytz.timezone('Asia/Makassar')).strftime("%H:%M") if p.check_in_time else None
             })
             analytics['total'] += 1
             if p.is_present: analytics['hadir'] += 1
@@ -9945,11 +10135,50 @@ def idul_adha_absen_checkin():
     u = QurbanAttendance.query.filter_by(session_id=sid).first()
     if u and u.approval_status == 'Approved' and not u.is_present:
         u.is_present = True
-        u.check_in_time = current_time
+        u.check_in_time = datetime.datetime.utcnow()
         u.status = 'Hadir Pagi'
         db.session.commit()
         return jsonify({'success': True})
     return jsonify({'success': False, 'message': 'Gagal check-in'})
+
+@app.route('/idul-adha/absen-panitia/photo', methods=['POST'])
+def idul_adha_absen_photo():
+    sid = session.get('user_session_id')
+    if not sid: return jsonify({'success': False, 'message': 'Session expired'}), 403
+
+    if 'photo' not in request.files:
+        return jsonify({'success': False, 'message': 'No photo uploaded'}), 400
+
+    file = request.files['photo']
+    if file and allowed_file(file.filename):
+        try:
+            saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
+            u = QurbanAttendance.query.filter_by(session_id=sid).first()
+            if u:
+                u.profile_photo = saved_filename
+                db.session.commit()
+                return jsonify({'success': True})
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error uploading photo: {e}")
+
+    return jsonify({'success': False, 'message': 'Upload failed'}), 500
+
+@app.route('/idul-adha/absen-panitia/photo/delete', methods=['POST'])
+def idul_adha_absen_photo_delete():
+    sid = session.get('user_session_id')
+    if not sid: return jsonify({'success': False, 'message': 'Session expired'}), 403
+
+    u = QurbanAttendance.query.filter_by(session_id=sid).first()
+    if u:
+        try:
+            u.profile_photo = None
+            db.session.commit()
+            return jsonify({'success': True})
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error deleting photo: {e}")
+    return jsonify({'success': False, 'message': 'Failed'}), 500
 
 @app.route('/idul-adha/absen-panitia/export')
 def idul_adha_absen_export():
@@ -9963,7 +10192,7 @@ def idul_adha_absen_export():
     
     for p in panitia:
         cw.writerow([
-            p.id, p.name, p.no_hp, p.check_in_time.strftime("%Y-%m-%d %H:%M:%S") if p.check_in_time else '-',
+            p.id, p.name, p.no_hp, pytz.utc.localize(p.check_in_time).astimezone(pytz.timezone('Asia/Makassar')).strftime("%Y-%m-%d %H:%M:%S") if p.check_in_time else '-',
             p.approval_status, p.pos_tugas or '-', 'Hadir' if p.is_present else 'Belum/Terlambat'
         ])
         
@@ -10053,7 +10282,7 @@ def idul_adha_absen():
     
     attendance = QurbanAttendance(
         name=username,
-        check_in_time=current_time,
+        check_in_time=datetime.datetime.utcnow(),
         status=status
     )
     
@@ -10400,6 +10629,8 @@ with app.app_context():
                 try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN session_id VARCHAR(255) NULL"))
                 except Exception: pass
                 try: conn.execute(text("ALTER TABLE qurban_attendance ALTER COLUMN check_in_time TYPE TIMESTAMP NULL"))
+                except Exception: pass
+                try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN profile_photo VARCHAR(255) NULL"))
                 except Exception: pass
                 try: conn.execute(text("ALTER TABLE qurban_attendance ALTER COLUMN status TYPE VARCHAR(50) NULL"))
                 except Exception: pass
