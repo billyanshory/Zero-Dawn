@@ -231,6 +231,7 @@ class QurbanAttendance(db.Model):
     session_id = db.Column(db.String(255), nullable=True)
     check_in_time = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(50), nullable=True) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
+    profile_picture = db.Column(db.String(255), nullable=True)
 
 
 class QurbanReport(db.Model):
@@ -4294,17 +4295,45 @@ IDUL_ADHA_ABSEN_PANITIA_HTML = '''
                         <p class="text-white font-bold tracking-widest text-sm uppercase opacity-50">Panitia Qurban Al Hijrah</p>
                     </div>
                     <div class="relative z-10 pt-16 flex flex-col items-center">
-                        <div class="w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-4">
-                            <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 overflow-hidden">
-                                <i class="fas fa-user"></i>
+
+                        <div class="w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-4 relative group cursor-pointer" onclick="openPhotoMenu()">
+                            <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl text-gray-400 overflow-hidden relative" id="profilePicContainer">
+                                <i class="fas fa-user" id="defaultUserIcon"></i>
+                                <img id="profileImage" src="" class="w-full h-full object-cover hidden">
+                            </div>
+                            <div class="absolute bottom-0 right-0 bg-[#8B2635] text-white w-8 h-8 rounded-full flex items-center justify-center border-2 border-white shadow-md transition transform hover:scale-110">
+                                <i class="fas fa-pencil-alt text-xs"></i>
                             </div>
                         </div>
+
+                        <!-- Photo Menu Modal -->
+                        <div id="photoMenuModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center">
+                            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closePhotoMenu()"></div>
+                            <div class="bg-white p-6 rounded-3xl z-10 w-64 text-center animate-[slideUp_0.3s_ease-out]">
+                                <h4 class="font-bold text-gray-800 mb-4 border-b pb-2">Foto Profil</h4>
+                                <div class="flex flex-col gap-3">
+                                    <button onclick="document.getElementById('photoInput').click(); closePhotoMenu();" class="bg-emerald-50 text-emerald-600 font-bold py-2 rounded-xl border border-emerald-100 hover:bg-emerald-100"><i class="fas fa-image mr-2"></i>Ganti / Pilih</button>
+                                    <button onclick="deletePhoto(); closePhotoMenu();" class="bg-red-50 text-red-600 font-bold py-2 rounded-xl border border-red-100 hover:bg-red-100"><i class="fas fa-trash mr-2"></i>Hapus Foto</button>
+                                    <button onclick="closePhotoMenu()" class="text-gray-400 font-bold py-2 hover:text-gray-600 text-sm">Batal</button>
+                                </div>
+                                <input type="file" id="photoInput" class="hidden" accept="image/*" onchange="handlePhotoUpload(event)">
+                            </div>
+                        </div>
+
+                        <!-- Loading Animation -->
+                        <div id="photoLoadingModal" class="fixed inset-0 z-[110] hidden flex items-center justify-center bg-white/80 backdrop-blur-sm">
+                            <div class="flex flex-col items-center">
+                                <div class="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mb-4"></div>
+                                <p class="text-emerald-700 font-bold animate-pulse">Menyimpan Foto...</p>
+                            </div>
+                        </div>
+
                         <h2 id="cardName" class="text-2xl font-bold text-gray-800 mb-1">-</h2>
                         <p class="text-xs text-gray-400 font-mono mb-4">ID: <span id="cardId">-</span></p>
                         
-                        <div class="w-11/12 bg-amber-50 rounded-2xl p-4 border border-amber-200 text-center shadow-inner">
+                        <div class="w-11/12 bg-amber-50 rounded-2xl p-4 border border-amber-200 text-center shadow-inner break-words overflow-hidden">
                             <p class="text-xs text-amber-700 font-bold uppercase tracking-wider mb-1">Tugas Anda Hari Ini</p>
-                            <p id="cardPos" class="text-lg font-bold text-amber-900">-</p>
+                            <p id="cardPos" class="text-lg font-bold text-amber-900 leading-tight">-</p>
                         </div>
                     </div>
                 </div>
@@ -4321,7 +4350,75 @@ document.addEventListener('DOMContentLoaded', () => {
     const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
     const isAdmin = {{ 'true' if is_admin else 'false' }};
     
+
+    // Photo Upload Logic
+    window.openPhotoMenu = function() {
+        document.getElementById('photoMenuModal').classList.remove('hidden');
+    }
+    window.closePhotoMenu = function() {
+        document.getElementById('photoMenuModal').classList.add('hidden');
+    }
+
+    window.handlePhotoUpload = async function(event) {
+        const file = event.target.files[0];
+        if(!file) return;
+
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('action', 'upload');
+
+        document.getElementById('photoLoadingModal').classList.remove('hidden');
+        try {
+            const res = await fetch('/idul-adha/absen-panitia/upload-photo', {
+                method: 'POST',
+                headers: {'X-CSRFToken': csrfToken},
+                body: formData
+            });
+            const data = await res.json();
+            if(res.ok && data.success) {
+                // Update Image
+                document.getElementById('defaultUserIcon').classList.add('hidden');
+                const img = document.getElementById('profileImage');
+                img.src = '/uploads/' + data.filename;
+                img.classList.remove('hidden');
+            } else {
+                alert(data.message || 'Gagal menyimpan foto');
+            }
+        } catch(e) {
+            alert('Terjadi kesalahan jaringan');
+        } finally {
+            document.getElementById('photoLoadingModal').classList.add('hidden');
+            event.target.value = ''; // Reset
+        }
+    }
+
+    window.deletePhoto = async function() {
+        const formData = new FormData();
+        formData.append('action', 'delete');
+
+        document.getElementById('photoLoadingModal').classList.remove('hidden');
+        try {
+            const res = await fetch('/idul-adha/absen-panitia/upload-photo', {
+                method: 'POST',
+                headers: {'X-CSRFToken': csrfToken},
+                body: formData
+            });
+            const data = await res.json();
+            if(res.ok && data.success) {
+                document.getElementById('profileImage').classList.add('hidden');
+                document.getElementById('defaultUserIcon').classList.remove('hidden');
+            } else {
+                alert(data.message || 'Gagal menghapus foto');
+            }
+        } catch(e) {
+            alert('Terjadi kesalahan jaringan');
+        } finally {
+            document.getElementById('photoLoadingModal').classList.add('hidden');
+        }
+    }
+
     // Polling Data
+
     async function fetchAbsenData() {
         try {
             const res = await fetch('/idul-adha/absen-panitia/data');
@@ -4447,7 +4544,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 overlay.classList.add('hidden');
                 cardName.innerText = user.name;
                 cardId.innerText = 'PAN-' + String(user.id).padStart(4, '0');
+
+                cardName.innerText = user.name;
+                cardId.innerText = 'PAN-' + String(user.id).padStart(4, '0');
                 cardPos.innerText = user.pos_tugas || "Menunggu Instruksi Lapangan";
+
+                if(user.profile_picture) {
+                    document.getElementById('defaultUserIcon').classList.add('hidden');
+                    const img = document.getElementById('profileImage');
+                    img.src = '/uploads/' + user.profile_picture;
+                    img.classList.remove('hidden');
+                } else {
+                    document.getElementById('profileImage').classList.add('hidden');
+                    document.getElementById('defaultUserIcon').classList.remove('hidden');
+                }
+
             }
         }
     }
@@ -9799,7 +9910,23 @@ def idul_adha_absen_panitia():
                                   is_admin=session.get('is_admin', False),
                                   settings=settings)
 
+
+def format_wita(dt):
+    if not dt: return None
+    import pytz
+    if dt.tzinfo is None:
+        dt = pytz.utc.localize(dt)
+    return dt.astimezone(pytz.timezone('Asia/Makassar')).strftime("%H:%M")
+
+def format_wita_full(dt):
+    if not dt: return None
+    import pytz
+    if dt.tzinfo is None:
+        dt = pytz.utc.localize(dt)
+    return dt.astimezone(pytz.timezone('Asia/Makassar')).strftime("%Y-%m-%d %H:%M:%S")
+
 @app.route('/idul-adha/absen-panitia/data')
+
 def idul_adha_absen_data():
     makassar_tz = pytz.timezone('Asia/Makassar')
     current_time = datetime.datetime.now(makassar_tz)
@@ -9839,7 +9966,8 @@ def idul_adha_absen_data():
             user_data = {
                 'id': u.id, 'name': u.name, 'approval_status': u.approval_status, 
                 'is_present': u.is_present, 'pos_tugas': u.pos_tugas,
-                'check_in_time': u.check_in_time.strftime("%H:%M") if u.check_in_time else None
+                'check_in_time': format_wita(u.check_in_time),
+                'profile_picture': u.profile_picture
             }
             
     # Get Admin Data
@@ -9852,7 +9980,7 @@ def idul_adha_absen_data():
                 'id': p.id, 'name': p.name, 'no_hp': p.no_hp,
                 'approval_status': p.approval_status, 'is_present': p.is_present,
                 'pos_tugas': p.pos_tugas,
-                'check_in_time': p.check_in_time.strftime("%H:%M") if p.check_in_time else None
+                'check_in_time': format_wita(p.check_in_time)
             })
             analytics['total'] += 1
             if p.is_present: analytics['hadir'] += 1
@@ -9912,7 +10040,39 @@ def idul_adha_absen_register():
         db.session.rollback()
         return jsonify({'success': False})
 
+
+@app.route('/idul-adha/absen-panitia/upload-photo', methods=['POST'])
+def idul_adha_absen_upload_photo():
+    sid = session.get('user_session_id')
+    if not sid: return jsonify({'success': False, 'message': 'Session expired'}), 401
+
+    u = QurbanAttendance.query.filter_by(session_id=sid).first()
+    if not u: return jsonify({'success': False, 'message': 'User tidak ditemukan'}), 404
+
+    action = request.form.get('action')
+    if action == 'delete':
+        u.profile_picture = None
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Foto dihapus'})
+
+    if 'image' not in request.files:
+        return jsonify({'success': False, 'message': 'Tidak ada gambar'}), 400
+
+    file = request.files['image']
+    if file and allowed_file(file.filename):
+        try:
+            saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
+            u.profile_picture = saved_filename
+            db.session.commit()
+            return jsonify({'success': True, 'filename': saved_filename})
+        except Exception as e:
+            app.logger.error(f"Error saving photo: {e}", exc_info=True)
+            return jsonify({'success': False, 'message': 'Gagal menyimpan gambar'}), 500
+
+    return jsonify({'success': False, 'message': 'Format file tidak didukung'}), 400
+
 @app.route('/idul-adha/absen-panitia/approve', methods=['POST'])
+
 def idul_adha_absen_approve():
     if not session.get('is_admin'): return jsonify({'success': False}), 403
     req = request.get_json(silent=True) or {}
@@ -9963,7 +10123,7 @@ def idul_adha_absen_export():
     
     for p in panitia:
         cw.writerow([
-            p.id, p.name, p.no_hp, p.check_in_time.strftime("%Y-%m-%d %H:%M:%S") if p.check_in_time else '-',
+            p.id, p.name, p.no_hp, format_wita_full(p.check_in_time) if p.check_in_time else '-',
             p.approval_status, p.pos_tugas or '-', 'Hadir' if p.is_present else 'Belum/Terlambat'
         ])
         
@@ -10402,6 +10562,8 @@ with app.app_context():
                 try: conn.execute(text("ALTER TABLE qurban_attendance ALTER COLUMN check_in_time TYPE TIMESTAMP NULL"))
                 except Exception: pass
                 try: conn.execute(text("ALTER TABLE qurban_attendance ALTER COLUMN status TYPE VARCHAR(50) NULL"))
+                except Exception: pass
+                try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN profile_picture VARCHAR(255) NULL"))
                 except Exception: pass
     except Exception as e:
         app.logger.error(f"Error updating QurbanAttendance table schema: {e}")
