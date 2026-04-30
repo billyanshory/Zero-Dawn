@@ -7,8 +7,10 @@ import csv
 import urllib.request
 import psycopg2
 import io
+import re
+import uuid
 from PIL import Image
-from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify, session
+from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify, session, flash, make_response
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, text
@@ -723,7 +725,6 @@ RAW_TAKJIL_DATA = """
 
 def parse_takjil_data():
     data = []
-    import re
     
     current_date = None
     
@@ -966,6 +967,18 @@ BASE_LAYOUT = """
     {{ styles|safe }}
 </head>
 <body class="text-gray-800 antialiased {{ 'ramadhan-mode' if hide_nav else '' }}">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div id="flash-container" class="fixed top-20 left-1/2 -translate-x-1/2 z-[200] w-full max-w-md px-4 space-y-2">
+                {% for category, message in messages %}
+                    <div class="p-4 rounded-2xl shadow-lg text-sm font-bold text-center animate-slideUp {% if category == 'success' %}bg-green-100 text-green-700 border border-green-200{% elif category == 'error' %}bg-red-100 text-red-700 border border-red-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}" onclick="this.remove()">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+            <script>setTimeout(()=>{let c=document.getElementById('flash-container');if(c)c.remove()},4000);</script>
+        {% endif %}
+    {% endwith %}
     {% set t_nav_bg = theme.nav_bg if theme and theme.nav_bg else 'glass-nav' %}
     {% set t_icon_bg = theme.icon_bg if theme and theme.icon_bg else 'bg-emerald-100' %}
     {% set t_icon_text = theme.icon_text if theme and theme.icon_text else 'text-emerald-600' %}
@@ -6791,18 +6804,23 @@ def therapy_log():
 @app.route('/finance', methods=['GET', 'POST'])
 def finance():
     if request.method == 'POST':
-        if 'delete_id' in request.form:
-            Finance.query.filter_by(id=request.form['delete_id']).delete()
-        else:
-            item = Finance(
-                date=request.form['date'],
-                type=request.form['type'],
-                category=request.form['category'],
-                description=request.form['description'],
-                amount=int(request.form['amount'])
-            )
-            db.session.add(item)
-        db.session.commit()
+        try:
+            if 'delete_id' in request.form:
+                Finance.query.filter_by(id=request.form['delete_id']).delete()
+            else:
+                item = Finance(
+                    date=request.form['date'],
+                    type=request.form['type'],
+                    category=request.form['category'],
+                    description=request.form['description'],
+                    amount=int(request.form['amount'])
+                )
+                db.session.add(item)
+            db.session.commit()
+        except (ValueError, KeyError):
+            db.session.rollback()
+        except Exception:
+            db.session.rollback()
         return redirect(url_for('finance'))
     
     items = Finance.query.order_by(Finance.date.desc()).all()
@@ -6928,18 +6946,21 @@ def finance():
 @app.route('/agenda', methods=['GET', 'POST'])
 def agenda():
     if request.method == 'POST':
-        if 'delete_id' in request.form:
-            Agenda.query.filter_by(id=request.form['delete_id']).delete()
-        else:
-            item = Agenda(
-                date=request.form['date'],
-                time=request.form['time'],
-                title=request.form['title'],
-                speaker=request.form['speaker'],
-                type=request.form['type']
-            )
-            db.session.add(item)
-        db.session.commit()
+        try:
+            if 'delete_id' in request.form:
+                Agenda.query.filter_by(id=request.form['delete_id']).delete()
+            else:
+                item = Agenda(
+                    date=request.form['date'],
+                    time=request.form['time'],
+                    title=request.form['title'],
+                    speaker=request.form['speaker'],
+                    type=request.form['type']
+                )
+                db.session.add(item)
+            db.session.commit()
+        except (KeyError, Exception):
+            db.session.rollback()
         return redirect(url_for('agenda'))
 
     items = Agenda.query.order_by(Agenda.date.asc(), Agenda.time.asc()).all()
@@ -7030,20 +7051,23 @@ def agenda():
 @app.route('/booking', methods=['GET', 'POST'])
 def booking():
     if request.method == 'POST':
-        if 'status_update' in request.form:
-             booking = Booking.query.get(request.form['booking_id'])
-             if booking:
-                 booking.status = request.form['status']
-        else:
-             item = Booking(
-                 name=request.form['name'],
-                 date=request.form['date'],
-                 purpose=request.form['purpose'],
-                 type=request.form['type'],
-                 contact=request.form['contact']
-             )
-             db.session.add(item)
-        db.session.commit()
+        try:
+            if 'status_update' in request.form:
+                 booking = Booking.query.get(request.form['booking_id'])
+                 if booking:
+                     booking.status = request.form['status']
+            else:
+                 item = Booking(
+                     name=request.form['name'],
+                     date=request.form['date'],
+                     purpose=request.form['purpose'],
+                     type=request.form['type'],
+                     contact=request.form['contact']
+                 )
+                 db.session.add(item)
+            db.session.commit()
+        except (KeyError, Exception):
+            db.session.rollback()
         return redirect(url_for('booking'))
 
     items = Booking.query.order_by(Booking.created_at.desc()).all()
@@ -7134,16 +7158,19 @@ def booking():
 @app.route('/zakat', methods=['GET', 'POST'])
 def zakat():
     if request.method == 'POST':
-         item = Zakat(
-             donor_name=request.form['donor_name'],
-             type=request.form['type'],
-             amount=request.form['amount'],
-             notes=request.form['notes'],
-             status='Pending'
-         )
-         db.session.add(item)
-         db.session.commit()
-         return redirect(url_for('zakat'))
+        try:
+             item = Zakat(
+                 donor_name=request.form['donor_name'],
+                 type=request.form['type'],
+                 amount=request.form['amount'],
+                 notes=request.form['notes'],
+                 status='Pending'
+             )
+             db.session.add(item)
+             db.session.commit()
+        except (KeyError, Exception):
+            db.session.rollback()
+        return redirect(url_for('zakat'))
     
     items = Zakat.query.order_by(Zakat.created_at.desc()).limit(50).all()
     
@@ -7304,7 +7331,10 @@ def gallery_dakwah():
                     date=str(datetime.date.today())
                 )
                 db.session.add(item)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         return redirect(url_for('gallery_dakwah'))
     
     items = GalleryDakwah.query.order_by(GalleryDakwah.created_at.desc()).all()
@@ -7499,7 +7529,10 @@ def donate():
              if s: s.value = val
              else: db.session.add(AppSettings(key=key, value=val))
              
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         return redirect(url_for('donate', source=request.args.get('source')))
 
     # Fetch settings
@@ -9543,16 +9576,19 @@ def irma_dashboard():
 
 @app.route('/irma/schedule', methods=['POST'])
 def irma_schedule():
-    if 'delete_id' in request.form:
-        IrmaSchedule.query.filter_by(id=request.form['delete_id']).delete()
-    else:
-        item = IrmaSchedule(
-            name=request.form['name'],
-            role=request.form['role'],
-            date=request.form['date']
-        )
-        db.session.add(item)
-    db.session.commit()
+    try:
+        if 'delete_id' in request.form:
+            IrmaSchedule.query.filter_by(id=request.form['delete_id']).delete()
+        else:
+            item = IrmaSchedule(
+                name=request.form['name'],
+                role=request.form['role'],
+                date=request.form['date']
+            )
+            db.session.add(item)
+        db.session.commit()
+    except (KeyError, Exception):
+        db.session.rollback()
     return redirect(url_for('irma_dashboard', open='modal-duty'))
 
 @app.route('/irma/join', methods=['GET', 'POST'])
@@ -9560,33 +9596,41 @@ def irma_join():
     if request.method == 'GET':
         return redirect(url_for('irma_dashboard', open='modal-join', check_wa=request.args.get('check_wa')))
 
-    action = request.form.get('action')
-    if action in ['approve', 'reject']:
-        member = IrmaMember.query.get(request.form['member_id'])
-        if member:
-            member.status = 'Approved' if action == 'approve' else 'Rejected'
-    else:
-        item = IrmaMember(
-            name=request.form['name'],
-            age=request.form['age'],
-            hobbies=request.form['hobbies'],
-            instagram=request.form['instagram'],
-            wa_number=request.form['wa_number']
-        )
-        db.session.add(item)
-    db.session.commit()
+    try:
+        action = request.form.get('action')
+        if action in ['approve', 'reject']:
+            member = IrmaMember.query.get(request.form['member_id'])
+            if member:
+                member.status = 'Approved' if action == 'approve' else 'Rejected'
+        else:
+            item = IrmaMember(
+                name=request.form['name'],
+                age=request.form['age'],
+                hobbies=request.form['hobbies'],
+                instagram=request.form['instagram'],
+                wa_number=request.form['wa_number']
+            )
+            db.session.add(item)
+        db.session.commit()
+    except (KeyError, Exception):
+        db.session.rollback()
     return redirect(url_for('irma_dashboard', open='modal-join'))
 
 @app.route('/irma/kas', methods=['POST'])
 def irma_kas():
-    item = IrmaKas(
-        date=request.form['date'],
-        type=request.form['type'],
-        description=request.form['description'],
-        amount=int(request.form['amount'])
-    )
-    db.session.add(item)
-    db.session.commit()
+    try:
+        item = IrmaKas(
+            date=request.form['date'],
+            type=request.form['type'],
+            description=request.form['description'],
+            amount=int(request.form['amount'])
+        )
+        db.session.add(item)
+        db.session.commit()
+    except (ValueError, KeyError):
+        db.session.rollback()
+    except Exception:
+        db.session.rollback()
     return redirect(url_for('irma_dashboard', open='modal-finance'))
 
 @app.route('/irma/gallery', methods=['POST'])
@@ -9620,27 +9664,33 @@ def irma_gallery():
 
 @app.route('/irma/proker', methods=['POST'])
 def irma_proker():
-    item = IrmaProker(
-        title=request.form['title'],
-        status=request.form['status'],
-        description=request.form['description'],
-        date=request.form['date']
-    )
-    db.session.add(item)
-    db.session.commit()
+    try:
+        item = IrmaProker(
+            title=request.form['title'],
+            status=request.form['status'],
+            description=request.form['description'],
+            date=request.form['date']
+        )
+        db.session.add(item)
+        db.session.commit()
+    except (KeyError, Exception):
+        db.session.rollback()
     return redirect(url_for('irma_dashboard', open='modal-events'))
 
 @app.route('/irma/curhat', methods=['POST'])
 def irma_curhat():
-    if 'answer' in request.form:
-        item = IrmaCurhat.query.get(request.form['answer_id'])
-        if item:
-            item.answer = request.form['answer']
-            item.answered_at = datetime.datetime.now()
-    else:
-        item = IrmaCurhat(question=request.form['question'])
-        db.session.add(item)
-    db.session.commit()
+    try:
+        if 'answer' in request.form:
+            item = IrmaCurhat.query.get(request.form['answer_id'])
+            if item:
+                item.answer = request.form['answer']
+                item.answered_at = datetime.datetime.now()
+        else:
+            item = IrmaCurhat(question=request.form['question'])
+            db.session.add(item)
+        db.session.commit()
+    except (KeyError, Exception):
+        db.session.rollback()
     return redirect(url_for('irma_dashboard', open='modal-qa'))
 
 def manifest():
@@ -9748,15 +9798,14 @@ def donate_update():
             if s: s.value = saved_filename
             else: db.session.add(AppSettings(key='infaq_qris_image', value=saved_filename))
             
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
     return redirect(request.referrer)
 
 # --- IDUL ADHA ROUTES ---
 
-
-import csv
-from io import StringIO
-from flask import make_response
 
 @app.route('/idul-adha/absen-panitia')
 def idul_adha_absen_panitia():
@@ -9919,8 +9968,12 @@ def idul_adha_absen_approve():
     u = QurbanAttendance.query.get(req.get('id'))
     if u:
         u.approval_status = 'Approved'
-        db.session.commit()
-        return jsonify({'success': True})
+        try:
+            db.session.commit()
+            return jsonify({'success': True})
+        except Exception:
+            db.session.rollback()
+            return jsonify({'success': False}), 500
     return jsonify({'success': False})
 
 @app.route('/idul-adha/absen-panitia/assign', methods=['POST'])
@@ -9930,8 +9983,12 @@ def idul_adha_absen_assign():
     u = QurbanAttendance.query.get(req.get('id'))
     if u:
         u.pos_tugas = req.get('pos_tugas')
-        db.session.commit()
-        return jsonify({'success': True})
+        try:
+            db.session.commit()
+            return jsonify({'success': True})
+        except Exception:
+            db.session.rollback()
+            return jsonify({'success': False}), 500
     return jsonify({'success': False})
 
 @app.route('/idul-adha/absen-panitia/checkin', methods=['POST'])
@@ -9947,8 +10004,12 @@ def idul_adha_absen_checkin():
         u.is_present = True
         u.check_in_time = current_time
         u.status = 'Hadir Pagi'
-        db.session.commit()
-        return jsonify({'success': True})
+        try:
+            db.session.commit()
+            return jsonify({'success': True})
+        except Exception:
+            db.session.rollback()
+            return jsonify({'success': False}), 500
     return jsonify({'success': False, 'message': 'Gagal check-in'})
 
 @app.route('/idul-adha/absen-panitia/export')
@@ -9957,7 +10018,7 @@ def idul_adha_absen_export():
     
     panitia = QurbanAttendance.query.all()
     
-    si = StringIO()
+    si = io.StringIO()
     cw = csv.writer(si)
     cw.writerow(['ID', 'Nama Lengkap', 'No HP', 'Waktu Hadir', 'Status Approval', 'Pos Tugas', 'Status Kehadiran'])
     
