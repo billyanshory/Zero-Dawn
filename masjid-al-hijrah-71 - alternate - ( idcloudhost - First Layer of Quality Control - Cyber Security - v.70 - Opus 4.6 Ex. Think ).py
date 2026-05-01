@@ -10,12 +10,14 @@ import io
 import re
 import uuid
 from PIL import Image
+import logging
+from logging.handlers import RotatingFileHandler
 from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify, session, flash, make_response
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, text
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_limiter import Limiter
 from flask_caching import Cache
 from flask_limiter.util import get_remote_address
@@ -58,10 +60,25 @@ app.config['SQLALCHEMY_DATABASE_URI'] = _db_uri
 if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_size': 100, 'max_overflow': 200, 'pool_recycle': 280}
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+try:
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+except OSError as e:
+    raise RuntimeError(f"Cannot create upload directory '{app.config['UPLOAD_FOLDER']}': {e}")
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4'}
 
 db = SQLAlchemy(app)
+
+if not app.debug:
+    os.makedirs('logs', exist_ok=True)
+    file_handler = RotatingFileHandler('logs/alhijrah.log', maxBytes=10_485_760, backupCount=5)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s | %(levelname)s | %(module)s | %(message)s'))
+    file_handler.setLevel(logging.WARNING)
+    app.logger.addHandler(file_handler)
+    app.logger.setLevel(logging.INFO)
+
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    db.session.remove()
 
 # --- DATA SUMBER HUKUM (DALIL) ---
 # --- DATA SUMBER HUKUM (DALIL) ---
@@ -292,9 +309,19 @@ class QurbanRT(db.Model):
 def get_settings():
     try:
         settings = {item.key: item.value for item in AppSettings.query.all()}
-    except Exception:
+    except Exception as e:
+        app.logger.error(f"Failed to load AppSettings: {e}", exc_info=True)
         settings = {}
     return settings
+
+def safe_commit(operation_name="database operation"):
+    try:
+        db.session.commit()
+        return True
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"DB commit failed in {operation_name}: {e}", exc_info=True)
+        return False
 
 class PrayTimes:
     def __init__(self, method="MWL"):
@@ -371,14 +398,16 @@ class PrayTimes:
     def compute_time(self, g, decl, lat, noon):
         try:
             d = math.degrees(math.acos((math.sin(math.radians(g)) - math.sin(math.radians(decl)) * math.sin(math.radians(lat))) / (math.cos(math.radians(decl)) * math.cos(math.radians(lat)))))
-        except Exception:
+        except Exception as e:
+            app.logger.error(f"PrayTimes._sun_position() calculation error: {e}", exc_info=True)
             return 0 # Handle polar regions if needed
         return noon - d / 15.0 if g > 90 else noon + d / 15.0 
 
     def compute_asr(self, step, decl, lat, noon):
         try:
             d = math.degrees(math.acos((math.sin(math.atan(step + math.tan(math.radians(abs(lat - decl)))))-math.sin(math.radians(decl))*math.sin(math.radians(lat)))/(math.cos(math.radians(decl))*math.cos(math.radians(lat)))))
-        except Exception:
+        except Exception as e:
+             app.logger.error(f"PrayTimes._sun_position() calculation error: {e}", exc_info=True)
              return 0
         return noon + d / 15.0
 
@@ -462,6 +491,8 @@ def calc_waris(harta, sons, daughters):
     }
 
 def calc_zakat(gold_price, savings, gold_grams):
+    if gold_price < 0 or savings < 0 or gold_grams < 0:
+        return {"error": "Nilai tidak boleh negatif"}
     nisab = 85 * gold_price
     total_wealth = savings + (gold_grams * gold_price)
     wajib = total_wealth >= nisab
@@ -500,7 +531,8 @@ def calc_tahajjud(maghrib, subuh):
             "total_hours": total_hours,
             "total_minutes": total_minutes
         }
-    except Exception:
+    except Exception as e:
+        app.logger.warning(f"Tahajjud calculation error: {e}")
         return {"error": "Invalid Time"}
 
 def calc_khatam(target_times, days, freq_per_day):
@@ -519,7 +551,8 @@ def calc_khatam(target_times, days, freq_per_day):
             "total_pages": total_pages,
             "total_sessions": total_sessions
         }
-    except Exception:
+    except Exception as e:
+        app.logger.warning(f"Khatam calculation error: {e}")
         return {"error": "Error"}
 
 def calc_fidyah(days, category):
@@ -553,6 +586,8 @@ def compress_image(file_storage, upload_folder):
     if not is_safe_file(file_storage):
         raise ValueError("Invalid file content signature detected.")
     filename = secure_filename(file_storage.filename)
+    if not filename:
+        raise ValueError("Invalid filename after sanitization")
     
     # Skip compression for video
     if filename.lower().endswith('.mp4'):
@@ -593,7 +628,7 @@ def compress_image(file_storage, upload_folder):
         return new_filename
         
     except Exception as e:
-        print(f"Compression error: {e}")
+        app.logger.warning(f"Image compression failed, saving original: {e}", exc_info=True)
         # Fallback
         save_path = os.path.join(upload_folder, filename)
         file_storage.seek(0)
@@ -605,9 +640,10 @@ def compress_image(file_storage, upload_folder):
 # --- RAMADHAN HELPER FUNCTIONS ---
 
 def seed_ramadhan_schedule():
-    if TarawihSchedule.query.count() == 0:
-        schedule_data = [
-            (1, "Ustadz M. Faisal Bulqiah", "Ustadz M. Faisal Bulqiah"),
+    try:
+        if TarawihSchedule.query.count() == 0:
+            schedule_data = [
+                (1, "Ustadz M. Faisal Bulqiah", "Ustadz M. Faisal Bulqiah"),
             (2, "Ustadz H. Bunyamin LC MA", "Ustadz H. Bunyamin LC MA"),
             (3, "Ustadz H. Sutanil fadlan M. Al Hafidz", "Ustadz H. Sutanil fadlan M. Al Hafidz"),
             (4, "Ustadz Fathurrahman Al Hafidz", "Ustadz Fathurrahman Al Hafidz"),
@@ -636,19 +672,23 @@ def seed_ramadhan_schedule():
             (27, "Ustadz H. Darmaizar LC M.Ag", "Ustadz H. Darmaizar LC M.Ag"),
             (28, "Ustadz Ahmad Jailani", "Ustadz Ahmad Jailani"),
             (29, "Ustadz Robi Ar-Rasyid", "Ustadz Robi Ar-Rasyid"),
-            (30, "Ustadz Fathur Rojak", "Ustadz Fathur Rojak"),
-        ]
+                (30, "Ustadz Fathur Rojak", "Ustadz Fathur Rojak"),
+            ]
 
-        for night, imam, penceramah in schedule_data:
-            entry = TarawihSchedule(
-                night_index=night, 
-                date=f"Ramadhan {night}", 
-                imam=imam, 
-                penceramah=penceramah, 
-                judul="-"
-            )
-            db.session.add(entry)
-        db.session.commit()
+            for night, imam, penceramah in schedule_data:
+                entry = TarawihSchedule(
+                    night_index=night,
+                    date=f"Ramadhan {night}",
+                    imam=imam,
+                    penceramah=penceramah,
+                    judul="-"
+                )
+                db.session.add(entry)
+            db.session.commit()
+            app.logger.info("Ramadhan schedule seeded successfully (30 nights).")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Failed to seed Ramadhan schedule: {e}", exc_info=True)
 
 RAW_TAKJIL_DATA = """
 ### **DATA JADWAL TAKJIL MASJID AL HIJRAH (RAMADHAN 2026)** 
@@ -802,8 +842,8 @@ def get_imsakiyah_schedule():
         all_days = []
         
         for m in months:
-            url = f"http://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month={m}&year=2026"
-            with urllib.request.urlopen(url) as response:
+            url = f"https://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month={m}&year=2026"
+            with urllib.request.urlopen(url, timeout=10) as response:
                 data = json.loads(response.read().decode())
                 if 'data' in data:
                     all_days.extend(data['data'])
@@ -838,7 +878,8 @@ def get_imsakiyah_schedule():
             })
                 
     except Exception as e:
-        print(f"Error fetching Imsakiyah API: {e}")
+        app.logger.error(f"Error fetching Imsakiyah API: {e}", exc_info=True)
+        cache.delete('imsakiyah_schedule')
         # Fallback empty or local calculation if needed, but user requested API specifically.
         
     return schedule
@@ -1635,6 +1676,77 @@ BASE_LAYOUT = """
 </body>
 </html>
 """
+
+@app.errorhandler(404)
+def not_found_error(error):
+    error_html = """
+    <div style="min-height:70vh; display:flex; align-items:center; justify-content:center;">
+        <div class="text-center p-8">
+            <div class="text-6xl mb-4">🕌</div>
+            <h2 class="text-2xl font-bold text-emerald-800 mb-2">404 — Halaman Tidak Ditemukan</h2>
+            <p class="text-gray-600 mb-6">Maaf, halaman yang Anda cari tidak tersedia.</p>
+            <a href="/" class="bg-emerald-500 text-white hover:bg-emerald-600 font-bold py-3 px-6 rounded-full inline-block transition">Kembali ke Beranda</a>
+        </div>
+    </div>
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=error_html, is_admin=session.get('is_admin', False), settings=get_settings()), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    app.logger.error(f"500 Internal Server Error: {error}", exc_info=True)
+    error_html = """
+    <div style="min-height:70vh; display:flex; align-items:center; justify-content:center;">
+        <div class="text-center p-8">
+            <div class="text-6xl mb-4">⚠️</div>
+            <h2 class="text-2xl font-bold text-emerald-800 mb-2">500 — Kesalahan Server</h2>
+            <p class="text-gray-600 mb-6">Terjadi kesalahan pada server. Silakan coba lagi nanti.</p>
+            <a href="/" class="bg-emerald-500 text-white hover:bg-emerald-600 font-bold py-3 px-6 rounded-full inline-block transition">Kembali ke Beranda</a>
+        </div>
+    </div>
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=error_html, is_admin=session.get('is_admin', False), settings=get_settings()), 500
+
+@app.errorhandler(429)
+def ratelimit_error(error):
+    error_html = """
+    <div style="min-height:70vh; display:flex; align-items:center; justify-content:center;">
+        <div class="text-center p-8">
+            <div class="text-6xl mb-4">🚫</div>
+            <h2 class="text-2xl font-bold text-emerald-800 mb-2">429 — Terlalu Banyak Permintaan</h2>
+            <p class="text-gray-600 mb-6">Anda telah mengirim terlalu banyak permintaan. Silakan tunggu beberapa saat.</p>
+            <a href="/" class="bg-emerald-500 text-white hover:bg-emerald-600 font-bold py-3 px-6 rounded-full inline-block transition">Kembali ke Beranda</a>
+        </div>
+    </div>
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=error_html, is_admin=session.get('is_admin', False), settings=get_settings()), 429
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    error_html = """
+    <div style="min-height:70vh; display:flex; align-items:center; justify-content:center;">
+        <div class="text-center p-8">
+            <div class="text-6xl mb-4">📁</div>
+            <h2 class="text-2xl font-bold text-emerald-800 mb-2">413 — File Terlalu Besar</h2>
+            <p class="text-gray-600 mb-6">Ukuran file melebihi batas maksimal 5MB. Silakan kompres file terlebih dahulu.</p>
+            <a href="/" class="bg-emerald-500 text-white hover:bg-emerald-600 font-bold py-3 px-6 rounded-full inline-block transition">Kembali ke Beranda</a>
+        </div>
+    </div>
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=error_html, is_admin=session.get('is_admin', False), settings=get_settings()), 413
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    error_html = """
+    <div style="min-height:70vh; display:flex; align-items:center; justify-content:center;">
+        <div class="text-center p-8">
+            <div class="text-6xl mb-4">🔒</div>
+            <h2 class="text-2xl font-bold text-emerald-800 mb-2">Sesi Kedaluwarsa</h2>
+            <p class="text-gray-600 mb-6">Token keamanan telah kedaluwarsa. Silakan muat ulang halaman dan coba lagi.</p>
+            <a href="/" class="bg-emerald-500 text-white hover:bg-emerald-600 font-bold py-3 px-6 rounded-full inline-block transition">Kembali ke Beranda</a>
+        </div>
+    </div>
+    """
+    return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='home', content=error_html, is_admin=session.get('is_admin', False), settings=get_settings()), 400
 
 FITUR_MASJID_HTML = """
 <style>
@@ -6801,7 +6913,8 @@ def set_security_headers(response):
 def index():
     try:
         epilepsi_logs = EpilepsiLog.query.order_by(EpilepsiLog.date.desc(), EpilepsiLog.time.desc()).limit(5).all()
-    except Exception:
+    except Exception as e:
+        app.logger.error(f"Failed to load EpilepsiLog: {e}", exc_info=True)
         epilepsi_logs = []
 
     rendered_home = render_template_string(HOME_HTML, epilepsi_logs=epilepsi_logs, open_modal=request.args.get('open'), is_admin=session.get('is_admin', False))
@@ -6847,30 +6960,51 @@ def therapy_log():
         )
         db.session.add(log)
         db.session.commit()
+        flash('Log kambuh berhasil disimpan.', 'success')
+    except KeyError as e:
+        db.session.rollback()
+        app.logger.warning(f"Missing form field in therapy_log: {e}")
+        flash('Data tidak lengkap. Silakan coba lagi.', 'error')
     except Exception as e:
-        print(f"Error logging therapy: {e}")
+        db.session.rollback()
+        app.logger.error(f"Error logging therapy: {e}", exc_info=True)
+        flash('Gagal menyimpan log. Silakan coba lagi.', 'error')
     return redirect(url_for('index', open='modal-terapi-log'))
 
 @app.route('/finance', methods=['GET', 'POST'])
 def finance():
     if request.method == 'POST':
         if not session.get('is_admin'): return redirect(url_for('finance'))
-        try:
-            if 'delete_id' in request.form:
+
+        if 'delete_id' in request.form:
+            try:
                 Finance.query.filter_by(id=request.form['delete_id']).delete()
-            else:
-                item = Finance(
-                    date=request.form['date'],
-                    type=request.form['type'],
-                    category=request.form['category'],
-                    description=request.form['description'],
-                    amount=int(request.form['amount'])
-                )
-                db.session.add(item)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                app.logger.error(f"Finance delete error: {e}", exc_info=True)
+            return redirect(url_for('finance'))
+
+        try:
+            amount = int(request.form.get('amount', 0))
+        except (ValueError, TypeError):
+            flash('Jumlah harus berupa angka.', 'error')
+            return redirect(url_for('finance'))
+
+        try:
+            item = Finance(
+                date=request.form['date'],
+                type=request.form['type'],
+                category=request.form['category'],
+                description=request.form['description'],
+                amount=amount
+            )
+            db.session.add(item)
             db.session.commit()
         except (ValueError, KeyError):
             db.session.rollback()
-        except Exception:
+        except Exception as e:
+            app.logger.error(f"Finance error: {e}", exc_info=True)
             db.session.rollback()
         return redirect(url_for('finance'))
     
@@ -7011,7 +7145,8 @@ def agenda():
                 )
                 db.session.add(item)
             db.session.commit()
-        except (KeyError, Exception):
+        except (KeyError, ValueError) as e:
+            app.logger.error(f"Error in agenda: {e}", exc_info=True)
             db.session.rollback()
         return redirect(url_for('agenda'))
 
@@ -7119,7 +7254,8 @@ def booking():
                  )
                  db.session.add(item)
             db.session.commit()
-        except (KeyError, Exception):
+        except (KeyError, ValueError) as e:
+            app.logger.error(f"Error in booking: {e}", exc_info=True)
             db.session.rollback()
         return redirect(url_for('booking'))
 
@@ -7221,7 +7357,8 @@ def zakat():
              )
              db.session.add(item)
              db.session.commit()
-        except (KeyError, Exception):
+        except (KeyError, ValueError) as e:
+            app.logger.error(f"Error in zakat_input: {e}", exc_info=True)
             db.session.rollback()
         return redirect(url_for('zakat'))
     
@@ -7361,7 +7498,8 @@ def zakat_status():
             item.status = request.form['status']
             db.session.commit()
     except Exception as e:
-        print(f"Error updating zakat status: {e}")
+        db.session.rollback()
+        app.logger.error(f"Error updating zakat status: {e}", exc_info=True)
     return redirect(url_for('zakat'))
 
 @app.route('/gallery-dakwah', methods=['GET', 'POST'])
@@ -7386,7 +7524,8 @@ def gallery_dakwah():
                 db.session.add(item)
         try:
             db.session.commit()
-        except Exception:
+        except Exception as e:
+            app.logger.error(f"Gallery error: {e}", exc_info=True)
             db.session.rollback()
         return redirect(url_for('gallery_dakwah'))
     
@@ -7501,7 +7640,7 @@ def suggestion():
              db.session.add(item)
              db.session.commit()
          except Exception as e:
-             print(f"Error saving suggestion: {e}")
+             app.logger.error(f"Suggestion error: {e}", exc_info=True)
              db.session.rollback()
          return redirect(url_for('suggestion', success=1))
     
@@ -7584,7 +7723,8 @@ def donate():
              
         try:
             db.session.commit()
-        except Exception:
+        except Exception as e:
+            app.logger.error(f"Donate update error: {e}", exc_info=True)
             db.session.rollback()
         return redirect(url_for('donate', source=request.args.get('source')))
 
@@ -7736,13 +7876,14 @@ def uploaded_file(filename):
 def api_calc_waris():
     try:
         data = request.json
+        if not data: return jsonify({"error": "Request harus berformat JSON dengan Content-Type: application/json"}), 400
         harta = int(data['harta'])
         sons = int(data['sons'])
         daughters = int(data['daughters'])
         
         res = calc_waris(harta, sons, daughters)
         if "error" in res:
-             return jsonify(res)
+             return jsonify(res), 422
         
         # Bedah Logika
         logic = f"Bapak/Ibu memasukkan total harta Rp {harta:,}. Dalam matematika waris, anak laki-laki dihitung 2 bagian lalu anak perempuan dihitung 1 bagian, karena ada {sons} anak laki-laki dan {daughters} perempuan, maka total poin pembagi adalah {res['points']}. Artinya, harta tersebut dibagi menjadi {res['points']} keping. Satu keping bernilai Rp {res['part_value']:,.0f}. Maka bagian anak laki-laki adalah 2 x {res['part_value']:,.0f} = Rp {res['son_share']:,.0f}, dan anak perempuan 1 x {res['part_value']:,.0f} = Rp {res['daughter_share']:,.0f}."
@@ -7764,6 +7905,7 @@ def api_calc_waris():
 def api_calc_zakat():
     try:
         data = request.json
+        if not data: return jsonify({"error": "Request harus berformat JSON dengan Content-Type: application/json"}), 400
         gold_price = int(data['gold_price'])
         savings = int(data['savings'])
         gold_grams = int(data['gold_grams'])
@@ -7792,8 +7934,9 @@ def api_calc_zakat():
 def api_calc_tahajjud():
     try:
         data = request.json
+        if not data: return jsonify({"error": "Request harus berformat JSON dengan Content-Type: application/json"}), 400
         res = calc_tahajjud(data['maghrib'], data['subuh'])
-        if "error" in res: return jsonify(res)
+        if "error" in res: return jsonify(res), 422
         
         logic = f"Waktu malam dihitung dari Maghrib ({data['maghrib']}) hingga Subuh ({data['subuh']}). Durasi total malam ini adalah {res['total_hours']} jam {res['total_minutes']} menit. Sepertiga malam terakhir adalah waktu istimewa (Qiyamul Lail). Kita bagi durasi malam menjadi 3 bagian, lalu ambil 1 bagian terakhir sebelum Subuh. Hasilnya, sepertiga malam terakhir dimulai pukul {res['time']}."
         
@@ -7814,12 +7957,13 @@ def api_calc_tahajjud():
 def api_calc_khatam():
     try:
         data = request.json
+        if not data: return jsonify({"error": "Request harus berformat JSON dengan Content-Type: application/json"}), 400
         target_times = int(data['target_times'])
         days = int(data['days'])
         freq = int(data['freq_per_day'])
         
         res = calc_khatam(target_times, days, freq)
-        if isinstance(res, dict) and "error" in res: return jsonify(res)
+        if isinstance(res, dict) and "error" in res: return jsonify(res), 422
         if isinstance(res, int): # Fallback
              pass
 
@@ -7842,6 +7986,7 @@ def api_calc_khatam():
 def api_calc_fidyah():
     try:
         data = request.json
+        if not data: return jsonify({"error": "Request harus berformat JSON dengan Content-Type: application/json"}), 400
         days = int(data['days'])
         cat = data['category']
         
@@ -7866,12 +8011,13 @@ def api_calc_fidyah():
 def api_calc_hijri():
     try:
         data = request.json
+        if not data: return jsonify({"error": "Request harus berformat JSON dengan Content-Type: application/json"}), 400
         y, m, d = data['date'].split('-')
         formatted_date = f"{d}-{m}-{y}"
         
-        url = f"http://api.aladhan.com/v1/gToH?date={formatted_date}"
+        url = f"https://api.aladhan.com/v1/gToH?date={formatted_date}"
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=10) as response:
             resp_data = json.loads(response.read().decode())
             h = resp_data['data']['hijri']
             res = f"{h['day']} {h['month']['en']} {h['year']} H"
@@ -7896,7 +8042,7 @@ def api_yasin():
     try:
         url = "https://equran.id/api/v2/surat/36"
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=10) as response:
             data = json.loads(response.read().decode())
             return jsonify(data)
     except Exception as e:
@@ -9495,18 +9641,26 @@ def ramadhan_dashboard():
 @app.route('/ramadhan/kas', methods=['POST'])
 def ramadhan_kas_action():
     if not session.get('is_admin'): return redirect(url_for('ramadhan_dashboard'))
+
+    try:
+        amount = int(request.form.get('amount', 0))
+    except (ValueError, TypeError):
+        flash('Jumlah harus berupa angka.', 'error')
+        return redirect(url_for('ramadhan_dashboard'))
+
     try:
         item = RamadhanKas(
             date=request.form['date'],
             type=request.form['type'],
             category=request.form['category'],
             description=request.form['description'],
-            amount=int(request.form['amount'])
+            amount=amount
         )
         db.session.add(item)
         db.session.commit()
     except Exception as e:
-        print(f"Error saving kas: {e}")
+        db.session.rollback()
+        app.logger.error(f"Error saving kas: {e}", exc_info=True)
     return redirect(url_for('ramadhan_dashboard', open='modal-kas-ramadhan'))
 
 @app.route('/ramadhan/tarawih', methods=['POST'])
@@ -9529,7 +9683,8 @@ def ramadhan_tarawih_action():
             db.session.add(item)
         db.session.commit()
     except Exception as e:
-        print(f"Error saving tarawih: {e}")
+        db.session.rollback()
+        app.logger.error(f"Error saving tarawih: {e}", exc_info=True)
     return redirect(url_for('ramadhan_dashboard', open='modal-tarawih'))
 
 # --- IRMA ROUTES ---
@@ -9556,7 +9711,7 @@ def irma_dashboard():
         try:
             schedule_list = IrmaSchedule.query.order_by(IrmaSchedule.date.desc(), IrmaSchedule.id.desc()).all()
         except Exception as e:
-            print(f"Error fetching Schedule: {e}")
+            app.logger.error(f"IRMA dashboard error: {e}", exc_info=True)
         
         # 2. Kas (Finance)
         try:
@@ -9565,25 +9720,25 @@ def irma_dashboard():
             fin_out = db.session.query(func.sum(IrmaKas.amount)).filter_by(type='Pengeluaran').scalar() or 0
             kas_summary = {'income': fin_in, 'out': fin_out, 'balance': fin_in - fin_out}
         except Exception as e:
-            print(f"Error fetching Kas: {e}")
+            app.logger.error(f"IRMA dashboard error: {e}", exc_info=True)
         
         # 3. Gallery (Mading)
         try:
             gallery_list = IrmaGallery.query.order_by(IrmaGallery.created_at.desc()).all()
         except Exception as e:
-            print(f"Error fetching Gallery: {e}")
+            app.logger.error(f"IRMA dashboard error: {e}", exc_info=True)
         
         # 4. Proker (Events)
         try:
             proker_list = IrmaProker.query.order_by(IrmaProker.date.asc()).all()
         except Exception as e:
-            print(f"Error fetching Proker: {e}")
+            app.logger.error(f"IRMA dashboard error: {e}", exc_info=True)
         
         # 5. Curhat (Q&A)
         try:
             curhat_list = IrmaCurhat.query.order_by(IrmaCurhat.created_at.desc()).all()
         except Exception as e:
-            print(f"Error fetching Curhat: {e}")
+            app.logger.error(f"IRMA dashboard error: {e}", exc_info=True)
         
         # 6. Members
         try:
@@ -9594,10 +9749,10 @@ def irma_dashboard():
             if check_wa:
                 check_status = IrmaMember.query.filter_by(wa_number=check_wa).first()
         except Exception as e:
-            print(f"Error fetching Members: {e}")
+            app.logger.error(f"IRMA dashboard error: {e}", exc_info=True)
 
     except Exception as e:
-        print(f"Critical Error in IRMA Dashboard: {e}")
+        app.logger.error(f"IRMA dashboard error: {e}", exc_info=True)
     
     # IRMA THEME
     irma_theme = {
@@ -9650,7 +9805,8 @@ def irma_schedule():
             )
             db.session.add(item)
         db.session.commit()
-    except (KeyError, Exception):
+    except (KeyError, ValueError) as e:
+        app.logger.error(f"Error in irma_schedule: {e}", exc_info=True)
         db.session.rollback()
     return redirect(url_for('irma_dashboard', open='modal-duty'))
 
@@ -9676,25 +9832,34 @@ def irma_join():
             )
             db.session.add(item)
         db.session.commit()
-    except (KeyError, Exception):
+    except (KeyError, ValueError) as e:
+        app.logger.error(f"Error in irma_join: {e}", exc_info=True)
         db.session.rollback()
     return redirect(url_for('irma_dashboard', open='modal-join'))
 
 @app.route('/irma/kas', methods=['POST'])
 def irma_kas():
     if not session.get('is_admin'): return redirect(url_for('irma_dashboard'))
+
+    try:
+        amount = int(request.form.get('amount', 0))
+    except (ValueError, TypeError):
+        flash('Jumlah harus berupa angka.', 'error')
+        return redirect(url_for('irma_dashboard'))
+
     try:
         item = IrmaKas(
             date=request.form['date'],
             type=request.form['type'],
             description=request.form['description'],
-            amount=int(request.form['amount'])
+            amount=amount
         )
         db.session.add(item)
         db.session.commit()
     except (ValueError, KeyError):
         db.session.rollback()
-    except Exception:
+    except Exception as e:
+        app.logger.error(f"IRMA Kas error: {e}", exc_info=True)
         db.session.rollback()
     return redirect(url_for('irma_dashboard', open='modal-finance'))
 
@@ -9723,7 +9888,7 @@ def irma_gallery():
         db.session.add(item)
         db.session.commit()
     except Exception as e:
-        print(f"Error uploading gallery: {e}")
+        app.logger.error(f"IRMA gallery upload error: {e}", exc_info=True)
         db.session.rollback()
         
     return redirect(url_for('irma_dashboard', open='modal-wall'))
@@ -9740,7 +9905,8 @@ def irma_proker():
         )
         db.session.add(item)
         db.session.commit()
-    except (KeyError, Exception):
+    except (KeyError, ValueError) as e:
+        app.logger.error(f"Error in irma_proker: {e}", exc_info=True)
         db.session.rollback()
     return redirect(url_for('irma_dashboard', open='modal-events'))
 
@@ -9757,7 +9923,8 @@ def irma_curhat():
             item = IrmaCurhat(question=request.form['question'])
             db.session.add(item)
         db.session.commit()
-    except (KeyError, Exception):
+    except (KeyError, ValueError) as e:
+        app.logger.error(f"Error in irma_curhat: {e}", exc_info=True)
         db.session.rollback()
     return redirect(url_for('irma_dashboard', open='modal-qa'))
 
@@ -9868,7 +10035,8 @@ def donate_update():
             
     try:
         db.session.commit()
-    except Exception:
+    except Exception as e:
+        app.logger.error(f"Donate update error: {e}", exc_info=True)
         db.session.rollback()
     return redirect(request.referrer)
 
@@ -10001,7 +10169,8 @@ def idul_adha_absen_settings():
     try:
         db.session.commit()
         return jsonify({'success': True})
-    except Exception:
+    except Exception as e:
+        app.logger.error(f"Idul Adha API error: {e}", exc_info=True)
         db.session.rollback()
         return jsonify({'success': False})
 
@@ -10025,7 +10194,8 @@ def idul_adha_absen_register():
     try:
         db.session.commit()
         return jsonify({'success': True})
-    except Exception:
+    except Exception as e:
+        app.logger.error(f"Idul Adha API error: {e}", exc_info=True)
         db.session.rollback()
         return jsonify({'success': False})
 
@@ -10039,7 +10209,8 @@ def idul_adha_absen_approve():
         try:
             db.session.commit()
             return jsonify({'success': True})
-        except Exception:
+        except Exception as e:
+            app.logger.error(f"Idul Adha API error: {e}", exc_info=True)
             db.session.rollback()
             return jsonify({'success': False}), 500
     return jsonify({'success': False})
@@ -10054,7 +10225,8 @@ def idul_adha_absen_assign():
         try:
             db.session.commit()
             return jsonify({'success': True})
-        except Exception:
+        except Exception as e:
+            app.logger.error(f"Idul Adha API error: {e}", exc_info=True)
             db.session.rollback()
             return jsonify({'success': False}), 500
     return jsonify({'success': False})
@@ -10075,7 +10247,8 @@ def idul_adha_absen_checkin():
         try:
             db.session.commit()
             return jsonify({'success': True})
-        except Exception:
+        except Exception as e:
+            app.logger.error(f"Idul Adha API error: {e}", exc_info=True)
             db.session.rollback()
             return jsonify({'success': False}), 500
     return jsonify({'success': False, 'message': 'Gagal check-in'})
@@ -10114,11 +10287,13 @@ def idul_adha_dashboard():
     
     try:
         sh, sm = map(int, start_str.split(':'))
-    except Exception:
+    except Exception as e:
+        app.logger.warning(f"Failed to parse absen time from settings, using default: {e}")
         sh, sm = 6, 30
     try:
         eh, em = map(int, end_str.split(':'))
-    except Exception:
+    except Exception as e:
+        app.logger.warning(f"Failed to parse absen time from settings, using default: {e}")
         eh, em = 8, 30
         
     start_time = current_time.replace(hour=sh, minute=sm, second=0, microsecond=0)
@@ -10156,11 +10331,13 @@ def idul_adha_absen():
     
     try:
         sh, sm = map(int, start_str.split(':'))
-    except Exception:
+    except Exception as e:
+        app.logger.warning(f"Failed to parse absen time from settings, using default: {e}")
         sh, sm = 6, 30
     try:
         eh, em = map(int, end_str.split(':'))
-    except Exception:
+    except Exception as e:
+        app.logger.warning(f"Failed to parse absen time from settings, using default: {e}")
         eh, em = 8, 30
         
     start_time = current_time.replace(hour=sh, minute=sm, second=0, microsecond=0)
@@ -10515,21 +10692,29 @@ with app.app_context():
             engine = db.engine
             with engine.connect() as conn:
                 try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN no_hp VARCHAR(20) NULL"))
-                except Exception: pass
+                except Exception as e:
+                    if 'already exists' not in str(e).lower() and 'duplicate column' not in str(e).lower(): app.logger.error(f"Migration error: {e}")
                 try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN tugas_diinginkan VARCHAR(255) NULL"))
-                except Exception: pass
+                except Exception as e:
+                    if 'already exists' not in str(e).lower() and 'duplicate column' not in str(e).lower(): app.logger.error(f"Migration error: {e}")
                 try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN pos_tugas VARCHAR(255) NULL"))
-                except Exception: pass
+                except Exception as e:
+                    if 'already exists' not in str(e).lower() and 'duplicate column' not in str(e).lower(): app.logger.error(f"Migration error: {e}")
                 try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN approval_status VARCHAR(50) DEFAULT 'Menunggu'"))
-                except Exception: pass
+                except Exception as e:
+                    if 'already exists' not in str(e).lower() and 'duplicate column' not in str(e).lower(): app.logger.error(f"Migration error: {e}")
                 try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN is_present BOOLEAN DEFAULT FALSE"))
-                except Exception: pass
+                except Exception as e:
+                    if 'already exists' not in str(e).lower() and 'duplicate column' not in str(e).lower(): app.logger.error(f"Migration error: {e}")
                 try: conn.execute(text("ALTER TABLE qurban_attendance ADD COLUMN session_id VARCHAR(255) NULL"))
-                except Exception: pass
+                except Exception as e:
+                    if 'already exists' not in str(e).lower() and 'duplicate column' not in str(e).lower(): app.logger.error(f"Migration error: {e}")
                 try: conn.execute(text("ALTER TABLE qurban_attendance ALTER COLUMN check_in_time TYPE TIMESTAMP NULL"))
-                except Exception: pass
+                except Exception as e:
+                    if 'already exists' not in str(e).lower() and 'duplicate column' not in str(e).lower(): app.logger.error(f"Migration error: {e}")
                 try: conn.execute(text("ALTER TABLE qurban_attendance ALTER COLUMN status TYPE VARCHAR(50) NULL"))
-                except Exception: pass
+                except Exception as e:
+                    if 'already exists' not in str(e).lower() and 'duplicate column' not in str(e).lower(): app.logger.error(f"Migration error: {e}")
     except Exception as e:
         app.logger.error(f"Error updating QurbanAttendance table schema: {e}")
         
@@ -10542,6 +10727,7 @@ with app.app_context():
             db.session.commit()
             app.logger.info("Default AdminUsers seeded successfully. Please change passwords immediately.")
     except Exception as e:
+        db.session.rollback()
         app.logger.warning(f"Failed to seed default AdminUsers: {e}")
 
 # =====================================================
