@@ -12,6 +12,7 @@ import uuid
 from PIL import Image
 from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify, session, flash, make_response
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, text
 from flask_wtf.csrf import CSRFProtect
@@ -37,10 +38,23 @@ limiter = Limiter(
 
 cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 86400})
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB Limit
-app.secret_key = os.environ.get("SECRET_KEY", "fallback_dev_key")
+
+_secret_key = os.environ.get("SECRET_KEY")
+if not _secret_key:
+    raise RuntimeError('Application cannot start without a cryptographically secure SECRET_KEY. Please generate one using: python -c "import secrets; print(secrets.token_hex(32))"')
+app.secret_key = _secret_key
+
 app.config['UPLOAD_FOLDER'] = 'uploads'
-app.permanent_session_lifetime = datetime.timedelta(days=30)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI', 'postgresql+psycopg2://alhijrahdelima_user:4lh1jr4hd3l1m5A!@localhost/alhijrahdelima')
+app.permanent_session_lifetime = datetime.timedelta(days=7)
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') != 'development'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+_db_uri = os.environ.get('SQLALCHEMY_DATABASE_URI')
+if not _db_uri:
+    raise RuntimeError('Application cannot start without a valid SQLALCHEMY_DATABASE_URI environment variable.')
+app.config['SQLALCHEMY_DATABASE_URI'] = _db_uri
+
 if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_size': 100, 'max_overflow': 200, 'pool_recycle': 280}
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -218,6 +232,13 @@ class EpilepsiLog(db.Model):
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, server_default=func.now())
 
+class AdminUser(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+    role = db.Column(db.String(50), nullable=False, default='admin')
+    created_at = db.Column(db.DateTime, server_default=func.now())
+
 class AppSettings(db.Model):
     key = db.Column(db.String(255), primary_key=True)
     value = db.Column(db.Text)
@@ -271,7 +292,7 @@ class QurbanRT(db.Model):
 def get_settings():
     try:
         settings = {item.key: item.value for item in AppSettings.query.all()}
-    except:
+    except Exception:
         settings = {}
     return settings
 
@@ -350,14 +371,14 @@ class PrayTimes:
     def compute_time(self, g, decl, lat, noon):
         try:
             d = math.degrees(math.acos((math.sin(math.radians(g)) - math.sin(math.radians(decl)) * math.sin(math.radians(lat))) / (math.cos(math.radians(decl)) * math.cos(math.radians(lat)))))
-        except:
+        except Exception:
             return 0 # Handle polar regions if needed
         return noon - d / 15.0 if g > 90 else noon + d / 15.0 
 
     def compute_asr(self, step, decl, lat, noon):
         try:
             d = math.degrees(math.acos((math.sin(math.atan(step + math.tan(math.radians(abs(lat - decl)))))-math.sin(math.radians(decl))*math.sin(math.radians(lat)))/(math.cos(math.radians(decl))*math.cos(math.radians(lat)))))
-        except:
+        except Exception:
              return 0
         return noon + d / 15.0
 
@@ -479,7 +500,7 @@ def calc_tahajjud(maghrib, subuh):
             "total_hours": total_hours,
             "total_minutes": total_minutes
         }
-    except:
+    except Exception:
         return {"error": "Invalid Time"}
 
 def calc_khatam(target_times, days, freq_per_day):
@@ -498,7 +519,7 @@ def calc_khatam(target_times, days, freq_per_day):
             "total_pages": total_pages,
             "total_sessions": total_sessions
         }
-    except:
+    except Exception:
         return {"error": "Error"}
 
 def calc_fidyah(days, category):
@@ -830,7 +851,7 @@ def model_getitem(self, key):
 
 for model in [Finance, Agenda, Booking, Zakat, GalleryDakwah, Suggestion, RamadhanKas, 
               TarawihSchedule, IrmaSchedule, IrmaMember, IrmaKas, IrmaGallery, 
-              IrmaProker, IrmaCurhat, EpilepsiLog, AppSettings, QurbanAttendance, QurbanReport, QurbanShohibul, QurbanKupon, QurbanRT]:
+              IrmaProker, IrmaCurhat, EpilepsiLog, AdminUser, AppSettings, QurbanAttendance, QurbanReport, QurbanShohibul, QurbanKupon, QurbanRT]:
     model.__getitem__ = model_getitem
 
 STYLES_HTML = """
@@ -2998,6 +3019,7 @@ setInterval(async () => {
 
 IDUL_ADHA_SHOHIBUL_HTML = '''
 <div class="pt-20 md:pt-32 pb-32 px-5 md:px-8 bg-gray-50 font-sans text-gray-800">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <div class="max-w-2xl mx-auto">
         <div class="flex items-center gap-4 mb-8">
             <a href="/idul-adha" class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-600 shadow-md hover:bg-[#8B2635] hover:text-white transition-colors">
@@ -3758,6 +3780,7 @@ setInterval(async () => {
 
 IDUL_ADHA_PETA_DISTRIBUSI_HTML = '''
 <div class="pt-20 md:pt-32 pb-32 px-5 md:px-8 bg-gray-50 font-sans text-gray-800">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <div class="max-w-6xl mx-auto mb-12">
         <div class="flex items-center gap-4 mb-8">
             <a href="/idul-adha" class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-600 shadow-md hover:bg-[#8B2635] hover:text-white transition-colors">
@@ -6754,11 +6777,31 @@ HOME_HTML = """
 
 # --- ROUTES ---
 
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+
+    csp = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com; "
+        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
+        "font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; "
+        "img-src 'self' data: https://api.qrserver.com https://www.transparenttextures.com https://images.unsplash.com; "
+        "connect-src 'self' https://api.aladhan.com https://nominatim.openstreetmap.org https://equran.id; "
+        "frame-ancestors 'self';"
+    )
+    response.headers['Content-Security-Policy'] = csp
+    return response
+
+
 @app.route('/')
 def index():
     try:
         epilepsi_logs = EpilepsiLog.query.order_by(EpilepsiLog.date.desc(), EpilepsiLog.time.desc()).limit(5).all()
-    except:
+    except Exception:
         epilepsi_logs = []
 
     rendered_home = render_template_string(HOME_HTML, epilepsi_logs=epilepsi_logs, open_modal=request.args.get('open'), is_admin=session.get('is_admin', False))
@@ -6770,20 +6813,27 @@ def login():
     username = request.form.get('username')
     password = request.form.get('password')
     
-    if username == 'admin':
-        if password == 'takmirmasjid':
+    if not username or not password:
+        flash('Mohon isi username dan password.', 'error')
+        return redirect(request.referrer or url_for('index'))
+
+    user = AdminUser.query.filter_by(username=username).first()
+    if user and check_password_hash(user.password_hash, password):
+        session.clear()
+        if user.role == 'admin':
             session['is_admin'] = True
-            session.permanent = True
-        elif password == 'kameramasjid':
+        elif user.role == 'gallery_admin':
             session['is_gallery_admin'] = True
-            session.permanent = True
-            
+        session.permanent = True
+        flash('Login berhasil.', 'success')
+    else:
+        flash('Username atau password salah.', 'error')
+
     return redirect(request.referrer or url_for('index'))
 
 @app.route('/logout')
 def logout():
-    session.pop('is_admin', None)
-    session.pop('is_gallery_admin', None)
+    session.clear()
     return redirect(url_for('index'))
 
 @app.route('/therapy/log', methods=['POST'])
@@ -6804,6 +6854,7 @@ def therapy_log():
 @app.route('/finance', methods=['GET', 'POST'])
 def finance():
     if request.method == 'POST':
+        if not session.get('is_admin'): return redirect(url_for('finance'))
         try:
             if 'delete_id' in request.form:
                 Finance.query.filter_by(id=request.form['delete_id']).delete()
@@ -6946,6 +6997,7 @@ def finance():
 @app.route('/agenda', methods=['GET', 'POST'])
 def agenda():
     if request.method == 'POST':
+        if not session.get('is_admin'): return redirect(url_for('agenda'))
         try:
             if 'delete_id' in request.form:
                 Agenda.query.filter_by(id=request.form['delete_id']).delete()
@@ -7053,6 +7105,7 @@ def booking():
     if request.method == 'POST':
         try:
             if 'status_update' in request.form:
+                 if not session.get('is_admin'): return redirect(url_for('booking'))
                  booking = Booking.query.get(request.form['booking_id'])
                  if booking:
                      booking.status = request.form['status']
@@ -7702,7 +7755,8 @@ def api_calc_waris():
             }
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        app.logger.error(f"Calculator API error: {e}", exc_info=True)
+        return jsonify({"error": "Terjadi kesalahan pada perhitungan. Silakan coba lagi."}), 400
 
 @app.route('/api/calc/zakat', methods=['POST'])
 @limiter.limit("10 per minute")
@@ -7729,7 +7783,8 @@ def api_calc_zakat():
             }
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        app.logger.error(f"Calculator API error: {e}", exc_info=True)
+        return jsonify({"error": "Terjadi kesalahan pada perhitungan. Silakan coba lagi."}), 400
 
 @app.route('/api/calc/tahajjud', methods=['POST'])
 @limiter.limit("10 per minute")
@@ -7750,7 +7805,8 @@ def api_calc_tahajjud():
             }
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        app.logger.error(f"Calculator API error: {e}", exc_info=True)
+        return jsonify({"error": "Terjadi kesalahan pada perhitungan. Silakan coba lagi."}), 400
 
 @app.route('/api/calc/khatam', methods=['POST'])
 @limiter.limit("10 per minute")
@@ -7777,7 +7833,8 @@ def api_calc_khatam():
             }
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        app.logger.error(f"Calculator API error: {e}", exc_info=True)
+        return jsonify({"error": "Terjadi kesalahan pada perhitungan. Silakan coba lagi."}), 400
 
 @app.route('/api/calc/fidyah', methods=['POST'])
 @limiter.limit("10 per minute")
@@ -7800,7 +7857,8 @@ def api_calc_fidyah():
             }
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        app.logger.error(f"Calculator API error: {e}", exc_info=True)
+        return jsonify({"error": "Terjadi kesalahan pada perhitungan. Silakan coba lagi."}), 400
 
 @app.route('/api/calc/hijri', methods=['POST'])
 @limiter.limit("10 per minute")
@@ -7828,7 +7886,8 @@ def api_calc_hijri():
                 }
             })
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        app.logger.error(f"Calculator API error: {e}", exc_info=True)
+        return jsonify({"error": "Terjadi kesalahan pada perhitungan. Silakan coba lagi."}), 400
 
 @app.route('/api/yasin', methods=['GET'])
 @limiter.limit("10 per minute")
@@ -7841,7 +7900,8 @@ def api_yasin():
             data = json.loads(response.read().decode())
             return jsonify(data)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        app.logger.error(f"Yasin API error: {e}", exc_info=True)
+        return jsonify({"error": "Gagal memuat data Yasin. Silakan coba lagi."}), 500
 
 # --- RAMADHAN SPECIAL FEATURES ---
 
@@ -9434,6 +9494,7 @@ def ramadhan_dashboard():
 
 @app.route('/ramadhan/kas', methods=['POST'])
 def ramadhan_kas_action():
+    if not session.get('is_admin'): return redirect(url_for('ramadhan_dashboard'))
     try:
         item = RamadhanKas(
             date=request.form['date'],
@@ -9450,6 +9511,7 @@ def ramadhan_kas_action():
 
 @app.route('/ramadhan/tarawih', methods=['POST'])
 def ramadhan_tarawih_action():
+    if not session.get('is_admin'): return redirect(url_for('ramadhan_dashboard'))
     try:
         night = request.form['night_index']
         item = TarawihSchedule.query.filter_by(night_index=night).first()
@@ -9576,6 +9638,7 @@ def irma_dashboard():
 
 @app.route('/irma/schedule', methods=['POST'])
 def irma_schedule():
+    if not session.get('is_admin'): return redirect(url_for('irma_dashboard'))
     try:
         if 'delete_id' in request.form:
             IrmaSchedule.query.filter_by(id=request.form['delete_id']).delete()
@@ -9599,6 +9662,7 @@ def irma_join():
     try:
         action = request.form.get('action')
         if action in ['approve', 'reject']:
+            if not session.get('is_admin'): return redirect(url_for('irma_dashboard'))
             member = IrmaMember.query.get(request.form['member_id'])
             if member:
                 member.status = 'Approved' if action == 'approve' else 'Rejected'
@@ -9618,6 +9682,7 @@ def irma_join():
 
 @app.route('/irma/kas', methods=['POST'])
 def irma_kas():
+    if not session.get('is_admin'): return redirect(url_for('irma_dashboard'))
     try:
         item = IrmaKas(
             date=request.form['date'],
@@ -9635,6 +9700,7 @@ def irma_kas():
 
 @app.route('/irma/gallery', methods=['POST'])
 def irma_gallery():
+    if not session.get('is_admin'): return redirect(url_for('irma_dashboard'))
     try:
         title = request.form.get('title', '')[:255]
         creator = request.form.get('creator', '')[:255]
@@ -9664,6 +9730,7 @@ def irma_gallery():
 
 @app.route('/irma/proker', methods=['POST'])
 def irma_proker():
+    if not session.get('is_admin'): return redirect(url_for('irma_dashboard'))
     try:
         item = IrmaProker(
             title=request.form['title'],
@@ -9681,6 +9748,7 @@ def irma_proker():
 def irma_curhat():
     try:
         if 'answer' in request.form:
+            if not session.get('is_admin'): return redirect(url_for('irma_dashboard'))
             item = IrmaCurhat.query.get(request.form['answer_id'])
             if item:
                 item.answer = request.form['answer']
@@ -9933,7 +10001,7 @@ def idul_adha_absen_settings():
     try:
         db.session.commit()
         return jsonify({'success': True})
-    except:
+    except Exception:
         db.session.rollback()
         return jsonify({'success': False})
 
@@ -9957,7 +10025,7 @@ def idul_adha_absen_register():
     try:
         db.session.commit()
         return jsonify({'success': True})
-    except:
+    except Exception:
         db.session.rollback()
         return jsonify({'success': False})
 
@@ -10046,11 +10114,11 @@ def idul_adha_dashboard():
     
     try:
         sh, sm = map(int, start_str.split(':'))
-    except:
+    except Exception:
         sh, sm = 6, 30
     try:
         eh, em = map(int, end_str.split(':'))
-    except:
+    except Exception:
         eh, em = 8, 30
         
     start_time = current_time.replace(hour=sh, minute=sm, second=0, microsecond=0)
@@ -10088,11 +10156,11 @@ def idul_adha_absen():
     
     try:
         sh, sm = map(int, start_str.split(':'))
-    except:
+    except Exception:
         sh, sm = 6, 30
     try:
         eh, em = map(int, end_str.split(':'))
-    except:
+    except Exception:
         eh, em = 8, 30
         
     start_time = current_time.replace(hour=sh, minute=sm, second=0, microsecond=0)
@@ -10220,7 +10288,6 @@ def idul_adha_shohibul_generate():
             return redirect(url_for('idul_adha_shohibul'))
 
 @app.route('/idul-adha/shohibul/update_status', methods=['POST'])
-@csrf.exempt
 def idul_adha_shohibul_update_status():
     if not session.get('is_admin'): return jsonify({'success': False, 'message': 'Unauthorized'}), 403
     try:
@@ -10316,7 +10383,6 @@ def idul_adha_peta_distribusi_edit():
         return redirect(url_for('idul_adha_peta_distribusi'))
 
 @app.route('/idul-adha/peta-distribusi/update_status', methods=['POST'])
-@csrf.exempt
 def idul_adha_peta_distribusi_update_status():
     if not session.get('is_admin'): return jsonify({'success': False, 'message': 'Unauthorized'}), 403
     try:
@@ -10467,7 +10533,18 @@ with app.app_context():
     except Exception as e:
         app.logger.error(f"Error updating QurbanAttendance table schema: {e}")
 
+    try:
+        if AdminUser.query.count() == 0:
+            user1 = AdminUser(username='admin', password_hash=generate_password_hash('takmirmasjid', method='pbkdf2:sha256'), role='admin')
+            user2 = AdminUser(username='gallery_admin', password_hash=generate_password_hash('kameramasjid', method='pbkdf2:sha256'), role='gallery_admin')
+            db.session.add(user1)
+            db.session.add(user2)
+            db.session.commit()
+            app.logger.info("Default AdminUsers seeded successfully. Please change passwords immediately.")
+    except Exception as e:
+        app.logger.warning(f"Failed to seed default AdminUsers: {e}")
+
 # =====================================================
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=os.environ.get('FLASK_DEBUG', 'false').lower() == 'true', port=5000)
