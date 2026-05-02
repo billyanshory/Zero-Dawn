@@ -306,6 +306,88 @@ class QurbanRT(db.Model):
     alokasi = db.Column(db.Integer, nullable=False)
     status = db.Column(db.String(50), default='Menunggu') # 'Menunggu' or 'Diserahkan'
 
+
+def truncate_str(value, max_len=255):
+    if value is None:
+        return ""
+    return str(value).strip()[:max_len]
+
+def truncate_text(value, max_len=10000):
+    if value is None:
+        return ""
+    return str(value).strip()[:max_len]
+
+def require_non_empty(value, field_name="Field"):
+    if value is None or not str(value).strip():
+        raise ValueError(f"{field_name} tidak boleh kosong.")
+    return str(value).strip()
+
+def validate_date(date_str):
+    if not date_str or not isinstance(date_str, str):
+        raise ValueError("Tanggal wajib diisi.")
+    date_str = date_str.strip()
+    try:
+        datetime.datetime.strptime(date_str, '%Y-%m-%d')
+    except ValueError:
+        raise ValueError("Format tanggal harus YYYY-MM-DD.")
+    return date_str
+
+def validate_time(time_str):
+    if not time_str or not isinstance(time_str, str):
+        raise ValueError("Waktu wajib diisi.")
+    time_str = time_str.strip()
+    if not re.match(r'^\d{2}:\d{2}$', time_str):
+        raise ValueError("Format waktu harus HH:MM.")
+    parts = time_str.split(':')
+    if not (0 <= int(parts[0]) <= 23 and 0 <= int(parts[1]) <= 59):
+        raise ValueError("Waktu tidak valid.")
+    return time_str
+
+def validate_id(raw_id, field_name='ID'):
+    try:
+        return int(raw_id)
+    except (ValueError, TypeError):
+        raise ValueError(f"{field_name} tidak valid.")
+
+def validate_status(value, allowed, field_name='Status'):
+    if value not in allowed:
+        raise ValueError(f"{field_name} tidak valid.")
+    return value
+
+def validate_calc_int(data, field, min_val=0, max_val=2_000_000_000_000):
+    if field not in data:
+        raise ValueError(f"Field '{field}' wajib diisi.")
+    try:
+        val = int(data[field])
+    except (ValueError, TypeError):
+        raise ValueError(f"Field '{field}' harus berupa angka bulat.")
+    if not (min_val <= val <= max_val):
+        raise ValueError(f"Field '{field}' harus antara {min_val} dan {max_val}.")
+    return val
+
+def validate_time_str(data, field):
+    val = data.get(field, '').strip()
+    if not re.match(r'^\d{1,2}:\d{2}$', val):
+        raise ValueError(f"Format waktu '{field}' harus HH:MM.")
+    parts = val.split(':')
+    if not (0 <= int(parts[0]) <= 23 and 0 <= int(parts[1]) <= 59):
+        raise ValueError(f"Waktu '{field}' tidak valid.")
+    return val
+
+def validate_date_str(data, field):
+    val = data.get(field, '').strip()
+    try:
+        datetime.datetime.strptime(val, '%Y-%m-%d')
+    except ValueError:
+        raise ValueError(f"Format tanggal '{field}' harus YYYY-MM-DD.")
+    return val
+
+BOOKING_STATUSES = {'Pending', 'Approved', 'Rejected'}
+ZAKAT_STATUSES = {'Pending', 'Diterima', 'Ditolak'}
+SHOHIBUL_STATUSES = {'Menunggu Giliran', 'Sedang Disembelih', 'Proses Pencacahan', 'Jatah Sohibul Siap Diambil'}
+QURBAN_RT_STATUSES = {'Menunggu', 'Diserahkan'}
+IRMA_PROKER_STATUSES = {'Rencana', 'Proses', 'Selesai'}
+
 def get_settings():
     try:
         settings = {item.key: item.value for item in AppSettings.query.all()}
@@ -6978,8 +7060,11 @@ def finance():
         
         if 'delete_id' in request.form:
             try:
-                Finance.query.filter_by(id=request.form['delete_id']).delete()
+                del_id = validate_id(request.form['delete_id'])
+                Finance.query.filter_by(id=del_id).delete()
                 db.session.commit()
+            except ValueError:
+                pass
             except Exception as e:
                 db.session.rollback()
                 app.logger.error(f"Finance delete error: {e}", exc_info=True)
@@ -7134,14 +7219,28 @@ def agenda():
         if not session.get('is_admin'): return redirect(url_for('agenda'))
         try:
             if 'delete_id' in request.form:
-                Agenda.query.filter_by(id=request.form['delete_id']).delete()
+                try:
+                    del_id = validate_id(request.form['delete_id'])
+                    Agenda.query.filter_by(id=del_id).delete()
+                except ValueError:
+                    pass
             else:
+                try:
+                    date_val = validate_date(request.form.get('date', ''))
+                    time_val = validate_time(request.form.get('time', ''))
+                    title_val = require_non_empty(request.form.get('title', ''), 'Judul')
+                    speaker_val = require_non_empty(request.form.get('speaker', ''), 'Pembicara')
+                    type_val = require_non_empty(request.form.get('type', ''), 'Tipe')
+                except ValueError as ve:
+                    flash(str(ve), 'error')
+                    return redirect(url_for('agenda'))
+
                 item = Agenda(
-                    date=request.form['date'],
-                    time=request.form['time'],
-                    title=request.form['title'],
-                    speaker=request.form['speaker'],
-                    type=request.form['type']
+                    date=date_val,
+                    time=time_val,
+                    title=truncate_str(title_val),
+                    speaker=truncate_str(speaker_val),
+                    type=truncate_str(type_val)
                 )
                 db.session.add(item)
             db.session.commit()
@@ -7241,16 +7340,31 @@ def booking():
         try:
             if 'status_update' in request.form:
                  if not session.get('is_admin'): return redirect(url_for('booking'))
-                 booking = Booking.query.get(request.form['booking_id'])
-                 if booking:
-                     booking.status = request.form['status']
+                 try:
+                     b_id = int(request.form['booking_id'])
+                     b_status = validate_status(request.form['status'], BOOKING_STATUSES)
+                     booking = Booking.query.get(b_id)
+                     if booking:
+                         booking.status = b_status
+                 except (ValueError, TypeError, KeyError):
+                     return redirect(url_for('booking'))
             else:
+                 try:
+                     name_val = require_non_empty(request.form.get('name', ''), 'Nama')
+                     date_val = validate_date(request.form.get('date', ''))
+                     purpose_val = require_non_empty(request.form.get('purpose', ''), 'Tujuan')
+                     type_val = require_non_empty(request.form.get('type', ''), 'Tipe')
+                     contact_val = require_non_empty(request.form.get('contact', ''), 'Kontak')
+                 except ValueError as ve:
+                     flash(str(ve), 'error')
+                     return redirect(url_for('booking'))
+
                  item = Booking(
-                     name=request.form['name'],
-                     date=request.form['date'],
-                     purpose=request.form['purpose'],
-                     type=request.form['type'],
-                     contact=request.form['contact']
+                     name=truncate_str(name_val),
+                     date=date_val,
+                     purpose=truncate_text(purpose_val),
+                     type=truncate_str(type_val),
+                     contact=truncate_str(contact_val)
                  )
                  db.session.add(item)
             db.session.commit()
@@ -7510,15 +7624,25 @@ def gallery_dakwah():
 
     if request.method == 'POST' and can_edit:
         if 'delete_id' in request.form:
-             GalleryDakwah.query.filter_by(id=request.form['delete_id']).delete()
+             try:
+                 del_id = validate_id(request.form['delete_id'])
+                 GalleryDakwah.query.filter_by(id=del_id).delete()
+             except ValueError:
+                 pass
         elif 'image' in request.files:
             file = request.files['image']
             if file and allowed_file(file.filename):
                 saved_filename = compress_image(file, app.config['UPLOAD_FOLDER'])
+                try:
+                    title_val = require_non_empty(request.form.get('title', ''), 'Judul')
+                except ValueError as ve:
+                    flash(str(ve), 'error')
+                    return redirect(url_for('gallery_dakwah'))
+
                 item = GalleryDakwah(
-                    title=request.form['title'],
+                    title=truncate_str(title_val),
                     image=saved_filename,
-                    description=request.form['description'],
+                    description=truncate_text(request.form.get('description', '')),
                     date=str(datetime.date.today())
                 )
                 db.session.add(item)
@@ -7633,8 +7757,17 @@ def gallery_dakwah():
 def suggestion():
     if request.method == 'POST':
          try:
+             try:
+                 content_val = require_non_empty(request.form.get('content', ''), 'Saran')
+                 if len(content_val) > 5000:
+                     flash('Saran terlalu panjang (maksimal 5000 karakter).', 'error')
+                     return redirect(url_for('suggestion'))
+             except ValueError as ve:
+                 flash(str(ve), 'error')
+                 return redirect(url_for('suggestion'))
+
              item = Suggestion(
-                 content=request.form['content'],
+                 content=truncate_text(content_val, 5000),
                  date=str(datetime.date.today())
              )
              db.session.add(item)
@@ -7717,6 +7850,8 @@ def donate():
                 else: db.session.add(AppSettings(key='infaq_qris_image', value=saved_filename))
         
         if key and val:
+             if key not in {'infaq_rekening', 'infaq_rekening_masjid', 'infaq_rekening_qurban', 'infaq_rekening_zakat'}:
+                 return redirect(url_for('donate'))
              s = AppSettings.query.get(key)
              if s: s.value = val
              else: db.session.add(AppSettings(key=key, value=val))
@@ -7877,10 +8012,13 @@ def api_calc_waris():
     try:
         data = request.json
         if not data: return jsonify({"error": "Request harus berformat JSON dengan Content-Type: application/json"}), 400
-        harta = int(data['harta'])
-        sons = int(data['sons'])
-        daughters = int(data['daughters'])
-        
+        try:
+            harta = validate_calc_int(data, 'harta', min_val=0)
+            sons = validate_calc_int(data, 'sons', min_val=0, max_val=100)
+            daughters = validate_calc_int(data, 'daughters', min_val=0, max_val=100)
+        except ValueError as ve:
+            return jsonify({"error": str(ve)}), 422
+
         res = calc_waris(harta, sons, daughters)
         if "error" in res:
              return jsonify(res), 422
@@ -7987,8 +8125,11 @@ def api_calc_fidyah():
     try:
         data = request.json
         if not data: return jsonify({"error": "Request harus berformat JSON dengan Content-Type: application/json"}), 400
-        days = int(data['days'])
-        cat = data['category']
+        try:
+            days = validate_calc_int(data, 'days', min_val=1, max_val=1000)
+        except ValueError as ve:
+            return jsonify({"error": str(ve)}), 422
+        cat = data.get('category', '')
         
         res = calc_fidyah(days, cat)
         
@@ -9667,7 +9808,12 @@ def ramadhan_kas_action():
 def ramadhan_tarawih_action():
     if not session.get('is_admin'): return redirect(url_for('ramadhan_dashboard'))
     try:
-        night = request.form['night_index']
+        try:
+            night = int(request.form['night_index'])
+            if not (1 <= night <= 30):
+                raise ValueError()
+        except (ValueError, TypeError, KeyError):
+            return redirect(url_for('ramadhan_dashboard', open='modal-tarawih'))
         item = TarawihSchedule.query.filter_by(night_index=night).first()
         if item:
             item.imam = request.form['imam']
@@ -9796,12 +9942,24 @@ def irma_schedule():
     if not session.get('is_admin'): return redirect(url_for('irma_dashboard'))
     try:
         if 'delete_id' in request.form:
-            IrmaSchedule.query.filter_by(id=request.form['delete_id']).delete()
+            try:
+                del_id = validate_id(request.form['delete_id'])
+                IrmaSchedule.query.filter_by(id=del_id).delete()
+            except ValueError:
+                pass
         else:
+            try:
+                name_val = require_non_empty(request.form.get('name', ''), 'Nama')
+                role_val = require_non_empty(request.form.get('role', ''), 'Peran')
+                date_val = validate_date(request.form.get('date', ''))
+            except ValueError as ve:
+                flash(str(ve), 'error')
+                return redirect(url_for('irma_dashboard', open='modal-schedule'))
+
             item = IrmaSchedule(
-                name=request.form['name'],
-                role=request.form['role'],
-                date=request.form['date']
+                name=truncate_str(name_val),
+                role=truncate_str(role_val),
+                date=date_val
             )
             db.session.add(item)
         db.session.commit()
