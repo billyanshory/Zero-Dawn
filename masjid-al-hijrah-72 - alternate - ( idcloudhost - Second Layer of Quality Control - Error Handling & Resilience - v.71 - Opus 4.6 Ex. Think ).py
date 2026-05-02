@@ -7716,10 +7716,12 @@ def donate():
                 if s: s.value = saved_filename
                 else: db.session.add(AppSettings(key='infaq_qris_image', value=saved_filename))
         
+        DONATE_ALLOWED_KEYS = {'infaq_rekening', 'infaq_qris_image', 'infaq_rekening_masjid', 'infaq_rekening_qurban', 'infaq_rekening_zakat'}
         if key and val:
-             s = AppSettings.query.get(key)
-             if s: s.value = val
-             else: db.session.add(AppSettings(key=key, value=val))
+             if key in DONATE_ALLOWED_KEYS:
+                 s = AppSettings.query.get(key)
+                 if s: s.value = val
+                 else: db.session.add(AppSettings(key=key, value=val))
              
         try:
             db.session.commit()
@@ -10157,6 +10159,17 @@ def idul_adha_absen_data():
 def idul_adha_absen_settings():
     if not session.get('is_admin'): return jsonify({'success': False}), 403
     req = request.get_json(silent=True) or {}
+
+    if 'absen_status' in req and req['absen_status'] not in {'open', 'closed', 'auto'}:
+        return jsonify({'success': False, 'message': 'Status tidak valid'}), 400
+
+    for k in ['absen_start', 'absen_end']:
+        if k in req:
+            try:
+                 req[k] = validate_time(req[k])
+            except ValueError as ve:
+                 return jsonify({'success': False, 'message': str(ve)}), 400
+
     for k in ['absen_start', 'absen_end', 'absen_status']:
         if k in req:
             key_name = f"{k}_time" if k != 'absen_status' else k
@@ -10437,24 +10450,38 @@ def idul_adha_shohibul_generate():
     if not session.get('is_admin'): return jsonify({'success': False, 'message': 'Unauthorized'}), 403
     try:
         req_data = request.get_json(silent=True) or request.form
-        jenis = req_data.get('jenis_hewan')
-        nama = req_data.get('nama_shohibul')
+        jenis = req_data.get('jenis_hewan', '').strip()
+        nama = req_data.get('nama_shohibul', '').strip()
+
+        if not jenis or not nama:
+             if request.is_json:
+                 return jsonify({'success': False, 'message': 'Semua field wajib diisi.'}), 400
+             else:
+                 flash('Semua field wajib diisi.', 'error')
+                 return redirect(url_for('idul_adha_shohibul'))
+
         prefix = 'SQ' if jenis == 'Sapi' else 'KQ'
-        last_record = QurbanShohibul.query.filter(QurbanShohibul.pin.like(f"{prefix}-%")).order_by(QurbanShohibul.id.desc()).first()
-        if last_record:
-            last_num = int(last_record.pin.split('-')[1])
-            next_num = last_num + 1
-        else:
-            next_num = 1
-        new_pin = f"{prefix}-{next_num:03d}"
-        shohibul = QurbanShohibul(pin=new_pin, jenis_hewan=jenis, nama_shohibul=nama)
-        db.session.add(shohibul)
-        db.session.commit()
-        if request.is_json:
-            return jsonify({'success': True, 'pin': new_pin, 'message': f'Berhasil meng-generate PIN {new_pin}'})
-        else:
-            flash(f"Berhasil meng-generate PIN {new_pin}", "success")
-            return redirect(url_for('idul_adha_shohibul', pin=new_pin))
+        for attempt in range(3):
+            last_record = QurbanShohibul.query.filter(QurbanShohibul.pin.like(f"{prefix}-%")).order_by(QurbanShohibul.id.desc()).first()
+            if last_record:
+                last_num = int(last_record.pin.split('-')[1])
+                next_num = last_num + 1
+            else:
+                next_num = 1
+            new_pin = f"{prefix}-{next_num:03d}"
+            shohibul = QurbanShohibul(pin=new_pin, jenis_hewan=jenis, nama_shohibul=nama)
+            db.session.add(shohibul)
+            try:
+                db.session.commit()
+                if request.is_json:
+                    return jsonify({'success': True, 'pin': new_pin, 'message': f'Berhasil meng-generate PIN {new_pin}'})
+                else:
+                    flash(f"Berhasil meng-generate PIN {new_pin}", "success")
+                    return redirect(url_for('idul_adha_shohibul', pin=new_pin))
+            except Exception:
+                db.session.rollback()
+                if attempt == 2:
+                    raise
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error in idul_adha_shohibul_generate: {e}", exc_info=True)
@@ -10636,7 +10663,8 @@ def idul_adha_distribution():
         all_kupon = QurbanKupon.query.order_by(QurbanKupon.id.desc()).all()
         
     if q:
-        kupon = QurbanKupon.query.filter((QurbanKupon.nomor_kupon == q) | (QurbanKupon.nama_penerima.like(f"%{q}%"))).first()
+        q_escaped = q.replace('%', r'\%').replace('_', r'\_')
+        kupon = QurbanKupon.query.filter((QurbanKupon.nomor_kupon == q) | (QurbanKupon.nama_penerima.like(f"%{q_escaped}%", escape='\\'))).first()
         
     rendered_content = render_template_string(IDUL_ADHA_PEMBAGIAN_HTML, kupon=kupon, all_kupon=all_kupon, is_admin=session.get('is_admin', False), settings=get_settings())
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='idul-adha', content=rendered_content, is_admin=session.get('is_admin', False), settings=get_settings())
@@ -10650,21 +10678,27 @@ def idul_adha_pembagian_generate():
         rt = req_data.get('rt')
         waktu = req_data.get('waktu_pengambilan')
         lokasi = req_data.get('lokasi_pengambilan')
-        last_record = QurbanKupon.query.filter(QurbanKupon.nomor_kupon.like("KPN-%")).order_by(QurbanKupon.id.desc()).first()
-        if last_record:
-            last_num = int(last_record.nomor_kupon.split('-')[1])
-            next_num = last_num + 1
-        else:
-            next_num = 1
-        new_kupon = f"KPN-{next_num:03d}"
-        kupon_entry = QurbanKupon(nomor_kupon=new_kupon, nama_penerima=nama, rt=rt, waktu_pengambilan=waktu, lokasi_pengambilan=lokasi)
-        db.session.add(kupon_entry)
-        db.session.commit()
-        if request.is_json:
-            return jsonify({'success': True, 'kupon': new_kupon, 'message': f'Berhasil meng-generate Kupon {new_kupon}'})
-        else:
-            flash(f"Berhasil meng-generate Kupon {new_kupon}", "success")
-            return redirect(url_for('idul_adha_distribution', q=new_kupon))
+        for attempt in range(3):
+            last_record = QurbanKupon.query.filter(QurbanKupon.nomor_kupon.like("KPN-%")).order_by(QurbanKupon.id.desc()).first()
+            if last_record:
+                last_num = int(last_record.nomor_kupon.split('-')[1])
+                next_num = last_num + 1
+            else:
+                next_num = 1
+            new_kupon = f"KPN-{next_num:03d}"
+            kupon_entry = QurbanKupon(nomor_kupon=new_kupon, nama_penerima=nama, rt=rt, waktu_pengambilan=waktu, lokasi_pengambilan=lokasi)
+            db.session.add(kupon_entry)
+            try:
+                db.session.commit()
+                if request.is_json:
+                    return jsonify({'success': True, 'kupon': new_kupon, 'message': f'Berhasil meng-generate Kupon {new_kupon}'})
+                else:
+                    flash(f"Berhasil meng-generate Kupon {new_kupon}", "success")
+                    return redirect(url_for('idul_adha_distribution', q=new_kupon))
+            except Exception:
+                db.session.rollback()
+                if attempt == 2:
+                    raise
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error in idul_adha_pembagian_generate: {e}", exc_info=True)
