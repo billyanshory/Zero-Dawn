@@ -385,6 +385,7 @@ def get_settings():
         settings = {}
     return settings
 
+# Recommended commit pattern — adopted in 6 routes as of Layer 4 QC. Gradually extend to all routes in future cycles.
 def safe_commit(operation_name="database operation"):
     try:
         db.session.commit()
