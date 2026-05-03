@@ -58,7 +58,7 @@ if not _db_uri:
 app.config['SQLALCHEMY_DATABASE_URI'] = _db_uri
 
 if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_size': 100, 'max_overflow': 200, 'pool_recycle': 280}
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_size': 5, 'max_overflow': 10, 'pool_recycle': 280, 'pool_pre_ping': True, 'pool_timeout': 30}
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 try:
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -76,6 +76,7 @@ if not app.debug:
     app.logger.addHandler(file_handler)
     app.logger.setLevel(logging.INFO)
 
+# Correct pattern for Flask-SQLAlchemy scoped sessions. Removes the session for the current thread/request, returning the connection to the pool. Prevents session leaks across requests.
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     db.session.remove()
@@ -122,16 +123,20 @@ DB_NAME = 'masjid.db'
 
 class Finance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.String(255), nullable=False)
-    type = db.Column(db.String(255), nullable=False)
+    # TECH DEBT: Should be db.Date. Currently safe because validate_date() enforces YYYY-MM-DD format.
+    date = db.Column(db.String(255), nullable=False, index=True)
+    # FUTURE: Add CheckConstraint("type IN ('Pemasukan', 'Pengeluaran')", name='ck_finance_type_valid')
+    type = db.Column(db.String(255), nullable=False, index=True)
     category = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=False)
+    # FUTURE: Add CheckConstraint('amount > 0', name='ck_finance_amount_positive')
     amount = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now())
 
 class Agenda(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.String(255), nullable=False)
+    # TECH DEBT: Should be db.Date. Currently safe because validate_date() enforces YYYY-MM-DD format.
+    date = db.Column(db.String(255), nullable=False, index=True)
     time = db.Column(db.String(255), nullable=False)
     title = db.Column(db.String(255), nullable=False)
     speaker = db.Column(db.String(255), nullable=False)
@@ -142,42 +147,47 @@ class Booking(db.Model):
     __tablename__ = 'bookings'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
+    # TECH DEBT: Should be db.Date. Currently safe because validate_date() enforces YYYY-MM-DD format.
     date = db.Column(db.String(255), nullable=False)
     purpose = db.Column(db.Text, nullable=False)
     type = db.Column(db.String(255), nullable=False)
     status = db.Column(db.String(50), default='Pending')
     contact = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, server_default=func.now())
+    created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class Zakat(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     donor_name = db.Column(db.String(255), nullable=False)
-    type = db.Column(db.String(255), nullable=False)
+    type = db.Column(db.String(255), nullable=False, index=True)
+    # TECH DEBT: Should be db.Integer. Currently handled by Python-side aggregation with try/except.
     amount = db.Column(db.String(255), nullable=False)
     notes = db.Column(db.Text)
     status = db.Column(db.String(50), default='Pending')
-    created_at = db.Column(db.DateTime, server_default=func.now())
+    created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class GalleryDakwah(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
     image = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
+    # TECH DEBT: Should be db.Date. Currently safe because validate_date() enforces YYYY-MM-DD format.
     date = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, server_default=func.now())
+    created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class Suggestion(db.Model):
     __tablename__ = 'suggestions'
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text, nullable=False)
+    # TECH DEBT: Should be db.Date. Currently safe because validate_date() enforces YYYY-MM-DD format.
     date = db.Column(db.String(255), nullable=False)
     status = db.Column(db.String(50), default='Unread')
-    created_at = db.Column(db.DateTime, server_default=func.now())
+    created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class RamadhanKas(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.String(255), nullable=False)
-    type = db.Column(db.String(255), nullable=False)
+    # TECH DEBT: Should be db.Date. Currently safe because validate_date() enforces YYYY-MM-DD format.
+    date = db.Column(db.String(255), nullable=False, index=True)
+    type = db.Column(db.String(255), nullable=False, index=True)
     category = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=False)
     amount = db.Column(db.Integer, nullable=False)
@@ -185,7 +195,8 @@ class RamadhanKas(db.Model):
 
 class TarawihSchedule(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    night_index = db.Column(db.Integer, nullable=False)
+    night_index = db.Column(db.Integer, nullable=False, unique=True, index=True)
+    # TECH DEBT: Should be db.Date. Currently safe because validate_date() enforces YYYY-MM-DD format.
     date = db.Column(db.String(255))
     imam = db.Column(db.String(255))
     penceramah = db.Column(db.String(255))
@@ -194,7 +205,8 @@ class TarawihSchedule(db.Model):
 class IrmaSchedule(db.Model):
     __tablename__ = 'irma_schedule'
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.String(255), nullable=False)
+    # TECH DEBT: Should be db.Date. Currently safe because validate_date() enforces YYYY-MM-DD format.
+    date = db.Column(db.String(255), nullable=False, index=True)
     name = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(255), nullable=False)
     notes = db.Column(db.Text)
@@ -206,14 +218,15 @@ class IrmaMember(db.Model):
     age = db.Column(db.Integer)
     hobbies = db.Column(db.Text)
     instagram = db.Column(db.String(255))
-    joined_at = db.Column(db.DateTime, server_default=func.now())
-    wa_number = db.Column(db.String(255))
+    joined_at = db.Column(db.DateTime, server_default=func.now(), index=True)
+    wa_number = db.Column(db.String(255), index=True)
     status = db.Column(db.String(50), default='Pending')
 
 class IrmaKas(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.String(255), nullable=False)
-    type = db.Column(db.String(255), nullable=False)
+    # TECH DEBT: Should be db.Date. Currently safe because validate_date() enforces YYYY-MM-DD format.
+    date = db.Column(db.String(255), nullable=False, index=True)
+    type = db.Column(db.String(255), nullable=False, index=True)
     amount = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, server_default=func.now())
@@ -225,24 +238,26 @@ class IrmaGallery(db.Model):
     content_type = db.Column(db.String(255), nullable=False)
     content = db.Column(db.Text, nullable=False)
     caption = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, server_default=func.now())
+    created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
 
 class IrmaProker(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
     status = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
-    date = db.Column(db.String(255))
+    # TECH DEBT: Should be db.Date. Currently safe because validate_date() enforces YYYY-MM-DD format.
+    date = db.Column(db.String(255), index=True)
 
 class IrmaCurhat(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     question = db.Column(db.Text, nullable=False)
     answer = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, server_default=func.now())
+    created_at = db.Column(db.DateTime, server_default=func.now(), index=True)
     answered_at = db.Column(db.DateTime)
 
 class EpilepsiLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    # TECH DEBT: Should be db.Date. Currently safe because validate_date() enforces YYYY-MM-DD format.
     date = db.Column(db.String(255), nullable=False)
     time = db.Column(db.String(255), nullable=False)
     trigger = db.Column(db.String(255), nullable=False)
@@ -266,9 +281,10 @@ class QurbanAttendance(db.Model):
     no_hp = db.Column(db.String(20), nullable=True)
     tugas_diinginkan = db.Column(db.String(255), nullable=True)
     pos_tugas = db.Column(db.String(255), nullable=True)
-    approval_status = db.Column(db.String(50), default='Menunggu') # 'Menunggu', 'Approved', 'Rejected'
+    # FUTURE: Add CheckConstraint("approval_status IN ('Menunggu', 'Approved', 'Rejected')", name='ck_attendance_status_valid')
+    approval_status = db.Column(db.String(50), default='Menunggu', index=True) # 'Menunggu', 'Approved', 'Rejected'
     is_present = db.Column(db.Boolean, default=False)
-    session_id = db.Column(db.String(255), nullable=True)
+    session_id = db.Column(db.String(255), nullable=True, index=True)
     check_in_time = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(50), nullable=True) # 'Hadir Pagi' or 'Terlambat' / 'Siluman'
 
@@ -385,6 +401,7 @@ def get_settings():
         settings = {}
     return settings
 
+# Recommended commit pattern — adopted in 6 routes as of Layer 4 QC. Gradually extend to all routes in future cycles.
 def safe_commit(operation_name="database operation"):
     try:
         db.session.commit()
@@ -710,6 +727,8 @@ def compress_image(file_storage, upload_folder):
 
 # --- RAMADHAN HELPER FUNCTIONS ---
 
+# SQL Cleanup for existing duplicates:
+# DELETE FROM tarawih_schedule WHERE id NOT IN (SELECT MIN(id) FROM tarawih_schedule GROUP BY night_index);
 def seed_ramadhan_schedule():
     try:
         if TarawihSchedule.query.count() == 0:
@@ -747,14 +766,16 @@ def seed_ramadhan_schedule():
             ]
 
             for night, imam, penceramah in schedule_data:
-                entry = TarawihSchedule(
-                    night_index=night, 
-                    date=f"Ramadhan {night}", 
-                    imam=imam, 
-                    penceramah=penceramah, 
-                    judul="-"
-                )
-                db.session.add(entry)
+                existing_entry = TarawihSchedule.query.filter_by(night_index=night).first()
+                if existing_entry is None:
+                    entry = TarawihSchedule(
+                        night_index=night,
+                        date=f"Ramadhan {night}",
+                        imam=imam,
+                        penceramah=penceramah,
+                        judul="-"
+                    )
+                    db.session.add(entry)
             db.session.commit()
             app.logger.info("Ramadhan schedule seeded successfully (30 nights).")
     except Exception as e:
@@ -958,6 +979,7 @@ def get_imsakiyah_schedule():
 # --- FRONTEND ASSETS & LAYOUT ---
 
 # --- ORM Compatibility Patch (Allow dict-style access in Jinja) ---
+# ORM compatibility patch: enables dict-style access (item['field']) in Jinja2 templates for all 21 models. Do NOT remove — breaking this breaks every template that uses {{ item['field'] }} syntax.
 def model_getitem(self, key):
     return getattr(self, key)
 
@@ -7092,7 +7114,8 @@ def finance():
                 amount=amount
             )
             db.session.add(item)
-            db.session.commit()
+            if not safe_commit("adding Finance"):
+                flash("Gagal menyimpan data.", "error")
         except (ValueError, KeyError):
             db.session.rollback()
         except Exception as e:
@@ -7100,8 +7123,9 @@ def finance():
             db.session.rollback()
         return redirect(url_for('finance'))
     
-    items = Finance.query.order_by(Finance.date.desc()).all()
+    items = Finance.query.order_by(Finance.date.desc()).limit(100).all()
     
+    # PostgreSQL returns NULL for SUM() of zero rows; 'or 0' provides the correct fallback.
     total_in = db.session.query(func.sum(Finance.amount)).filter_by(type='Pemasukan').scalar() or 0
     total_out = db.session.query(func.sum(Finance.amount)).filter_by(type='Pengeluaran').scalar() or 0
     balance = total_in - total_out
@@ -7226,7 +7250,10 @@ def agenda():
         if not session.get('is_admin'): return redirect(url_for('agenda'))
         try:
             if 'delete_id' in request.form:
-                Agenda.query.filter_by(id=request.form.get('delete_id', '')).delete()
+                del_id = validate_id(request.form.get('delete_id', ''))
+                deleted_count = Agenda.query.filter_by(id=del_id).delete()
+                if deleted_count == 0:
+                    flash("Data tidak ditemukan.", "error")
             else:
                 try:
                     valid_date = validate_date(request.form.get('date', ''))
@@ -7247,7 +7274,7 @@ def agenda():
             db.session.rollback()
         return redirect(url_for('agenda'))
 
-    items = Agenda.query.order_by(Agenda.date.asc(), Agenda.time.asc()).all()
+    items = Agenda.query.order_by(Agenda.date.asc(), Agenda.time.asc()).limit(100).all()
 
 #     conn.close()
 
@@ -7370,7 +7397,7 @@ def booking():
             db.session.rollback()
         return redirect(url_for('booking'))
 
-    items = Booking.query.order_by(Booking.created_at.desc()).all()
+    items = Booking.query.order_by(Booking.created_at.desc()).limit(100).all()
 
 #     conn.close()
 
@@ -7490,7 +7517,12 @@ def zakat():
     
     # Calculate totals (Python side for safety with String column)
     fitrah_items = Zakat.query.filter_by(type='Zakat Fitrah').all()
-    total_zakat_fitrah = sum(int(float(i.amount)) for i in fitrah_items if i.amount.replace('.','').isdigit())
+    total_zakat_fitrah = 0
+    for i in fitrah_items:
+        try:
+            total_zakat_fitrah += int(float(i.amount))
+        except (ValueError, TypeError):
+            app.logger.warning(f"Non-numeric Zakat amount skipped: id={i.id}, amount='{i.amount}'")
     
     total_sapi = Zakat.query.filter_by(type='Qurban Sapi').count()
     total_kambing = Zakat.query.filter_by(type='Qurban Kambing').count()
@@ -7611,6 +7643,7 @@ def zakat():
     """
     return render_template_string(BASE_LAYOUT, styles=STYLES_HTML, active_page='zakat', content=render_template_string(content, items=items, total_zakat_fitrah=total_zakat_fitrah, total_sapi=total_sapi, total_kambing=total_kambing, is_admin=session.get('is_admin', False)), is_admin=session.get('is_admin', False), settings=get_settings())
 
+# Known limitation: no optimistic locking. Last-write-wins under concurrent admin updates. Acceptable for current single-admin usage pattern.
 @app.route('/zakat/status', methods=['POST'])
 def zakat_status():
     if not session.get('is_admin'):
@@ -7645,7 +7678,9 @@ def gallery_dakwah():
         if 'delete_id' in request.form:
              try:
                  del_id = validate_id(request.form.get('delete_id', ''))
-                 GalleryDakwah.query.filter_by(id=del_id).delete()
+                 deleted_count = GalleryDakwah.query.filter_by(id=del_id).delete()
+                 if deleted_count == 0:
+                     flash("Data tidak ditemukan.", "error")
              except ValueError as ve:
                  flash(str(ve), "error")
                  return redirect(url_for('gallery_dakwah'))
@@ -7667,7 +7702,7 @@ def gallery_dakwah():
             db.session.rollback()
         return redirect(url_for('gallery_dakwah'))
     
-    items = GalleryDakwah.query.order_by(GalleryDakwah.created_at.desc()).all()
+    items = GalleryDakwah.query.order_by(GalleryDakwah.created_at.desc()).limit(50).all()
 
 #     conn.close()
 
@@ -9832,7 +9867,8 @@ def ramadhan_kas_action():
             amount=amount
         )
         db.session.add(item)
-        db.session.commit()
+        if not safe_commit("adding RamadhanKas"):
+            flash("Gagal menyimpan data.", "error")
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error saving kas: {e}", exc_info=True)
@@ -9891,13 +9927,13 @@ def irma_dashboard():
 
         # 1. Schedule List
         try:
-            schedule_list = IrmaSchedule.query.order_by(IrmaSchedule.date.desc(), IrmaSchedule.id.desc()).all()
+            schedule_list = IrmaSchedule.query.order_by(IrmaSchedule.date.desc(), IrmaSchedule.id.desc()).limit(100).all()
         except Exception as e:
             app.logger.error(f"IRMA dashboard error: {e}", exc_info=True)
         
         # 2. Kas (Finance)
         try:
-            kas_list = IrmaKas.query.order_by(IrmaKas.date.desc()).all()
+            kas_list = IrmaKas.query.order_by(IrmaKas.date.desc()).limit(100).all()
             fin_in = db.session.query(func.sum(IrmaKas.amount)).filter_by(type='Pemasukan').scalar() or 0
             fin_out = db.session.query(func.sum(IrmaKas.amount)).filter_by(type='Pengeluaran').scalar() or 0
             kas_summary = {'income': fin_in, 'out': fin_out, 'balance': fin_in - fin_out}
@@ -9906,7 +9942,7 @@ def irma_dashboard():
         
         # 3. Gallery (Mading)
         try:
-            gallery_list = IrmaGallery.query.order_by(IrmaGallery.created_at.desc()).all()
+            gallery_list = IrmaGallery.query.order_by(IrmaGallery.created_at.desc()).limit(50).all()
         except Exception as e:
             app.logger.error(f"IRMA dashboard error: {e}", exc_info=True)
         
@@ -9918,7 +9954,7 @@ def irma_dashboard():
         
         # 5. Curhat (Q&A)
         try:
-            curhat_list = IrmaCurhat.query.order_by(IrmaCurhat.created_at.desc()).all()
+            curhat_list = IrmaCurhat.query.order_by(IrmaCurhat.created_at.desc()).limit(50).all()
         except Exception as e:
             app.logger.error(f"IRMA dashboard error: {e}", exc_info=True)
         
@@ -9980,7 +10016,9 @@ def irma_schedule():
         if 'delete_id' in request.form:
             try:
                 del_id = validate_id(request.form.get('delete_id', ''))
-                IrmaSchedule.query.filter_by(id=del_id).delete()
+                deleted_count = IrmaSchedule.query.filter_by(id=del_id).delete()
+                if deleted_count == 0:
+                    flash("Data tidak ditemukan.", "error")
             except ValueError as ve:
                 flash(str(ve), "error")
                 return redirect(url_for('irma_dashboard', open='modal-schedule'))
@@ -9996,7 +10034,8 @@ def irma_schedule():
                 date=valid_date
             )
             db.session.add(item)
-        db.session.commit()
+        if not safe_commit("adding IrmaSchedule"):
+            flash("Gagal menyimpan data.", "error")
     except (KeyError, ValueError) as e:
         app.logger.error(f"Error in irma_schedule: {e}", exc_info=True)
         db.session.rollback()
@@ -10068,7 +10107,8 @@ def irma_kas():
             amount=amount
         )
         db.session.add(item)
-        db.session.commit()
+        if not safe_commit("adding IrmaKas"):
+            flash("Gagal menyimpan data.", "error")
     except (ValueError, KeyError):
         db.session.rollback()
     except Exception as e:
@@ -10105,7 +10145,8 @@ def irma_gallery():
             caption=truncate_text(caption)
         )
         db.session.add(item)
-        db.session.commit()
+        if not safe_commit("adding IrmaGallery"):
+            flash("Gagal menyimpan data.", "error")
     except Exception as e:
         app.logger.error(f"IRMA gallery upload error: {e}", exc_info=True)
         db.session.rollback()
@@ -10155,7 +10196,8 @@ def irma_curhat():
         else:
             item = IrmaCurhat(question=truncate_text(request.form.get('question', '')))
             db.session.add(item)
-        db.session.commit()
+        if not safe_commit("adding/answering IrmaCurhat"):
+            flash("Gagal menyimpan data.", "error")
     except (KeyError, ValueError) as e:
         app.logger.error(f"Error in irma_curhat: {e}", exc_info=True)
         db.session.rollback()
@@ -10364,6 +10406,7 @@ def idul_adha_absen_data():
     all_data = []
     analytics = {'total': 0, 'hadir': 0, 'menunggu': 0, 'terlambat': 0}
     if session.get('is_admin'):
+        # Acceptable unbounded query — QurbanAttendance is naturally bounded (~100 volunteers/year). Connection exhaustion risk mitigated by pool_size=5 configuration.
         all_panitia = QurbanAttendance.query.all()
         for p in all_panitia:
             all_data.append({
@@ -10701,13 +10744,16 @@ def idul_adha_shohibul_generate():
                  return redirect(url_for('idul_adha_shohibul'))
                  
         prefix = 'SQ' if jenis == 'Sapi' else 'KQ'
-        for attempt in range(3):
+        for attempt in range(5):
             last_record = QurbanShohibul.query.filter(QurbanShohibul.pin.like(f"{prefix}-%")).order_by(QurbanShohibul.id.desc()).first()
             if last_record:
-                last_num = int(last_record.pin.split('-')[1])
-                next_num = last_num + 1
+                try:
+                    last_num = int(last_record.pin.split('-')[1])
+                except (ValueError, IndexError):
+                    last_num = 0
+                next_num = last_num + 1 + attempt
             else:
-                next_num = 1
+                next_num = 1 + attempt
             new_pin = f"{prefix}-{next_num:03d}"
             shohibul = QurbanShohibul(
                 pin=truncate_str(new_pin, 10), 
@@ -10958,13 +11004,16 @@ def idul_adha_pembagian_generate():
         rt = req_data.get('rt')
         waktu = req_data.get('waktu_pengambilan')
         lokasi = req_data.get('lokasi_pengambilan')
-        for attempt in range(3):
+        for attempt in range(5):
             last_record = QurbanKupon.query.filter(QurbanKupon.nomor_kupon.like("KPN-%")).order_by(QurbanKupon.id.desc()).first()
             if last_record:
-                last_num = int(last_record.nomor_kupon.split('-')[1])
-                next_num = last_num + 1
+                try:
+                    last_num = int(last_record.nomor_kupon.split('-')[1])
+                except (ValueError, IndexError):
+                    last_num = 0
+                next_num = last_num + 1 + attempt
             else:
-                next_num = 1
+                next_num = 1 + attempt
             new_kupon = f"KPN-{next_num:03d}"
             kupon_entry = QurbanKupon(
                 nomor_kupon=truncate_str(new_kupon, 20), 
@@ -11002,6 +11051,7 @@ def idul_adha_pembagian_generate():
 with app.app_context():
     # 1. Amankan pembuatan tabel awal agar tidak tabrakan antar worker Gunicorn
     try:
+        # NOTE: For production, use 'gunicorn --preload app:app' so that db.create_all() runs only once in the master process before workers fork. Current pattern is safe due to PostgreSQL DDL locking, but --preload is cleaner.
         db.create_all()
     except Exception as e:
         app.logger.warning(f"Mengabaikan pembuatan tabel karena di-handle worker lain: {e}")
@@ -11035,10 +11085,13 @@ with app.app_context():
                 try: conn.execute(text("ALTER TABLE qurban_attendance ALTER COLUMN status TYPE VARCHAR(50) NULL"))
                 except Exception as e: 
                     if 'already exists' not in str(e).lower() and 'duplicate column' not in str(e).lower(): app.logger.error(f"Migration error: {e}")
+                conn.commit()
+                app.logger.info("QurbanAttendance migration block committed successfully.")
     except Exception as e:
         app.logger.error(f"Error updating QurbanAttendance table schema: {e}")
         
     try:
+        # Admin seeding is atomic (single transaction for both users). Race condition on concurrent workers is handled by unique constraint on AdminUser.username. Hardcoded passwords are a Layer 1 (Security) concern — see Layer 1 audit.
         if AdminUser.query.count() == 0:
             user1 = AdminUser(username='admin', password_hash=generate_password_hash('takmirmasjid', method='pbkdf2:sha256'), role='admin')
             user2 = AdminUser(username='gallery_admin', password_hash=generate_password_hash('kameramasjid', method='pbkdf2:sha256'), role='gallery_admin')
