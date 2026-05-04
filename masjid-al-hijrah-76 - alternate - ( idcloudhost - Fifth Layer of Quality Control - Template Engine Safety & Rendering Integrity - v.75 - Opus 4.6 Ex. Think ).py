@@ -6598,7 +6598,7 @@ HOME_HTML = """
             <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 border-b border-gray-200 pb-1">Panduan Tajwid</p>
             <div class="grid grid-cols-3 gap-y-2 gap-x-1 text-[10px] font-bold text-gray-700">
                 <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span> Idgham</div>
-                <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span> Ikhfa</div>
+                <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Ikhfa</div>
                 <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Iqlab</div>
                 <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500"></span> Qalqalah</div>
                 <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500"></span> Ghunnah</div>
@@ -6779,19 +6779,32 @@ HOME_HTML = """
         
         try {
             const response = await fetch(`https://equran.id/api/v2/surat/${nomor}`);
+            if (!response.ok) throw new Error('Surah data fetch failed');
             const result = await response.json();
             
             let tajwidData = null;
             if (isQuranTajwidMode) {
-                const resTajwid = await fetch(`https://api.alquran.cloud/v1/surah/${nomor}/ar.tajweed`);
-                tajwidData = await resTajwid.json();
+                try {
+                    const resTajwid = await fetch(`https://api.alquran.cloud/v1/surah/${nomor}/ar.tajweed`);
+                    if (resTajwid.ok) {
+                        tajwidData = await resTajwid.json();
+                    } else {
+                        throw new Error('Tajwid response not ok');
+                    }
+                } catch (tajwidErr) {
+                    console.warn('Tajwid data unavailable:', tajwidErr.message);
+                }
             }
 
             if (result.code === 200 && result.data) {
                 renderSurahDetail(result.data, tajwidData);
                 loading.classList.add('hidden');
                 content.classList.remove('hidden');
-                if (isQuranTajwidMode) legend.classList.remove('hidden');
+                if (isQuranTajwidMode && tajwidData && tajwidData.code === 200) {
+                    legend.classList.remove('hidden');
+                } else if (isQuranTajwidMode) {
+                    legend.classList.add('hidden');
+                }
             } else {
                 throw new Error('Data detail invalid');
             }
@@ -6871,11 +6884,11 @@ HOME_HTML = """
                 let rawText = ayahTajwid.text;
 
                 let parsedText = rawText
-                    .replace(/<tajweed class="idgham[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'idgham\\\')" class="text-red-500 font-bold cursor-pointer hover:underline decoration-red-300 decoration-2">$1</span>')
-                    .replace(/<tajweed class="ikhfa[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'ikhfa\\\')" class="text-emerald-500 font-bold cursor-pointer hover:underline decoration-emerald-300 decoration-2">$1</span>')
-                    .replace(/<tajweed class="iqlab[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'iqlab\\\')" class="text-blue-500 font-bold cursor-pointer hover:underline decoration-blue-300 decoration-2">$1</span>')
-                    .replace(/<tajweed class="qalqalah[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'qalqalah\\\')" class="text-sky-500 font-bold cursor-pointer hover:underline decoration-sky-300 decoration-2">$1</span>')
-                    .replace(/<tajweed class="ghunnah[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'ghunnah\\\')" class="text-orange-500 font-bold cursor-pointer hover:underline decoration-orange-300 decoration-2">$1</span>')
+                    .replace(/<tajweed class="idgh[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'idgham\\\')" class="text-red-500 font-bold cursor-pointer hover:underline decoration-red-300 decoration-2">$1</span>')
+                    .replace(/<tajweed class="ikhf[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'ikhfa\\\')" class="text-emerald-500 font-bold cursor-pointer hover:underline decoration-emerald-300 decoration-2">$1</span>')
+                    .replace(/<tajweed class="iqlb[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'iqlab\\\')" class="text-blue-500 font-bold cursor-pointer hover:underline decoration-blue-300 decoration-2">$1</span>')
+                    .replace(/<tajweed class="qlq[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'qalqalah\\\')" class="text-purple-500 font-bold cursor-pointer hover:underline decoration-purple-300 decoration-2">$1</span>')
+                    .replace(/<tajweed class="ghn[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'ghunnah\\\')" class="text-orange-500 font-bold cursor-pointer hover:underline decoration-orange-300 decoration-2">$1</span>')
                     .replace(/<tajweed class="madd[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span onclick="showTajwidRule(\\\'madd\\\')" class="text-teal-500 font-bold cursor-pointer hover:underline decoration-teal-300 decoration-2">$1</span>')
                     .replace(/<tajweed class="[^"]*"[^>]*>(.*?)<[/]tajweed>/gi, '<span>$1</span>');
 
@@ -6995,7 +7008,7 @@ def set_security_headers(response):
         "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
         "font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; "
         "img-src 'self' data: https://api.qrserver.com https://www.transparenttextures.com https://images.unsplash.com; "
-        "connect-src 'self' https://api.aladhan.com https://nominatim.openstreetmap.org https://equran.id; "
+        "connect-src 'self' https://api.aladhan.com https://nominatim.openstreetmap.org https://equran.id https://api.alquran.cloud; "
         "frame-ancestors 'self';"
     )
     response.headers['Content-Security-Policy'] = csp
