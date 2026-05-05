@@ -5,6 +5,19 @@ import time
 import json
 import csv
 import urllib.request
+import urllib.error
+import time as _time
+
+def urlopen_with_retry(url, timeout=10, max_retries=1, backoff=1.0):
+    for attempt in range(max_retries + 1):
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            return urllib.request.urlopen(req, timeout=timeout)
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as e:
+            if attempt < max_retries:
+                _time.sleep(backoff * (attempt + 1))
+            else:
+                raise
 import psycopg2
 import io
 import re
@@ -927,35 +940,38 @@ def get_takjil_data():
 @cache.cached(timeout=86400, key_prefix='imsakiyah_schedule')
 def get_imsakiyah_schedule():
     schedule = []
-    try:
-        # 1. Panggil API Aladhan untuk Samarinda, Indonesia
-        # 2. Bulan Februari & Maret 2026 (Ramadhan 1447 H) & Method 20 (Kemenag RI)
-        months = [2, 3]
-        all_days = []
-        
-        for m in months:
+    months = [2, 3]
+    all_days = []
+
+    for m in months:
+        try:
             url = f"https://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month={m}&year=2026"
-            with urllib.request.urlopen(url, timeout=10) as response:
+            with urlopen_with_retry(url) as response:
                 data = json.loads(response.read().decode())
                 if 'data' in data:
                     all_days.extend(data['data'])
-            
+        except Exception as e:
+            app.logger.warning(f"Failed to fetch Imsakiyah API for month {m}: {e}", exc_info=True)
+
+    if not all_days:
+        app.logger.error("Error fetching Imsakiyah API for all months.")
+        return schedule
+
+    try:
         today = datetime.date.today()
-        
+
         # 3. Filter Tanggal (19 Feb - 19 Mar 2026)
         start_date = datetime.date(2026, 2, 19)
         end_date = datetime.date(2026, 3, 19)
 
         for day in all_days:
-            # Parse date
             date_obj = datetime.datetime.strptime(day['date']['gregorian']['date'], "%d-%m-%Y").date()
-            
+
             if not (start_date <= date_obj <= end_date):
                 continue
 
             timings = day['timings']
-            
-            # Format HH:MM (strip seconds/timezone if any)
+
             def clean_time(t): return t.split(' ')[0]
 
             schedule.append({
@@ -968,12 +984,10 @@ def get_imsakiyah_schedule():
                 'isha': clean_time(timings['Isha']),
                 'is_today': (date_obj == today)
             })
-                
+
     except Exception as e:
-        app.logger.error(f"Error fetching Imsakiyah API: {e}", exc_info=True)
-        cache.delete('imsakiyah_schedule')
-        # Fallback empty or local calculation if needed, but user requested API specifically.
-        
+        app.logger.error(f"Error processing Imsakiyah API data: {e}", exc_info=True)
+
     return schedule
 
 # --- FRONTEND ASSETS & LAYOUT ---
@@ -1103,7 +1117,32 @@ BASE_LAYOUT = """
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/static/logomasjidalhijrah.png">
     <link rel="apple-touch-icon" href="/static/logomasjidalhijrah.png">
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://api.aladhan.com">
+    <link rel="dns-prefetch" href="https://equran.id">
+    <link rel="dns-prefetch" href="https://api.alquran.cloud">
+    <link rel="dns-prefetch" href="https://nominatim.openstreetmap.org">
+    <link rel="dns-prefetch" href="https://server8.mp3quran.net">
+    <link rel="dns-prefetch" href="https://api.qrserver.com">
     <script>
+        async function fetchWithTimeout(url, timeoutMs = 8000) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const response = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                return response;
+            } catch (e) {
+                clearTimeout(timeoutId);
+                if (e.name === 'AbortError') {
+                    throw new Error("Koneksi timeout. Periksa jaringan internet Anda.");
+                }
+                throw e;
+            }
+        }
         function triggerEmergency() {
             const now = new Date();
             const h = now.getHours();
@@ -1227,7 +1266,7 @@ BASE_LAYOUT = """
             <!-- Content Masjid -->
             <div id="infaq-content-masjid" class="infaq-tab-content">
                 <div class="text-center mb-6">
-                    <img src="/uploads/{{ settings.get('infaq_qris_image', '') if settings else '' }}" onerror="this.src='https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=MasjidAlHijrahInfaq'" class="w-48 h-48 mx-auto object-contain bg-white p-2 rounded-xl border border-gray-200">
+                    <img src="/uploads/{{ settings.get('infaq_qris_image', '') if settings else '' }}" onerror="this.onerror=null; this.src='/static/qris-fallback.png';" class="w-48 h-48 mx-auto object-contain bg-white p-2 rounded-xl border border-gray-200">
                     <p class="text-xs text-gray-400 mt-2">Scan QRIS (Masjid)</p>
                 </div>
                 <div id="infaq-box-masjid" class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex justify-between items-center">
@@ -1430,80 +1469,96 @@ BASE_LAYOUT = """
                 const yyyy = today.getFullYear();
                 
                 // API Aladhan
-                const response = await fetch(`https://api.aladhan.com/v1/gToH?date=${dd}-${mm}-${yyyy}`);
+                const response = await fetchWithTimeout(`https://api.aladhan.com/v1/gToH?date=${dd}-${mm}-${yyyy}`);
                 const result = await response.json();
                 const h = result.data.hijri;
                 document.getElementById('hijri-date').innerText = `${h.day} ${h.month.en} ${h.year}H`;
             } catch(e) {
-                console.error(e);
-                document.getElementById('hijri-date').innerText = "1 Muharram 1445H";
+                console.error('External Hijri API failed', e);
+                try {
+                    const localRes = await fetch('/api/hijri-local');
+                    const localData = await localRes.json();
+                    document.getElementById('hijri-date').innerText = localData.hijri;
+                } catch(err) {
+                    document.getElementById('hijri-date').innerText = "Tanggal Hijriyah";
+                }
             }
         }
 
         // PRAYER TIMES & COUNTDOWN
-        async function fetchPrayerTimes() {
+        let cachedTimings = null;
+        async function fetchPrayerTimesOnce() {
             try {
-                // Fetch from Aladhan API for Samarinda
-                const response = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
+                const response = await fetchWithTimeout('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
                 const result = await response.json();
-                const timings = result.data.timings;
-                
-                // Update grid if exists
-                if(document.getElementById('fajr-time')) {
-                    document.getElementById('fajr-time').innerText = timings.Fajr;
-                    document.getElementById('dhuhr-time').innerText = timings.Dhuhr;
-                    document.getElementById('asr-time').innerText = timings.Asr;
-                    document.getElementById('maghrib-time').innerText = timings.Maghrib;
-                    document.getElementById('isha-time').innerText = timings.Isha;
+                cachedTimings = result.data.timings;
+            } catch (e) {
+                console.error("Prayer times error, using local fallback:", e);
+                try {
+                    const fallbackResponse = await fetch('/prayer-times');
+                    cachedTimings = await fallbackResponse.json();
+                } catch (fallbackErr) {
+                    console.error("Local prayer times fallback error:", fallbackErr);
+                    document.getElementById('countdown-timer').innerText = "--:--:--";
+                    return;
                 }
-                
-                // Countdown Logic
-                const now = new Date();
-                const prayers = [
-                    { name: 'Subuh', time: timings.Fajr },
-                    { name: 'Dzuhur', time: timings.Dhuhr },
-                    { name: 'Ashar', time: timings.Asr },
-                    { name: 'Maghrib', time: timings.Maghrib },
-                    { name: 'Isya', time: timings.Isha }
-                ];
-                
-                let nextPrayerName = null;
-                let targetTime = null;
+            }
 
-                for (let p of prayers) {
-                    const [h, m] = p.time.split(':');
-                    const pDate = new Date();
-                    pDate.setHours(parseInt(h), parseInt(m), 0, 0);
-                    
-                    if (pDate > now) {
-                        nextPrayerName = p.name;
-                        targetTime = pDate;
-                        break;
-                    }
-                }
+            // Update grid if exists
+            if(cachedTimings && document.getElementById('fajr-time')) {
+                document.getElementById('fajr-time').innerText = cachedTimings.Fajr;
+                document.getElementById('dhuhr-time').innerText = cachedTimings.Dhuhr;
+                document.getElementById('asr-time').innerText = cachedTimings.Asr;
+                document.getElementById('maghrib-time').innerText = cachedTimings.Maghrib;
+                document.getElementById('isha-time').innerText = cachedTimings.Isha;
+            }
+        }
 
-                // If no prayer found for today (meaning it's after Isya), next is Fajr tomorrow
-                if (!targetTime) {
-                    nextPrayerName = 'Subuh';
-                    const [h, m] = timings.Fajr.split(':');
-                    targetTime = new Date();
-                    targetTime.setDate(targetTime.getDate() + 1);
-                    targetTime.setHours(parseInt(h), parseInt(m), 0, 0);
-                }
-                
-                if(document.getElementById('next-prayer-name')) {
-                    document.getElementById('next-prayer-name').innerText = nextPrayerName;
-                    
-                    const diff = targetTime - now;
-                    const hours = Math.floor(diff / 3600000);
-                    const minutes = Math.floor((diff % 3600000) / 60000);
-                    const seconds = Math.floor((diff % 60000) / 1000);
-                    
-                    document.getElementById('countdown-timer').innerText = 
-                        `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
-                }
+        function updateCountdown() {
+            if (!cachedTimings) return;
 
-            } catch(e) { console.error(e); }
+            const now = new Date();
+            const prayers = [
+                { name: 'Subuh', time: cachedTimings.Fajr },
+                { name: 'Dzuhur', time: cachedTimings.Dhuhr },
+                { name: 'Ashar', time: cachedTimings.Asr },
+                { name: 'Maghrib', time: cachedTimings.Maghrib },
+                { name: 'Isya', time: cachedTimings.Isha }
+            ];
+
+            let nextPrayerName = null;
+            let targetTime = null;
+
+            for (let p of prayers) {
+                const [h, m] = p.time.split(':');
+                const pDate = new Date();
+                pDate.setHours(parseInt(h), parseInt(m), 0, 0);
+
+                if (pDate > now) {
+                    nextPrayerName = p.name;
+                    targetTime = pDate;
+                    break;
+                }
+            }
+
+            if (!targetTime) {
+                nextPrayerName = 'Subuh';
+                const [h, m] = cachedTimings.Fajr.split(':');
+                targetTime = new Date();
+                targetTime.setDate(targetTime.getDate() + 1);
+                targetTime.setHours(parseInt(h), parseInt(m), 0, 0);
+            }
+
+            if(document.getElementById('next-prayer-name')) {
+                document.getElementById('next-prayer-name').innerText = nextPrayerName;
+                const diff = targetTime - now;
+                const hours = Math.floor(diff / 3600000);
+                const minutes = Math.floor((diff % 3600000) / 60000);
+                const seconds = Math.floor((diff % 60000) / 1000);
+
+                document.getElementById('countdown-timer').innerText =
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
         }
 
         // GLOBAL MODAL UTILS
@@ -1700,8 +1755,8 @@ BASE_LAYOUT = """
             }
 
             fetchHijri();
-            fetchPrayerTimes();
-            setInterval(fetchPrayerTimes, 1000);
+            fetchPrayerTimesOnce();
+            setInterval(updateCountdown, 1000);
         });
 
         // --- PWA INSTALL LOGIC (GLOBAL) ---
@@ -2167,7 +2222,7 @@ FITUR_MASJID_HTML = """
     <!-- Modal Fitur 7: Alarm Adzan Interaktif -->
     <div id="modal-fitur-alarm-adzan" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-[#0f172a]">
         <!-- Mosque Photography Background -->
-        <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1564683214965-3619addd900d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80');"></div>
+        <div class="absolute inset-0 bg-gradient-to-br from-emerald-50 via-teal-50 to-sky-50"></div>
         <!-- Gradient Overlay: Dark midnight blue gradually transparent to bottom -->
         <div class="absolute inset-0 bg-gradient-to-b from-[#0b162c]/95 via-[#0b162c]/80 to-[#0b162c]/95"></div>
         
@@ -2244,13 +2299,13 @@ FITUR_MASJID_HTML = """
                 const month = now.getMonth() + 1;
                 const year = now.getFullYear();
                 
-                const res1 = await fetch(`https://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month=${month}&year=${year}`);
+                const res1 = await fetchWithTimeout(`https://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month=${month}&year=${year}`);
                 const data1 = await res1.json();
                 
                 let nextMonth = month + 1;
                 let nextYear = year;
                 if (nextMonth > 12) { nextMonth = 1; nextYear++; }
-                const res2 = await fetch(`https://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month=${nextMonth}&year=${nextYear}`);
+                const res2 = await fetchWithTimeout(`https://api.aladhan.com/v1/calendarByCity?city=Samarinda&country=Indonesia&method=20&month=${nextMonth}&year=${nextYear}`);
                 const data2 = await res2.json();
                 
                 let allDays = [...data1.data, ...data2.data];
@@ -2364,7 +2419,7 @@ FITUR_MASJID_HTML = """
             
             try {
                 // Fetch Qibla Direction
-                const res = await fetch(`https://api.aladhan.com/v1/qibla/${lat}/${lon}`);
+                const res = await fetchWithTimeout(`https://api.aladhan.com/v1/qibla/${lat}/${lon}`);
                 const data = await res.json();
                 const qibla = data.data.direction;
                 
@@ -2372,7 +2427,7 @@ FITUR_MASJID_HTML = """
                 const distance = calculateDistance(lat, lon, kaabaLat, kaabaLon);
                 
                 // Fetch Location Name (Reverse Geocoding)
-                const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`);
+                const geoRes = await fetchWithTimeout(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`);
                 const geoData = await geoRes.json();
                 let city = geoData.address.city || geoData.address.town || geoData.address.county || geoData.address.state || "Lokasi Anda";
                 let state = geoData.address.state || "";
@@ -2465,7 +2520,7 @@ FITUR_MASJID_HTML = """
         const mm = String(today.getMonth() + 1).padStart(2, '0');
         const yyyy = today.getFullYear();
         try {
-            const res = await fetch(`https://api.aladhan.com/v1/gToH?date=${dd}-${mm}-${yyyy}`);
+            const res = await fetchWithTimeout(`https://api.aladhan.com/v1/gToH?date=${dd}-${mm}-${yyyy}`);
             const data = await res.json();
             const h = data.data.hijri;
             document.getElementById('fitur-hijri-date').innerText = `${h.day} ${h.month.en} ${h.year} H`;
@@ -2525,7 +2580,7 @@ FITUR_MASJID_HTML = """
         header.innerText = `${monthNames[month - 1]} ${year}`;
 
         try {
-            const res = await fetch(`https://api.aladhan.com/v1/calendar/${year}/${month}?method=20`);
+            const res = await fetchWithTimeout(`https://api.aladhan.com/v1/calendar/${year}/${month}?method=20`);
             const data = await res.json();
             const days = data.data;
 
@@ -2633,7 +2688,7 @@ FITUR_MASJID_HTML = """
                 try {
                     const lat = pos.coords.latitude;
                     const lon = pos.coords.longitude;
-                    const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`);
+                    const geoRes = await fetchWithTimeout(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`);
                     const geoData = await geoRes.json();
                     let city = geoData.address.city || geoData.address.town || geoData.address.county || "Lokasi Anda";
                     document.getElementById('alarm-location-text').innerText = city;
@@ -2653,7 +2708,7 @@ FITUR_MASJID_HTML = """
             const yyyy = dateObj.getFullYear();
 
             // Hijri Date
-            const hRes = await fetch(`https://api.aladhan.com/v1/gToH?date=${dd}-${mm}-${yyyy}`);
+            const hRes = await fetchWithTimeout(`https://api.aladhan.com/v1/gToH?date=${dd}-${mm}-${yyyy}`);
             const hData = await hRes.json();
             const h = hData.data.hijri;
             document.getElementById('alarm-hijri-date').innerText = `${h.day} ${h.month.en} ${h.year} H`;
@@ -2663,9 +2718,18 @@ FITUR_MASJID_HTML = """
             document.getElementById('alarm-masehi-date').innerText = `${dateObj.getDate()} ${monthNames[dateObj.getMonth()]} ${yyyy}`;
 
             // Prayer Times
-            const pRes = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
-            const pData = await pRes.json();
-            const timings = pData.data.timings;
+            let timings = null;
+            try {
+                const pRes = await fetchWithTimeout('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
+                const pData = await pRes.json();
+                timings = pData.data.timings;
+            } catch(e) {
+                console.error('Aladhan API timeout/error for Adzan, trying local fallback...', e);
+                const localResp = await fetch('/prayer-times');
+                timings = await localResp.json();
+                if(!timings.Imsak) timings.Imsak = timings.Fajr;
+                if(!timings.Sunrise) timings.Sunrise = timings.Fajr;
+            }
             
             alarmAdzanSchedules = [
                 { id: 'Imsak', name: 'Imsak', time: timings.Imsak },
@@ -4843,7 +4907,7 @@ IDUL_ADHA_DASHBOARD_HTML = """
                 <a href="/" class="absolute top-4 right-4 bg-white/20 hover:bg-white text-white hover:text-[#451a03] px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-[0_0_15px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_rgba(255,255,255,0.6)] z-20 flex items-center gap-1 backdrop-blur-sm">
                     <i class="fas fa-arrow-left"></i> Kembali
                 </a>
-                <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+                <div class="absolute inset-0 opacity-10" style="background-image: url('/static/arabesque.png');"></div>
                 <div class="absolute right-[-10%] top-0 opacity-10 transform translate-x-4 -translate-y-4 pointer-events-none">
                     <i class="fas fa-kaaba text-9xl md:text-[150px] text-[#fcd34d]"></i>
                 </div>
@@ -5013,7 +5077,7 @@ HOME_HTML = """
                     <div class="absolute w-full h-full backface-hidden rounded-3xl overflow-hidden shadow-xl border border-[#0b162c]">
                         <!-- Background & Texture -->
                         <div class="absolute inset-0 bg-[#0b162c]"></div>
-                        <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+                        <div class="absolute inset-0 opacity-10" style="background-image: url('/static/arabesque.png');"></div>
                         
                         <!-- Crescent Moon Background -->
                         <div class="absolute right-24 top-1/2 transform -translate-y-1/2 opacity-10 text-[#FFD700] pointer-events-none">
@@ -5036,7 +5100,7 @@ HOME_HTML = """
                     <!-- IDUL ADHA BANNER (BACK FACE) -->
                     <div class="absolute w-full h-full backface-hidden rotate-x-180 rounded-3xl overflow-hidden shadow-xl border border-[#78350f]">
                         <div class="absolute inset-0 bg-gradient-to-br from-[#78350f] to-[#451a03]"></div>
-                        <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+                        <div class="absolute inset-0 opacity-10" style="background-image: url('/static/arabesque.png');"></div>
                         
                         <div class="absolute right-24 top-1/2 transform -translate-y-1/2 opacity-10 text-[#fcd34d] pointer-events-none">
                             <i class="fas fa-kaaba text-7xl md:text-8xl"></i>
@@ -5068,7 +5132,7 @@ HOME_HTML = """
             <!-- IRMA BANNER -->
             <a href="/irma" class="block relative floating-card overflow-hidden group transform hover:scale-[1.02] transition-all duration-300 rounded-3xl shadow-xl border border-[#A0B391] mt-4">
                 <div class="absolute inset-0 bg-gradient-to-r from-[#A0B391] to-[#FFB6C1]"></div>
-                <div class="absolute inset-0 opacity-10" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+                <div class="absolute inset-0 opacity-10" style="background-image: url('/static/arabesque.png');"></div>
                 
                 <div class="absolute right-12 top-1/2 transform -translate-y-1/2 opacity-20 text-white pointer-events-none">
                     <i class="fas fa-user-friends text-9xl"></i>
@@ -6093,14 +6157,34 @@ HOME_HTML = """
             audio = new Audio(url);
             audio.dataset.type = 'murattal';
             setupAudioEvents();
-            
+
+            audio.onerror = function() {
+                const np = document.getElementById('now-playing');
+                if (np) {
+                    np.innerText = "Gagal memuat audio Murattal. Periksa koneksi internet.";
+                    np.classList.remove('animate-pulse');
+                }
+            };
+
             audio.onended = function() {
                 currentMurottalIndex = (currentMurottalIndex + 1) % murottalPlaylist.length;
                 playMurottalSequence();
             };
-            
-            audio.play();
-            document.getElementById('now-playing').innerText = "Sedang Memutar: MURATTAL (Surah " + murottalPlaylist[currentMurottalIndex] + ")";
+
+            audio.play().then(() => {
+                const np = document.getElementById('now-playing');
+                if (np) {
+                    np.innerText = "Sedang Memutar: MURATTAL (Surah " + murottalPlaylist[currentMurottalIndex] + ")";
+                    np.classList.add('animate-pulse');
+                }
+            }).catch((err) => {
+                const np = document.getElementById('now-playing');
+                if (np) {
+                    np.innerText = "Gagal memutar audio. Coba lagi.";
+                    np.classList.remove('animate-pulse');
+                }
+                console.error("Audio playback error:", err);
+            });
         }
 
         function setupAudioEvents() {
@@ -6716,7 +6800,7 @@ HOME_HTML = """
         error.classList.add('hidden');
         
         try {
-            const response = await fetch('https://equran.id/api/v2/surat');
+            const response = await fetchWithTimeout('https://equran.id/api/v2/surat');
             const result = await response.json();
             
             if (result.code === 200 && result.data) {
@@ -6778,14 +6862,14 @@ HOME_HTML = """
         content.innerHTML = '';
         
         try {
-            const response = await fetch(`https://equran.id/api/v2/surat/${nomor}`);
+            const response = await fetchWithTimeout(`https://equran.id/api/v2/surat/${nomor}`);
             if (!response.ok) throw new Error('Surah data fetch failed');
             const result = await response.json();
             
             let tajwidData = null;
             if (isQuranTajwidMode) {
                 try {
-                    const resTajwid = await fetch(`https://api.alquran.cloud/v1/surah/${nomor}/ar.tajweed`);
+                    const resTajwid = await fetchWithTimeout(`https://api.alquran.cloud/v1/surah/${nomor}/ar.tajweed`);
                     if (resTajwid.ok) {
                         tajwidData = await resTajwid.json();
                     } else {
@@ -6793,6 +6877,11 @@ HOME_HTML = """
                     }
                 } catch (tajwidErr) {
                     console.warn('Tajwid data unavailable:', tajwidErr.message);
+                    const legend = document.getElementById('quran-detail-tajwid-legend');
+                    if (legend) {
+                        legend.classList.remove('hidden');
+                        legend.innerHTML = '<p class="text-xs text-amber-600 text-center py-2"><i class="fas fa-exclamation-triangle mr-1"></i> Data tajwid tidak tersedia saat ini. Menampilkan teks Arab standar.</p>';
+                    }
                 }
             }
 
@@ -7000,7 +7089,7 @@ def set_security_headers(response):
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=(self)'
     
     csp = (
         "default-src 'self'; "
@@ -7008,6 +7097,7 @@ def set_security_headers(response):
         "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
         "font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; "
         "img-src 'self' data: https://api.qrserver.com https://www.transparenttextures.com https://images.unsplash.com; "
+        "media-src 'self' https://server8.mp3quran.net; "
         "connect-src 'self' https://api.aladhan.com https://nominatim.openstreetmap.org https://equran.id https://api.alquran.cloud; "
         "frame-ancestors 'self';"
     )
@@ -7926,7 +8016,7 @@ def donate():
     settings = get_settings()
     acc_no = settings.get('infaq_rekening', '7123456789 (BSI - Masjid Al Hijrah)')
     qris_img = settings.get('infaq_qris_image', '')
-    qris_url = f"/uploads/{qris_img}" if qris_img else "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=MasjidAlHijrahInfaq"
+    qris_url = f"/uploads/{qris_img}" if qris_img else "/static/qris-fallback.png"
     
     source = request.args.get('source')
     
@@ -8212,6 +8302,16 @@ def api_calc_fidyah():
         app.logger.error(f"Calculator API error: {e}", exc_info=True)
         return jsonify({"error": "Terjadi kesalahan pada perhitungan. Silakan coba lagi."}), 400
 
+@app.route('/api/hijri-local')
+@cache.cached(timeout=86400, key_prefix='hijri_local_today')
+def api_hijri_local():
+    try:
+        hijri_str = gregorian_to_hijri(datetime.date.today())
+        return jsonify({"hijri": hijri_str})
+    except Exception as e:
+        app.logger.error(f"Local Hijri fallback error: {e}")
+        return jsonify({"hijri": "Tanggal Hijriyah"}), 500
+
 @app.route('/api/calc/hijri', methods=['POST'])
 @limiter.limit("10 per minute")
 @csrf.exempt
@@ -8222,23 +8322,43 @@ def api_calc_hijri():
         valid_date = validate_date(data.get('date', ''))
         y, m, d = valid_date.split('-')
         formatted_date = f"{d}-{m}-{y}"
-        
+
+        cache_key = f"hijri_calc_{formatted_date}"
+        cached_result = cache.get(cache_key)
+        if cached_result:
+            return jsonify(cached_result)
+
         url = f"https://api.aladhan.com/v1/gToH?date={formatted_date}"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=10) as response:
-            resp_data = json.loads(response.read().decode())
-            h = resp_data['data']['hijri']
-            res = f"{h['day']} {h['month']['en']} {h['year']} H"
-            
-            logic = f"Data diambil real-time dari API Aladhan (Internasional). Tanggal {formatted_date} Masehi dikonversi menjadi {res}."
-            
-            return jsonify({
-                "result": {"hijri": res},
-                "explanation": {
-                    "logic": logic,
-                    "sources": DALIL_DATA["hijri"]
-                }
-            })
+        res = ""
+        source_note = ""
+        try:
+            with urlopen_with_retry(url) as response:
+                resp_data = json.loads(response.read().decode())
+                h = resp_data['data']['hijri']
+                res = f"{h['day']} {h['month']['en']} {h['year']} H"
+                source_note = "API Aladhan (Internasional)"
+        except Exception as api_err:
+            app.logger.warning(f"Aladhan API failed for hijri calc: {api_err}, falling back to local calculation.")
+            try:
+                dt_obj = datetime.date(int(y), int(m), int(d))
+                res = gregorian_to_hijri(dt_obj)
+                source_note = "Kalkulasi Lokal (Algoritma Kuwaiti)"
+            except Exception as local_err:
+                raise local_err
+
+        logic = f"Data diambil dari {source_note}. Tanggal {formatted_date} Masehi dikonversi menjadi {res}."
+
+        result_response = {
+            "result": {"hijri": res},
+            "explanation": {
+                "logic": logic,
+                "sources": DALIL_DATA["hijri"]
+            }
+        }
+
+        cache.set(cache_key, result_response, timeout=604800)
+        return jsonify(result_response)
+
     except ValueError as ve:
         return jsonify({"error": str(ve)}), 422
     except Exception as e:
@@ -8247,16 +8367,19 @@ def api_calc_hijri():
 
 @app.route('/api/yasin', methods=['GET'])
 @limiter.limit("10 per minute")
-@cache.cached(timeout=86400)
+@cache.cached(timeout=2592000, key_prefix='yasin_data')
 def api_yasin():
     try:
         url = "https://equran.id/api/v2/surat/36"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urlopen_with_retry(url) as response:
             data = json.loads(response.read().decode())
             return jsonify(data)
     except Exception as e:
         app.logger.error(f"Yasin API error: {e}", exc_info=True)
+        cached_data = cache.get('yasin_data')
+        if cached_data:
+            app.logger.info("Serving stale Yasin data from cache after API failure.")
+            return jsonify(cached_data)
         return jsonify({"error": "Gagal memuat data Yasin. Silakan coba lagi."}), 500
 
 # --- RAMADHAN SPECIAL FEATURES ---
@@ -8268,7 +8391,7 @@ RAMADHAN_STYLES = """
 RAMADHAN_DASHBOARD_HTML = """
 <div class="bg-midnight min-h-screen pb-24 relative overflow-hidden font-sans">
     <!-- BACKGROUND PATTERN -->
-    <div class="fixed inset-0 opacity-5 pointer-events-none" style="background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');"></div>
+    <div class="fixed inset-0 opacity-5 pointer-events-none" style="background-image: url('/static/arabesque.png');"></div>
 
     <!-- CUSTOM HEADER (Adapted from BASE_LAYOUT) -->
     <nav class="hidden md:flex fixed top-0 left-0 w-full z-50 glass-gold bg-midnight shadow-sm px-8 py-4 justify-between items-center right-0 border-b border-gold/20">
@@ -9008,32 +9131,53 @@ RAMADHAN_DASHBOARD_HTML = """
             const dateStr = dd + '-' + mm + '-' + yyyy;
             
             // Brute Force Adjustment -3 Days
-            const response = await fetch('https://api.aladhan.com/v1/gToH?date=' + dateStr + '&adjustment=-3');
+            const response = await fetchWithTimeout('https://api.aladhan.com/v1/gToH?date=' + dateStr + '&adjustment=-3');
             const data = await response.json();
             const h = data.data.hijri;
             if(document.getElementById('hijri-date-ramadhan')) {
                 document.getElementById('hijri-date-ramadhan').innerText = `${h.day} ${h.month.en} ${h.year}H`;
             }
-        } catch(e) { console.error(e); }
+        } catch(e) {
+            console.error('External Hijri API failed for Ramadhan', e);
+            try {
+                const localRes = await fetch('/api/hijri-local');
+                const localData = await localRes.json();
+                if(document.getElementById('hijri-date-ramadhan')) {
+                    document.getElementById('hijri-date-ramadhan').innerText = localData.hijri;
+                }
+            } catch(err) {
+                if(document.getElementById('hijri-date-ramadhan')) {
+                    document.getElementById('hijri-date-ramadhan').innerText = "Tanggal Hijriyah";
+                }
+            }
+        }
     }
     fetchHijriRamadhan();
 
     // PRAYER TIMES FOR HEADER (FETCH SAME AS HOME BUT DISPLAY HERE)
     async function fetchRamadhanPrayer() {
-         try {
-            // Using Aladhan for Samarinda (Current)
-            const response = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
+        let timings = null;
+        try {
+            const response = await fetchWithTimeout('https://api.aladhan.com/v1/timingsByCity?city=Samarinda&country=Indonesia');
             const result = await response.json();
-            const timings = result.data.timings;
-            
-            if(document.getElementById('r-fajr')) {
-                document.getElementById('r-fajr').innerText = timings.Fajr;
-                document.getElementById('r-dhuhr').innerText = timings.Dhuhr;
-                document.getElementById('r-asr').innerText = timings.Asr;
-                document.getElementById('r-maghrib').innerText = timings.Maghrib;
-                document.getElementById('r-isha').innerText = timings.Isha;
+            timings = result.data.timings;
+        } catch(e) {
+            console.error('Aladhan API timeout/error, trying local fallback...', e);
+            try {
+                const localResp = await fetch('/prayer-times');
+                timings = await localResp.json();
+            } catch(err) {
+                console.error('Local fallback failed:', err);
             }
-        } catch(e) { console.error(e); }
+        }
+
+        if(timings && document.getElementById('r-fajr')) {
+            document.getElementById('r-fajr').innerText = timings.Fajr;
+            document.getElementById('r-dhuhr').innerText = timings.Dhuhr;
+            document.getElementById('r-asr').innerText = timings.Asr;
+            document.getElementById('r-maghrib').innerText = timings.Maghrib;
+            document.getElementById('r-isha').innerText = timings.Isha;
+        }
     }
     fetchRamadhanPrayer();
 
@@ -10251,52 +10395,77 @@ def manifest():
 @app.route('/sw.js')
 def service_worker():
     sw_code = """
-const CACHE_NAME = 'al-hijrah-v1';
-const ASSETS_TO_CACHE = [
+const CACHE_NAME = 'al-hijrah-v2';
+
+const LOCAL_ASSETS = [
     '/',
-    '/static/logomasjidalhijrah.png',
-    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-    'https://cdn.tailwindcss.com'
+    '/static/logomasjidalhijrah.png'
 ];
 
-self.addEventListener('install', (event) => {
-    self.skipWaiting();
+const CDN_ASSETS = [
+    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+    'https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Poppins:wght@300;400;500;600;700&display=swap',
+    'https://fonts.gstatic.com/s/poppins/v20/pxiByp8kv8JHgFVrLGT9Z1xlFQ.woff2',
+    'https://fonts.gstatic.com/s/amiri/v25/J7aRnpd8CGxCG8ScyD8.woff2'
+];
+
+self.addEventListener('install', event => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(ASSETS_TO_CACHE);
+        caches.open(CACHE_NAME).then(async (cache) => {
+            await cache.addAll(LOCAL_ASSETS);
+            for (let url of CDN_ASSETS) {
+                try {
+                    const response = await fetch(url, { mode: 'cors' });
+                    if (response.ok) {
+                        await cache.put(url, response);
+                    }
+                } catch (e) {
+                    console.warn('Failed to cache CDN asset:', url, e);
+                }
+            }
         })
     );
+    self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', event => {
     event.waitUntil(
-        caches.keys().then((cacheNames) => {
+        caches.keys().then(cacheNames => {
             return Promise.all(
-                cacheNames.map((cacheName) => {
+                cacheNames.map(cacheName => {
                     if (cacheName !== CACHE_NAME) {
                         return caches.delete(cacheName);
                     }
                 })
             );
-        })
+        }).then(() => self.clients.claim())
     );
-    return self.clients.claim();
 });
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', event => {
+    if (event.request.method !== 'GET') return;
+    if (event.request.url.includes('/api/') ||
+        event.request.url.includes('/prayer-times') ||
+        event.request.url.includes('cdn.tailwindcss.com')) {
+        return;
+    }
     event.respondWith(
-        fetch(event.request).then((networkResponse) => {
-             if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-                 return networkResponse;
-             }
-             const responseToCache = networkResponse.clone();
-             caches.open(CACHE_NAME).then((cache) => {
-                 cache.put(event.request, responseToCache);
-             });
-             return networkResponse;
-        }).catch(() => {
-            return caches.match(event.request);
-        })
+        caches.match(event.request)
+            .then(cachedResponse => {
+                if (cachedResponse) {
+                    return cachedResponse;
+                }
+                return fetch(event.request).then(networkResponse => {
+                    if (!networkResponse || networkResponse.status !== 200 || (networkResponse.type !== 'basic' && networkResponse.type !== 'cors')) {
+                        return networkResponse;
+                    }
+                    const responseToCache = networkResponse.clone();
+                    caches.open(CACHE_NAME).then(cache => {
+                        cache.put(event.request, responseToCache);
+                    });
+                    return networkResponse;
+                }).catch(() => {});
+            })
     );
 });
 """
