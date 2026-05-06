@@ -94,6 +94,24 @@ if not app.debug:
 def shutdown_session(exception=None):
     db.session.remove()
 
+INACTIVITY_TIMEOUT_MINUTES = 60
+_PUBLIC_ROUTE_PREFIXES = ('/static/', '/uploads/', '/api/calc/', '/api/yasin', '/api/hijri-local', '/prayer-times', '/manifest.json', '/sw.js', '/emergency')
+_PUBLIC_ROUTE_EXACT = {'index', 'login', 'logout', 'booking', 'zakat', 'suggestion', 'ramadhan_dashboard', 'idul_adha_dashboard', 'irma_dashboard', 'irma_join', 'idul_adha_absen_panitia', 'idul_adha_absen_register', 'idul_adha_absen_checkin', 'idul_adha_absen_data', 'idul_adha_shohibul', 'idul_adha_shohibul_status_data', 'idul_adha_distribution', 'idul_adha_peta_distribusi', 'idul_adha_peta_distribusi_data', 'idul_adha_panduan', 'donate', 'fitur_masjid', 'gallery_dakwah', 'therapy_log', 'finance', 'agenda', 'uploaded_file'}
+
+@app.before_request
+def check_session_activity():
+    if request.path.startswith(_PUBLIC_ROUTE_PREFIXES) or request.endpoint in _PUBLIC_ROUTE_EXACT:
+        return
+    if not (session.get('is_admin') or session.get('is_gallery_admin')):
+        return
+    now = datetime.datetime.now(datetime.timezone.utc).timestamp()
+    last_activity = session.get('_last_activity')
+    if last_activity and (now - last_activity) > (INACTIVITY_TIMEOUT_MINUTES * 60):
+        session.clear()
+        flash('Sesi Anda telah berakhir karena tidak ada aktivitas. Silakan login kembali.', 'error')
+        return redirect(url_for('index'))
+    session['_last_activity'] = now
+
 # --- DATA SUMBER HUKUM (DALIL) ---
 # --- DATA SUMBER HUKUM (DALIL) ---
 DALIL_DATA = {
@@ -7112,6 +7130,14 @@ def set_security_headers(response):
     return response
 
 
+# ====================================================================
+# DEVELOPER NOTE — SESSION AUTH PATTERN:
+# All admin-gated POST routes MUST include:
+# HTML routes: if not session.get('is_admin'): return redirect(url_for('...'))
+# JSON API routes: if not session.get('is_admin'): return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+# gallery_dakwah uses: can_edit = session.get('is_admin') or session.get('is_gallery_admin')
+# ====================================================================
+
 @app.route('/')
 def index():
     try:
@@ -7136,6 +7162,7 @@ def login():
     user = AdminUser.query.filter_by(username=username).first()
     if user and check_password_hash(user.password_hash, password):
         session.clear()
+        session['username'] = user.username
         if user.role == 'admin':
             session['is_admin'] = True
         elif user.role == 'gallery_admin':
@@ -10513,7 +10540,6 @@ def donate_update():
 def idul_adha_absen_panitia():
     # Make sure session has a unique identifier for regular users
     if not session.get('is_admin') and not session.get('user_session_id'):
-        import uuid
         session['user_session_id'] = str(uuid.uuid4())
         session.permanent = True
     
@@ -10617,7 +10643,7 @@ def idul_adha_absen_data():
 
 @app.route('/idul-adha/absen-panitia/settings', methods=['POST'])
 def idul_adha_absen_settings():
-    if not session.get('is_admin'): return jsonify({'success': False}), 403
+    if not session.get('is_admin'): return jsonify({'success': False, 'message': 'Unauthorized'}), 403
     req = request.get_json(silent=True) or {}
     
     if 'absen_status' in req and req['absen_status'] not in {'open', 'closed', 'auto'}:
@@ -10654,7 +10680,6 @@ def idul_adha_absen_register():
     
     sid = session.get('user_session_id')
     if not sid:
-        import uuid
         sid = str(uuid.uuid4())
         session['user_session_id'] = sid
         session.permanent = True
@@ -10676,7 +10701,7 @@ def idul_adha_absen_register():
 
 @app.route('/idul-adha/absen-panitia/approve', methods=['POST'])
 def idul_adha_absen_approve():
-    if not session.get('is_admin'): return jsonify({'success': False}), 403
+    if not session.get('is_admin'): return jsonify({'success': False, 'message': 'Unauthorized'}), 403
     req = request.get_json(silent=True) or {}
     u = QurbanAttendance.query.get(req.get('id'))
     if u:
@@ -10692,7 +10717,7 @@ def idul_adha_absen_approve():
 
 @app.route('/idul-adha/absen-panitia/assign', methods=['POST'])
 def idul_adha_absen_assign():
-    if not session.get('is_admin'): return jsonify({'success': False}), 403
+    if not session.get('is_admin'): return jsonify({'success': False, 'message': 'Unauthorized'}), 403
     req = request.get_json(silent=True) or {}
     u = QurbanAttendance.query.get(req.get('id'))
     if u:
@@ -10791,61 +10816,10 @@ def idul_adha_dashboard():
 
 @app.route('/idul-adha/absen', methods=['POST'])
 def idul_adha_absen():
-    makassar_tz = pytz.timezone('Asia/Makassar')
-    current_time = datetime.datetime.now(makassar_tz)
-    settings = get_settings()
-    
-    start_str = settings.get('absen_start_time', '06:30')
-    end_str = settings.get('absen_end_time', '08:30')
-    status_override = settings.get('absen_status', 'auto')
-    
-    try:
-        sh, sm = map(int, start_str.split(':'))
-    except Exception as e:
-        app.logger.warning(f"Failed to parse absen time from settings, using default: {e}")
-        sh, sm = 6, 30
-    try:
-        eh, em = map(int, end_str.split(':'))
-    except Exception as e:
-        app.logger.warning(f"Failed to parse absen time from settings, using default: {e}")
-        eh, em = 8, 30
-        
-    start_time = current_time.replace(hour=sh, minute=sm, second=0, microsecond=0)
-    cutoff_time = current_time.replace(hour=eh, minute=em, second=0, microsecond=0)
-    
-    if status_override == 'open':
-        is_valid_window = True
-    elif status_override == 'closed':
-        is_valid_window = False
-    else:
-        is_valid_window = start_time <= current_time <= cutoff_time
-        
-    if is_valid_window:
-        status = 'Hadir Pagi'
-    else:
-        status = 'Terlambat'
-        
-    username = session.get('username', 'Unknown/Guest')
-    
-    attendance = QurbanAttendance(
-        name=truncate_str(username, 255),
-        check_in_time=current_time,
-        status=truncate_str(status, 50)
-    )
-    
-    try:
-        db.session.add(attendance)
-        db.session.commit()
-        if status == 'Hadir Pagi':
-            flash('Berhasil absen. Anda tercatat Hadir Pagi.', 'success')
-        else:
-            flash('Absen gagal atau terlambat. Anda tercatat Terlambat.', 'error')
-    except Exception as e:
-        db.session.rollback()
-        flash('Terjadi kesalahan pada server saat menyimpan absen.', 'error')
-        app.logger.error(f"Error in idul_adha_absen: {e}", exc_info=True)
-        
-    return redirect(url_for('idul_adha_dashboard'))
+    # Legacy route deprecated in Layer 7 QC. Superseded by /idul-adha/absen-panitia/* pipeline.
+    # Original route had no auth check and used phantom session['username'] (never set).
+    flash('Sistem absen telah diperbarui. Silakan gunakan sistem Absen Panitia yang baru.', 'info')
+    return redirect(url_for('idul_adha_absen_panitia'))
 
 
 @app.route('/idul-adha/laporan', methods=['GET', 'POST'])
