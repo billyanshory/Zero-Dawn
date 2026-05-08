@@ -258,7 +258,7 @@ NAVBAR_HTML = """
             transform: translateX(5px);
         }
     </style>
-    <nav class="navbar navbar-expand-lg sticky-top">
+    <nav class="navbar navbar-expand-lg">
         <div class="container">
             <div class="navbar-box">
                 <!-- 1. Logo (Left) -->
@@ -630,17 +630,18 @@ STYLES_HTML = """
 
         /* BOTTOM NAV */
         .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
             min-height: 80px; /* Allow growth */
             height: auto;
-            z-index: 9999; /* Ensure on top */
+            z-index: 99999 !important; /* Ensure on top */
             display: flex;
             justify-content: space-around;
             align-items: center;
             padding: 10px 0;
+            padding-bottom: calc(10px + env(safe-area-inset-bottom)) !important;
             background: rgba(255, 255, 255, 0.1) !important; /* Clear transparent */
             backdrop-filter: blur(10px) !important; /* Modern Cool Blur */
             border-top: 1px solid rgba(255,255,255,0.2);
@@ -724,39 +725,42 @@ BASE_LAYOUT = """
     <div class="acrylic-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.47); backdrop-filter: blur(20px) saturate(125%); -webkit-backdrop-filter: blur(20px) saturate(125%); z-index: -1;"></div>
     
     <div class="content-wrapper" style="position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column;">
-        {{ navbar|safe }}
         
-        <!-- Top Feature Navigation -->
-        <div class="container">
-            <div class="top-feature-nav">
-                <a href="/gallery" class="feature-btn glass-panel">
-                    <i class="fas fa-palette"></i>
-                    Galeri Karya
-                </a>
-                <a href="/tutors" class="feature-btn glass-panel">
-                    <i class="fas fa-chalkboard-teacher"></i>
-                    Profil Pengajar
-                </a>
-                <a href="/pricing" class="feature-btn glass-panel">
-                    <i class="fas fa-tags"></i>
-                    Paket & Biaya
-                </a>
-                <a href="/slots" class="feature-btn glass-panel">
-                    <i class="fas fa-calendar-alt"></i>
-                    Jadwal Slot
-                </a>
-                <a href="/join" class="feature-btn glass-panel">
-                    <i class="fas fa-file-signature"></i>
-                    Pendaftaran
-                </a>
-                <a href="/news" class="feature-btn glass-panel">
-                    <i class="fas fa-trophy"></i>
-                    Prestasi & Event
-                </a>
+        <div class="fixed-top-header" style="position: fixed; top: 0; left: 0; width: 100%; z-index: 1030; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.2);">
+            {{ navbar|safe }}
+
+            <!-- Top Feature Navigation -->
+            <div class="container">
+                <div class="top-feature-nav">
+                    <a href="/gallery" class="feature-btn glass-panel">
+                        <i class="fas fa-palette"></i>
+                        Galeri Karya
+                    </a>
+                    <a href="/tutors" class="feature-btn glass-panel">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        Profil Pengajar
+                    </a>
+                    <a href="/pricing" class="feature-btn glass-panel">
+                        <i class="fas fa-tags"></i>
+                        Paket & Biaya
+                    </a>
+                    <a href="/slots" class="feature-btn glass-panel">
+                        <i class="fas fa-calendar-alt"></i>
+                        Jadwal Slot
+                    </a>
+                    <a href="/join" class="feature-btn glass-panel">
+                        <i class="fas fa-file-signature"></i>
+                        Pendaftaran
+                    </a>
+                    <a href="/news" class="feature-btn glass-panel">
+                        <i class="fas fa-trophy"></i>
+                        Prestasi & Event
+                    </a>
+                </div>
             </div>
         </div>
 
-        <div class="container main-content" style="flex: 1;">
+        <div class="container main-content" style="flex: 1; padding-top: 240px;">
             {{ content|safe }}
         </div>
         
