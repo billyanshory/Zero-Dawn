@@ -1,91 +1,83 @@
 import os
-import sqlite3
 import datetime
 from flask import Flask, request, send_from_directory, render_template_string, redirect, url_for, Response, jsonify
 from werkzeug.utils import secure_filename
+from flask_sqlalchemy import SQLAlchemy
+import pymysql
 
 # --- KONFIGURASI FLASK ---
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB Limit
-app.secret_key = "supersecretkey"
+app.secret_key = os.environ.get('FLASK_SECRET_KEY') or "supersecretkey"
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt', 'vtt'}
 
 # --- DATABASE SETUP ---
-DB_NAME = 'bimbel.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI') or 'sqlite:///bimbel.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
-def get_db_connection():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    return conn
+# --- MODELS ---
+class BaseModel(db.Model):
+    __abstract__ = True
+    def __getitem__(self, item):
+        return getattr(self, item)
 
-def init_db():
-    conn = get_db_connection()
-    c = conn.cursor()
-    
-    # Gallery Table
-    c.execute('''CREATE TABLE IF NOT EXISTS gallery (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        image TEXT NOT NULL,
-        student_name TEXT NOT NULL,
-        title TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-    
-    # Tutors Table
-    c.execute('''CREATE TABLE IF NOT EXISTS tutors (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        image TEXT NOT NULL,
-        name TEXT NOT NULL,
-        bio TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-    
-    # Pricing Table
-    c.execute('''CREATE TABLE IF NOT EXISTS pricing (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        price TEXT NOT NULL,
-        details TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-    
-    # Slots Table
-    c.execute('''CREATE TABLE IF NOT EXISTS slots (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        day TEXT NOT NULL,
-        time TEXT NOT NULL,
-        status TEXT DEFAULT 'Available',
-        type TEXT DEFAULT 'General',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-    
-    # Join Requests Table
-    c.execute('''CREATE TABLE IF NOT EXISTS join_requests (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        age INTEGER NOT NULL,
-        interest TEXT NOT NULL,
-        whatsapp TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-    
-    # News Table
-    c.execute('''CREATE TABLE IF NOT EXISTS news (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        content TEXT NOT NULL,
-        date TEXT NOT NULL,
-        image TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-    
-    conn.commit()
-    conn.close()
+class Gallery(BaseModel):
+    __tablename__ = 'gallery'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    image = db.Column(db.Text, nullable=False)
+    student_name = db.Column(db.Text, nullable=False)
+    title = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
-# Initialize DB on startup
-init_db()
+class Tutors(BaseModel):
+    __tablename__ = 'tutors'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    image = db.Column(db.Text, nullable=False)
+    name = db.Column(db.Text, nullable=False)
+    bio = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+class Pricing(BaseModel):
+    __tablename__ = 'pricing'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    title = db.Column(db.Text, nullable=False)
+    price = db.Column(db.Text, nullable=False)
+    details = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+class Slots(BaseModel):
+    __tablename__ = 'slots'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    day = db.Column(db.Text, nullable=False)
+    time = db.Column(db.Text, nullable=False)
+    status = db.Column(db.Text, default='Available')
+    type = db.Column(db.Text, default='General')
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+class JoinRequests(BaseModel):
+    __tablename__ = 'join_requests'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.Text, nullable=False)
+    age = db.Column(db.Integer, nullable=False)
+    interest = db.Column(db.Text, nullable=False)
+    whatsapp = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+class News(BaseModel):
+    __tablename__ = 'news'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    title = db.Column(db.Text, nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    date = db.Column(db.Text, nullable=False)
+    image = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+# Ensure tables are created
+with app.app_context():
+    db.create_all()
 
 # --- PWA CONFIGURATION ---
 MANIFEST_CONTENT = """
@@ -886,7 +878,6 @@ def index():
 
 @app.route('/gallery', methods=['GET', 'POST'])
 def gallery():
-    conn = get_db_connection()
     if request.method == 'POST':
         if 'image' not in request.files:
             return redirect(request.url)
@@ -898,14 +889,13 @@ def gallery():
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             
-            conn.execute('INSERT INTO gallery (image, student_name, title) VALUES (?, ?, ?)',
-                         (filename, student_name, title))
-            conn.commit()
-            conn.close()
+            new_item = Gallery(image=filename, student_name=student_name, title=title)
+            db.session.add(new_item)
+            db.session.commit()
+
             return redirect(url_for('gallery'))
             
-    items = conn.execute('SELECT * FROM gallery ORDER BY created_at DESC').fetchall()
-    conn.close()
+    items = Gallery.query.order_by(Gallery.created_at.desc()).all()
     return render_layout(GALLERY_HTML_CONTENT, items=items)
 
 GALLERY_HTML_CONTENT = """
@@ -976,7 +966,6 @@ GALLERY_HTML_CONTENT = """
 
 @app.route('/tutors', methods=['GET', 'POST'])
 def tutors():
-    conn = get_db_connection()
     if request.method == 'POST':
         if 'image' not in request.files:
             return redirect(request.url)
@@ -988,14 +977,13 @@ def tutors():
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             
-            conn.execute('INSERT INTO tutors (image, name, bio) VALUES (?, ?, ?)',
-                         (filename, name, bio))
-            conn.commit()
-            conn.close()
+            new_tutor = Tutors(image=filename, name=name, bio=bio)
+            db.session.add(new_tutor)
+            db.session.commit()
+
             return redirect(url_for('tutors'))
             
-    items = conn.execute('SELECT * FROM tutors ORDER BY created_at DESC').fetchall()
-    conn.close()
+    items = Tutors.query.order_by(Tutors.created_at.desc()).all()
     return render_layout(TUTORS_HTML_CONTENT, items=items)
 
 TUTORS_HTML_CONTENT = """
@@ -1066,28 +1054,24 @@ TUTORS_HTML_CONTENT = """
 
 @app.route('/pricing', methods=['GET', 'POST'])
 def pricing():
-    conn = get_db_connection()
     if request.method == 'POST':
         title = request.form['title']
         price = request.form['price']
         details = request.form['details']
         
-        conn.execute('INSERT INTO pricing (title, price, details) VALUES (?, ?, ?)',
-                     (title, price, details))
-        conn.commit()
-        conn.close()
+        new_pricing = Pricing(title=title, price=price, details=details)
+        db.session.add(new_pricing)
+        db.session.commit()
+
         return redirect(url_for('pricing'))
             
-    items = conn.execute('SELECT * FROM pricing ORDER BY created_at ASC').fetchall()
-    conn.close()
+    items = Pricing.query.order_by(Pricing.created_at.asc()).all()
     return render_layout(PRICING_HTML_CONTENT, items=items)
 
 @app.route('/delete_pricing/<int:id>', methods=['POST'])
 def delete_pricing(id):
-    conn = get_db_connection()
-    conn.execute('DELETE FROM pricing WHERE id = ?', (id,))
-    conn.commit()
-    conn.close()
+    Pricing.query.filter_by(id=id).delete()
+    db.session.commit()
     return redirect(url_for('pricing'))
 
 PRICING_HTML_CONTENT = """
@@ -1171,7 +1155,6 @@ PRICING_HTML_CONTENT = """
 
 @app.route('/slots', methods=['GET', 'POST'])
 def slots():
-    conn = get_db_connection()
     if request.method == 'POST':
         if 'day' in request.form:
             # Add Slot
@@ -1180,24 +1163,22 @@ def slots():
             type_val = request.form['type']
             status = 'Available'
             
-            conn.execute('INSERT INTO slots (day, time, status, type) VALUES (?, ?, ?, ?)',
-                         (day, time, status, type_val))
-            conn.commit()
+            new_slot = Slots(day=day, time=time, status=status, type=type_val)
+            db.session.add(new_slot)
+            db.session.commit()
             
         elif 'toggle_id' in request.form:
             # Toggle Status
             slot_id = request.form['toggle_id']
-            current_status = conn.execute('SELECT status FROM slots WHERE id = ?', (slot_id,)).fetchone()['status']
-            new_status = 'Booked' if current_status == 'Available' else 'Available'
-            conn.execute('UPDATE slots SET status = ? WHERE id = ?', (new_status, slot_id))
-            conn.commit()
+            slot = Slots.query.get(slot_id)
+            if slot:
+                slot.status = 'Booked' if slot.status == 'Available' else 'Available'
+                db.session.commit()
             
-        conn.close()
         return redirect(url_for('slots'))
             
     # Fetch and Group Slots
-    slots_raw = conn.execute('SELECT * FROM slots ORDER BY day, time').fetchall()
-    conn.close()
+    slots_raw = Slots.query.order_by(Slots.day, Slots.time).all()
     
     # Simple grouping
     days_order = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
@@ -1300,16 +1281,14 @@ SLOTS_HTML_CONTENT = """
 def join_us():
     if request.method == 'POST':
         from urllib.parse import quote
-        conn = get_db_connection()
         name = request.form['name']
         age = request.form['age']
         interest = request.form['interest']
         whatsapp = request.form['whatsapp']
         
-        conn.execute('INSERT INTO join_requests (name, age, interest, whatsapp) VALUES (?, ?, ?, ?)',
-                     (name, age, interest, whatsapp))
-        conn.commit()
-        conn.close()
+        new_request = JoinRequests(name=name, age=age, interest=interest, whatsapp=whatsapp)
+        db.session.add(new_request)
+        db.session.commit()
         
         message = f"Halo Admin LES BIMBEL GAMBAR & MUSIK, saya ingin mendaftar.\nNama: {name}\nUmur: {age}\nMinat: {interest}\nNo WA: {whatsapp}"
         wa_url = f"https://wa.me/6281241865310?text={quote(message)}"
@@ -1357,7 +1336,6 @@ JOIN_HTML_CONTENT = """
 
 @app.route('/news', methods=['GET', 'POST'])
 def news():
-    conn = get_db_connection()
     if request.method == 'POST':
         title = request.form['title']
         content = request.form['content']
@@ -1372,39 +1350,37 @@ def news():
         else:
              filename = ""
         
-        conn.execute('INSERT INTO news (title, content, date, image) VALUES (?, ?, ?, ?)',
-                     (title, content, date, filename))
-        conn.commit()
-        conn.close()
+        new_news = News(title=title, content=content, date=date, image=filename)
+        db.session.add(new_news)
+        db.session.commit()
+
         return redirect(url_for('news'))
             
-    items = conn.execute('SELECT * FROM news ORDER BY date DESC, created_at DESC').fetchall()
-    conn.close()
+    items = News.query.order_by(News.date.desc(), News.created_at.desc()).all()
     return render_layout(NEWS_HTML_CONTENT, items=items)
 
 @app.route('/edit_news/<int:id>', methods=['POST'])
 def edit_news(id):
-    conn = get_db_connection()
+    news_item = News.query.get(id)
+    if not news_item:
+        return redirect(url_for('news'))
+
     title = request.form['title']
     content = request.form['content']
     date = request.form['date']
     
+    news_item.title = title
+    news_item.content = content
+    news_item.date = date
+
     if 'image' in request.files:
         file = request.files['image']
         if file and file.filename != '' and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            conn.execute('UPDATE news SET title=?, content=?, date=?, image=? WHERE id=?',
-                         (title, content, date, filename, id))
-        else:
-            conn.execute('UPDATE news SET title=?, content=?, date=? WHERE id=?',
-                         (title, content, date, id))
-    else:
-        conn.execute('UPDATE news SET title=?, content=?, date=? WHERE id=?',
-                     (title, content, date, id))
+            news_item.image = filename
                      
-    conn.commit()
-    conn.close()
+    db.session.commit()
     return redirect(url_for('news'))
 
 NEWS_HTML_CONTENT = """
