@@ -12,7 +12,7 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB Limit
 app.secret_key = os.environ.get('FLASK_SECRET_KEY') or "supersecretkey"
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg', 'mp3', 'wav', 'ogg', 'mp4', 'm4a', 'flac', 'srt', 'vtt'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'ico', 'svg', 'mp3', 'wav', 'ogg', 'mp4', 'webm', 'm4a', 'flac', 'srt', 'vtt'}
 
 # --- DATABASE SETUP ---
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI') or 'sqlite:///bimbel.db'
@@ -154,7 +154,7 @@ NAVBAR_HTML = """
                 background-position: 200% center;
             }
         }
-        
+
         .nav-icon-btn {
             width: 45px;
             height: 45px;
@@ -178,7 +178,7 @@ NAVBAR_HTML = """
             transform: scale(1.05);
             box-shadow: 0 0 10px rgba(255,255,255,0.5);
         }
-        
+
         .nav-icon-btn img {
             width: 100%;
             height: 100%;
@@ -276,7 +276,7 @@ NAVBAR_HTML = """
 
                 <!-- 2. Brand (Center/Left) -->
                 <a class="navbar-brand me-auto" href="/">LES BIMBEL GAMBAR & MUSIK</a>
-                
+
                 <!-- 3. Hamburger Menu (Right) -->
                 <button class="nav-icon-btn" onclick="toggleMenu()" style="border: none; background: transparent; color: white; display: flex;">
                     <i class="fas fa-bars" style="font-size: 1.5rem;"></i>
@@ -289,9 +289,9 @@ NAVBAR_HTML = """
     <div id="menuOverlay" class="menu-overlay">
         <div class="menu-card glass-panel">
             <button class="close-btn" onclick="toggleMenu()">&times;</button>
-            
+
             <h2 class="text-white fw-bold mb-5 ps-2 border-start border-4 border-light">Menu</h2>
-            
+
             <div class="menu-items">
                 <!-- Wallpaper Upload -->
                 <form action="/wallpaper-blur/upload" method="post" enctype="multipart/form-data" id="nav-wall-form" style="margin: 0; width: 100%;">
@@ -318,7 +318,7 @@ NAVBAR_HTML = """
             } else {
                 overlay.style.display = 'flex';
                 // Force reflow
-                void overlay.offsetWidth; 
+                void overlay.offsetWidth;
                 overlay.classList.add('active');
             }
         }
@@ -354,7 +354,7 @@ STYLES_HTML = """
             transition: background-color 0.3s ease;
             padding-bottom: 120px !important; /* Ensure footer is visible above bottom nav */
         }
-        
+
         /* Glassmorphism Utilities */
         .glass-panel {
             background: var(--glass-bg);
@@ -382,7 +382,7 @@ STYLES_HTML = """
              color: white !important;
         }
         .navbar-brand span { color: var(--brand-color); }
-        
+
         .btn-brand {
             background-color: var(--brand-color);
             color: white;
@@ -468,7 +468,7 @@ STYLES_HTML = """
             border: none;
             border-radius: 16px;
         }
-        
+
         .upload-zone {
             border: 2px dashed #ccc;
             border-radius: 12px;
@@ -482,7 +482,7 @@ STYLES_HTML = """
             border-color: var(--brand-color);
             background-color: rgba(229, 50, 45, 0.05);
         }
-        
+
         /* FOOTER */
         footer {
             background-color: var(--card-bg);
@@ -502,7 +502,7 @@ STYLES_HTML = """
             border-radius: 8px;
             display: none; /* Hidden by default */
         }
-        
+
         /* GENERAL UTILS */
         .container-xl {
             max-width: 1400px;
@@ -519,7 +519,7 @@ STYLES_HTML = """
             align-items: center;
             justify-content: center;
         }
-        
+
         .hard-acrylic-modal .modal-content {
             width: 100%;
             height: 100%;
@@ -533,28 +533,28 @@ STYLES_HTML = """
             display: flex;
             flex-direction: column;
         }
-        
+
         .hard-acrylic-modal .modal-header {
             background: rgba(255, 255, 255, 0.1);
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
             padding: 20px;
         }
-        
+
         .hard-acrylic-modal .modal-body {
             overflow-y: auto;
             padding: 30px;
             scrollbar-width: thin;
             scrollbar-color: rgba(255,255,255,0.5) transparent;
         }
-        
+
         .hard-acrylic-modal .modal-footer {
             background: rgba(255, 255, 255, 0.05);
             border-top: 1px solid rgba(255, 255, 255, 0.2);
             padding: 20px;
         }
-        
-        .hard-acrylic-modal input, 
-        .hard-acrylic-modal textarea, 
+
+        .hard-acrylic-modal input,
+        .hard-acrylic-modal textarea,
         .hard-acrylic-modal select {
             background: rgba(255, 255, 255, 0.1) !important;
             border: 1px solid rgba(255, 255, 255, 0.3) !important;
@@ -563,16 +563,16 @@ STYLES_HTML = """
             padding: 15px;
             font-size: 1rem;
         }
-        
-        .hard-acrylic-modal input:focus, 
-        .hard-acrylic-modal textarea:focus, 
+
+        .hard-acrylic-modal input:focus,
+        .hard-acrylic-modal textarea:focus,
         .hard-acrylic-modal select:focus {
             background: rgba(255, 255, 255, 0.2) !important;
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
             outline: none;
             border-color: rgba(255, 255, 255, 0.8) !important;
         }
-        
+
         .hard-acrylic-modal label {
             font-weight: 600;
             margin-bottom: 8px;
@@ -580,7 +580,7 @@ STYLES_HTML = """
             text-shadow: 0 2px 4px rgba(0,0,0,0.5);
             font-size: 0.95rem;
         }
-        
+
         /* TOP NAV (Feature Buttons) */
         .top-feature-nav {
             display: flex;
@@ -592,10 +592,10 @@ STYLES_HTML = """
             scrollbar-width: none; /* Firefox */
             -ms-overflow-style: none;  /* IE 10+ */
         }
-        .top-feature-nav::-webkit-scrollbar { 
+        .top-feature-nav::-webkit-scrollbar {
             display: none;  /* Chrome/Safari */
         }
-        
+
         .feature-btn {
             flex: 0 0 auto;
             display: flex;
@@ -615,14 +615,14 @@ STYLES_HTML = """
             background: rgba(255, 255, 255, 0.15);
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
-        
+
         .feature-btn:hover {
             transform: translateY(-5px);
             background: rgba(255, 255, 255, 0.25);
             box-shadow: 0 10px 20px rgba(0,0,0,0.2);
             color: white;
         }
-        
+
         .feature-btn i, .feature-btn .icon {
             font-size: 2rem;
             margin-bottom: 8px;
@@ -639,7 +639,11 @@ STYLES_HTML = """
             height: auto;
             z-index: 99999 !important; /* Ensure on top */
             display: flex;
-            justify-content: space-around;
+            justify-content: flex-start;
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            gap: 15px;
+            scrollbar-width: none;
             align-items: center;
             padding: 10px 0;
             padding-bottom: calc(10px + env(safe-area-inset-bottom)) !important;
@@ -648,7 +652,11 @@ STYLES_HTML = """
             border-top: 1px solid rgba(255,255,255,0.2);
             box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
         }
-        
+
+        .bottom-nav::-webkit-scrollbar {
+            display: none;
+        }
+
         .bottom-nav-item {
             display: flex;
             flex-direction: column;
@@ -658,8 +666,9 @@ STYLES_HTML = """
             transition: 0.3s;
             font-size: 0.8rem;
             padding: 5px;
+            flex: 0 0 85px;
         }
-        
+
         .bottom-nav-item span {
             display: block !important;
             font-size: 0.75rem;
@@ -668,7 +677,7 @@ STYLES_HTML = """
             text-align: center;
             line-height: 1.2;
         }
-        
+
         .bottom-nav-item i {
             font-size: 1.5rem;
             margin-bottom: 5px;
@@ -682,7 +691,7 @@ STYLES_HTML = """
             border: 1px solid rgba(255,255,255,0.2);
             transition: 0.3s;
         }
-        
+
         .bottom-nav-item:hover i, .bottom-nav-item.active i {
             background: #9DC183; /* Sage Green */
             color: white;
@@ -690,11 +699,11 @@ STYLES_HTML = """
             transform: translateY(-5px);
             border-color: #9DC183;
         }
-        
+
         .bottom-nav-item:hover {
             color: white;
         }
-        
+
         /* FOOTER VISIBILITY FIX */
         .main-footer {
             margin-bottom: 20px;
@@ -724,12 +733,12 @@ BASE_LAYOUT = """
 <body>
     <div class="wallpaper-bg" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-image: url('/uploads/{{ bg_image }}'); background-size: cover; background-position: center; z-index: -2;"></div>
     <div class="acrylic-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.47); backdrop-filter: blur(20px) saturate(125%); -webkit-backdrop-filter: blur(20px) saturate(125%); z-index: -1;"></div>
-    
+
     <div class="content-wrapper" style="position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column;">
-        
+
         <div class="fixed-top-header" style="position: fixed; top: 0; left: 0; width: 100%; z-index: 1030; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.2);">
             {{ navbar|safe }}
-            
+
             <!-- Top Feature Navigation -->
             <div class="container">
                 <div class="top-feature-nav">
@@ -764,7 +773,7 @@ BASE_LAYOUT = """
         <div class="container main-content" style="flex: 1; padding-top: 240px;">
             {{ content|safe }}
         </div>
-        
+
         <footer class="main-footer" style="background: transparent; border: none; color: rgba(255,255,255,0.7); padding: 20px; text-align: center;">
             <div class="container">
                 <p>&copy; 2026 LES BIMBEL GAMBAR & MUSIK - All Rights Reserved. "We Making The Time"</p>
@@ -785,6 +794,30 @@ BASE_LAYOUT = """
         <a href="/ear-training" class="bottom-nav-item">
             <i class="fas fa-ear-listen"></i>
             <span>Ear Training</span>
+        </a>
+        <a href="/rhythm-trainer" class="bottom-nav-item">
+            <i class="fas fa-drum"></i>
+            <span>Pelatih Ritme</span>
+        </a>
+        <a href="/visual-chord" class="bottom-nav-item">
+            <i class="fas fa-keyboard"></i>
+            <span>Kamus Chord</span>
+        </a>
+        <a href="/vocal-detector" class="bottom-nav-item">
+            <i class="fas fa-microphone"></i>
+            <span>Detektor Vokal</span>
+        </a>
+        <a href="/recording-studio" class="bottom-nav-item">
+            <i class="fas fa-video"></i>
+            <span>Studio Rekaman</span>
+        </a>
+        <a href="/scrolling-sheet" class="bottom-nav-item">
+            <i class="fas fa-scroll"></i>
+            <span>Partitur</span>
+        </a>
+        <a href="/jamming-track" class="bottom-nav-item">
+            <i class="fas fa-compact-disc"></i>
+            <span>Teman Jamming</span>
         </a>
     </div>
 
@@ -830,7 +863,7 @@ BASE_LAYOUT = """
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-bs-theme', savedTheme);
         })();
-        
+
         // Fix Modal Z-Index Issue by moving them to body
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.modal').forEach(function(modal) {
@@ -852,7 +885,7 @@ def render_layout(content, scripts="", **kwargs):
         with open('bg_config.txt', 'r') as f:
             c = f.read().strip()
             if c: bg_image = c
-            
+
     logo_file = None
     if os.path.exists('logo_config.txt'):
          with open('logo_config.txt', 'r') as f:
@@ -861,17 +894,17 @@ def render_layout(content, scripts="", **kwargs):
 
     # Pre-render the content fragment so Jinja tags inside it are processed
     rendered_content = render_template_string(content, **kwargs)
-            
+
     # Render fragments
     head = HEAD_HTML.replace('{{ styles|safe }}', STYLES_HTML)
     navbar = NAVBAR_HTML # Jinja context will handle logo_file/bg_image if passed
-    
+
     # Render Base Layout
     # Use render_template_string for the base layout
     # Pass all kwargs plus calculated ones
-    return render_template_string(BASE_LAYOUT, 
-                                  head=head, 
-                                  navbar=render_template_string(navbar, logo_file=logo_file), 
+    return render_template_string(BASE_LAYOUT,
+                                  head=head,
+                                  navbar=render_template_string(navbar, logo_file=logo_file),
                                   content=rendered_content,
                                   scripts=scripts,
                                   bg_image=bg_image,
@@ -889,17 +922,17 @@ def gallery():
         file = request.files['image']
         student_name = request.form['student_name']
         title = request.form['title']
-        
+
         if file and file.filename != '' and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            
+
             new_item = Gallery(image=filename, student_name=student_name, title=title)
             db.session.add(new_item)
             db.session.commit()
-            
+
             return redirect(url_for('gallery'))
-            
+
     items = Gallery.query.order_by(Gallery.created_at.desc()).all()
     return render_layout(GALLERY_HTML_CONTENT, items=items)
 
@@ -913,7 +946,7 @@ GALLERY_HTML_CONTENT = """
             <i class="fas fa-plus me-1"></i> Upload Karya
         </button>
     </div>
-    
+
     <div class="row g-4">
         {% for item in items %}
         <div class="col-6 col-md-4 col-lg-3">
@@ -977,17 +1010,17 @@ def tutors():
         file = request.files['image']
         name = request.form['name']
         bio = request.form['bio']
-        
+
         if file and file.filename != '' and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            
+
             new_tutor = Tutors(image=filename, name=name, bio=bio)
             db.session.add(new_tutor)
             db.session.commit()
-            
+
             return redirect(url_for('tutors'))
-            
+
     items = Tutors.query.order_by(Tutors.created_at.desc()).all()
     return render_layout(TUTORS_HTML_CONTENT, items=items)
 
@@ -1001,7 +1034,7 @@ TUTORS_HTML_CONTENT = """
             <i class="fas fa-plus me-1"></i> Tambah Pengajar
         </button>
     </div>
-    
+
     <div class="row g-4">
         {% for item in items %}
         <div class="col-md-6 col-lg-4">
@@ -1063,13 +1096,13 @@ def pricing():
         title = request.form['title']
         price = request.form['price']
         details = request.form['details']
-        
+
         new_pricing = Pricing(title=title, price=price, details=details)
         db.session.add(new_pricing)
         db.session.commit()
-        
+
         return redirect(url_for('pricing'))
-            
+
     items = Pricing.query.order_by(Pricing.created_at.asc()).all()
     return render_layout(PRICING_HTML_CONTENT, items=items)
 
@@ -1094,7 +1127,7 @@ PRICING_HTML_CONTENT = """
             </button>
         </div>
     </div>
-    
+
     <div class="row g-4">
         {% for item in items %}
         <div class="col-md-4 position-relative">
@@ -1167,11 +1200,11 @@ def slots():
             time = request.form['time']
             type_val = request.form['type']
             status = 'Available'
-            
+
             new_slot = Slots(day=day, time=time, status=status, type=type_val)
             db.session.add(new_slot)
             db.session.commit()
-            
+
         elif 'toggle_id' in request.form:
             # Toggle Status
             slot_id = request.form['toggle_id']
@@ -1179,20 +1212,20 @@ def slots():
             if slot:
                 slot.status = 'Booked' if slot.status == 'Available' else 'Available'
                 db.session.commit()
-            
+
         return redirect(url_for('slots'))
-            
+
     # Fetch and Group Slots
     slots_raw = Slots.query.order_by(Slots.day, Slots.time).all()
-    
+
     # Simple grouping
     days_order = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
     grouped_slots = {d: [] for d in days_order}
-    
+
     for slot in slots_raw:
         if slot['day'] in grouped_slots:
             grouped_slots[slot['day']].append(slot)
-            
+
     return render_layout(SLOTS_HTML_CONTENT, grouped_slots=grouped_slots)
 
 SLOTS_HTML_CONTENT = """
@@ -1205,7 +1238,7 @@ SLOTS_HTML_CONTENT = """
             <i class="fas fa-plus me-1"></i> Tambah Slot
         </button>
     </div>
-    
+
     <div class="row g-4">
         {% for day, slots in grouped_slots.items() %}
         <div class="col-md-6 col-lg-4">
@@ -1290,16 +1323,16 @@ def join_us():
         age = request.form['age']
         interest = request.form['interest']
         whatsapp = request.form['whatsapp']
-        
+
         new_request = JoinRequests(name=name, age=age, interest=interest, whatsapp=whatsapp)
         db.session.add(new_request)
         db.session.commit()
-        
+
         message = f"Halo Admin LES BIMBEL GAMBAR & MUSIK, saya ingin mendaftar.\nNama: {name}\nUmur: {age}\nMinat: {interest}\nNo WA: {whatsapp}"
         wa_url = f"https://wa.me/6281241865310?text={quote(message)}"
-        
+
         return redirect(wa_url)
-    
+
     return render_layout(JOIN_HTML_CONTENT)
 
 JOIN_HTML_CONTENT = """
@@ -1307,7 +1340,7 @@ JOIN_HTML_CONTENT = """
     <a href="/" class="position-absolute top-0 end-0 m-3 text-white text-decoration-none" style="font-size: 1.5rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><i class="fas fa-times"></i></a>
 
     <h2 class="text-white mb-4 text-center"><i class="fas fa-file-signature me-2"></i>Pendaftaran Online</h2>
-    
+
     <form method="POST">
         <div class="mb-3">
             <label class="form-label text-white">Nama Calon Murid</label>
@@ -1329,7 +1362,7 @@ JOIN_HTML_CONTENT = """
             <label class="form-label text-white">No WhatsApp Wali Murid</label>
             <input type="text" name="whatsapp" class="form-control bg-transparent text-white" placeholder="08..." required>
         </div>
-        
+
         <div class="d-grid mt-4">
             <button type="submit" class="btn btn-success btn-lg rounded-pill">
                 <i class="fab fa-whatsapp me-2"></i> Daftar Sekarang via WhatsApp
@@ -1346,7 +1379,7 @@ def news():
         content = request.form['content']
         date = request.form['date']
         filename = None
-        
+
         if 'image' in request.files:
             file = request.files['image']
             if file and file.filename != '' and allowed_file(file.filename):
@@ -1354,13 +1387,13 @@ def news():
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         else:
              filename = ""
-        
+
         new_news = News(title=title, content=content, date=date, image=filename)
         db.session.add(new_news)
         db.session.commit()
-        
+
         return redirect(url_for('news'))
-            
+
     items = News.query.order_by(News.date.desc(), News.created_at.desc()).all()
     return render_layout(NEWS_HTML_CONTENT, items=items)
 
@@ -1373,7 +1406,7 @@ def edit_news(id):
     title = request.form['title']
     content = request.form['content']
     date = request.form['date']
-    
+
     news_item.title = title
     news_item.content = content
     news_item.date = date
@@ -1384,7 +1417,7 @@ def edit_news(id):
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             news_item.image = filename
-                     
+
     db.session.commit()
     return redirect(url_for('news'))
 
@@ -1398,12 +1431,12 @@ NEWS_HTML_CONTENT = """
             <i class="fas fa-plus me-1"></i> Tambah Berita
         </button>
     </div>
-    
+
     <div class="row g-4">
         {% for item in items %}
         <div class="col-md-6 col-lg-4">
             <div class="card h-100 bg-transparent glass-panel border-0 overflow-hidden position-relative" style="border-radius: 20px;">
-                <button class="btn btn-warning btn-sm rounded-circle position-absolute top-0 end-0 m-3 shadow" style="z-index: 10;" 
+                <button class="btn btn-warning btn-sm rounded-circle position-absolute top-0 end-0 m-3 shadow" style="z-index: 10;"
                         onclick='editNews({{ item["id"] }}, {{ item["title"]|tojson }}, {{ item["date"]|tojson }}, {{ item["content"]|tojson }})'>
                     <i class="fas fa-pencil-alt"></i>
                 </button>
@@ -1469,22 +1502,22 @@ NEWS_HTML_CONTENT = """
         document.querySelector('#newsModal input[name="title"]').value = title;
         document.querySelector('#newsModal input[name="date"]').value = date;
         document.querySelector('#newsModal textarea[name="content"]').value = content;
-        
+
         const form = document.querySelector('#newsModal form');
         form.action = '/edit_news/' + id;
-        
+
         document.querySelector('#newsModal .modal-title').innerText = 'Edit Berita';
-        
+
         const modal = new bootstrap.Modal(document.getElementById('newsModal'));
         modal.show();
     }
-    
+
     // Reset form when modal is hidden
     const newsModalEl = document.getElementById('newsModal');
     if (newsModalEl) {
         newsModalEl.addEventListener('hidden.bs.modal', function () {
             const form = document.querySelector('#newsModal form');
-            form.action = ''; 
+            form.action = '';
             form.reset();
             document.querySelector('#newsModal .modal-title').innerText = 'Tambah Berita / Prestasi';
         });
@@ -1499,26 +1532,26 @@ def metronome():
 METRONOME_HTML_CONTENT = """
 <div class="container d-flex justify-content-center align-items-center" style="min-height: 60vh;">
     <div class="glass-panel p-5 text-center position-relative overflow-hidden" style="border-radius: 30px; width: 100%; max-width: 400px; backdrop-filter: blur(20px);">
-        
+
         <div class="position-absolute top-0 start-0 w-100 h-100 bg-gradient-primary opacity-10" style="z-index: -1;"></div>
-        
+
         <h2 class="text-white mb-4 fw-bold text-uppercase letter-spacing-2"><i class="fas fa-stopwatch me-2 text-warning"></i>Metronome</h2>
-        
+
         <div class="bpm-display-container mb-4 position-relative">
             <div class="display-1 fw-bold text-white" id="bpm-val">120</div>
             <span class="text-white-50 text-uppercase small letter-spacing-2">BPM</span>
-            
-            <div id="visual-beat" class="position-absolute top-50 start-50 translate-middle rounded-circle" 
+
+            <div id="visual-beat" class="position-absolute top-50 start-50 translate-middle rounded-circle"
                  style="width: 200px; height: 200px; border: 2px solid rgba(255,255,255,0.1); opacity: 0; transition: transform 0.1s, opacity 0.1s; pointer-events: none;"></div>
         </div>
-        
+
         <input type="range" class="form-range mb-4" min="40" max="240" value="120" id="bpm-slider">
-        
+
         <div class="d-flex justify-content-center gap-3 mb-5">
             <button class="btn btn-outline-light rounded-circle p-3" onclick="adjustBPM(-1)"><i class="fas fa-minus"></i></button>
             <button class="btn btn-outline-light rounded-circle p-3" onclick="adjustBPM(1)"><i class="fas fa-plus"></i></button>
         </div>
-        
+
         <button class="btn btn-primary btn-lg rounded-pill w-100 py-3 fw-bold shadow-lg" id="play-btn">
             <i class="fas fa-play me-2"></i> START
         </button>
@@ -1564,14 +1597,14 @@ METRONOME_HTML_CONTENT = """
 
             osc.start(time);
             osc.stop(time + 0.1);
-            
+
             const drawTime = (time - this.audioContext.currentTime) * 1000;
             setTimeout(() => {
                 const visual = document.getElementById('visual-beat');
                 visual.style.opacity = '1';
                 visual.style.transform = 'translate(-50%, -50%) scale(1.2)';
                 visual.style.borderColor = (beatNumber % 4 === 0) ? '#ffc107' : 'rgba(255,255,255,0.5)';
-                
+
                 setTimeout(() => {
                     visual.style.opacity = '0';
                     visual.style.transform = 'translate(-50%, -50%) scale(1)';
@@ -1593,14 +1626,14 @@ METRONOME_HTML_CONTENT = """
             if (this.audioContext == null) {
                 this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             }
-            
+
             this.audioContext.resume();
 
             this.isRunning = true;
             this.currentQuarterNote = 0;
             this.nextNoteTime = this.audioContext.currentTime + 0.05;
             this.scheduler();
-            
+
             const btn = document.getElementById('play-btn');
             btn.innerHTML = '<i class="fas fa-stop me-2"></i> STOP';
             btn.classList.remove('btn-primary');
@@ -1610,7 +1643,7 @@ METRONOME_HTML_CONTENT = """
         stop() {
             this.isRunning = false;
             window.clearTimeout(this.intervalID);
-            
+
             const btn = document.getElementById('play-btn');
             btn.innerHTML = '<i class="fas fa-play me-2"></i> START';
             btn.classList.remove('btn-danger');
@@ -1634,7 +1667,7 @@ METRONOME_HTML_CONTENT = """
             bpmSlider.value = newBPM;
             metronome.tempo = newBPM;
             bpmVal.innerText = newBPM;
-            
+
             // Trigger input event to update metronome if running
             bpmSlider.dispatchEvent(new Event('input'));
         }
@@ -1657,7 +1690,7 @@ def ear_training():
 EAR_TRAINING_HTML_CONTENT = """
 <div class="container d-flex flex-column justify-content-center align-items-center" style="min-height: 80vh;">
     <div class="glass-panel p-4 text-center w-100 position-relative overflow-hidden" style="border-radius: 30px; max-width: 600px; backdrop-filter: blur(20px);">
-        
+
         <div class="position-absolute top-0 start-0 w-100 h-100 bg-gradient-info opacity-10" style="z-index: -1;"></div>
 
         <h2 class="text-white mb-4 fw-bold text-uppercase letter-spacing-1">
@@ -1666,7 +1699,7 @@ EAR_TRAINING_HTML_CONTENT = """
                 <i class="fas fa-music" id="tone-icon"></i>
             </button>
         </h2>
-        
+
         <div class="d-flex justify-content-center gap-4 mb-5">
             <div class="text-center">
                 <div class="h4 fw-bold text-success mb-0" id="correct-score">0</div>
@@ -1677,20 +1710,20 @@ EAR_TRAINING_HTML_CONTENT = """
                 <small class="text-white-50 text-uppercase" style="font-size: 0.7rem;">Salah</small>
             </div>
         </div>
-        
+
         <button id="play-btn" class="btn btn-light rounded-circle shadow-lg mb-4 position-relative" onclick="playCurrentNote()" style="width: 120px; height: 120px; border: 4px solid rgba(255,255,255,0.2);">
             <i class="fas fa-music fa-3x text-primary position-absolute top-50 start-50 translate-middle"></i>
             <span class="position-absolute bottom-0 start-50 translate-middle-x mb-3 text-dark fw-bold small">PLAY</span>
         </button>
-        
+
         <div id="feedback-area" class="mb-4" style="min-height: 30px;">
             <p class="text-white opacity-75 fst-italic" id="instruction">Klik tombol Play untuk mendengar nada</p>
         </div>
-        
+
         <div class="row g-2 px-2 mb-4" id="options-grid">
             <!-- JS Populated -->
         </div>
-        
+
         <button class="btn btn-outline-light rounded-pill px-5 py-2" onclick="nextQuestion()" id="next-btn" style="display: none;">
             Soal Selanjutnya <i class="fas fa-arrow-right ms-2"></i>
         </button>
@@ -1712,7 +1745,7 @@ EAR_TRAINING_HTML_CONTENT = """
         { name: 'A#', freq: 466.16 },
         { name: 'B', freq: 493.88 }
     ];
-    
+
     let audioCtx;
     let currentNote = null;
     let correct = 0;
@@ -1743,19 +1776,19 @@ EAR_TRAINING_HTML_CONTENT = """
         initAudio();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        
+
         osc.type = type;
         osc.frequency.value = freq;
-        
+
         // Envelope to sound more like a piano/bell
         const now = audioCtx.currentTime;
         gain.gain.setValueAtTime(0, now);
         gain.gain.linearRampToValueAtTime(0.5, now + 0.05);
         gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-        
+
         osc.connect(gain);
         gain.connect(audioCtx.destination);
-        
+
         osc.start(now);
         osc.stop(now + duration);
     }
@@ -1777,44 +1810,44 @@ EAR_TRAINING_HTML_CONTENT = """
         initAudio();
         const now = audioCtx.currentTime;
         const duration = 1.5;
-        
+
         // 3 Oscillators for richness
         const osc1 = audioCtx.createOscillator();
         const osc2 = audioCtx.createOscillator();
         const osc3 = audioCtx.createOscillator();
-        
+
         osc1.type = 'triangle';
         osc2.type = 'triangle';
         osc3.type = 'sawtooth';
-        
+
         osc1.frequency.value = freq;
         osc2.frequency.value = freq;
         osc3.frequency.value = freq;
-        
+
         osc2.detune.value = 10;
         osc3.detune.value = -10;
-        
+
         const masterGain = audioCtx.createGain();
         const filter = audioCtx.createBiquadFilter();
-        
+
         filter.type = 'lowpass';
         filter.frequency.value = 2000;
-        
+
         osc1.connect(masterGain);
         osc2.connect(masterGain);
         osc3.connect(masterGain);
-        
+
         masterGain.connect(filter);
         filter.connect(audioCtx.destination);
-        
+
         masterGain.gain.setValueAtTime(0, now);
         masterGain.gain.linearRampToValueAtTime(0.6, now + 0.02);
         masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-        
+
         osc1.start(now);
         osc2.start(now);
         osc3.start(now);
-        
+
         osc1.stop(now + duration);
         osc2.stop(now + duration);
         osc3.stop(now + duration);
@@ -1834,9 +1867,9 @@ EAR_TRAINING_HTML_CONTENT = """
     function checkAnswer(guess, btn) {
         if(isAnswered || !currentNote) return;
         isAnswered = true;
-        
+
         const feedback = document.getElementById('feedback-area');
-        
+
         if(guess === currentNote.name) {
             btn.classList.remove('btn-outline-light');
             btn.classList.add('btn-success');
@@ -1852,7 +1885,7 @@ EAR_TRAINING_HTML_CONTENT = """
             feedback.innerHTML = `<h4 class="text-danger fw-bold mb-0">Salah! Jawabannya: ${currentNote.name}</h4>`;
             playTone(150, 'sawtooth', 0.3); // Buzz
         }
-        
+
         document.getElementById('next-btn').style.display = 'inline-block';
     }
 
@@ -1860,10 +1893,10 @@ EAR_TRAINING_HTML_CONTENT = """
         isAnswered = false;
         document.getElementById('next-btn').style.display = 'none';
         document.getElementById('feedback-area').innerHTML = '<p class="text-white opacity-75 fst-italic">Dengarkan baik-baik...</p>';
-        
+
         // Random note
         currentNote = notes[Math.floor(Math.random() * notes.length)];
-        
+
         generateOptions();
         setTimeout(() => playCurrentNote(), 500);
     }
@@ -1881,15 +1914,15 @@ def uploaded_file(filename):
 def upload_logo():
     if 'logo' not in request.files:
         return redirect(url_for('index'))
-    
+
     file = request.files['logo']
     if file and file.filename != '' and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        
+
         with open('logo_config.txt', 'w') as f:
             f.write(filename)
-            
+
     return redirect(url_for('index'))
 
 @app.route('/manifest.json')
@@ -1899,6 +1932,10 @@ def manifest():
 @app.route('/service-worker.js')
 def service_worker():
     return Response(SW_CONTENT, mimetype='application/javascript')
+
+@app.route('/static/audio/<filename>')
+def serve_audio(filename):
+    return send_from_directory('static/audio', filename)
 
 @app.route('/uploads/icon-192.png')
 def icon_192():
@@ -1923,15 +1960,15 @@ def icon_512():
 def wallpaper_upload():
     if 'background' not in request.files:
         return redirect(url_for('index'))
-    
+
     file = request.files['background']
     if file and file.filename != '' and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        
+
         with open('bg_config.txt', 'w') as f:
             f.write(filename)
-            
+
     return redirect(url_for('index'))
 
 
@@ -2026,7 +2063,7 @@ HTML_DOREMI_CONTENT = """
             text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.4);
             letter-spacing: 2px;
         }
-        
+
         .header-controls {
             display: flex;
             align-items: center;
@@ -2064,11 +2101,11 @@ HTML_DOREMI_CONTENT = """
     </style>
 
         <div style="width:100%; display:flex; flex-direction:column; align-items:center; padding-top: 40px;">
-            
+
             <div class="header-controls">
                 <h1 class="title-neon">nada dasar C</h1>
             </div>
-            
+
             <div class="piano-container">
                 <div class="keys-wrapper">
                     <!-- White Keys with Stickers -->
@@ -2080,7 +2117,7 @@ HTML_DOREMI_CONTENT = """
                     <div class="white-key glow"><div class="key-sticker">6</div></div> <!-- A -->
                     <div class="white-key glow"><div class="key-sticker">7</div></div> <!-- B -->
                     <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- C (High) -->
-                    
+
                     <!-- Black Keys -->
                     <div class="black-key" style="left: 45px;"></div>  <!-- C# -->
                     <div class="black-key" style="left: 109px;"></div> <!-- D# -->
@@ -2102,7 +2139,7 @@ HTML_DOREMI_CONTENT = """
                     <div class="white-key glow"><div class="key-sticker">6</div></div> <!-- B -->
                     <div class="white-key glow"></div> <!-- C -->
                     <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- D -->
-                    
+
                     <div class="black-key"></div> <!-- D# -->
                     <div class="black-key"><div class="key-sticker">3</div></div> <!-- F# -->
                     <div class="black-key"></div> <!-- G# -->
@@ -2123,7 +2160,7 @@ HTML_DOREMI_CONTENT = """
                     <div class="white-key glow"></div> <!-- C -->
                     <div class="white-key glow"></div> <!-- D -->
                     <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- E -->
-                    
+
                     <div class="black-key"><div class="key-sticker">2</div></div> <!-- F# -->
                     <div class="black-key"><div class="key-sticker">3</div></div> <!-- G# -->
                     <div class="black-key"></div> <!-- A# -->
@@ -2144,7 +2181,7 @@ HTML_DOREMI_CONTENT = """
                     <div class="white-key glow"><div class="key-sticker">6</div></div> <!-- D -->
                     <div class="white-key glow"><div class="key-sticker">7</div></div> <!-- E -->
                     <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- F -->
-                    
+
                     <div class="black-key"></div> <!-- F# -->
                     <div class="black-key"></div> <!-- G# -->
                     <div class="black-key"><div class="key-sticker">4</div></div> <!-- Bb -->
@@ -2165,7 +2202,7 @@ HTML_DOREMI_CONTENT = """
                     <div class="white-key glow"><div class="key-sticker">6</div></div> <!-- E -->
                     <div class="white-key glow"></div> <!-- F -->
                     <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- G -->
-                    
+
                     <div class="black-key"></div> <!-- G# -->
                     <div class="black-key"></div> <!-- A# -->
                     <div class="black-key"></div> <!-- C# -->
@@ -2186,7 +2223,7 @@ HTML_DOREMI_CONTENT = """
                     <div class="white-key glow"></div> <!-- F -->
                     <div class="white-key glow"></div> <!-- G -->
                     <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- A -->
-                    
+
                     <div class="black-key"></div> <!-- A# -->
                     <div class="black-key"><div class="key-sticker">3</div></div> <!-- C# -->
                     <div class="black-key"></div> <!-- D# -->
@@ -2207,7 +2244,7 @@ HTML_DOREMI_CONTENT = """
                     <div class="white-key glow"></div> <!-- G -->
                     <div class="white-key glow"></div> <!-- A -->
                     <div class="white-key glow"><div class="key-sticker">8</div></div> <!-- B -->
-                    
+
                     <div class="black-key"><div class="key-sticker">2</div></div> <!-- C# -->
                     <div class="black-key"><div class="key-sticker">3</div></div> <!-- D# -->
                     <div class="black-key"><div class="key-sticker">5</div></div> <!-- F# -->
@@ -2219,14 +2256,14 @@ HTML_DOREMI_CONTENT = """
 
     <script>
         // PWA Installation Logic moved to BASE_LAYOUT
-        
+
         const deferredPrompt = null; // Stub if referenced
         const pwaBtn = document.getElementById('pwa-install-btn'); // This is in Navbar
-        
+
         // Key adjustment script
         function adjustBlackKeys() {
             const pianoContainers = document.querySelectorAll('.piano-container');
-            
+
             const scaleIndices = {
                 'C': [1, 2, 4, 5, 6],
                 'D': [1, 3, 4, 5, 7],
@@ -2240,19 +2277,19 @@ HTML_DOREMI_CONTENT = """
             pianoContainers.forEach(container => {
                 const whiteKey = container.querySelector('.white-key');
                 if(!whiteKey) return;
-                
+
                 const w = whiteKey.offsetWidth;
                 const m = 4; // margin
                 const slot = w + m;
-                
+
                 const blackKeys = container.querySelectorAll('.black-key');
                 if(blackKeys.length === 0) return;
-                
+
                 const blackWidth = blackKeys[0].offsetWidth;
-                
+
                 const scaleType = container.getAttribute('data-scale') || 'C';
                 const indices = scaleIndices[scaleType] || scaleIndices['C'];
-                
+
                 blackKeys.forEach((key, i) => {
                     if (i < indices.length) {
                         const idx = indices[i];
@@ -2262,14 +2299,1623 @@ HTML_DOREMI_CONTENT = """
                 });
             });
         }
-        
+
         window.addEventListener('resize', adjustBlackKeys);
         window.addEventListener('load', adjustBlackKeys);
-        
+
         // Re-attach PWA handler logic if needed, but PWA button is in Navbar which is in Base Layout.
         // We'll move the PWA logic to the Base Layout's script block if possible, or keep it here if it's specific.
         // Actually, let's keep the adjustBlackKeys here as it's specific to this view.
     </script>
+"""
+
+@app.route('/rhythm-trainer')
+def rhythm_trainer():
+    return render_layout(RHYTHM_TRAINER_HTML)
+
+RHYTHM_TRAINER_HTML = """
+<style>
+    .arcade-container {
+        position: relative;
+        width: 100%;
+        max-width: 800px;
+        height: 400px;
+        background: rgba(10, 10, 15, 0.8);
+        border-radius: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), inset 0 0 50px rgba(0,0,0,0.8);
+        overflow: hidden;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+    }
+    .target-line {
+        position: absolute;
+        bottom: 50px;
+        left: 10%;
+        width: 80%;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.5);
+        box-shadow: 0 0 10px rgba(255,255,255,0.8);
+        z-index: 5;
+    }
+    #gameCanvas {
+        width: 100%;
+        flex: 1;
+        display: block;
+    }
+    .score-board {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        font-family: 'Inter', sans-serif;
+        z-index: 10;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    .feedback-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 3rem;
+        font-weight: 800;
+        opacity: 0;
+        transition: opacity 0.2s, transform 0.2s;
+        z-index: 20;
+        pointer-events: none;
+    }
+    .feedback-text.show {
+        opacity: 1;
+        transform: translate(-50%, -60%) scale(1.2);
+    }
+    .particle {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: #00ffcc;
+        border-radius: 50%;
+        pointer-events: none;
+        animation: pop 0.5s ease-out forwards;
+        z-index: 15;
+    }
+    @keyframes pop {
+        0% { transform: scale(1) translate(0, 0); opacity: 1; }
+        100% { transform: scale(0) translate(var(--tx), var(--ty)); opacity: 0; }
+    }
+    .controls {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 20px;
+        border-radius: 15px;
+        margin-top: 20px;
+    }
+</style>
+
+<div class="container d-flex flex-column justify-content-center align-items-center" style="min-height: 70vh;">
+    <h2 class="text-white mb-4 fw-bold text-uppercase letter-spacing-1">
+        <i class="fas fa-drum me-2 text-info"></i>Pelatih Ritme Interaktif
+    </h2>
+
+    <div class="arcade-container" id="arcadeContainer">
+        <div class="score-board">
+            <h4>Score: <span id="scoreVal">0</span></h4>
+            <div class="small opacity-75">Combo: <span id="comboVal">0</span></div>
+        </div>
+
+        <div class="feedback-text" id="feedbackText">PERFECT!</div>
+        <div class="target-line" id="targetLine"></div>
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div class="controls w-100 max-w-800 text-center">
+        <button id="startGameBtn" class="btn btn-primary btn-lg rounded-pill px-5 py-3 fw-bold shadow-lg mb-3">
+            <i class="fas fa-play me-2"></i> MULAI MAIN
+        </button>
+        <p class="text-white opacity-75 small mb-0">Tekan <kbd>Spasi</kbd> atau <kbd>Tap Layar</kbd> tepat saat balok menyentuh garis putih!</p>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('arcadeContainer');
+    const scoreVal = document.getElementById('scoreVal');
+    const comboVal = document.getElementById('comboVal');
+    const feedbackText = document.getElementById('feedbackText');
+    const startBtn = document.getElementById('startGameBtn');
+
+    let audioCtx;
+    let isPlaying = false;
+    let score = 0;
+    let combo = 0;
+    let blocks = [];
+    let speed = 4; // pixels per frame
+    let lastTime = 0;
+    let nextSpawnTime = 0;
+    let bpm = 90;
+    let msPerBeat = 60000 / bpm;
+    let animationId;
+
+    // Resize canvas
+    function resizeCanvas() {
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    const targetY = canvas.height - 50; // Matches CSS target-line bottom: 50px (approx)
+    const hitWindow = 30; // +/- pixels for a hit
+
+    function createClickSound() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    function spawnBlock() {
+        blocks.push({
+            x: canvas.width / 2 - 40,
+            y: -20,
+            width: 80,
+            height: 20,
+            active: true
+        });
+        createClickSound();
+        nextSpawnTime = performance.now() + msPerBeat;
+    }
+
+    function showFeedback(text, color) {
+        feedbackText.innerText = text;
+        feedbackText.style.color = color;
+        feedbackText.style.textShadow = `0 0 20px ${color}`;
+        feedbackText.classList.add('show');
+        setTimeout(() => feedbackText.classList.remove('show'), 400);
+    }
+
+    function createParticles(x, y) {
+        for(let i=0; i<10; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.style.left = `${x}px`;
+            p.style.top = `${y}px`;
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 50 + Math.random() * 50;
+            p.style.setProperty('--tx', `${Math.cos(angle) * dist}px`);
+            p.style.setProperty('--ty', `${Math.sin(angle) * dist}px`);
+            container.appendChild(p);
+            setTimeout(() => p.remove(), 500);
+        }
+    }
+
+    function registerHit() {
+        if (!isPlaying) return;
+
+        let hitRegistered = false;
+        // Find lowest active block
+        for (let i = 0; i < blocks.length; i++) {
+            let b = blocks[i];
+            if (b.active) {
+                const dist = Math.abs(b.y - targetY);
+                if (dist < hitWindow) {
+                    b.active = false; // Mark hit
+                    hitRegistered = true;
+
+                    if (dist < hitWindow / 3) {
+                        score += 100;
+                        combo++;
+                        showFeedback("SEMPURNA!", "#00ffcc");
+                        createParticles(container.clientWidth/2, targetY);
+                    } else {
+                        score += 50;
+                        combo++;
+                        showFeedback("BAIK!", "#ffcc00");
+                    }
+                    scoreVal.innerText = score;
+                    comboVal.innerText = combo;
+                    break; // Only hit one block
+                }
+            }
+        }
+
+        if (!hitRegistered) {
+            combo = 0;
+            comboVal.innerText = combo;
+            showFeedback("MELESET!", "#ff3366");
+        }
+    }
+
+    function gameLoop(timestamp) {
+        if (!isPlaying) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (timestamp >= nextSpawnTime) {
+            spawnBlock();
+        }
+
+        // Draw blocks
+        for (let i = blocks.length - 1; i >= 0; i--) {
+            let b = blocks[i];
+            b.y += speed;
+
+            if (b.active) {
+                ctx.fillStyle = '#00ffcc';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#00ffcc';
+                ctx.fillRect(b.x, b.y, b.width, b.height);
+                ctx.shadowBlur = 0; // reset
+            }
+
+            // Missed block
+            if (b.active && b.y > targetY + hitWindow) {
+                b.active = false;
+                combo = 0;
+                comboVal.innerText = combo;
+                showFeedback("MELESET!", "#ff3366");
+            }
+
+            // Remove offscreen
+            if (b.y > canvas.height + 50) {
+                blocks.splice(i, 1);
+            }
+        }
+
+        animationId = requestAnimationFrame(gameLoop);
+    }
+
+    function startGame() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        if (isPlaying) {
+            isPlaying = false;
+            cancelAnimationFrame(animationId);
+            startBtn.innerHTML = '<i class="fas fa-play me-2"></i> MULAI MAIN';
+            startBtn.classList.replace('btn-danger', 'btn-primary');
+        } else {
+            isPlaying = true;
+            score = 0;
+            combo = 0;
+            blocks = [];
+            scoreVal.innerText = score;
+            comboVal.innerText = combo;
+            nextSpawnTime = performance.now() + 1000; // start in 1s
+            startBtn.innerHTML = '<i class="fas fa-stop me-2"></i> BERHENTI';
+            startBtn.classList.replace('btn-primary', 'btn-danger');
+            requestAnimationFrame(gameLoop);
+        }
+    }
+
+    startBtn.addEventListener('click', startGame);
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            e.preventDefault();
+            registerHit();
+        }
+    });
+
+    // Fix for touchscreen tap
+    container.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        registerHit();
+    });
+</script>
+"""
+
+@app.route('/visual-chord')
+def visual_chord():
+    return render_layout(VISUAL_CHORD_HTML)
+
+VISUAL_CHORD_HTML = """
+<style>
+    /* Borrow piano container styles from Home page */
+    .piano-container {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+        overflow-x: auto;
+    }
+    .keys-wrapper {
+        position: relative;
+        display: flex;
+        min-width: max-content;
+    }
+    .white-key {
+        width: 50px;
+        height: 200px;
+        border: 1px solid #ccc;
+        border-radius: 0 0 5px 5px;
+        background: #ffffff;
+        z-index: 1;
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        padding-bottom: 15px;
+        transition: all 0.2s;
+    }
+    .black-key {
+        width: 30px;
+        height: 120px;
+        background: #000000;
+        position: absolute;
+        z-index: 2;
+        border-radius: 0 0 4px 4px;
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        padding-bottom: 10px;
+        transition: all 0.2s;
+    }
+
+    /* Dynamic Glow Colors based on chord type */
+    .glow-major {
+        box-shadow: 0 0 20px rgba(255, 105, 180, 0.8), inset 0 0 15px rgba(255, 105, 180, 0.5) !important;
+        background: #ffe6f2 !important;
+        border-color: #ff69b4 !important;
+    }
+    .glow-minor {
+        box-shadow: 0 0 20px rgba(135, 206, 235, 0.8), inset 0 0 15px rgba(135, 206, 235, 0.5) !important;
+        background: #e6f7ff !important;
+        border-color: #87ceeb !important;
+    }
+    .glow-power {
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.8), inset 0 0 15px rgba(255, 215, 0, 0.5) !important;
+        background: #fffbe6 !important;
+        border-color: #ffd700 !important;
+    }
+
+    .key-sticker {
+        width: 20px;
+        height: 20px;
+        background: #ffcc00;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-weight: 800;
+        font-size: 0.8rem;
+        color: black;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    }
+</style>
+
+<div class="container d-flex flex-column justify-content-center align-items-center" style="min-height: 70vh;">
+    <div class="glass-panel p-4 mb-4 text-center w-100" style="max-width: 800px; border-radius: 20px;">
+        <h2 class="text-white mb-4 fw-bold"><i class="fas fa-keyboard me-2 text-warning"></i>Kamus Chord Visual</h2>
+
+        <div class="row g-3 justify-content-center">
+            <div class="col-md-4">
+                <select id="baseNote" class="form-select bg-dark text-white border-secondary">
+                    <option value="0">C</option>
+                    <option value="1">C# / Db</option>
+                    <option value="2">D</option>
+                    <option value="3">D# / Eb</option>
+                    <option value="4">E</option>
+                    <option value="5">F</option>
+                    <option value="6">F# / Gb</option>
+                    <option value="7">G</option>
+                    <option value="8">G# / Ab</option>
+                    <option value="9">A</option>
+                    <option value="10">A# / Bb</option>
+                    <option value="11">B</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <select id="chordType" class="form-select bg-dark text-white border-secondary">
+                    <option value="major">Major</option>
+                    <option value="minor">Minor</option>
+                    <option value="power">Power Chord (5)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="piano-container w-100" style="max-width: 900px;">
+        <div class="keys-wrapper" id="pianoKeys">
+            <!-- Rendered by JS -->
+        </div>
+    </div>
+</div>
+
+<script>
+    const pianoKeys = document.getElementById('pianoKeys');
+    const baseNoteSelect = document.getElementById('baseNote');
+    const chordTypeSelect = document.getElementById('chordType');
+
+    // 2 Octaves of notes: 0 to 23
+    // Pattern of white (W) and black (B) keys starting from C
+    const keyPattern = ['W','B','W','B','W','W','B','W','B','W','B','W'];
+
+    function buildPiano() {
+        pianoKeys.innerHTML = '';
+        let whiteKeyCount = 0;
+
+        for(let i=0; i<24; i++) {
+            let noteType = keyPattern[i % 12];
+            let keyDiv = document.createElement('div');
+            keyDiv.setAttribute('data-note', i);
+
+            if(noteType === 'W') {
+                keyDiv.className = 'white-key';
+                pianoKeys.appendChild(keyDiv);
+                whiteKeyCount++;
+            } else {
+                keyDiv.className = 'black-key';
+                // Calculate position based on previous white keys
+                // White key width = 50px, border = 1px, total approx 52px
+                // Black key width = 30px
+                let leftPos = (whiteKeyCount * 50) - 15;
+                keyDiv.style.left = leftPos + 'px';
+                pianoKeys.appendChild(keyDiv);
+            }
+        }
+    }
+
+    function updateChord() {
+        // Clear old glows and stickers
+        document.querySelectorAll('.white-key, .black-key').forEach(el => {
+            el.classList.remove('glow-major', 'glow-minor', 'glow-power');
+            el.innerHTML = '';
+        });
+
+        let root = parseInt(baseNoteSelect.value);
+        let type = chordTypeSelect.value;
+
+        let intervals = [];
+        let glowClass = '';
+        let fingerings = [];
+
+        if(type === 'major') {
+            intervals = [0, 4, 7];
+            glowClass = 'glow-major';
+            fingerings = [1, 3, 5]; // Jempol, Tengah, Kelingking
+        } else if (type === 'minor') {
+            intervals = [0, 3, 7];
+            glowClass = 'glow-minor';
+            fingerings = [1, 3, 5];
+        } else if (type === 'power') {
+            intervals = [0, 7];
+            glowClass = 'glow-power';
+            fingerings = [1, 5];
+        }
+
+        intervals.forEach((interval, index) => {
+            let targetNote = root + interval;
+            let keyEl = document.querySelector(`[data-note="${targetNote}"]`);
+            if(keyEl) {
+                keyEl.classList.add(glowClass);
+                keyEl.innerHTML = `<div class="key-sticker">${fingerings[index]}</div>`;
+            }
+        });
+    }
+
+    baseNoteSelect.addEventListener('change', updateChord);
+    chordTypeSelect.addEventListener('change', updateChord);
+
+    // Init
+    buildPiano();
+    updateChord();
+</script>
+"""
+
+@app.route('/vocal-detector')
+def vocal_detector():
+    return render_layout(VOCAL_DETECTOR_HTML)
+
+VOCAL_DETECTOR_HTML = """
+<style>
+    .tuner-container {
+        background: rgba(20, 20, 25, 0.85);
+        border-radius: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.5), inset 0 0 20px rgba(255,255,255,0.05);
+        backdrop-filter: blur(20px);
+        padding: 40px 20px;
+        text-align: center;
+        max-width: 500px;
+        width: 100%;
+        margin: 0 auto;
+        position: relative;
+        overflow: hidden;
+    }
+    .tuner-container::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 60%);
+        pointer-events: none;
+    }
+    .note-display {
+        font-size: 6rem;
+        font-weight: 800;
+        color: white;
+        text-shadow: 0 0 20px rgba(255,255,255,0.5);
+        line-height: 1;
+        margin-bottom: 10px;
+        transition: color 0.2s, text-shadow 0.2s;
+    }
+    .cents-display {
+        font-size: 1.5rem;
+        color: rgba(255,255,255,0.7);
+        margin-bottom: 30px;
+    }
+    .tuning-meter {
+        position: relative;
+        width: 100%;
+        height: 150px;
+    }
+    #meterCanvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+    .status-text {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-top: 20px;
+        min-height: 30px;
+    }
+
+    .note-perfect {
+        color: #00ff00 !important;
+        text-shadow: 0 0 30px #00ff00 !important;
+    }
+    .note-low {
+        color: #ff3333 !important;
+        text-shadow: 0 0 20px #ff3333 !important;
+    }
+    .note-high {
+        color: #ff9900 !important;
+        text-shadow: 0 0 20px #ff9900 !important;
+    }
+</style>
+
+<div class="container d-flex flex-column justify-content-center align-items-center" style="min-height: 70vh;">
+    <div class="tuner-container">
+        <h3 class="text-white opacity-75 mb-4 text-uppercase letter-spacing-1">
+            <i class="fas fa-microphone-alt me-2"></i>Detektor Nada Vokal
+        </h3>
+
+        <div class="note-display" id="noteName">--</div>
+        <div class="cents-display" id="centsDisplay">0 cents</div>
+
+        <div class="tuning-meter">
+            <canvas id="meterCanvas"></canvas>
+        </div>
+
+        <div class="status-text text-white" id="statusText">Tekan tombol untuk mulai</div>
+
+        <button id="micBtn" class="btn btn-primary rounded-pill mt-4 px-5 py-2 fw-bold">
+            <i class="fas fa-microphone me-2"></i> Mulai Deteksi
+        </button>
+    </div>
+</div>
+
+<script>
+    const noteNameEl = document.getElementById('noteName');
+    const centsDisplayEl = document.getElementById('centsDisplay');
+    const statusTextEl = document.getElementById('statusText');
+    const micBtn = document.getElementById('micBtn');
+    const canvas = document.getElementById('meterCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    let audioCtx;
+    let analyser;
+    let microphone;
+    let isDetecting = false;
+    let animationId;
+    let bufferLength;
+    let dataArray;
+
+    const noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+    function noteFromPitch(frequency) {
+        let noteNum = 12 * (Math.log(frequency / 440) / Math.log(2));
+        return Math.round(noteNum) + 69;
+    }
+
+    function frequencyFromNoteNumber(note) {
+        return 440 * Math.pow(2, (note - 69) / 12);
+    }
+
+    function centsOffFromPitch(frequency, note) {
+        return Math.floor(1200 * Math.log(frequency / frequencyFromNoteNumber(note)) / Math.log(2));
+    }
+
+    // Autocorrelation algorithm for pitch detection
+    function autoCorrelate(buf, sampleRate) {
+        let SIZE = buf.length;
+        let rms = 0;
+
+        for (let i = 0; i < SIZE; i++) {
+            let val = buf[i];
+            rms += val * val;
+        }
+        rms = Math.sqrt(rms / SIZE);
+        if (rms < 0.01) return -1; // Not enough signal
+
+        let r1 = 0, r2 = SIZE - 1, thres = 0.2;
+        for (let i = 0; i < SIZE / 2; i++)
+            if (Math.abs(buf[i]) < thres) { r1 = i; break; }
+        for (let i = 1; i < SIZE / 2; i++)
+            if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
+
+        buf = buf.slice(r1, r2);
+        SIZE = buf.length;
+
+        let c = new Array(SIZE).fill(0);
+        for (let i = 0; i < SIZE; i++)
+            for (let j = 0; j < SIZE - i; j++)
+                c[i] = c[i] + buf[j] * buf[j + i];
+
+        let d = 0; while (c[d] > c[d + 1]) d++;
+        let maxval = -1, maxpos = -1;
+        for (let i = d; i < SIZE; i++) {
+            if (c[i] > maxval) {
+                maxval = c[i];
+                maxpos = i;
+            }
+        }
+        let T0 = maxpos;
+
+        // Parabolic interpolation
+        let x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
+        let a = (x1 + x3 - 2 * x2) / 2;
+        let b = (x3 - x1) / 2;
+        if (a) T0 = T0 - b / (2 * a);
+
+        return sampleRate / T0;
+    }
+
+    function drawMeter(cents) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const cx = canvas.width / 2;
+        const cy = canvas.height;
+        const radius = canvas.height - 20;
+
+        // Draw ticks
+        for(let i = -50; i <= 50; i += 10) {
+            let angle = Math.PI + (i * Math.PI / 100);
+            ctx.beginPath();
+            ctx.moveTo(cx + Math.cos(angle) * (radius - 10), cy + Math.sin(angle) * (radius - 10));
+            ctx.lineTo(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
+            ctx.strokeStyle = (i === 0) ? '#00ff00' : 'rgba(255,255,255,0.5)';
+            ctx.lineWidth = (i === 0) ? 4 : 2;
+            ctx.stroke();
+        }
+
+        // Draw Needle
+        let c = Math.max(-50, Math.min(50, cents)); // Clamp
+        let needleAngle = Math.PI + (c * Math.PI / 100);
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(needleAngle) * radius, cy + Math.sin(needleAngle) * radius);
+
+        if (Math.abs(c) < 5) {
+            ctx.strokeStyle = '#00ff00';
+            ctx.shadowColor = '#00ff00';
+        } else if (c < -5) {
+            ctx.strokeStyle = '#ff3333';
+            ctx.shadowColor = '#ff3333';
+        } else {
+            ctx.strokeStyle = '#ff9900';
+            ctx.shadowColor = '#ff9900';
+        }
+
+        ctx.shadowBlur = 10;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.shadowBlur = 0; // reset
+
+        // Center pivot
+        ctx.beginPath();
+        ctx.arc(cx, cy, 10, 0, 2 * Math.PI);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+    }
+
+    function updatePitch() {
+        if (!isDetecting) return;
+
+        analyser.getFloatTimeDomainData(dataArray);
+        let pitch = autoCorrelate(dataArray, audioCtx.sampleRate);
+
+        if (pitch == -1) {
+            // No sound
+            drawMeter(0);
+            noteNameEl.innerText = "--";
+            centsDisplayEl.innerText = "";
+            statusTextEl.innerText = "Mendengarkan...";
+            noteNameEl.className = "note-display";
+        } else {
+            let note = noteFromPitch(pitch);
+            let noteName = noteStrings[note % 12];
+            let cents = centsOffFromPitch(pitch, note);
+
+            noteNameEl.innerText = noteName;
+            centsDisplayEl.innerText = `${cents > 0 ? '+' : ''}${cents} cents`;
+
+            noteNameEl.className = "note-display"; // reset
+            if (Math.abs(cents) < 5) {
+                noteNameEl.classList.add("note-perfect");
+                statusTextEl.innerText = "Tepat!";
+                statusTextEl.style.color = "#00ff00";
+            } else if (cents < -5) {
+                noteNameEl.classList.add("note-low");
+                statusTextEl.innerText = "Terlalu Rendah!";
+                statusTextEl.style.color = "#ff3333";
+            } else {
+                noteNameEl.classList.add("note-high");
+                statusTextEl.innerText = "Terlalu Tinggi!";
+                statusTextEl.style.color = "#ff9900";
+            }
+
+            drawMeter(cents);
+        }
+
+        animationId = requestAnimationFrame(updatePitch);
+    }
+
+    async function startMic() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 2048;
+
+            microphone = audioCtx.createMediaStreamSource(stream);
+            microphone.connect(analyser);
+
+            bufferLength = analyser.fftSize;
+            dataArray = new Float32Array(bufferLength);
+
+            isDetecting = true;
+            micBtn.innerHTML = '<i class="fas fa-stop me-2"></i> Berhenti Deteksi';
+            micBtn.classList.replace('btn-primary', 'btn-danger');
+
+            updatePitch();
+
+        } catch (err) {
+            alert("Error mengakses mikrofon: " + err);
+        }
+    }
+
+    function stopMic() {
+        isDetecting = false;
+        cancelAnimationFrame(animationId);
+        if (microphone) microphone.disconnect();
+        if (audioCtx) audioCtx.close();
+
+        micBtn.innerHTML = '<i class="fas fa-microphone me-2"></i> Mulai Deteksi';
+        micBtn.classList.replace('btn-danger', 'btn-primary');
+        noteNameEl.innerText = "--";
+        noteNameEl.className = "note-display";
+        centsDisplayEl.innerText = "0 cents";
+        statusTextEl.innerText = "Tekan tombol untuk mulai";
+        statusTextEl.style.color = "white";
+        drawMeter(0);
+    }
+
+    micBtn.addEventListener('click', () => {
+        if (isDetecting) {
+            stopMic();
+        } else {
+            startMic();
+        }
+    });
+
+    // Initial draw
+    drawMeter(0);
+</script>
+"""
+
+@app.route('/recording-studio')
+def recording_studio():
+    return render_layout(RECORDING_STUDIO_HTML)
+
+RECORDING_STUDIO_HTML = """
+<style>
+    .studio-container {
+        background: rgba(15, 15, 20, 0.85);
+        border-radius: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 0 20px rgba(255,255,255,0.05);
+        backdrop-filter: blur(25px);
+        padding: 30px;
+        text-align: center;
+        max-width: 700px;
+        width: 100%;
+        margin: 0 auto;
+    }
+    .viewfinder-wrapper {
+        position: relative;
+        width: 100%;
+        border-radius: 20px;
+        overflow: hidden;
+        background: #000;
+        margin-bottom: 20px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        border: 2px solid rgba(255,255,255,0.1);
+    }
+    #previewVideo, #playbackVideo {
+        width: 100%;
+        display: block;
+        transform: scaleX(-1); /* Mirror effect like front camera */
+    }
+    #playbackVideo {
+        transform: scaleX(1); /* Playback shouldn't be mirrored usually, but keeping consistent is fine. Let's not mirror playback. */
+    }
+
+    .record-btn-container {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+    }
+    .record-btn {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: #ff3333;
+        border: 4px solid white;
+        box-shadow: 0 0 15px rgba(255, 51, 51, 0.8);
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .record-btn.recording {
+        border-radius: 10px;
+        animation: pulse-record 1.5s infinite;
+    }
+    @keyframes pulse-record {
+        0% { box-shadow: 0 0 10px rgba(255, 51, 51, 0.8); }
+        50% { box-shadow: 0 0 30px rgba(255, 51, 51, 1); }
+        100% { box-shadow: 0 0 10px rgba(255, 51, 51, 0.8); }
+    }
+    .status-indicator {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: rgba(0,0,0,0.6);
+        color: white;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-weight: bold;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .red-dot {
+        width: 10px;
+        height: 10px;
+        background: red;
+        border-radius: 50%;
+        display: inline-block;
+        opacity: 0;
+    }
+    .recording .red-dot {
+        animation: blink 1s infinite;
+    }
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
+</style>
+
+<div class="container d-flex flex-column justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="studio-container">
+        <h3 class="text-white opacity-90 mb-4 text-uppercase letter-spacing-1 fw-bold">
+            <i class="fas fa-video me-2 text-danger"></i>Studio Sandbox Rekaman
+        </h3>
+
+        <div id="cameraSection">
+            <div class="viewfinder-wrapper">
+                <div class="status-indicator" id="statusIndicator">
+                    <span class="red-dot"></span> <span id="statusText">Ready</span>
+                </div>
+                <video id="previewVideo" autoplay muted playsinline></video>
+                <div class="record-btn-container">
+                    <div class="record-btn" id="recordBtn" onclick="toggleRecording()"></div>
+                </div>
+            </div>
+            <p class="text-white-50 small">Tekan tombol merah untuk merekam sesi latihanmu!</p>
+        </div>
+
+        <div id="playbackSection" style="display: none;">
+            <div class="viewfinder-wrapper">
+                <video id="playbackVideo" controls playsinline></video>
+            </div>
+
+            <div class="d-flex justify-content-center gap-3">
+                <button class="btn btn-outline-light rounded-pill px-4" onclick="retakeVideo()">
+                    <i class="fas fa-redo me-2"></i> Rekam Ulang
+                </button>
+                <button class="btn btn-primary rounded-pill px-4" onclick="uploadToGallery()" id="uploadBtn">
+                    <i class="fas fa-cloud-upload-alt me-2"></i> Simpan ke Galeri
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const previewVideo = document.getElementById('previewVideo');
+    const playbackVideo = document.getElementById('playbackVideo');
+    const recordBtn = document.getElementById('recordBtn');
+    const statusIndicator = document.getElementById('statusIndicator');
+    const statusText = document.getElementById('statusText');
+    const cameraSection = document.getElementById('cameraSection');
+    const playbackSection = document.getElementById('playbackSection');
+    const uploadBtn = document.getElementById('uploadBtn');
+
+    let mediaRecorder;
+    let recordedChunks = [];
+    let stream;
+    let recordedBlob;
+
+    async function initCamera() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            previewVideo.srcObject = stream;
+        } catch (err) {
+            alert("Error mengakses kamera/mikrofon: " + err);
+        }
+    }
+
+    function toggleRecording() {
+        if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+            startRecording();
+        } else if (mediaRecorder.state === 'recording') {
+            stopRecording();
+        }
+    }
+
+    function startRecording() {
+        recordedChunks = [];
+        try {
+            // Attempt to use webm, fallback to mp4
+            let options = { mimeType: 'video/webm;codecs=vp9,opus' };
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options = { mimeType: 'video/mp4' };
+            }
+            mediaRecorder = new MediaRecorder(stream, options);
+        } catch(e) {
+            mediaRecorder = new MediaRecorder(stream);
+        }
+
+        mediaRecorder.ondataavailable = handleDataAvailable;
+        mediaRecorder.onstop = handleStop;
+
+        mediaRecorder.start();
+        recordBtn.classList.add('recording');
+        statusIndicator.classList.add('recording');
+        statusText.innerText = "REC";
+    }
+
+    function handleDataAvailable(event) {
+        if (event.data.size > 0) {
+            recordedChunks.push(event.data);
+        }
+    }
+
+    function stopRecording() {
+        mediaRecorder.stop();
+        recordBtn.classList.remove('recording');
+        statusIndicator.classList.remove('recording');
+        statusText.innerText = "Ready";
+    }
+
+    function handleStop() {
+        recordedBlob = new Blob(recordedChunks, { type: 'video/webm' });
+        const videoURL = URL.createObjectURL(recordedBlob);
+
+        playbackVideo.src = videoURL;
+
+        // UI Transition
+        cameraSection.style.display = 'none';
+        playbackSection.style.display = 'block';
+    }
+
+    function retakeVideo() {
+        playbackVideo.pause();
+        playbackVideo.removeAttribute('src');
+        playbackVideo.load();
+
+        playbackSection.style.display = 'none';
+        cameraSection.style.display = 'block';
+    }
+
+    function uploadToGallery() {
+        if (!recordedBlob) return;
+
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Mengunggah...';
+
+        // Construct FormData to match /gallery POST requirements
+        const formData = new FormData();
+        // Fallback filename. The allowed extensions in Python includes webm/mp4
+        const file = new File([recordedBlob], "studio_recording.webm", { type: "video/webm" });
+        formData.append('image', file); // Field name is 'image' in python code
+        formData.append('student_name', "Siswa (Studio Mode)");
+
+        let now = new Date();
+        formData.append('title', "Latihan Rekaman " + now.toLocaleTimeString());
+
+        fetch('/gallery', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                alert("Berhasil disimpan ke Galeri Karya!");
+                window.location.href = '/gallery';
+            } else {
+                alert("Gagal menyimpan video.");
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i> Simpan ke Galeri';
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Terjadi kesalahan jaringan.");
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i> Simpan ke Galeri';
+        });
+    }
+
+    // Initialize camera on load
+    window.addEventListener('load', initCamera);
+
+    // Stop stream when leaving
+    window.addEventListener('beforeunload', () => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+    });
+</script>
+"""
+
+@app.route('/scrolling-sheet')
+def scrolling_sheet():
+    return render_layout(SCROLLING_SHEET_HTML)
+
+SCROLLING_SHEET_HTML = """
+<style>
+    .sheet-container {
+        background: rgba(10, 10, 15, 0.9);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 0 30px rgba(255,255,255,0.05);
+        padding: 30px;
+        text-align: center;
+        max-width: 900px;
+        width: 100%;
+        margin: 0 auto;
+    }
+    .canvas-wrapper {
+        position: relative;
+        width: 100%;
+        height: 250px;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 20px;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    #sheetCanvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+    .target-box {
+        position: absolute;
+        top: 0;
+        left: 20%;
+        width: 40px;
+        height: 100%;
+        background: rgba(0, 255, 204, 0.1);
+        border-left: 2px solid #00ffcc;
+        border-right: 2px solid #00ffcc;
+        box-shadow: 0 0 15px rgba(0, 255, 204, 0.5);
+        pointer-events: none;
+    }
+    .controls {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        background: rgba(255,255,255,0.05);
+        padding: 15px;
+        border-radius: 15px;
+    }
+</style>
+
+<div class="container d-flex flex-column justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="sheet-container">
+        <h3 class="text-white opacity-90 mb-4 text-uppercase letter-spacing-1 fw-bold">
+            <i class="fas fa-scroll me-2 text-warning"></i>Papan Partitur Berjalan
+        </h3>
+
+        <div class="canvas-wrapper" id="canvasWrapper">
+            <div class="target-box" id="targetBox"></div>
+            <canvas id="sheetCanvas"></canvas>
+        </div>
+
+        <div class="controls flex-wrap">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-white-50 small fw-bold">TEMPO:</span>
+                <input type="range" class="form-range" min="40" max="180" value="80" id="tempoSlider" style="width: 150px;">
+                <span class="text-white fw-bold" id="tempoVal">80 BPM</span>
+            </div>
+
+            <button id="playSheetBtn" class="btn btn-primary rounded-pill px-4 fw-bold">
+                <i class="fas fa-play me-2"></i> MULAI
+            </button>
+        </div>
+        <p class="text-white-50 small mt-3 mb-0">Baca dan mainkan not yang melewati garis target hijau!</p>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('sheetCanvas');
+    const ctx = canvas.getContext('2d');
+    const wrapper = document.getElementById('canvasWrapper');
+    const tempoSlider = document.getElementById('tempoSlider');
+    const tempoVal = document.getElementById('tempoVal');
+    const playBtn = document.getElementById('playSheetBtn');
+
+    function resizeCanvas() {
+        canvas.width = wrapper.clientWidth;
+        canvas.height = wrapper.clientHeight;
+        drawStaffLines(); // Redraw static background immediately
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    let isPlaying = false;
+    let animationId;
+    let notes = [];
+    let bpm = 80;
+    let speed = 2; // pixels per frame
+    let nextSpawnTime = 0;
+    let msPerBeat = 60000 / bpm;
+
+    // Treble clef staff lines configuration
+    const lineSpacing = 15;
+    const staffTopY = 80;
+    const staffLines = 5;
+
+    // Note positions mapped to Y coordinates
+    // Middle C is below the staff with a ledger line
+    const notePositions = {
+        'C4': staffTopY + (lineSpacing * 5), // Ledger line
+        'D4': staffTopY + (lineSpacing * 4.5),
+        'E4': staffTopY + (lineSpacing * 4), // Line 1
+        'F4': staffTopY + (lineSpacing * 3.5),// Space 1
+        'G4': staffTopY + (lineSpacing * 3), // Line 2
+        'A4': staffTopY + (lineSpacing * 2.5),// Space 2
+        'B4': staffTopY + (lineSpacing * 2), // Line 3
+        'C5': staffTopY + (lineSpacing * 1.5),// Space 3
+        'D5': staffTopY + (lineSpacing * 1), // Line 4
+        'E5': staffTopY + (lineSpacing * 0.5),// Space 4
+        'F5': staffTopY                            // Line 5
+    };
+
+    const noteKeys = Object.keys(notePositions);
+
+    function drawStaffLines() {
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.lineWidth = 1;
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = "rgba(255, 255, 255, 0.5)";
+
+        ctx.beginPath();
+        for (let i = 0; i < staffLines; i++) {
+            let y = staffTopY + (i * lineSpacing);
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+    }
+
+    function spawnNote() {
+        const randomKey = noteKeys[Math.floor(Math.random() * noteKeys.length)];
+        const yPos = notePositions[randomKey];
+
+        notes.push({
+            x: canvas.width + 20,
+            y: yPos,
+            name: randomKey,
+            hasLedger: (randomKey === 'C4')
+        });
+
+        nextSpawnTime = performance.now() + msPerBeat;
+    }
+
+    function drawNote(note) {
+        // Draw Ledger Line if needed (Middle C)
+        if (note.hasLedger) {
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(note.x - 12, note.y);
+            ctx.lineTo(note.x + 12, note.y);
+            ctx.stroke();
+        }
+
+        // Draw Note Head (Ellipse)
+        ctx.fillStyle = "#ffffff";
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#ffffff";
+
+        ctx.beginPath();
+        ctx.ellipse(note.x, note.y, 8, 6, -Math.PI/4, 0, 2 * Math.PI);
+        ctx.fill();
+
+        // Draw Stem
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (note.y > staffTopY + (lineSpacing * 2)) {
+            // Stem goes up (right side)
+            ctx.moveTo(note.x + 7, note.y - 2);
+            ctx.lineTo(note.x + 7, note.y - 35);
+        } else {
+            // Stem goes down (left side)
+            ctx.moveTo(note.x - 7, note.y + 2);
+            ctx.lineTo(note.x - 7, note.y + 35);
+        }
+        ctx.stroke();
+
+        // Text label
+        ctx.fillStyle = "rgba(255,255,255,0.7)";
+        ctx.font = "10px Inter";
+        ctx.fillText(note.name, note.x - 6, note.y + 20);
+    }
+
+    function animate(timestamp) {
+        if (!isPlaying) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawStaffLines();
+
+        if (timestamp >= nextSpawnTime) {
+            spawnNote();
+        }
+
+        // Update and draw notes
+        for (let i = notes.length - 1; i >= 0; i--) {
+            let note = notes[i];
+            note.x -= speed;
+
+            drawNote(note);
+
+            // Remove if offscreen
+            if (note.x < -30) {
+                notes.splice(i, 1);
+            }
+        }
+
+        animationId = requestAnimationFrame(animate);
+    }
+
+    function togglePlay() {
+        if (isPlaying) {
+            isPlaying = false;
+            cancelAnimationFrame(animationId);
+            playBtn.innerHTML = '<i class="fas fa-play me-2"></i> MULAI';
+            playBtn.classList.replace('btn-danger', 'btn-primary');
+        } else {
+            isPlaying = true;
+            notes = [];
+            nextSpawnTime = performance.now();
+            playBtn.innerHTML = '<i class="fas fa-stop me-2"></i> BERHENTI';
+            playBtn.classList.replace('btn-primary', 'btn-danger');
+            requestAnimationFrame(animate);
+        }
+    }
+
+    tempoSlider.addEventListener('input', (e) => {
+        bpm = parseInt(e.target.value);
+        tempoVal.innerText = bpm + " BPM";
+        msPerBeat = 60000 / bpm;
+        // Adjust speed pixel calculation roughly based on BPM
+        speed = (bpm / 60) * 2;
+    });
+
+    playBtn.addEventListener('click', togglePlay);
+
+    // Initial setup
+    resizeCanvas();
+    drawStaffLines();
+</script>
+"""
+
+@app.route('/jamming-track')
+def jamming_track():
+    return render_layout(JAMMING_TRACK_HTML)
+
+JAMMING_TRACK_HTML = """
+<style>
+    .jamming-container {
+        background: rgba(15, 20, 25, 0.85);
+        border-radius: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 0 20px rgba(255,255,255,0.05);
+        backdrop-filter: blur(25px);
+        padding: 40px 30px;
+        text-align: center;
+        max-width: 600px;
+        width: 100%;
+        margin: 0 auto;
+    }
+    .vinyl-record {
+        width: 150px;
+        height: 150px;
+        background: #111;
+        border-radius: 50%;
+        margin: 0 auto 30px;
+        border: 5px solid #333;
+        position: relative;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        transition: transform 0.2s;
+    }
+    .vinyl-record::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 50px;
+        height: 50px;
+        background: var(--brand-color, #E5322D);
+        border-radius: 50%;
+    }
+    .vinyl-record::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 10px;
+        height: 10px;
+        background: #fff;
+        border-radius: 50%;
+    }
+    .vinyl-record.spinning {
+        animation: spin 2s linear infinite;
+    }
+    @keyframes spin {
+        100% { transform: rotate(360deg); }
+    }
+
+    .eq-bars {
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        height: 40px;
+        gap: 4px;
+        margin-bottom: 20px;
+    }
+    .eq-bar {
+        width: 8px;
+        background: #00ffcc;
+        border-radius: 4px 4px 0 0;
+        transition: height 0.1s ease;
+    }
+
+    .custom-select-wrapper {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    .custom-select-wrapper select {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 12px;
+        width: 100%;
+        appearance: none;
+        cursor: pointer;
+    }
+    .custom-select-wrapper select:focus {
+        outline: none;
+        border-color: #00ffcc;
+    }
+    .custom-select-wrapper select option {
+        background: #222;
+        color: white;
+    }
+    .custom-select-wrapper::after {
+        content: '▼';
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: rgba(255,255,255,0.5);
+        pointer-events: none;
+    }
+</style>
+
+<div class="container d-flex flex-column justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="jamming-container">
+        <h3 class="text-white opacity-90 mb-4 text-uppercase letter-spacing-1 fw-bold">
+            <i class="fas fa-compact-disc me-2 text-primary"></i>Teman Jamming
+        </h3>
+
+        <div class="vinyl-record" id="vinyl"></div>
+
+        <div class="eq-bars" id="eqBars">
+            <div class="eq-bar" style="height: 10px;"></div>
+            <div class="eq-bar" style="height: 10px;"></div>
+            <div class="eq-bar" style="height: 10px;"></div>
+            <div class="eq-bar" style="height: 10px;"></div>
+            <div class="eq-bar" style="height: 10px;"></div>
+            <div class="eq-bar" style="height: 10px;"></div>
+            <div class="eq-bar" style="height: 10px;"></div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-6">
+                <div class="custom-select-wrapper">
+                    <select id="keySelect">
+                        <option value="C">C Major</option>
+                        <option value="D">D Major</option>
+                        <option value="E">E Major</option>
+                        <option value="F">F Major</option>
+                        <option value="G">G Major</option>
+                        <option value="A">A Major</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="custom-select-wrapper">
+                    <select id="genreSelect">
+                        <option value="pop_rock.mp3">Pop Rock</option>
+                        <option value="jazz_swing.mp3">Jazz Swing</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center justify-content-center gap-3 mt-4">
+            <button class="btn btn-outline-light rounded-circle" style="width: 50px; height: 50px;">
+                <i class="fas fa-backward"></i>
+            </button>
+            <button id="playBtn" class="btn btn-primary rounded-circle shadow-lg" style="width: 70px; height: 70px; font-size: 1.5rem;" onclick="toggleAudio()">
+                <i class="fas fa-play" style="margin-left: 5px;"></i>
+            </button>
+            <button class="btn btn-outline-light rounded-circle" style="width: 50px; height: 50px;">
+                <i class="fas fa-forward"></i>
+            </button>
+        </div>
+
+        <div class="mt-4 d-flex align-items-center gap-3">
+            <i class="fas fa-volume-down text-white-50"></i>
+            <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.01" value="0.7">
+            <i class="fas fa-volume-up text-white-50"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden audio element -->
+<audio id="jamAudio" loop preload="none"></audio>
+
+<script>
+    const audioEl = document.getElementById('jamAudio');
+    const playBtn = document.getElementById('playBtn');
+    const vinyl = document.getElementById('vinyl');
+    const genreSelect = document.getElementById('genreSelect');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const eqBars = document.querySelectorAll('.eq-bar');
+
+    let isPlaying = false;
+    let eqInterval;
+
+    function setAudioSource() {
+        // Construct URL based on selection
+        const genreFile = genreSelect.value;
+        audioEl.src = '/static/audio/' + genreFile;
+    }
+
+    function animateEQ() {
+        eqBars.forEach(bar => {
+            const h = 5 + Math.random() * 35;
+            bar.style.height = h + 'px';
+        });
+    }
+
+    function stopEQ() {
+        eqBars.forEach(bar => {
+            bar.style.height = '10px';
+        });
+    }
+
+    function toggleAudio() {
+        if (!audioEl.src || audioEl.src === window.location.href) {
+            setAudioSource();
+        }
+
+        if (isPlaying) {
+            audioEl.pause();
+            isPlaying = false;
+            playBtn.innerHTML = '<i class="fas fa-play" style="margin-left: 5px;"></i>';
+            playBtn.classList.replace('btn-danger', 'btn-primary');
+            vinyl.classList.remove('spinning');
+            clearInterval(eqInterval);
+            stopEQ();
+        } else {
+            // Because files might not exist actually, we handle promise rejection to avoid console spam breaking things visually
+            let playPromise = audioEl.play();
+            if (playPromise !== undefined) {
+                playPromise.then(_ => {
+                    // Playback started!
+                }).catch(error => {
+                    console.log("Audio playback failed (dummy file likely empty). Simulating playback.");
+                });
+            }
+
+            isPlaying = true;
+            playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+            playBtn.classList.replace('btn-primary', 'btn-danger');
+            vinyl.classList.add('spinning');
+            eqInterval = setInterval(animateEQ, 100);
+        }
+    }
+
+    genreSelect.addEventListener('change', () => {
+        const wasPlaying = isPlaying;
+        if (wasPlaying) {
+            toggleAudio(); // Stop current
+        }
+        setAudioSource();
+        if (wasPlaying) {
+            toggleAudio(); // Play new
+        }
+    });
+
+    volumeSlider.addEventListener('input', (e) => {
+        audioEl.volume = e.target.value;
+    });
+
+    // Set initial volume
+    audioEl.volume = volumeSlider.value;
+</script>
 """
 
 if __name__ == '__main__':
