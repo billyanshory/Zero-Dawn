@@ -135,7 +135,7 @@ NAVBAR_HTML = """
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             border-radius: 30px;
-            padding: 10px 20px;
+            padding: 5px 15px;
             border: 1px solid rgba(255,255,255,0.2);
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
@@ -147,6 +147,7 @@ NAVBAR_HTML = """
              -webkit-text-fill-color: transparent;
              text-shadow: 0 0 10px rgba(255,255,255,0.2);
              font-weight: 800;
+             font-size: 1.2rem;
              animation: shine 5s linear infinite;
         }
         @keyframes shine {
@@ -156,8 +157,8 @@ NAVBAR_HTML = """
         }
         
         .nav-icon-btn {
-            width: 45px;
-            height: 45px;
+            width: 35px;
+            height: 35px;
             border-radius: 50%;
             border: 2px solid rgba(255,255,255,0.5);
             background: rgba(255,255,255,0.1);
@@ -279,7 +280,7 @@ NAVBAR_HTML = """
                 
                 <!-- 3. Hamburger Menu (Right) -->
                 <button class="nav-icon-btn" onclick="toggleMenu()" style="border: none; background: transparent; color: white; display: flex;">
-                    <i class="fas fa-bars" style="font-size: 1.5rem;"></i>
+                    <i class="fas fa-bars" style="font-size: 1.2rem;"></i>
                 </button>
             </div>
         </div>
@@ -586,9 +587,9 @@ STYLES_HTML = """
             display: flex;
             gap: 15px;
             overflow-x: auto;
-            padding: 15px 5px;
-            margin-top: 10px;
-            margin-bottom: 20px;
+            padding: 5px;
+            margin-top: 5px;
+            margin-bottom: 5px;
             scrollbar-width: none; /* Firefox */
             -ms-overflow-style: none;  /* IE 10+ */
         }
@@ -602,15 +603,15 @@ STYLES_HTML = """
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            width: 100px;
-            height: 100px;
+            width: 70px;
+            height: 70px;
             border-radius: 16px;
             text-decoration: none;
             color: white;
             transition: all 0.3s ease;
             text-align: center;
-            padding: 10px;
-            font-size: 0.8rem;
+            padding: 5px;
+            font-size: 0.7rem;
             font-weight: 600;
             background: rgba(255, 255, 255, 0.15);
             border: 1px solid rgba(255, 255, 255, 0.3);
@@ -635,7 +636,7 @@ STYLES_HTML = """
             bottom: 0 !important;
             left: 0 !important;
             width: 100% !important;
-            min-height: 80px; /* Allow growth */
+            min-height: 60px; /* Allow growth */
             height: auto;
             z-index: 99999 !important; /* Ensure on top */
             display: flex;
@@ -645,8 +646,8 @@ STYLES_HTML = """
             gap: 15px;
             scrollbar-width: none;
             align-items: center;
-            padding: 10px 0;
-            padding-bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+            padding: 5px 0;
+            padding-bottom: calc(5px + env(safe-area-inset-bottom)) !important;
             background: rgba(255, 255, 255, 0.1) !important; /* Clear transparent */
             backdrop-filter: blur(10px) !important; /* Modern Cool Blur */
             border-top: 1px solid rgba(255,255,255,0.2);
@@ -664,40 +665,32 @@ STYLES_HTML = """
             text-decoration: none;
             color: rgba(255,255,255,0.7);
             transition: 0.3s;
-            font-size: 0.8rem;
-            padding: 5px;
-            flex: 0 0 85px;
+            font-size: 0.7rem;
+            padding: 2px;
+            flex: 0 0 60px;
         }
         
         .bottom-nav-item span {
             display: block !important;
-            font-size: 0.75rem;
-            margin-top: 4px;
+            font-size: 0.65rem;
+            margin-top: 2px;
             font-weight: 600;
             text-align: center;
             line-height: 1.2;
         }
         
         .bottom-nav-item i {
-            font-size: 1.5rem;
-            margin-bottom: 5px;
-            background: rgba(255,255,255,0.1);
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
+            font-size: 1.3rem;
+            margin-bottom: 2px;
             display: flex;
             justify-content: center;
             align-items: center;
-            border: 1px solid rgba(255,255,255,0.2);
             transition: 0.3s;
         }
         
         .bottom-nav-item:hover i, .bottom-nav-item.active i {
-            background: #9DC183; /* Sage Green */
-            color: white;
-            box-shadow: 0 0 15px #9DC183, 0 0 30px rgba(157, 193, 131, 0.4);
+            color: #9DC183; /* Sage Green */
             transform: translateY(-5px);
-            border-color: #9DC183;
         }
         
         .bottom-nav-item:hover {
