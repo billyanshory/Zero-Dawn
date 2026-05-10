@@ -210,20 +210,21 @@ NAVBAR_HTML = """
         }
         .menu-card {
             position: fixed;
-            top: 20px;
-            left: 20px;
-            right: 20px;
-            bottom: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(30px);
-            -webkit-backdrop-filter: blur(30px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
-            border-radius: 30px;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: none;
+            box-shadow: none;
+            border-radius: 0;
             display: flex;
             flex-direction: column;
-            padding: 40px;
+            padding: 60px 40px;
             color: white;
+            overflow-y: auto;
         }
         .close-btn {
             position: absolute;
@@ -1970,7 +1971,7 @@ HTML_DOREMI_CONTENT = """
         .piano-container {
             position: relative;
             display: flex;
-            justify-content: center;
+        justify-content: flex-start;
             padding: 20px;
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
@@ -2602,8 +2603,10 @@ RHYTHM_TRAINER_HTML = """
     
     // Fix for touchscreen tap
     container.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        registerHit();
+        if (isPlaying) {
+            e.preventDefault();
+            registerHit();
+        }
     });
 </script>
 """
@@ -2618,7 +2621,7 @@ VISUAL_CHORD_HTML = """
     .piano-container {
         position: relative;
         display: flex;
-        justify-content: center;
+        justify-content: flex-start;
         padding: 20px;
         background: rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(10px);
@@ -2797,7 +2800,6 @@ VISUAL_CHORD_HTML = """
             let keyEl = document.querySelector(`[data-note="${targetNote}"]`);
             if(keyEl) {
                 keyEl.classList.add(glowClass);
-                keyEl.innerHTML = `<div class="key-sticker">${fingerings[index]}</div>`;
             }
         });
     }
