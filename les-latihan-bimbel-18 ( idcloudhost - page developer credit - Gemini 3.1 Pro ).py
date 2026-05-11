@@ -3965,43 +3965,108 @@ DEVELOPER_HTML_CONTENT = """
         
         <p class="text-white opacity-50 small mb-2"><i class="fas fa-music me-2"></i>Sempurna (2006) - Andra & The Backbone (Covered by BBIBEEB)</p>
         
-        <audio autoplay loop controls style="width: 100%; max-width: 400px; border-radius: 10px; opacity: 0.8;">
+        <audio id="bg-audio" loop style="display: none;">
             <source src="/static/Perfection(compressed).m4a" type="audio/mp4">
-            Your browser does not support the audio element.
-        </audio>
+            </audio>
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                var audio = document.getElementById("bg-audio");
+                var isPlaying = false;
+
+                function playAudio() {
+                    if (isPlaying) return;
+                    audio.volume = 0.3;
+                    var playPromise = audio.play();
+
+                    if (playPromise !== undefined) {
+                        playPromise.then(function() {
+                            isPlaying = true;
+                            var fadeDuration = 6000;
+                            var fadeInterval = 50;
+                            var targetVolume = 0.6;
+                            var startVolume = 0.3;
+                            var steps = fadeDuration / fadeInterval;
+                            var volumeStep = (targetVolume - startVolume) / steps;
+                            var currentStep = 0;
+                            var fadeTimer = setInterval(function() {
+                                currentStep++;
+                                if (currentStep >= steps) {
+                                    audio.volume = targetVolume;
+                                    clearInterval(fadeTimer);
+                                } else {
+                                    var nextVol = audio.volume + volumeStep;
+                                    if (nextVol <= targetVolume && nextVol >= 0 && nextVol <= 1) {
+                                        audio.volume = nextVol;
+                                    }
+                                }
+                            }, fadeInterval);
+                        }).catch(function(error) {
+                            console.log("Autoplay prevented:", error);
+                        });
+                    }
+                }
+                playAudio();
+                document.addEventListener("click", playAudio, { once: true });
+                document.addEventListener("touchstart", playAudio, { once: true });
+                document.addEventListener("keydown", playAudio, { once: true });
+            });
+        </script>
     </div>
 </div>
 
 <!-- Portfolio Modal -->
 <div class="modal fade" id="portfolioModal" tabindex="-1" style="z-index: 99999;">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content glass-panel text-white" style="background: rgba(30, 30, 30, 0.95); backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px;">
-            <div class="modal-header border-0">
-                <h5 class="modal-title fw-bold">Our Current Work</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content glass-panel text-white" style="background: rgba(30, 30, 30, 0.7); backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px;">
+            <div class="modal-header border-0 d-flex justify-content-center w-100 position-relative">
+                <h3 class="modal-title fw-bold text-center w-100 m-0">Our Current Work</h3>
+                <button type="button" class="btn-close btn-close-white position-absolute end-0 me-3" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <div class="list-group list-group-flush bg-transparent">
-                    <a href="https://alhijrahdelima.com/" class="list-group-item list-group-item-action bg-transparent text-white border-light border-opacity-25" target="_blank">
-                        <div class="fw-bold mb-1">Logo Masjid - Masjid Al-Hijrah</div>
-                        <small class="text-info">https://alhijrahdelima.com/</small>
-                    </a>
-                    <a href="https://tahkilfc.com/" class="list-group-item list-group-item-action bg-transparent text-white border-light border-opacity-25" target="_blank">
-                        <div class="fw-bold mb-1">Logo Pemburu - GambitHunter</div>
-                        <small class="text-info">https://tahkilfc.com/</small>
-                    </a>
-                    <a href="https://tahkilfc.com/slb/" class="list-group-item list-group-item-action bg-transparent text-white border-light border-opacity-25" target="_blank">
-                        <div class="fw-bold mb-1">Logo Sekolah - Sekolah Luar Biasa</div>
-                        <small class="text-info">https://tahkilfc.com/slb/</small>
-                    </a>
-                    <a href="https://b1l14n50r1.pythonanywhere.com/" class="list-group-item list-group-item-action bg-transparent text-white border-0" target="_blank">
-                        <div class="fw-bold mb-1">Logo Ular (Python) - Klinik</div>
-                        <small class="text-info">https://b1l14n50r1.pythonanywhere.com/</small>
-                    </a>
+            <div class="modal-body p-4">
+                <div class="row g-4 justify-content-center">
+                    <!-- Card 1: Masjid -->
+                    <div class="col-12 col-md-4">
+                        <div class="glass-panel text-center p-4 h-100 d-flex flex-column align-items-center justify-content-center" style="background: rgba(255, 255, 255, 0.1); border-radius: 15px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);">
+                            <h5 class="fw-bold mb-4">MASJID AL-HIJRAH</h5>
+                            <a href="https://alhijrahdelima.com/" target="_blank" class="btn btn-outline-light rounded-circle d-flex align-items-center justify-content-center transition-all hover-scale" style="width: 80px; height: 80px; font-size: 2rem;">
+                                <i class="fas fa-mosque"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: GambitHunter -->
+                    <div class="col-12 col-md-4">
+                        <div class="glass-panel text-center p-4 h-100 d-flex flex-column align-items-center justify-content-center" style="background: rgba(255, 255, 255, 0.1); border-radius: 15px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);">
+                            <h5 class="fw-bold mb-4">GAMBITHUNTER</h5>
+                            <a href="https://tahkilfc.com/" target="_blank" class="btn btn-outline-light rounded-circle d-flex align-items-center justify-content-center transition-all hover-scale" style="width: 80px; height: 80px; font-size: 2rem;">
+                                <i class="fas fa-crosshairs"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Sekolah Luar Biasa -->
+                    <div class="col-12 col-md-4">
+                        <div class="glass-panel text-center p-4 h-100 d-flex flex-column align-items-center justify-content-center" style="background: rgba(255, 255, 255, 0.1); border-radius: 15px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);">
+                            <h5 class="fw-bold mb-4">SEKOLAH LUAR BIASA</h5>
+                            <a href="https://tahkilfc.com/slb/" target="_blank" class="btn btn-outline-light rounded-circle d-flex align-items-center justify-content-center transition-all hover-scale" style="width: 80px; height: 80px; font-size: 2rem;">
+                                <i class="fas fa-school"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Card 4: Klinik -->
+                    <div class="col-12 col-md-4">
+                        <div class="glass-panel text-center p-4 h-100 d-flex flex-column align-items-center justify-content-center" style="background: rgba(255, 255, 255, 0.1); border-radius: 15px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);">
+                            <h5 class="fw-bold mb-4">KLINIK</h5>
+                            <a href="https://b1l14n50r1.pythonanywhere.com/" target="_blank" class="btn btn-outline-light rounded-circle d-flex align-items-center justify-content-center transition-all hover-scale" style="width: 80px; height: 80px; font-size: 2rem;">
+                                <i class="fab fa-python"></i>
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="modal-footer border-0">
-                <button type="button" class="btn btn-outline-light rounded-pill" data-bs-dismiss="modal">Tutup</button>
+            <div class="modal-footer border-0 justify-content-center">
+                <button type="button" class="btn btn-outline-light rounded-pill px-5" data-bs-dismiss="modal">Tutup</button>
             </div>
         </div>
     </div>
