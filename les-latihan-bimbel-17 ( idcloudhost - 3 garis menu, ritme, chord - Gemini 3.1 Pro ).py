@@ -771,6 +771,7 @@ BASE_LAYOUT = """
         <footer class="main-footer" style="background: transparent; border: none; color: rgba(255,255,255,0.7); padding: 20px; text-align: center;">
             <div class="container">
                 <p>&copy; 2026 LES BIMBEL GAMBAR & MUSIK - All Rights Reserved. "We Making The Time"</p>
+                <a href="/developer" class="btn btn-sm btn-outline-light mt-2" style="border-radius: 20px; text-decoration: none;">Pembuat Aplikasi</a>
             </div>
         </footer>
     </div>
@@ -3911,6 +3912,100 @@ JAMMING_TRACK_HTML = """
     // Set initial volume
     audioEl.volume = volumeSlider.value;
 </script>
+"""
+
+@app.route('/developer')
+def developer():
+    return render_layout(DEVELOPER_HTML_CONTENT)
+
+DEVELOPER_HTML_CONTENT = """
+<div class="container d-flex flex-column justify-content-center align-items-center mb-5" style="min-height: 80vh; padding-top: 20px;">
+    <div class="glass-panel text-center w-100 position-relative overflow-hidden" style="border-radius: 30px; max-width: 600px; padding: 40px 20px; backdrop-filter: blur(20px);">
+        <a href="/" class="position-absolute top-0 end-0 m-3 text-white text-decoration-none" style="font-size: 1.5rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><i class="fas fa-times"></i></a>
+
+        <div class="position-absolute top-0 start-0 w-100 h-100 bg-gradient-dark opacity-10" style="z-index: -1;"></div>
+
+        <h2 class="text-white fw-bold text-uppercase letter-spacing-2 mb-3">DEVELOPER</h2>
+
+        <h4 class="text-white fw-bold mb-4">SAMARINDA WEB CREATIVE</h4>
+
+        <img src="/static/swclogo.png" alt="Samarinda Web Creative Logo" style="max-width: 150px; margin-bottom: 30px;">
+
+        <h4 class="text-white fw-bold mb-4">PIHAK KETIGA</h4>
+
+        <div class="d-flex flex-column align-items-center gap-3 mb-4">
+            <img src="/static/pythonlogo.png" alt="Python Logo" style="max-width: 120px;">
+            <img src="/static/idcloudhost-logo.png" alt="IDCloudHost Logo" style="max-width: 180px;">
+            <div class="d-flex align-items-center justify-content-center gap-3">
+                <img src="/static/linuxlogo.png" alt="Linux Logo" style="max-width: 80px;">
+                <span class="text-white fw-bold fs-4">x</span>
+                <img src="/static/ubuntulogo.png" alt="Ubuntu Logo" style="max-width: 80px;">
+            </div>
+        </div>
+
+        <p class="text-white opacity-75 mb-4">
+            Samarinda, Kalimantan Timur,<br>
+            Jln. Delima Dalam, Blok. E, RT. 53
+        </p>
+
+        <p class="text-white fst-italic mb-4">"kalau butuh jasa pembuatan aplikasi website seperti ini, hubungi kami yaa hehee"</p>
+
+        <div class="d-flex justify-content-center gap-3 mb-4">
+            <!-- Instagram Button -->
+            <a href="https://www.instagram.com/samarindawebcreative?igsh=MTVqNnpydmVmazZzaA==" class="btn btn-outline-light rounded-circle" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;" target="_blank">
+                <i class="fab fa-instagram fs-4"></i>
+            </a>
+
+            <!-- Portfolio Button -->
+            <button class="btn btn-outline-light rounded-pill d-flex align-items-center gap-2 px-4" data-bs-toggle="modal" data-bs-target="#portfolioModal">
+                <img src="/static/piton.png" alt="Piton Logo" style="width: 24px; height: 24px; object-fit: contain;">
+                See Our Current Work
+            </button>
+        </div>
+
+        <p class="text-white opacity-50 small mb-2"><i class="fas fa-music me-2"></i>Sempurna (2006) - Andra & The Backbone (Covered by BBIBEEB)</p>
+
+        <audio autoplay loop controls style="width: 100%; max-width: 400px; border-radius: 10px; opacity: 0.8;">
+            <source src="/static/Perfection(compressed).m4a" type="audio/mp4">
+            Your browser does not support the audio element.
+        </audio>
+    </div>
+</div>
+
+<!-- Portfolio Modal -->
+<div class="modal fade" id="portfolioModal" tabindex="-1" style="z-index: 99999;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-panel text-white" style="background: rgba(30, 30, 30, 0.95); backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px;">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Our Current Work</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="list-group list-group-flush bg-transparent">
+                    <a href="https://alhijrahdelima.com/" class="list-group-item list-group-item-action bg-transparent text-white border-light border-opacity-25" target="_blank">
+                        <div class="fw-bold mb-1">Logo Masjid - Masjid Al-Hijrah</div>
+                        <small class="text-info">https://alhijrahdelima.com/</small>
+                    </a>
+                    <a href="https://tahkilfc.com/" class="list-group-item list-group-item-action bg-transparent text-white border-light border-opacity-25" target="_blank">
+                        <div class="fw-bold mb-1">Logo Pemburu - GambitHunter</div>
+                        <small class="text-info">https://tahkilfc.com/</small>
+                    </a>
+                    <a href="https://tahkilfc.com/slb/" class="list-group-item list-group-item-action bg-transparent text-white border-light border-opacity-25" target="_blank">
+                        <div class="fw-bold mb-1">Logo Sekolah - Sekolah Luar Biasa</div>
+                        <small class="text-info">https://tahkilfc.com/slb/</small>
+                    </a>
+                    <a href="https://b1l14n50r1.pythonanywhere.com/" class="list-group-item list-group-item-action bg-transparent text-white border-0" target="_blank">
+                        <div class="fw-bold mb-1">Logo Ular (Python) - Klinik</div>
+                        <small class="text-info">https://b1l14n50r1.pythonanywhere.com/</small>
+                    </a>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-light rounded-pill" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
 """
 
 if __name__ == '__main__':
